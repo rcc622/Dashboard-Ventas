@@ -1,0 +1,118 @@
+{
+  "source": "hubspot",
+  "_generado": "2026-07-26T11:00:00-06:00",
+  "_nota": "Contrato agnóstico al CRM. Al migrar a Kommo se cambia 'source' y el extractor que escribe este archivo; los nombres de campo NO cambian. Ver dashboard.py para el contrato completo.",
+  "window_7d": {
+    "start": "2026-07-19",
+    "end": "2026-07-26"
+  },
+  "window_30d": {
+    "start": "2026-06-26",
+    "end": "2026-07-26"
+  },
+  "meta_origen_set": [
+    "Wapp-FB",
+    "Redes Sociales",
+    "FB-form",
+    "Instagram",
+    "Wapp-IG",
+    "WA-FB D",
+    "WA-IG D"
+  ],
+  "leads_by_origen_7d": {
+    "FB-form": 455,
+    "Wapp-FB": 302,
+    "Unassigned": 61,
+    "Web Form": 21,
+    "Referido": 13,
+    "Directo": 6,
+    "Cita": 2
+  },
+  "leads_total_7d": 860,
+  "leads_unassigned_7d": 624,
+  "leads_meta_30d": 3079,
+  "leads_total_30d": 3666,
+  "ttc_meta_30d_days": 81.54,
+  "ttc_blended_30d_days": 58.63,
+  "assigned_meta_by_zone_7d": {
+    "MTY": 51,
+    "SLT": 24,
+    "TRC": 91,
+    "MVA": 22
+  },
+  "assigned_by_rep_7d": [
+    {
+      "rep": "Juan Martínez",
+      "zone": "TRC",
+      "leads": 33
+    },
+    {
+      "rep": "Oscar Regalado",
+      "zone": "TRC",
+      "leads": 32,
+      "nota": "no estaba en el padrón de junio"
+    },
+    {
+      "rep": "Carolina Solís",
+      "zone": "TRC",
+      "leads": 26
+    },
+    {
+      "rep": "Mara Gálvez",
+      "zone": "MTY",
+      "leads": 20
+    },
+    {
+      "rep": "Yazmín González",
+      "zone": "MTY",
+      "leads": 17
+    },
+    {
+      "rep": "Carlos Campillo",
+      "zone": "MTY",
+      "leads": 14
+    },
+    {
+      "rep": "José Luis Villarreal",
+      "zone": "MVA",
+      "leads": 11
+    },
+    {
+      "rep": "Edgar Álvarez",
+      "zone": "MVA",
+      "leads": 11
+    },
+    {
+      "rep": "Mildred García",
+      "zone": "SLT",
+      "leads": 9
+    },
+    {
+      "rep": "Mónica Muñiz",
+      "zone": "SLT",
+      "leads": 8
+    },
+    {
+      "rep": "Elizabeth Cadena",
+      "zone": "SLT",
+      "leads": 7
+    }
+  ],
+  "_roster_nota": "Equipos confirmados en HubSpot 2026-07-26: MTY 3 (Yazmin, Mara, Carlos), TRC 3 (Juan, Oscar, Carolina), SLT 3 (Mildred, Elizabeth, Monica), MVA 2 (Jose Luis, Edgar). Cinthia G. Heredia no pertenece a ningun equipo. Said Ceron y Samuel Giacoman estan en el equipo 'Lead', sin zona.",
+  "won_7d": {
+    "count": 19,
+    "mxn": 1623910
+  },
+  "won_30d": {
+    "count": 88,
+    "mxn": 9774100.76
+  },
+  "won_meta_7d": {
+    "count": 10,
+    "mxn": 683910
+  },
+  "won_meta_30d": {
+    "count": 37,
+    "mxn": 2442304.2
+  }
+}

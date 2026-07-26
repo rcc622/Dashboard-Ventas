@@ -1,0 +1,15 @@
+# Nunca subir credenciales
+.env
+.env.*
+!.env.example
+
+# Datos generados en cada corrida
+out/
+data/*.json
+data/*.txt
+data/*.csv
+!data/crm_recon.json
+
+__pycache__/
+*.pyc
+.DS_Store
