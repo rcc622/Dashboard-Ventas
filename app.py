@@ -239,9 +239,25 @@ class H(BaseHTTPRequestHandler):
         return self._send(202, json.dumps({"ok": True}), "application/json")
 
 
+def sembrar_datos():
+    """Si DATA apunta a un volumen recién creado, copia el corte de CRM que viene
+    en el repo para que el primer arranque tenga de dónde partir aunque falte token."""
+    semilla = os.path.join(HERE, "data", "crm_recon.json")
+    destino = os.path.join(DATA, "crm_recon.json")
+    if os.path.abspath(semilla) == os.path.abspath(destino) or os.path.exists(destino):
+        return
+    try:
+        import shutil
+        shutil.copy2(semilla, destino)
+        print("Sembrado el corte inicial de CRM en %s" % destino, flush=True)
+    except Exception as e:
+        print("No se pudo sembrar el corte inicial: %s" % e, flush=True)
+
+
 if __name__ == "__main__":
     os.makedirs(DATA, exist_ok=True)
     os.makedirs(OUT, exist_ok=True)
+    sembrar_datos()
     _estado["arranques"] += 1
     if not (USER and PASS):
         print("AVISO: faltan DASH_USER/DASH_PASS — el servicio responderá 401 a todo.", flush=True)
