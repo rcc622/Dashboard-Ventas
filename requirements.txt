@@ -1,0 +1,2 @@
+# Sin dependencias: todo el servicio corre con la biblioteca estándar de Python.
+# El archivo existe porque Nixpacks lo usa para detectar que esto es un proyecto Python.
