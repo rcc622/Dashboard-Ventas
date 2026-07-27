@@ -223,6 +223,25 @@ class H(BaseHTTPRequestHandler):
         print("INSTRUCCIÓN encolada: %s — %s" % (fila["accion"][:60], texto[:120]), flush=True)
         return self._send(201, json.dumps({"ok": True}), "application/json")
 
+    def _cerrar(self):
+        """Marca una instrucción como aplicada. La cola es append-only: se agrega
+        una línea de cierre en vez de reescribir el archivo, así dos escrituras a
+        la vez no se pisan y queda el rastro de cuándo se aplicó."""
+        try:
+            n = int(self.headers.get("Content-Length") or 0)
+            body = json.loads(self.rfile.read(min(n, 4000)).decode("utf-8") or "{}")
+        except Exception:
+            return self._send(400, json.dumps({"error": "json inválido"}), "application/json")
+        ts = (body.get("ts") or "").strip()
+        if not ts:
+            return self._send(400, json.dumps({"error": "falta ts"}), "application/json")
+        fila = {"ts": ts, "estado": "hecho", "cerrado": ahora().isoformat(timespec="seconds"),
+                "nota": str(body.get("nota") or "")[:600]}
+        with _lock:
+            with open(COLA, "a", encoding="utf-8") as f:
+                f.write(json.dumps(fila, ensure_ascii=False) + "\n")
+        return self._send(200, json.dumps({"ok": True}), "application/json")
+
     def _cola(self):
         """Lo que está pendiente de aplicar. De aquí lo leo yo cuando abras sesión."""
         filas = []
@@ -235,9 +254,13 @@ class H(BaseHTTPRequestHandler):
                             filas.append(json.loads(ln))
                         except Exception:
                             pass
-        pend = [x for x in filas if x.get("estado") == "pendiente"]
-        return self._send(200, json.dumps({"pendientes": len(pend), "cola": filas},
-                                          ensure_ascii=False), "application/json")
+        # Una instrucción sigue pendiente mientras nadie haya escrito su cierre.
+        cerrados = {x["ts"] for x in filas if x.get("estado") == "hecho"}
+        pend = [x for x in filas
+                if x.get("estado") == "pendiente" and x["ts"] not in cerrados]
+        return self._send(200, json.dumps(
+            {"pendientes": len(pend), "cola": pend, "historial": len(filas)},
+            ensure_ascii=False), "application/json")
 
     def _pide_auth(self):
         cuerpo = ("<h1>Dashboard Kenet</h1><p>Acceso restringido.</p>"
@@ -282,6 +305,8 @@ class H(BaseHTTPRequestHandler):
             return self._pide_auth()
         if self.path.startswith("/instruccion"):
             return self._encolar()
+        if self.path.startswith("/cola/hecho"):
+            return self._cerrar()
         if not self.path.startswith("/refrescar"):
             return self._send(404, "no")
         with _lock:
