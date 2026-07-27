@@ -134,14 +134,24 @@ def probe():
     print("\nToken OK. %d owners en total." % len(o))
 
 
+VENTANAS = (7, 14, 28)
+
+
 def build(dias=7):
     hoy = date.today()
     ini7, ini30 = hoy - timedelta(days=dias), hoy - timedelta(days=30)
     own = owners()
 
     props_c = ["origen", "ciudad", "hubspot_owner_id", "createdate"]
-    c7 = list(search("contacts", rango("createdate", ini7, hoy), props_c))
     c30 = list(search("contacts", rango("createdate", ini30, hoy), props_c))
+
+    # Los contactos de 7, 14 y 28 días son subconjuntos de los de 30: se filtran
+    # en memoria en vez de hacer tres búsquedas más contra la API.
+    def desde(d):
+        corte = (hoy - timedelta(days=d)).isoformat()
+        return [c for c in c30 if (c["properties"].get("createdate") or "")[:10] >= corte]
+
+    c7 = desde(dias)
     props_d = ["origen", "amount", "closedate", "days_to_close", "hs_is_closed_won"]
     d30 = [d for d in search("deals", rango("closedate", ini30, hoy), props_d)
            if str((d.get("properties") or {}).get("hs_is_closed_won")).lower() == "true"]
@@ -182,7 +192,31 @@ def build(dias=7):
     dm7 = [d for d in d7 if es_meta(d["properties"])]
     dm30 = [d for d in d30 if es_meta(d["properties"])]
 
+    # Mismo corte para 7, 14 y 28 días, para que el dashboard pueda mover la
+    # ventana sin que la parte del CRM se quede congelada en 7.
+    por_ventana = {}
+    for v in VENTANAS:
+        cs = desde(v)
+        metas = [c for c in cs if es_meta(c["properties"])]
+        asignados = sum(1 for c in metas if c["properties"].get("hubspot_owner_id"))
+        zona = {}
+        for c in metas:
+            if not c["properties"].get("hubspot_owner_id"):
+                continue
+            z = CIUDAD_A_ZONA.get(c["properties"].get("ciudad") or "", "")
+            if z:
+                zona[z] = zona.get(z, 0) + 1
+        corte = (hoy - timedelta(days=v)).isoformat()
+        wv = [d for d in dm30 if (d["properties"].get("closedate") or "")[:10] >= corte]
+        por_ventana[str(v)] = {
+            "leads_total": len(cs), "leads_meta": len(metas),
+            "asignados": asignados,
+            "asignados_por_zona": {z: zona.get(z, 0) for z in ("MTY", "SLT", "TRC", "MVA")},
+            "won_meta": suma(wv),
+        }
+
     return {
+        "por_ventana": por_ventana,
         "source": "hubspot",
         "_generado": datetime.now(TZ).isoformat(timespec="seconds"),
         "window_7d": {"start": ini7.isoformat(), "end": hoy.isoformat()},

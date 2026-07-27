@@ -1,118 +1,172 @@
 {
+  "por_ventana": {
+    "7": {
+      "leads_total": 919,
+      "leads_meta": 814,
+      "asignados": 147,
+      "asignados_por_zona": {
+        "MTY": 23,
+        "SLT": 22,
+        "TRC": 80,
+        "MVA": 20
+      },
+      "won_meta": {
+        "count": 10,
+        "mxn": 683910.0
+      }
+    },
+    "14": {
+      "leads_total": 1657,
+      "leads_meta": 1425,
+      "asignados": 514,
+      "asignados_por_zona": {
+        "MTY": 236,
+        "SLT": 37,
+        "TRC": 193,
+        "MVA": 42
+      },
+      "won_meta": {
+        "count": 18,
+        "mxn": 1355910.0
+      }
+    },
+    "28": {
+      "leads_total": 3488,
+      "leads_meta": 2966,
+      "asignados": 1622,
+      "asignados_por_zona": {
+        "MTY": 796,
+        "SLT": 139,
+        "TRC": 540,
+        "MVA": 136
+      },
+      "won_meta": {
+        "count": 32,
+        "mxn": 2191304.2
+      }
+    }
+  },
   "source": "hubspot",
-  "_generado": "2026-07-26T11:00:00-06:00",
-  "_nota": "Contrato agnóstico al CRM. Al migrar a Kommo se cambia 'source' y el extractor que escribe este archivo; los nombres de campo NO cambian. Ver dashboard.py para el contrato completo.",
+  "_generado": "2026-07-27T06:26:43-06:00",
   "window_7d": {
-    "start": "2026-07-19",
-    "end": "2026-07-26"
+    "start": "2026-07-20",
+    "end": "2026-07-27"
   },
   "window_30d": {
-    "start": "2026-06-26",
-    "end": "2026-07-26"
+    "start": "2026-06-27",
+    "end": "2026-07-27"
   },
   "meta_origen_set": [
+    "FB-form",
     "Wapp-FB",
     "Redes Sociales",
-    "FB-form",
     "Instagram",
     "Wapp-IG",
     "WA-FB D",
     "WA-IG D"
   ],
   "leads_by_origen_7d": {
-    "FB-form": 455,
-    "Wapp-FB": 302,
-    "Unassigned": 61,
-    "Web Form": 21,
-    "Referido": 13,
+    "FB-form": 504,
+    "Wapp-FB": 310,
+    "Unassigned": 66,
+    "Web Form": 18,
     "Directo": 6,
+    "Referido": 13,
     "Cita": 2
   },
-  "leads_total_7d": 860,
-  "leads_unassigned_7d": 624,
-  "leads_meta_30d": 3079,
-  "leads_total_30d": 3666,
-  "ttc_meta_30d_days": 81.54,
-  "ttc_blended_30d_days": 58.63,
+  "leads_total_7d": 919,
+  "leads_unassigned_7d": 744,
+  "leads_meta_30d": 3097,
+  "leads_total_30d": 3648,
+  "ttc_meta_30d_days": 86.2,
+  "ttc_blended_30d_days": 60.19,
   "assigned_meta_by_zone_7d": {
-    "MTY": 51,
-    "SLT": 24,
-    "TRC": 91,
-    "MVA": 22
+    "MTY": 23,
+    "SLT": 22,
+    "TRC": 80,
+    "MVA": 20
   },
   "assigned_by_rep_7d": [
     {
-      "rep": "Juan Martínez",
-      "zone": "TRC",
-      "leads": 33
-    },
-    {
       "rep": "Oscar Regalado",
       "zone": "TRC",
-      "leads": 32,
-      "nota": "no estaba en el padrón de junio"
+      "leads": 28
     },
     {
-      "rep": "Carolina Solís",
+      "rep": "JUAN MARTINEZ",
       "zone": "TRC",
-      "leads": 26
+      "leads": 27
     },
     {
-      "rep": "Mara Gálvez",
-      "zone": "MTY",
-      "leads": 20
-    },
-    {
-      "rep": "Yazmín González",
-      "zone": "MTY",
-      "leads": 17
+      "rep": "Carolina Solís Ruiz de Esparza",
+      "zone": "TRC",
+      "leads": 25
     },
     {
       "rep": "Carlos Campillo",
       "zone": "MTY",
-      "leads": 14
+      "leads": 10
     },
     {
-      "rep": "José Luis Villarreal",
+      "rep": "Jose Luis Villarreal",
       "zone": "MVA",
-      "leads": 11
+      "leads": 10
     },
     {
-      "rep": "Edgar Álvarez",
+      "rep": "Edgar Alvarez",
       "zone": "MVA",
-      "leads": 11
+      "leads": 10
     },
     {
-      "rep": "Mildred García",
-      "zone": "SLT",
-      "leads": 9
-    },
-    {
-      "rep": "Mónica Muñiz",
+      "rep": "Mildred Garcia",
       "zone": "SLT",
       "leads": 8
+    },
+    {
+      "rep": "Yazmin Gonzalez",
+      "zone": "MTY",
+      "leads": 7
     },
     {
       "rep": "Elizabeth Cadena",
       "zone": "SLT",
       "leads": 7
+    },
+    {
+      "rep": "Monica Muñiz",
+      "zone": "SLT",
+      "leads": 7
+    },
+    {
+      "rep": "Mara Galvez",
+      "zone": "MTY",
+      "leads": 6
+    },
+    {
+      "rep": "Samuel Giacoman Marcos",
+      "zone": "",
+      "leads": 1
+    },
+    {
+      "rep": "Samuel Giacoman Marcos",
+      "zone": "MTY",
+      "leads": 1
     }
   ],
-  "_roster_nota": "Equipos confirmados en HubSpot 2026-07-26: MTY 3 (Yazmin, Mara, Carlos), TRC 3 (Juan, Oscar, Carolina), SLT 3 (Mildred, Elizabeth, Monica), MVA 2 (Jose Luis, Edgar). Cinthia G. Heredia no pertenece a ningun equipo. Said Ceron y Samuel Giacoman estan en el equipo 'Lead', sin zona.",
   "won_7d": {
     "count": 19,
-    "mxn": 1623910
+    "mxn": 1623910.0
   },
   "won_30d": {
-    "count": 88,
-    "mxn": 9774100.76
+    "count": 85,
+    "mxn": 9570100.76
   },
   "won_meta_7d": {
     "count": 10,
-    "mxn": 683910
+    "mxn": 683910.0
   },
   "won_meta_30d": {
-    "count": 37,
-    "mxn": 2442304.2
+    "count": 35,
+    "mxn": 2348304.2
   }
 }
