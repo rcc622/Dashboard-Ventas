@@ -34,6 +34,9 @@ REFRESH_HOURS = float(os.environ.get("REFRESH_HOURS", "6"))
 USER = os.environ.get("DASH_USER", "")
 PASS = os.environ.get("DASH_PASS", "")
 TZ = timezone(timedelta(hours=-6))   # America/Monterrey
+# Cola de instrucciones escritas desde el dashboard. Vive en el volumen para
+# que sobreviva a los deploys; el servicio solo la escribe, nunca la ejecuta.
+COLA = os.path.join(DATA, "instrucciones.jsonl")
 
 _estado = {
     "ultimo_intento": None, "ultimo_exito": None, "ok": None,
@@ -190,6 +193,52 @@ class H(BaseHTTPRequestHandler):
         # compare_digest para no filtrar la contraseña por tiempo de respuesta
         return hmac.compare_digest(u, USER) and hmac.compare_digest(p, PASS)
 
+    def _encolar(self):
+        """Guarda una instrucción escrita en el dashboard. NO ejecuta nada.
+
+        El servicio no toca Meta ni el CRM: solo deja el texto en la cola del
+        volumen para que alguien con permisos de escritura lo aplique. Pausar
+        campañas mueve dinero; que lo haga un endpoint HTTP sin nadie viendo es
+        justo lo que no queremos.
+        """
+        try:
+            n = int(self.headers.get("Content-Length") or 0)
+            if n > 8000:
+                return self._send(413, json.dumps({"error": "muy largo"}), "application/json")
+            body = json.loads(self.rfile.read(n).decode("utf-8") or "{}")
+        except Exception:
+            return self._send(400, json.dumps({"error": "json inválido"}), "application/json")
+        texto = (body.get("texto") or "").strip()
+        if not texto:
+            return self._send(400, json.dumps({"error": "vacío"}), "application/json")
+        fila = {"ts": datetime.now(TZ).isoformat(timespec="seconds"),
+                "accion": str(body.get("accion") or "")[:200],
+                "texto": texto[:4000], "estado": "pendiente"}
+        with _lock:
+            try:
+                with open(COLA, "a", encoding="utf-8") as f:
+                    f.write(json.dumps(fila, ensure_ascii=False) + "\n")
+            except Exception as e:
+                return self._send(500, json.dumps({"error": str(e)}), "application/json")
+        print("INSTRUCCIÓN encolada: %s — %s" % (fila["accion"][:60], texto[:120]), flush=True)
+        return self._send(201, json.dumps({"ok": True}), "application/json")
+
+    def _cola(self):
+        """Lo que está pendiente de aplicar. De aquí lo leo yo cuando abras sesión."""
+        filas = []
+        if os.path.exists(COLA):
+            with open(COLA, encoding="utf-8") as f:
+                for ln in f:
+                    ln = ln.strip()
+                    if ln:
+                        try:
+                            filas.append(json.loads(ln))
+                        except Exception:
+                            pass
+        pend = [x for x in filas if x.get("estado") == "pendiente"]
+        return self._send(200, json.dumps({"pendientes": len(pend), "cola": filas},
+                                          ensure_ascii=False), "application/json")
+
     def _pide_auth(self):
         cuerpo = ("<h1>Dashboard Kenet</h1><p>Acceso restringido.</p>"
                   if USER and PASS else
@@ -204,6 +253,8 @@ class H(BaseHTTPRequestHandler):
                               "application/json")
         if not self._autorizado():
             return self._pide_auth()
+        if ruta == "/cola":
+            return self._cola()
         if ruta == "/estado":
             with _lock:
                 return self._send(200, json.dumps(_estado, ensure_ascii=False),
@@ -229,6 +280,8 @@ class H(BaseHTTPRequestHandler):
     def do_POST(self):
         if not self._autorizado():
             return self._pide_auth()
+        if self.path.startswith("/instruccion"):
+            return self._encolar()
         if not self.path.startswith("/refrescar"):
             return self._send(404, "no")
         with _lock:
