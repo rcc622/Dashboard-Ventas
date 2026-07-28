@@ -121,8 +121,48 @@ una, el anuncio entra a revisión:
 | **Caro para su zona** | costo por resultado > 3× la mediana de su zona, con ≥15 resultados | hay otro anuncio de la misma ciudad haciendo lo mismo por un tercio |
 | **Sobre el CPL tope** | costo por resultado > `META_CPL_FORM` / `META_CPL_WA`, con ≥8 resultados | solo si el límite está configurado; sale del CPL máximo del unit economics |
 
-`meta.py autopause` corre en **dry-run por default**; pausa solo con `--go`.
-Guardrail permanente: **nunca toca campañas cuyo nombre empiece con `KE`**.
+**Frecuencia alta (≥2.5) no es motivo de pausa**, es aviso temprano. Aparece en
+la tabla pero no ofrece botón ni la toca `autopause`.
+
+El CPL tope sale de: `ticket × margen bruto × conversión lead→venta`. Con el
+corte de 2026-07-27 (ticket $67,094 · conversión 1.13%) el punto de equilibrio
+es ~$190 con margen de 25%; el techo útil es la mitad. **Ojo con la conversión**:
+divide ventas de este mes entre leads de este mes, pero el ciclo son 86 días, así
+que si el volumen de leads creció el número real es más alto que el que sale ahí.
+
+La regla vive en **`meta.py evalua_pausa()`**, sin efectos, y la comparten los dos
+caminos que pausan. No la reimplementes en ningún lado: si la página marca algo
+distinto de lo que pausa el comando, alguien la duplicó.
+
+`meta.py autopause` corre en **dry-run por default**; pausa solo con `--go`, y
+trabaja a nivel **anuncio** (`level="ad"`, `post(ad_id, status=PAUSED)`).
+Guardrail permanente: **nunca toca campañas cuyo nombre empiece con `KE`** —
+`fila_pausa()` las devuelve como `None`, así que quedan fuera antes de evaluarse.
+
+### El botón de pausa del dashboard
+
+Es la **única** puerta de escritura de la página. `POST /pausar {"ad_ids":[…]}`.
+
+El navegador manda ids y nada más. El servidor **no le cree**: vuelve a pedirle
+los insights a Meta, vuelve a correr `evalua_pausa()` y solo pausa lo que **hoy**
+sigue tocando una regla. Editar el HTML, mandar un id a mano o apretar el botón
+sobre datos de hace seis horas no sirve de nada.
+
+Cuatro barreras, en orden:
+
+1. **Basic auth** — lo mismo que protege el dashboard.
+2. **Revalidación server-side** — el id tiene que estar en los candidatos de hoy.
+   Eso arrastra el guardrail KE gratis.
+3. **`PAUSA_MAX_POR_LOTE`** (default 5) — un botón que apaga 40 anuncios de un
+   clic no es un botón, es un accidente.
+4. **`PAUSA_ACTIVA=1`** — kill-switch. Sin él el endpoint contesta con el motivo
+   pero **no escribe**. Se quita en Railway sin redesplegar.
+
+Cada pausa aplicada queda en `data/pausas.jsonl` (append-only, en el volumen) y
+se consulta en `GET /pausas`. El botón solo aparece cuando el anuncio (a) toca
+una regla que **sí** justifica pausar —`MOTIVOS_PAUSA` en `dashboard.py`, o sea
+sin "Frecuencia alta", que es aviso— y (b) sigue entregando. Reactivar no se hace
+desde aquí: eso es Ads Manager.
 
 ## Estado de un anuncio
 

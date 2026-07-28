@@ -37,6 +37,14 @@ TZ = timezone(timedelta(hours=-6))   # America/Monterrey
 # Cola de instrucciones escritas desde el dashboard. Vive en el volumen para
 # que sobreviva a los deploys; el servicio solo la escribe, nunca la ejecuta.
 COLA = os.path.join(DATA, "instrucciones.jsonl")
+# Bitácora de pausas aplicadas desde la página. Append-only, en el volumen.
+PAUSAS = os.path.join(DATA, "pausas.jsonl")
+# Kill-switch: sin esto el endpoint contesta pero NO escribe a Meta. Se quita en
+# Railway sin redesplegar, que es justo lo que quieres cuando algo sale mal.
+PAUSA_ACTIVA = os.environ.get("PAUSA_ACTIVA", "") == "1"
+# Un botón que apaga 40 anuncios de un clic no es un botón, es un accidente.
+PAUSA_MAX = int(os.environ.get("PAUSA_MAX_POR_LOTE", "5") or 5)
+PRESET_PAUSA = os.environ.get("PAUSA_PRESET", "last_14d")
 
 _estado = {
     "ultimo_intento": None, "ultimo_exito": None, "ok": None,
@@ -223,6 +231,79 @@ class H(BaseHTTPRequestHandler):
         print("INSTRUCCIÓN encolada: %s — %s" % (fila["accion"][:60], texto[:120]), flush=True)
         return self._send(201, json.dumps({"ok": True}), "application/json")
 
+    def _pausar(self):
+        """Pausa anuncios marcados por la regla. La ÚNICA puerta de escritura
+        que tiene la página, y pasa por cuatro barreras.
+
+        Lo que manda el navegador es una lista de ids y nada más. El servidor
+        vuelve a pedirle a Meta los insights, vuelve a correr la regla y solo
+        pausa lo que HOY sigue tocándola. Si alguien edita el HTML, manda un id
+        a mano o el anuncio se recuperó desde el último refresh, no pasa: la
+        decisión no se toma con lo que llegó por HTTP.
+        """
+        try:
+            n = int(self.headers.get("Content-Length") or 0)
+            body = json.loads(self.rfile.read(min(n, 8000)).decode("utf-8") or "{}")
+        except Exception:
+            return self._send(400, json.dumps({"error": "json inválido"}), "application/json")
+        pedidos = [str(x) for x in (body.get("ad_ids") or []) if str(x).strip()]
+        if not pedidos:
+            return self._send(400, json.dumps({"error": "sin anuncios"}), "application/json")
+        if len(pedidos) > PAUSA_MAX:
+            return self._send(400, json.dumps(
+                {"error": "máximo %d anuncios por vez" % PAUSA_MAX}), "application/json")
+
+        try:
+            sys.path.insert(0, HERE)
+            import meta
+            flagged, err = meta.candidatos_pausa(PRESET_PAUSA)
+            if err is not None:
+                return self._send(502, json.dumps(
+                    {"error": "Meta no respondió", "detalle": str(err)[:300]}),
+                    "application/json")
+        except SystemExit as e:          # meta.py aborta si falta el token
+            return self._send(500, json.dumps({"error": str(e)[:200]}), "application/json")
+        except Exception as e:
+            return self._send(500, json.dumps({"error": repr(e)[:200]}), "application/json")
+
+        vigentes = {str(r["id"]): (r, motivos) for r, motivos in flagged}
+        resultados = []
+        for aid in pedidos:
+            if aid not in vigentes:
+                # Ya no toca ninguna regla, o vive en una campaña KE. No se toca.
+                resultados.append({"ad_id": aid, "ok": False,
+                                   "motivo": "ya no cumple ninguna regla de pausa"})
+                continue
+            r, motivos = vigentes[aid]
+            if not PAUSA_ACTIVA:
+                resultados.append({"ad_id": aid, "ok": False, "anuncio": r["name"],
+                                   "motivo": "PAUSA_ACTIVA no está en 1 (kill-switch)"})
+                continue
+            try:
+                rr = meta.post(aid, status="PAUSED")
+                bien = bool(rr.get("success", "error" not in rr))
+            except Exception as e:
+                rr, bien = {"error": repr(e)[:200]}, False
+            fila = {"ts": ahora().isoformat(timespec="seconds"), "ad_id": aid,
+                    "anuncio": r["name"], "adset": r["adset"], "zona": r["zone"],
+                    "spend": round(r["spend"], 2), "resultados": r["res"],
+                    "motivos": motivos, "ok": bien,
+                    "respuesta": str(rr)[:300], "por": USER}
+            with _lock:
+                try:
+                    with open(PAUSAS, "a", encoding="utf-8") as f:
+                        f.write(json.dumps(fila, ensure_ascii=False) + "\n")
+                except Exception:
+                    pass
+            print("PAUSA %s %s — %s" % ("OK" if bien else "FALLÓ", r["name"][:50],
+                                        "; ".join(motivos)), flush=True)
+            resultados.append({"ad_id": aid, "ok": bien, "anuncio": r["name"],
+                               "motivo": "; ".join(motivos) if bien else str(rr)[:160]})
+        hechas = sum(1 for x in resultados if x["ok"])
+        return self._send(200, json.dumps(
+            {"pausados": hechas, "activo": PAUSA_ACTIVA, "resultados": resultados},
+            ensure_ascii=False), "application/json")
+
     def _cerrar(self):
         """Marca una instrucción como aplicada. La cola es append-only: se agrega
         una línea de cierre en vez de reescribir el archivo, así dos escrituras a
@@ -278,10 +359,24 @@ class H(BaseHTTPRequestHandler):
             return self._pide_auth()
         if ruta == "/cola":
             return self._cola()
+        if ruta == "/pausas":
+            filas = []
+            if os.path.exists(PAUSAS):
+                with open(PAUSAS, encoding="utf-8") as f:
+                    for ln in f:
+                        if ln.strip():
+                            try:
+                                filas.append(json.loads(ln))
+                            except Exception:
+                                pass
+            return self._send(200, json.dumps(
+                {"total": len(filas), "activo": PAUSA_ACTIVA, "pausas": filas[-50:]},
+                ensure_ascii=False), "application/json")
         if ruta == "/estado":
             with _lock:
-                return self._send(200, json.dumps(_estado, ensure_ascii=False),
-                                  "application/json")
+                return self._send(200, json.dumps(
+                    dict(_estado, pausa_activa=PAUSA_ACTIVA, pausa_max=PAUSA_MAX),
+                    ensure_ascii=False), "application/json")
         p = html_actual()
         if not p:
             with _lock:
@@ -305,6 +400,8 @@ class H(BaseHTTPRequestHandler):
             return self._pide_auth()
         if self.path.startswith("/instruccion"):
             return self._encolar()
+        if self.path.startswith("/pausar"):
+            return self._pausar()
         if self.path.startswith("/cola/hecho"):
             return self._cerrar()
         if not self.path.startswith("/refrescar"):
