@@ -21,6 +21,8 @@ Solo lectura: nunca hace POST/PATCH/DELETE.
 import sys, os, json, time, urllib.request, urllib.parse, urllib.error
 from datetime import date, datetime, timedelta, timezone
 
+import zonas
+
 try:
     sys.stdout.reconfigure(encoding="utf-8")
 except Exception:
@@ -36,9 +38,18 @@ TZ = timezone(timedelta(hours=-6))   # America/Monterrey
 # Valores de la propiedad `origen` que cuentan como Meta.
 ORIGEN_META = ["FB-form", "Wapp-FB", "Redes Sociales", "Instagram",
                "Wapp-IG", "WA-FB D", "WA-IG D"]
-# La zona sale de `ciudad` — `zona_operativa` está vacío en toda la base (verificado 2026-07-26).
-CIUDAD_A_ZONA = {"Monterrey": "MTY", "Saltillo": "SLT", "Torreón": "TRC",
-                 "Torreon": "TRC", "Monclova": "MVA"}
+# La zona sale de `city` + `ciudad` + `state` (ver zonas.py). `zona_operativa` está
+# vacío en toda la base (verificado 2026-07-26). Antes solo se miraba el picklist
+# `ciudad`, que tiene cinco cajones: un lead de Tampico acababa contado como
+# Monterrey y entraba a la cuenta de leads que "faltó asignar".
+PROPS_ZONA = ["city", "ciudad", "state", "otra_ciudad"]
+
+
+def zona_de(p):
+    """(zona, motivo) de un contacto. zona ∈ MTY/SLT/TRC/MVA/FUERA/AMBIGUO/SIN_DATO."""
+    return zonas.clasificar(city=p.get("city") or "", ciudad=p.get("ciudad") or "",
+                            state=p.get("state") or "",
+                            otra_ciudad=p.get("otra_ciudad") or "")
 
 
 def _req(method, path, body=None, params=None):
@@ -142,8 +153,12 @@ def build(dias=7):
     ini7, ini30 = hoy - timedelta(days=dias), hoy - timedelta(days=30)
     own = owners()
 
-    props_c = ["origen", "ciudad", "hubspot_owner_id", "createdate"]
+    props_c = ["origen", "hubspot_owner_id", "createdate"] + PROPS_ZONA
     c30 = list(search("contacts", rango("createdate", ini30, hoy), props_c))
+    # La zona se calcula una sola vez por contacto y se guarda en el propio dict:
+    # cada ventana la reusa en vez de reclasificar 3,600 contactos cuatro veces.
+    for c in c30:
+        c["_zona"], c["_motivo"] = zona_de(c["properties"])
 
     # Los contactos de 7, 14 y 28 días son subconjuntos de los de 30: se filtran
     # en memoria en vez de hacer tres búsquedas más contra la API.
@@ -172,7 +187,7 @@ def build(dias=7):
         oid = p.get("hubspot_owner_id")
         if not (es_meta(p) and oid):
             continue
-        z = CIUDAD_A_ZONA.get(p.get("ciudad") or "", "")
+        z = c["_zona"] if c["_zona"] in zonas.ASIGNABLE else ""
         if z:
             asig_zona[z] = asig_zona.get(z, 0) + 1
         info = own.get(str(oid), {})
@@ -199,19 +214,53 @@ def build(dias=7):
         cs = desde(v)
         metas = [c for c in cs if es_meta(c["properties"])]
         asignados = sum(1 for c in metas if c["properties"].get("hubspot_owner_id"))
-        zona = {}
+        # Tres cubetas distintas por zona, que antes iban revueltas en una sola:
+        #   llegaron   — leads de Meta de esa zona, tengan dueño o no
+        #   asignados  — los que ya tienen asesor
+        #   sin dueño  — los que están en zona y nadie tomó: el problema de ruteo
+        zona, llegaron, rep = {}, {}, {}
+        fuera_ciudad = {}
         for c in metas:
-            if not c["properties"].get("hubspot_owner_id"):
-                continue
-            z = CIUDAD_A_ZONA.get(c["properties"].get("ciudad") or "", "")
-            if z:
-                zona[z] = zona.get(z, 0) + 1
+            z, motivo = c["_zona"], c["_motivo"]
+            tiene = bool(c["properties"].get("hubspot_owner_id"))
+            if z in zonas.ASIGNABLE:
+                llegaron[z] = llegaron.get(z, 0) + 1
+                if tiene:
+                    zona[z] = zona.get(z, 0) + 1
+            elif z == "FUERA":
+                # De qué ciudades viene el gasto tirado: eso es lo accionable en Meta.
+                cd = zonas.norm(c["properties"].get("city")
+                                or c["properties"].get("otra_ciudad")
+                                or c["properties"].get("ciudad")) or "?"
+                fuera_ciudad[cd] = fuera_ciudad.get(cd, 0) + 1
+            if tiene:
+                info = own.get(str(c["properties"]["hubspot_owner_id"]), {})
+                if info.get("nombre"):
+                    k = (info["nombre"], info.get("zona")
+                         or (z if z in zonas.ASIGNABLE else ""))
+                    rep[k] = rep.get(k, 0) + 1
+        veredictos = zonas.resumen(c["_zona"] for c in metas)
+        asignables = sum(veredictos[z] for z in zonas.ZONAS)
         corte = (hoy - timedelta(days=v)).isoformat()
         wv = [d for d in dm30 if (d["properties"].get("closedate") or "")[:10] >= corte]
         por_ventana[str(v)] = {
             "leads_total": len(cs), "leads_meta": len(metas),
             "asignados": asignados,
-            "asignados_por_zona": {z: zona.get(z, 0) for z in ("MTY", "SLT", "TRC", "MVA")},
+            "asignados_por_zona": {z: zona.get(z, 0) for z in zonas.ZONAS},
+            # Un lead fuera de las zonas de cobertura no cuenta como "faltó
+            # asignarlo": no hay a quién asignárselo. Se mide aparte, contra la
+            # campaña que lo trajo.
+            "asignables": asignables,
+            "llegaron_por_zona": {z: llegaron.get(z, 0) for z in zonas.ZONAS},
+            "sin_asignar_por_zona": {z: llegaron.get(z, 0) - zona.get(z, 0)
+                                     for z in zonas.ZONAS},
+            "fuera_de_zona": veredictos["FUERA"],
+            "zona_ambigua": veredictos["AMBIGUO"],
+            "sin_ciudad": veredictos["SIN_DATO"],
+            "fuera_por_ciudad": dict(sorted(fuera_ciudad.items(),
+                                            key=lambda kv: -kv[1])[:15]),
+            "por_asesor": [{"rep": n, "zone": z, "leads": k}
+                           for (n, z), k in sorted(rep.items(), key=lambda kv: -kv[1])],
             "won_meta": suma(wv),
         }
 
