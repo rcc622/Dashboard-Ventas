@@ -169,6 +169,96 @@ BARRA = """
 """
 
 
+CHAT = """
+<div id="kc-abre" style="position:fixed;left:14px;bottom:14px;z-index:9999;background:#0E1420;
+  color:#EAEFFB;border:2px solid #29344D;padding:9px 15px;cursor:pointer;
+  font:700 13px 'Segoe UI',system-ui,sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.35)">
+  &#128172; Copiloto IA</div>
+<div id="kc-panel" style="display:none;position:fixed;left:14px;bottom:14px;z-index:10000;
+  width:min(430px,94vw);height:min(560px,80vh);background:#0E1420;color:#EAEFFB;
+  border:2px solid #29344D;box-shadow:0 10px 34px rgba(0,0,0,.5);
+  font:13px 'Segoe UI',system-ui,sans-serif;display:none;flex-direction:column">
+  <div style="display:flex;justify-content:space-between;align-items:center;
+    padding:10px 12px;border-bottom:1px solid #29344D">
+    <b>Copiloto IA</b>
+    <span>
+      <button id="kc-limpia" title="borrar conversación" style="background:none;border:none;
+        color:#9AA8C6;cursor:pointer;font-size:12px">limpiar</button>
+      <button id="kc-x" style="background:none;border:none;color:#EAEFFB;cursor:pointer;
+        font-size:16px;font-weight:700">&times;</button>
+    </span>
+  </div>
+  <div id="kc-msgs" style="flex:1;overflow-y:auto;padding:12px;display:flex;
+    flex-direction:column;gap:8px"></div>
+  <div style="display:flex;gap:8px;padding:10px;border-top:1px solid #29344D">
+    <textarea id="kc-in" rows="2" placeholder="Pregunta o encarga algo&hellip; (Enter env&iacute;a)"
+      style="flex:1;resize:none;background:#151D2E;color:#EAEFFB;border:1px solid #29344D;
+      padding:8px;font:13px 'Segoe UI',system-ui,sans-serif"></textarea>
+    <button id="kc-go" style="font:700 13px 'Segoe UI',system-ui,sans-serif;background:#2B5BFF;
+      color:#fff;border:none;padding:0 16px;cursor:pointer">&rsaquo;</button>
+  </div>
+</div>
+<script>
+(function(){
+  var abre=document.getElementById('kc-abre'), panel=document.getElementById('kc-panel'),
+      msgs=document.getElementById('kc-msgs'), inp=document.getElementById('kc-in'),
+      go=document.getElementById('kc-go'), H=[];
+  try{ H=JSON.parse(sessionStorage.kchat||'[]'); }catch(e){}
+  function pinta(){
+    msgs.innerHTML='';
+    H.forEach(function(m){
+      var d=document.createElement('div');
+      d.style.cssText='max-width:88%;padding:8px 11px;white-space:pre-wrap;'+
+        'word-wrap:break-word;line-height:1.45;'+
+        (m.role==='user'
+          ? 'align-self:flex-end;background:#2B5BFF;color:#fff'
+          : 'align-self:flex-start;background:#151D2E;border:1px solid #29344D');
+      d.textContent=m.content;
+      msgs.appendChild(d);
+    });
+    msgs.scrollTop=msgs.scrollHeight;
+  }
+  function espera(on){
+    var e=document.getElementById('kc-wait');
+    if(e) e.remove();
+    if(on){
+      e=document.createElement('div');
+      e.id='kc-wait';
+      e.style.cssText='align-self:flex-start;color:#9AA8C6;font-style:italic';
+      e.textContent='pensando\\u2026 (puede tardar ~1 min si consulta Meta)';
+      msgs.appendChild(e); msgs.scrollTop=msgs.scrollHeight;
+    }
+    go.disabled=on; inp.disabled=on;
+  }
+  function manda(){
+    var t=inp.value.trim();
+    if(!t||go.disabled) return;
+    inp.value='';
+    H.push({role:'user',content:t}); pinta(); espera(true);
+    fetch('/copiloto',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({mensajes:H})})
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      espera(false);
+      var tx = d.error ? ('\\u26a0 '+d.error) : (d.texto||'(sin respuesta)');
+      if(d.encoladas && d.encoladas.length)
+        tx += '\\n\\n\\u2705 Encolado ('+d.encoladas.length+'): se aplica en la pr\\u00f3xima sesi\\u00f3n con topes.';
+      H.push({role:'assistant',content:tx});
+      try{ sessionStorage.kchat=JSON.stringify(H.slice(-24)); }catch(e){}
+      pinta();
+    })
+    .catch(function(e){ espera(false); H.push({role:'assistant',content:'\\u26a0 error de red: '+e}); pinta(); });
+  }
+  abre.addEventListener('click',function(){ panel.style.display='flex'; abre.style.display='none'; pinta(); inp.focus(); });
+  document.getElementById('kc-x').addEventListener('click',function(){ panel.style.display='none'; abre.style.display='block'; });
+  document.getElementById('kc-limpia').addEventListener('click',function(){ H=[]; sessionStorage.removeItem('kchat'); pinta(); });
+  go.addEventListener('click',manda);
+  inp.addEventListener('keydown',function(ev){ if(ev.key==='Enter'&&!ev.shiftKey){ ev.preventDefault(); manda(); } });
+})();
+</script>
+"""
+
+
 class H(BaseHTTPRequestHandler):
     server_version = "kenet-dash"
 
@@ -304,6 +394,27 @@ class H(BaseHTTPRequestHandler):
             {"pausados": hechas, "activo": PAUSA_ACTIVA, "resultados": resultados},
             ensure_ascii=False), "application/json")
 
+    def _copiloto(self):
+        """Chat con Claude. Lee datos y consulta Meta en solo-lectura; los
+        cambios los deja en la cola de instrucciones, nunca los ejecuta."""
+        try:
+            n = int(self.headers.get("Content-Length") or 0)
+            if n > 150_000:
+                return self._send(413, json.dumps({"error": "conversación muy larga — usa limpiar"}),
+                                  "application/json")
+            body = json.loads(self.rfile.read(n).decode("utf-8") or "{}")
+        except Exception:
+            return self._send(400, json.dumps({"error": "json inválido"}), "application/json")
+        try:
+            import copiloto
+            r, err = copiloto.responder(body.get("mensajes"))
+        except Exception as e:
+            return self._send(500, json.dumps({"error": repr(e)[:300]}), "application/json")
+        if err:
+            return self._send(502, json.dumps({"error": err}, ensure_ascii=False),
+                              "application/json")
+        return self._send(200, json.dumps(r, ensure_ascii=False), "application/json")
+
     def _cerrar(self):
         """Marca una instrucción como aplicada. La cola es append-only: se agrega
         una línea de cierre en vez de reescribir el archivo, así dos escrituras a
@@ -393,7 +504,7 @@ class H(BaseHTTPRequestHandler):
         msg = ("actualizado %s" % ue[11:16]) if ue else "datos del archivo"
         if ok is False:
             msg = "último refresh falló"
-        return self._send(200, doc + BARRA % {"msg": msg})
+        return self._send(200, doc + BARRA % {"msg": msg} + CHAT)
 
     def do_POST(self):
         if not self._autorizado():
@@ -402,6 +513,8 @@ class H(BaseHTTPRequestHandler):
             return self._encolar()
         if self.path.startswith("/pausar"):
             return self._pausar()
+        if self.path.startswith("/copiloto"):
+            return self._copiloto()
         if self.path.startswith("/cola/hecho"):
             return self._cerrar()
         if not self.path.startswith("/refrescar"):
