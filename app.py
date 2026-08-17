@@ -190,8 +190,15 @@ CHAT = """
   </div>
   <div id="kc-msgs" style="flex:1;overflow-y:auto;padding:12px;display:flex;
     flex-direction:column;gap:8px"></div>
+  <div id="kc-img" style="display:none;align-items:center;gap:8px;padding:6px 10px;
+    border-top:1px solid #29344D;font-size:11.5px;color:#9AA8C6">
+    <img id="kc-thumb" style="height:34px;border:1px solid #29344D" alt="captura">
+    <span>captura lista para enviar</span>
+    <button id="kc-img-x" style="background:none;border:none;color:#FF5C7A;
+      cursor:pointer;font-size:12px">quitar</button>
+  </div>
   <div style="display:flex;gap:8px;padding:10px;border-top:1px solid #29344D">
-    <textarea id="kc-in" rows="2" placeholder="Pregunta o encarga algo&hellip; (Enter env&iacute;a)"
+    <textarea id="kc-in" rows="2" placeholder="Pregunta o encarga algo&hellip; (Enter env&iacute;a &middot; Ctrl+V pega una captura)"
       style="flex:1;resize:none;background:#151D2E;color:#EAEFFB;border:1px solid #29344D;
       padding:8px;font:13px 'Segoe UI',system-ui,sans-serif"></textarea>
     <button id="kc-go" style="font:700 13px 'Segoe UI',system-ui,sans-serif;background:#2B5BFF;
@@ -202,7 +209,8 @@ CHAT = """
 (function(){
   var abre=document.getElementById('kc-abre'), panel=document.getElementById('kc-panel'),
       msgs=document.getElementById('kc-msgs'), inp=document.getElementById('kc-in'),
-      go=document.getElementById('kc-go'), H=[];
+      go=document.getElementById('kc-go'), H=[], IMG=null;
+  var imgBar=document.getElementById('kc-img'), imgThumb=document.getElementById('kc-thumb');
   try{ H=JSON.parse(sessionStorage.kchat||'[]'); }catch(e){}
   function pinta(){
     msgs.innerHTML='';
@@ -213,11 +221,43 @@ CHAT = """
         (m.role==='user'
           ? 'align-self:flex-end;background:#2B5BFF;color:#fff'
           : 'align-self:flex-start;background:#151D2E;border:1px solid #29344D');
-      d.textContent=m.content;
+      if(m.imagen){
+        var im=document.createElement('img');
+        im.src=m.imagen; im.alt='captura';
+        im.style.cssText='display:block;max-width:100%;margin-bottom:6px;border:1px solid #29344D';
+        d.appendChild(im);
+      }
+      d.appendChild(document.createTextNode(m.content||''));
       msgs.appendChild(d);
     });
     msgs.scrollTop=msgs.scrollHeight;
   }
+  // Ctrl+V con una captura en el portapapeles: se reescala (máx 1568px, JPEG)
+  // para que el request no pese megas, y queda lista para el siguiente envío.
+  function setImg(dataUrl){
+    IMG=dataUrl;
+    imgBar.style.display=dataUrl?'flex':'none';
+    if(dataUrl) imgThumb.src=dataUrl;
+  }
+  document.getElementById('kc-img-x').addEventListener('click',function(){ setImg(null); });
+  panel.addEventListener('paste',function(ev){
+    var items=(ev.clipboardData||{}).items||[];
+    for(var i=0;i<items.length;i++){
+      if(items[i].type.indexOf('image')!==0) continue;
+      ev.preventDefault();
+      var f=items[i].getAsFile(), url=URL.createObjectURL(f), img=new Image();
+      img.onload=function(){
+        var MAX=1568, esc=Math.min(1, MAX/Math.max(img.width,img.height));
+        var c=document.createElement('canvas');
+        c.width=Math.round(img.width*esc); c.height=Math.round(img.height*esc);
+        c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+        setImg(c.toDataURL('image/jpeg',0.85));
+        URL.revokeObjectURL(url);
+      };
+      img.src=url;
+      return;
+    }
+  });
   function espera(on){
     var e=document.getElementById('kc-wait');
     if(e) e.remove();
@@ -232,11 +272,22 @@ CHAT = """
   }
   function manda(){
     var t=inp.value.trim();
-    if(!t||go.disabled) return;
+    if((!t&&!IMG)||go.disabled) return;
     inp.value='';
-    H.push({role:'user',content:t}); pinta(); espera(true);
+    var m={role:'user',content:t||'(captura)'};
+    if(IMG) m.imagen=IMG;
+    setImg(null);
+    H.push(m); pinta(); espera(true);
+    // Al servidor solo viajan las 2 capturas m\\u00e1s recientes; las viejas van
+    // como texto para no mandar megas en cada turno.
+    var conImg=[]; H.forEach(function(x,i){ if(x.imagen) conImg.push(i); });
+    var keep={}; conImg.slice(-2).forEach(function(i){ keep[i]=1; });
+    var payload=H.map(function(x,i){
+      if(x.imagen&&!keep[i]) return {role:x.role,content:'[captura anterior] '+(x.content||'')};
+      return x;
+    });
     fetch('/copiloto',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({mensajes:H})})
+      body:JSON.stringify({mensajes:payload})})
     .then(function(r){ return r.json(); })
     .then(function(d){
       espera(false);
@@ -244,7 +295,9 @@ CHAT = """
       if(d.encoladas && d.encoladas.length)
         tx += '\\n\\n\\u2705 Encolado ('+d.encoladas.length+'): se aplica en la pr\\u00f3xima sesi\\u00f3n con topes.';
       H.push({role:'assistant',content:tx});
-      try{ sessionStorage.kchat=JSON.stringify(H.slice(-24)); }catch(e){}
+      // sessionStorage aguanta ~5MB: el texto se guarda, las capturas no.
+      try{ sessionStorage.kchat=JSON.stringify(H.slice(-24).map(function(x){
+        return x.imagen?{role:x.role,content:'[captura] '+(x.content||'')}:x; })); }catch(e){}
       pinta();
     })
     .catch(function(e){ espera(false); H.push({role:'assistant',content:'\\u26a0 error de red: '+e}); pinta(); });
@@ -399,8 +452,9 @@ class H(BaseHTTPRequestHandler):
         cambios los deja en la cola de instrucciones, nunca los ejecuta."""
         try:
             n = int(self.headers.get("Content-Length") or 0)
-            if n > 150_000:
-                return self._send(413, json.dumps({"error": "conversación muy larga — usa limpiar"}),
+            # Las capturas pegadas viajan en base64: una sola puede pesar ~1-2MB.
+            if n > 8_000_000:
+                return self._send(413, json.dumps({"error": "conversación muy pesada — usa limpiar"}),
                                   "application/json")
             body = json.loads(self.rfile.read(n).decode("utf-8") or "{}")
         except Exception:
