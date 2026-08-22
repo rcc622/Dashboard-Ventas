@@ -18,7 +18,7 @@ Uso:
 Escribe el mismo contrato que crm_kommo.py (ver docstring de dashboard.py).
 Solo lectura: nunca hace POST/PATCH/DELETE.
 """
-import sys, os, json, time, urllib.request, urllib.parse, urllib.error
+import sys, os, re, json, time, urllib.request, urllib.parse, urllib.error
 from datetime import date, datetime, timedelta, timezone
 
 import zonas
@@ -38,6 +38,40 @@ TZ = timezone(timedelta(hours=-6))   # America/Monterrey
 # Valores de la propiedad `origen` que cuentan como Meta.
 ORIGEN_META = ["FB-form", "Wapp-FB", "Redes Sociales", "Instagram",
                "Wapp-IG", "WA-FB D", "WA-IG D"]
+# El nombre del deal trae el origen pegado al final: "Hiram Cardenas - FB-form".
+# Es la convencion del equipo y es lo unico que hay cuando el picklist esta vacio,
+# que es mas de la mitad de las veces.
+_SUFIJO = re.compile(r"\s-\s*([A-Za-z\u00c1-\u00fa][A-Za-z\u00c1-\u00fa\- ]{2,20})\s*$")
+# Etiquetas que aparecen en el nombre pero no son valores del picklist.
+_ALIAS = {"facebook": "Redes Sociales", "fb-form": "FB-form", "wapp-fb": "Wapp-FB",
+          "wapp-ig": "Wapp-IG", "instagram": "Instagram", "web form": "Web Form",
+          "referido": "Referido", "directo": "Directo", "cambaceo": "Cambaceo",
+          "tiktok": "TikTok", "expo": "Expo", "correo": "Correo",
+          "whatsapp": "WhatsApp"}
+
+# Canal de entrada, con los mismos nombres que usa crm_kommo.py para que la
+# grafica de canales lea igual venga de donde venga el corte.
+CANAL = {"FB-form": "Meta Ads", "Wapp-FB": "Meta Ads", "Wapp-IG": "Meta Ads",
+         "WA-FB D": "Meta Ads", "WA-IG D": "Meta Ads", "Redes Sociales": "Meta Ads",
+         "Instagram": "Meta Ads", "TikTok": "Redes org\u00e1nico",
+         "Web Form": "Web org\u00e1nico", "Referido": "Referido",
+         "Directo": "Directo", "WhatsApp": "Directo", "Correo": "Directo",
+         "Cambaceo": "Cambaceo", "Expo": "Cambaceo"}
+
+
+def origen_de(props, nombre=""):
+    """El origen del registro: el picklist si esta lleno, si no el sufijo del nombre."""
+    o = (props.get("origen") or "").strip()
+    if o:
+        return o
+    m = _SUFIJO.search(nombre or "")
+    return _ALIAS.get(m.group(1).strip().lower(), "") if m else ""
+
+
+def canal_de(props, nombre=""):
+    return CANAL.get(origen_de(props, nombre), "Sin origen")
+
+
 # La zona sale de `city` + `ciudad` + `state` (ver zonas.py). `zona_operativa` está
 # vacío en toda la base (verificado 2026-07-26). Antes solo se miraba el picklist
 # `ciudad`, que tiene cinco cajones: un lead de Tampico acababa contado como
@@ -100,7 +134,7 @@ def search(objeto, filtros, propiedades, limit=200):
         if not after:
             return
         if n > 60000:      # ponytail: tope de seguridad
-            print("  aviso: corte en 60k registros de %s" % objeto)
+            print("  aviso: corte en 60k registros de %s" % objeto, file=sys.stderr)
             return
 
 
@@ -146,35 +180,48 @@ def probe():
 
 
 VENTANAS = (7, 14, 28)
+# Ventanas largas. El ciclo de venta ronda los 86 dias: preguntarle a 7 dias
+# cuanto convierte un asesor da siempre cero. La conversion se mide aqui.
+VENTANAS_LARGAS = (30, 60, 90)
 
 
 def build(dias=7):
     hoy = date.today()
     ini7, ini30 = hoy - timedelta(days=dias), hoy - timedelta(days=30)
+    ini90 = hoy - timedelta(days=90)
     own = owners()
+    # nombre -> zona. Arranca con el equipo del owner en HubSpot y se completa
+    # con la zona de los leads para los que no pertenecen a ningun equipo.
+    zona_rep = {d["nombre"]: d["zona"] for d in own.values() if d.get("zona")}
 
     props_c = ["origen", "hubspot_owner_id", "createdate"] + PROPS_ZONA
-    c30 = list(search("contacts", rango("createdate", ini30, hoy), props_c))
+    # 90 dias, no 30: la conversion por asesor y el rendimiento por anuncio se
+    # miden en la ventana del ciclo de venta. Las ventanas cortas salen de aqui
+    # filtrando en memoria, sin una sola llamada extra a la API.
+    c90 = list(search("contacts", rango("createdate", ini90, hoy), props_c))
     # La zona se calcula una sola vez por contacto y se guarda en el propio dict:
-    # cada ventana la reusa en vez de reclasificar 3,600 contactos cuatro veces.
-    for c in c30:
+    # cada ventana la reusa en vez de reclasificar los contactos seis veces.
+    for c in c90:
         c["_zona"], c["_motivo"] = zona_de(c["properties"])
 
-    # Los contactos de 7, 14 y 28 días son subconjuntos de los de 30: se filtran
-    # en memoria en vez de hacer tres búsquedas más contra la API.
     def desde(d):
         corte = (hoy - timedelta(days=d)).isoformat()
-        return [c for c in c30 if (c["properties"].get("createdate") or "")[:10] >= corte]
+        return [c for c in c90 if (c["properties"].get("createdate") or "")[:10] >= corte]
 
-    c7 = desde(dias)
-    props_d = ["origen", "amount", "closedate", "days_to_close", "hs_is_closed_won"]
-    d30 = [d for d in search("deals", rango("closedate", ini30, hoy), props_d)
+    c30, c7 = desde(30), desde(dias)
+    # hubspot_owner_id en el deal: sin el, la venta no tiene dueno y la columna
+    # de conversion por asesor no se puede calcular.
+    props_d = ["origen", "amount", "closedate", "days_to_close", "hs_is_closed_won",
+               "hubspot_owner_id", "dealname", "pipeline"]
+    d90 = [d for d in search("deals", rango("closedate", ini90, hoy), props_d)
            if str((d.get("properties") or {}).get("hs_is_closed_won")).lower() == "true"]
+    d30 = [d for d in d90
+           if (d["properties"].get("closedate") or "")[:10] >= ini30.isoformat()]
     d7 = [d for d in d30
           if (d["properties"].get("closedate") or "")[:10] >= ini7.isoformat()]
 
-    def es_meta(p):
-        return (p.get("origen") or "") in ORIGEN_META
+    def es_meta(p, nombre=""):
+        return origen_de(p, nombre) in ORIGEN_META
 
     origen7 = {}
     for c in c7:
@@ -204,13 +251,14 @@ def build(dias=7):
              if d["properties"].get("days_to_close")]
         return round(sum(v) / len(v), 2) if v else 0
 
-    dm7 = [d for d in d7 if es_meta(d["properties"])]
-    dm30 = [d for d in d30 if es_meta(d["properties"])]
+    dm7 = [d for d in d7 if es_meta(d["properties"], d["properties"].get("dealname"))]
+    dm30 = [d for d in d30 if es_meta(d["properties"], d["properties"].get("dealname"))]
+    dm90 = [d for d in d90 if es_meta(d["properties"], d["properties"].get("dealname"))]
 
-    # Mismo corte para 7, 14 y 28 días, para que el dashboard pueda mover la
-    # ventana sin que la parte del CRM se quede congelada en 7.
+    # Las seis ventanas, para que el dashboard pueda moverse sin que la parte
+    # del CRM se quede congelada en 7.
     por_ventana = {}
-    for v in VENTANAS:
+    for v in VENTANAS + VENTANAS_LARGAS:
         cs = desde(v)
         metas = [c for c in cs if es_meta(c["properties"])]
         asignados = sum(1 for c in metas if c["properties"].get("hubspot_owner_id"))
@@ -236,14 +284,59 @@ def build(dias=7):
             if tiene:
                 info = own.get(str(c["properties"]["hubspot_owner_id"]), {})
                 if info.get("nombre"):
-                    k = (info["nombre"], info.get("zona")
-                         or (z if z in zonas.ASIGNABLE else ""))
-                    rep[k] = rep.get(k, 0) + 1
+                    # Por NOMBRE, no por (nombre, zona): un owner sin equipo toma
+                    # la zona del lead, que varia entre leads, y con la llave doble
+                    # el mismo asesor salia en dos filas con los leads partidos.
+                    nom = info["nombre"]
+                    zr = info.get("zona") or (z if z in zonas.ASIGNABLE else "")
+                    if zr:
+                        zona_rep.setdefault(nom, zr)
+                    rep[nom] = rep.get(nom, 0) + 1
         veredictos = zonas.resumen(c["_zona"] for c in metas)
         asignables = sum(veredictos[z] for z in zonas.ZONAS)
         corte = (hoy - timedelta(days=v)).isoformat()
-        wv = [d for d in dm30 if (d["properties"].get("closedate") or "")[:10] >= corte]
+        wv = [d for d in dm90 if (d["properties"].get("closedate") or "")[:10] >= corte]
+        # Ventas por asesor: el dueno del deal. No se casa lead-con-venta (el lead
+        # que cerro hoy entro hace ~86 dias); es la foto del periodo, que es lo que
+        # se usa para comparar asesores entre si.
+        rep_v = {}
+        for d in wv:
+            info = own.get(str(d["properties"].get("hubspot_owner_id") or ""), {})
+            if not info.get("nombre"):
+                continue
+            a = rep_v.setdefault(info["nombre"], [0, 0.0])
+            a[0] += 1
+            a[1] += float(d["properties"].get("amount") or 0)
+        asesores = [{"rep": n, "zone": zona_rep.get(n, ""), "leads": k,
+                     "ventas": rep_v.get(n, [0, 0.0])[0],
+                     "mxn": rep_v.get(n, [0, 0.0])[1]}
+                    for n, k in sorted(rep.items(), key=lambda kv: -kv[1])]
+        # Un asesor puede cerrar en la ventana sin haber recibido un lead nuevo:
+        # la venta viene de un lead viejo. Dejarlo fuera esconderia la venta.
+        vistos = {a["rep"] for a in asesores}
+        for n, (cnt, mxn) in rep_v.items():
+            if n not in vistos:
+                asesores.append({"rep": n, "zone": zona_rep.get(n, ""), "leads": 0,
+                                 "ventas": cnt, "mxn": mxn})
+        # Ventas por zona del ASESOR que cerro. El deal no trae ciudad y pedirle
+        # su contacto asociado seria una llamada por venta; el equipo del owner ya
+        # esta en memoria y es la misma zona contra la que se mide el gasto.
+        wz = {}
+        for d_ in wv:
+            info = own.get(str(d_["properties"].get("hubspot_owner_id") or ""), {})
+            z_ = zona_rep.get(info.get("nombre", ""), "")
+            if not z_:
+                continue
+            a = wz.setdefault(z_, {"count": 0, "mxn": 0.0})
+            a["count"] += 1
+            a["mxn"] += float(d_["properties"].get("amount") or 0)
+        canales = {}
+        for c in cs:
+            k = canal_de(c["properties"])
+            canales[k] = canales.get(k, 0) + 1
         por_ventana[str(v)] = {
+            "leads_por_canal": canales,
+            "won_meta_por_zona": wz,
             "leads_total": len(cs), "leads_meta": len(metas),
             "asignados": asignados,
             "asignados_por_zona": {z: zona.get(z, 0) for z in zonas.ZONAS},
@@ -259,8 +352,7 @@ def build(dias=7):
             "sin_ciudad": veredictos["SIN_DATO"],
             "fuera_por_ciudad": dict(sorted(fuera_ciudad.items(),
                                             key=lambda kv: -kv[1])[:15]),
-            "por_asesor": [{"rep": n, "zone": z, "leads": k}
-                           for (n, z), k in sorted(rep.items(), key=lambda kv: -kv[1])],
+            "por_asesor": asesores,
             "won_meta": suma(wv),
         }
 

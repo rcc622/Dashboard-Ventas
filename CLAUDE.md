@@ -84,7 +84,36 @@ asesor" justo para que esa resta se vea.
 
 ### Campos que produce `crm_recon.json`
 
-Dentro de `por_ventana["7"|"14"|"28"]`:
+`por_ventana` trae **seis** llaves: `"7" "14" "28" "30" "60" "90"`.
+
+En **todas**:
+
+```
+leads_total, leads_meta, asignados
+leads_por_canal       {canal: n} — Meta / Google / Web / Redes / Directo
+google_por_campana    [{campana, keyword, leads, asignados}]
+won_meta              {count, mxn} ventas con origen Meta cerradas en la ventana
+won_meta_por_zona     {zona: {count, mxn}}
+por_asesor            [{rep, zone, leads, ventas, mxn}] de ESA ventana
+```
+
+`won_meta_por_zona`: en **Kommo** es la ciudad del cliente, y cuando la venta no
+la trae (pasa seguido), la zona del asesor que cerró — perder la venta del
+marcador es peor que atribuirla a quien la hizo. En **HubSpot** siempre es la del
+asesor: el deal no trae ciudad y pedir su contacto sería una llamada por venta.
+La nota del marcador dice cuál de las dos está usando.
+
+`por_anuncio_*` existe en las **seis** ventanas. Y solo la cuenta nueva
+(`Kenet Solar_Ads`, act_2466618450515283) manda leads a Kommo: los anuncios de
+las otras dos cuentas salen «sin rastreo» **por diseño**, y la tabla lo dice así
+en vez de dejar que se lean como veinte fallas.
+
+`por_asesor` se cuenta **por nombre**, nunca por `(nombre, zona)`: la zona sale
+del lead cuando el CRM no la guarda en el usuario, así que el mismo asesor
+aparecía en dos filas con sus leads partidos a la mitad.
+
+Solo en las **cortas** (7/14/28), porque validar ciudad en Kommo cuesta una
+llamada a la API por contacto y a 90 días son ~10 mil:
 
 ```
 asignables            leads de Meta cuya ciudad SÍ cae en cobertura
@@ -95,11 +124,187 @@ fuera_de_zona         cuántos cayeron fuera de cobertura
 fuera_por_ciudad      {ciudad: n} top 15 — de aquí sale qué geo corregir
 zona_ambigua          homónimos sin estado
 sin_ciudad            sin ningún dato de ciudad
-por_asesor            [{rep, zone, leads}] de ESA ventana
 ```
 
+Y a nivel raíz, el cruce anuncio↔venta:
+
+```
+por_anuncio_7d / _30d / _60d / _90d
+    [{ad_id, ad_name, campaign_name, leads, asignados, ventas, mxn}]
+```
+
+`ad_id` es la llave contra los insights de Meta. Sale de `utm_term` en Kommo, que
+el salesbot escribe cuando el lead entra por un Click-to-WhatsApp. HubSpot no lo
+guarda, así que ahí esa tabla muestra solo el lado de Meta y lo dice.
+
 Un corte viejo sin estos campos no rompe nada: el dashboard detecta que no hubo
-validación (`asignables is None`) y se comporta como antes.
+validación (`asignables is None`), que `por_asesor` no trae `ventas`, o que no hay
+`por_anuncio_*`, y en cada caso lo dice en vez de pintar ceros.
+
+---
+
+## Qué cuenta de Meta cuenta — y qué canal trae cada lead
+
+**Solo se suman las cuentas de Meta que le mandan leads al CRM que se está
+leyendo.** Vive en `CUENTAS_POR_CRM` (`dashboard.py`):
+
+| CRM | Cuentas que entran |
+|-----|--------------------|
+| Kommo | **solo** `act_2466618450515283` (Kenet Solar_Ads) |
+| HubSpot | las tres |
+
+No es un detalle de presentación: es el **denominador**. Con las tres cuentas
+sumadas contra los leads de Kommo, la tasa de asignación a 90 días salía en 6% —
+10,042 resultados de tres cuentas entre 618 leads de una. Filtrado da 91%. Lo
+mismo con el CPL ($20 → $6) y el CPA ($303 → $6). Si otra cuenta empieza a mandar
+leads a Kommo, se agrega ahí y todo lo demás se acomoda solo.
+
+La página lo dice en el encabezado («Meta Ads: solo Kenet Solar_Ads»), en el
+desglose del tile de inversión y en una nota bajo la sección 1.
+
+### Canales de entrada
+
+`canal_del_lead()` en `crm_kommo.py` clasifica en: **Meta Ads · Google Ads · Web
+orgánico · Redes orgánico · Directo · Sin origen**. Orden de decisión, y el orden
+importa:
+
+1. `utm_campaign` con `SEARCH` → **Google Ads**. Va primero porque el picklist
+   `Origen` de Kommo **no tiene valor para Google**: un lead de Search acaba
+   marcado «Web Form - Organic» y se perdería como orgánico.
+2. El picklist `Origen` (campo **1833317**) cuando está lleno. Sí existe — el
+   extractor decía que no, y por eso todo lo que no era Meta caía en «Sin origen».
+3. `utm_medium=ctwa` o `fbclid` → Meta. `wix-form` → Web orgánico.
+4. `source_id` (redes / WhatsApp).
+
+**Solo Meta tiene gasto conectado.** A 7 días apenas el 37% de los leads de Kommo
+viene de Meta Ads y el 49% de redes orgánicas: atribuirle todo el CRM a Meta le
+inventaría un CPL más barato del real. La barra «De dónde vienen» en la sección 2
+existe para eso.
+
+### HubSpot: el `origen` del deal viene vacío
+
+Más de la mitad de las ventas ganadas **no traen el picklist `origen`**, pero el
+nombre del deal sí lo trae pegado al final — `Hiram Cardenas - FB-form`. Es la
+convención del equipo. `origen_de()` lee el picklist y, si está vacío, saca el
+sufijo del nombre (`_SUFIJO` + `_ALIAS`, porque el nombre dice «Facebook» donde el
+picklist dice «Redes Sociales»).
+
+Sin ese rescate `won_meta` salía en una fracción de lo real. Con él, el corte del
+21-ago da **109 ventas en 30 días ($10.1M), 46 con origen Meta ($3.16M)** y 104
+ventas Meta en 90 días. Los ganados viven en dos pipelines — `849155502` («2026»,
+etapa 1265092771) y `922784339` («Ciclo de Venta KS», etapa 1409289356) — y
+`hs_is_closed_won` los cubre a los dos, así que no hay que filtrar por pipeline.
+
+### La tabla de anuncios agrupa por CREATIVO, no por id
+
+El mismo anuncio vive en varios adsets con id distinto. Agrupada por id salía tres
+veces: una con sus leads y las otras con «sin rastreo», y se leía como si dos de
+cada tres hubieran fallado. `por_anuncio_html` agrupa por **nombre**, guarda los
+ids del grupo y cruza el CRM por cualquiera de ellos. Cuando agrupa, lo dice.
+
+### ⚠ Más clases ya tomadas
+
+`.pill` es `display:inline` con padding vertical: dentro de una celda **desbordaba
+su línea y se encimaba con el renglón de abajo**. Está forzado a `inline-block` en
+tablas. Si agregas una etiqueta dentro de un `<td>`, no la dejes `inline` con
+padding vertical.
+
+### Google Ads — estado
+
+Corre `KS_MTY_SEARCH_COMPETIDORES_DIC` (búsqueda, keywords `kenet solar` y
+`mtysolar`). Sus leads entran por el formulario de Wix con la campaña en
+`utm_campaign` y la **palabra clave** en `utm_term` — no hay id de anuncio, así
+que el cruce más fino posible sin conectar Google Ads es campaña + keyword. Eso
+ya sale en `por_ventana[w]["google_por_campana"]`.
+
+Para traer el **gasto** hace falta la Google Ads API: `customer_id`,
+`developer_token`, y OAuth (`client_id`, `client_secret`, `refresh_token`). No
+hay ninguna de esas credenciales en el repo ni en el entorno, y no hay MCP de
+Google Ads en la sesión. Con eso, un `google_ads.py` que escriba el mismo
+contrato que `meta.py` encaja sin tocar el dashboard.
+
+---
+
+## El acomodo de la página
+
+Arriba de todo, fuera de cualquier sección: el **selector de ventana** (manda en
+toda la página) y los **cuatro KPIs**. Luego seis secciones numeradas, una
+pregunta cada una. El número no es decoración: es el orden de lectura.
+
+| # | Sección | Contesta |
+|---|---------|----------|
+| — | KPIs | tasa de asignación · CPL · CPA · tasa de conversión |
+| 1 | Cómo vamos | cifras absolutas + qué está moviendo el costo (CPM vs CTR) |
+| 2 | Dónde se atora | embudo resultado→CRM→zona→asesor→venta |
+| 3 | Vista general por zona | tarjetas + tabla completa + sangrado + reparto del gasto |
+| 4 | Qué hago hoy | destacados + la cola de instrucciones |
+| 5 | En qué zona vuelve el dinero | marcador gasto-vs-ingreso · cierre por asesor · anuncio→venta |
+| 6 | Inventario y salud de campañas | adsets, anuncios por zona, canibalización |
+
+### La ventana contra el ciclo de venta
+
+El retorno y la conversión **no afirman rentabilidad en ventanas más cortas que
+el ciclo de venta** (`madura(w)`: la ventana cubre al menos el 80% de
+`ttc_meta_30d_days`). A 7 días el retorno divide ingreso de leads de hace ~3
+meses entre el gasto de esta semana — salía 150× en verde e invitaba a escalar
+sin fundamento. En ventana inmadura ambos se pintan neutros y dicen a qué
+ventana ir (`ventana_util()`). El corte es 80% y no 100% porque con un ciclo de
+97 días ni la ventana de 90 calificaría, y un aviso que nunca se puede quitar
+deja de ser un aviso.
+
+El orden de secciones pone «En qué zona vuelve el dinero» (4) ANTES de «Qué
+hago hoy» (5): se decide después de ver si el dinero volvió. Y el embudo
+aclara que Meta cuenta **eventos** y el CRM **personas** — su primer salto no
+es una pérdida ni es comparable entre CRMs.
+
+### Los cuatro KPIs
+
+Son **bullet charts**, no medidores de aguja: con cuatro indicadores lado a lado
+el semicírculo ocupa el triple y se lee peor. El valor y la meta van SIEMPRE
+escritos — el color nunca es la única señal.
+
+Las metas **se derivan, no se inventan**: `unit_economics()` calcula dónde deja
+de ganar el negocio con la misma fórmula del CPL tope (ticket × `MARGEN_BRUTO`
+× conversión). Sin ventas en la ventana no hay ticket, y entonces el KPI dice que
+no hay meta en vez de sacar una de la manga.
+
+Cada KPI y cada tile es un `<a href="#seccion">`: el número dice qué pasa, el
+ancla dice dónde mirar. El JS abre el `<details>` de destino — sin eso el ancla
+cae sobre un `<summary>` cerrado y parece que el link no hizo nada.
+
+### Reglas del acomodo
+
+- **Una pregunta, un lugar.** El gasto por zona y el estado por zona vivían en
+  secciones distintas: había que memorizar un número para leer el otro.
+- **Una tarjeta por sección, no N cajas.** Los bloques van dentro de un
+  `<div class="panel">`, que pone UN borde; adentro se separan con una línea.
+- **Todo bloque de un panel lleva su padding.** `.zb` y `.canales` nacieron sin
+  él y quedaban al ras del marco, con el encabezado sentado sobre la línea del
+  borde — se lee como texto mal alineado. El padding está declarado para todos
+  los bloques directos de `.panel` de una sola vez, no bloque por bloque.
+- **La división va en el bloque, no en su posición.** Nada de `+ div[data-win]`:
+  los paneles de las otras ventanas siguen en el DOM aunque estén `hidden`.
+- **No grafiques lo que ya es una tarjeta.** El gasto por día repetía el tile de
+  inversión. La gráfica de la sección 1 dibuja CPM y CTR, que **explican** el CPL
+  en vez de repetirlo: CPM arriba con CTR plano es la subasta; CPM arriba con CTR
+  cayendo es el creativo quemándose. El veredicto lo calcula el código.
+- **Los diagnósticos se derivan del dato.** La nota del embudo decía «el que se
+  cae es el reparto interno» aunque el reparto fuera al 100%.
+- **Un solo denominador por pregunta.** El embudo dividía entre los resultados de
+  la cuenta principal mientras la barra de arriba contaba las tres: 34% y 64% en
+  la misma pantalla para la misma cosa.
+
+### ⚠ Nombres de clase ya tomados
+
+Esta hoja tiene clases de una letra. Antes de inventar una, revisa:
+
+| Clase | Quién la usa | Qué rompe si la reusas |
+|-------|--------------|------------------------|
+| `.i` | botón de ayuda | `border-radius:50%` + `14×14px` — tu barra sale de elipse |
+| `.b` | — | libre, pero peligrosa por lo genérica |
+| `zrow` | `<tr>` de la tabla por zona | `display:grid` sobre una fila de tabla |
+
+El marcador por zona usa prefijo `zb-`, los KPIs `kpi-`. Haz lo mismo.
 
 ---
 
@@ -186,14 +391,27 @@ niveles (anuncio → adset → campaña).
 
 Hay **dos switchers independientes**, cada uno con su `data-g`:
 
-- `main` — **7 / 14 / 28 días**. Mueve todo lo de la portada, el estado por zona,
-  los anuncios, los adsets y el reparto por asesor.
-- `ventas` — **30 / 60 / 90 días**, solo la tabla "qué anuncio trae ventas". El
-  ciclo de venta ronda los 90 días: a 7 días esa columna sería siempre cero y
-  parecería que ningún anuncio vende.
+- `main` — **7 / 14 / 28 / 30 / 60 / 90 días**, arranca en 7. Manda sobre los
+  KPIs, las secciones 1 a 4 y el inventario. Vive fuera de toda sección porque
+  manda en toda la página.
+- `retorno` — **la misma escala**, arranca en 30. Manda sobre la sección 5
+  completa: marcador por zona, cierre por asesor y anuncio→venta.
+
+Eran tres selectores con escalas distintas (`main` 7/14/28, `ventas` 30/60/90,
+`reps` las seis) y ninguno decía sobre qué mandaba. Ahora las dos barras ofrecen
+lo mismo; lo único que cambia es dónde arrancan.
+
+El ciclo de venta ronda los 86 días: cualquier número de cierre a 7 días sale en
+cero y parece que nadie vende. Por eso `ventas` y `reps` no cuelgan de `main`.
 
 Si agregas un tercer switcher, dale su propio `data-g` o esconderá los paneles
-de los otros.
+de los otros. Y piensa dos veces: tres barras de ventana en una pantalla ya
+fueron un problema una vez.
+
+⚠ Abrir `main` a seis ventanas obligó a dos cosas: `crm_kommo.py` resuelve la
+zona en las seis (antes se gateaba a 28 días porque la ciudad se bajaba contacto
+por contacto; con `precarga_ciudades` son 7 llamadas), y `link_zone_ads()` manda
+un rango de fechas explícito donde Ads Manager no tiene preset.
 
 ---
 
@@ -211,4 +429,11 @@ de los otros.
   `data/instrucciones.jsonl` y ahí se quedan. Pausar campañas mueve dinero.
 - Cuando un dato no exista, **dilo**; no lo pintes como cero. "Sin dato de
   reparto" no es lo mismo que "0% de capacidad".
-- Corre `python dashboard.py --selftest` y `python zonas.py` antes de commitear.
+- Corre `python dashboard.py --selftest`, `python zonas.py` y
+  `python test_dashboard_ventas.py` antes de commitear. El último fabrica un
+  corte completo (insights + CRM con el contrato nuevo) y verifica que los
+  bloques que dependen del CRM —medidores, mezcla por zona, curva de ventanas,
+  columnas de cierre por asesor y burbujas por anuncio— sí se dibujen. Se
+  agregó porque esos bloques degradan a una nota gris cuando falta un dato: sin
+  el test, romperlos se ve exactamente igual que no tener datos todavía.
+  `--demo <dir>` deja el HTML en disco para verlo en el navegador.
