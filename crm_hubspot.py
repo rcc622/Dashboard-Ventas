@@ -229,22 +229,25 @@ def build(dias=7):
     # calendario. Un solo barrido de 90 días; las ventanas se cortan en memoria.
     dc90 = list(search("deals", rango("createdate", ini90, hoy),
                        ["pipeline", "dealstage", "hubspot_owner_id",
-                        "hs_is_closed_won", "createdate"]))
+                        "hs_is_closed_won", "createdate", "origen", "dealname"]))
 
     def etiquetas_etapas():
-        """{stageId: (label, orden)} de todos los pipelines de deals."""
-        out = {}
+        """({stageId: (label, orden)}, {pipelineId: [(stageId, label, orden)]})."""
+        out, por_pipe = {}, {}
         try:
             r = _req("GET", "/crm/v3/pipelines/deals")
             for pl in r.get("results", []):
                 for st in pl.get("stages", []):
                     out[st["id"]] = (st.get("label") or st["id"],
                                      st.get("displayOrder", 0))
+                    por_pipe.setdefault(pl["id"], []).append(
+                        (st["id"], st.get("label") or st["id"],
+                         st.get("displayOrder", 0)))
         except SystemExit:
             pass
-        return out
+        return out, por_pipe
 
-    ETAPAS = etiquetas_etapas()
+    ETAPAS, ETAPAS_PIPE = etiquetas_etapas()
     # El pipeline que manda para el mapa de etapas: el que más deals recibió en
     # los 90 días. Hoy es «Ciclo de Venta KS»; si el equipo migra de pipeline,
     # esto lo sigue solo.
@@ -253,6 +256,26 @@ def build(dias=7):
         pp = d_["properties"].get("pipeline")
         _pp[pp] = _pp.get(pp, 0) + 1
     PIPE_CICLO = max(_pp, key=_pp.get) if _pp else None
+
+    # La etapa «propuesta» del pipeline que manda, para el paso 4 del embudo.
+    # Es foto de etapa actual: cuenta ganados y todo lo que esté en propuesta o
+    # más adelante, EXCEPTO las etapas terminales de pérdida (un perdido que
+    # pasó por propuesta no se distingue desde el snapshot).
+    _PROP = re.compile(r"propuesta|cotiz|presupuesto", re.I)
+    _LOST = re.compile(r"perdido|foraneo|foráneo|descart|sin inter", re.I)
+    PROP_ORDEN = PROP_NOMBRE = None
+    for _sid, _lbl, _orden in ETAPAS_PIPE.get(PIPE_CICLO, []):
+        if _PROP.search(_lbl):
+            PROP_ORDEN, PROP_NOMBRE = _orden, _lbl
+            break
+
+    def llego_a_propuesta(pr):
+        if str(pr.get("hs_is_closed_won")).lower() == "true":
+            return True
+        if PROP_ORDEN is None or pr.get("pipeline") != PIPE_CICLO:
+            return False
+        lbl, orden = ETAPAS.get(pr.get("dealstage"), ("", -1))
+        return orden >= PROP_ORDEN and not _LOST.search(lbl)
 
     def es_meta(p, nombre=""):
         return origen_de(p, nombre) in ORIGEN_META
@@ -341,10 +364,22 @@ def build(dias=7):
             a = rep_v.setdefault(info["nombre"], [0, 0.0])
             a[0] += 1
             a[1] += float(d["properties"].get("amount") or 0)
-        canales = {}
+        canales, asig_c = {}, {}
         for c in cs:
             k = canal_de(c["properties"])
             canales[k] = canales.get(k, 0) + 1
+            if c["properties"].get("hubspot_owner_id"):
+                asig_c[k] = asig_c.get(k, 0) + 1
+        # Embudo total: pasos 2-3 cuentan contactos; propuesta y venta cuentan
+        # NEGOCIOS (el contacto no tiene etapa de propuesta). La nota del
+        # dashboard lo dice.
+        wall = [d_ for d_ in d90
+                if (d_["properties"].get("closedate") or "")[:10] >= corte]
+        ven_c = {}
+        for d_ in wall:
+            pr = d_["properties"]
+            k = canal_de(pr, pr.get("dealname"))
+            ven_c[k] = ven_c.get(k, 0) + 1
         # -- contacto humano y su velocidad ---------------------------------
         contactados = sum(1 for c in metas
                           if c["properties"].get("hs_sa_first_engagement_date"))
@@ -356,6 +391,12 @@ def build(dias=7):
         _corte_v = (hoy - timedelta(days=v)).isoformat()
         dcv = [d_ for d_ in dc90
                if (d_["properties"].get("createdate") or "")[:10] >= _corte_v]
+        prop_c = {}
+        for d_ in dcv:
+            pr = d_["properties"]
+            if llego_a_propuesta(pr):
+                k = canal_de(pr, pr.get("dealname"))
+                prop_c[k] = prop_c.get(k, 0) + 1
         et = {}
         for d_ in dcv:
             pr = d_["properties"]
@@ -399,6 +440,13 @@ def build(dias=7):
             a["count"] += 1
             a["mxn"] += float(d_["properties"].get("amount") or 0)
         por_ventana[str(v)] = {
+            "embudo": {
+                "asignados_por_canal": asig_c,
+                "propuesta_por_canal": prop_c,
+                "ventas_por_canal": ven_c,
+                "ventas_total": suma(wall),
+                "etapa_propuesta": PROP_NOMBRE,
+            },
             "contactados": contactados,
             "primer_contacto_horas": round(mediana_h, 1) if mediana_h is not None else None,
             "etapas": etapas,
