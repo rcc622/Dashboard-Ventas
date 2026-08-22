@@ -92,7 +92,8 @@ def _py():
     return sys.executable or "python3"
 
 
-def _corre(nombre, args, timeout=900):
+# 1500 s y no 900: el corte de Kommo ahora barre el log de eventos (~2-3 min)
+def _corre(nombre, args, timeout=1500):
     r = subprocess.run([_py()] + args, capture_output=True, text=True,
                        encoding="utf-8", errors="replace", cwd=HERE, timeout=timeout)
     linea = "== %s == rc=%d\n%s" % (nombre, r.returncode, (r.stdout or "").strip())
@@ -127,7 +128,7 @@ def refrescar():
         log.append(l)
         ok = bien
     except subprocess.TimeoutExpired:
-        log.append("TIMEOUT: el refresh pasó de 15 minutos")
+        log.append("TIMEOUT: el refresh pasó de 25 minutos")
         ok = False
     except Exception:
         log.append("EXCEPCIÓN:\n" + traceback.format_exc()[:1200])
