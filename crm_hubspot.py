@@ -194,7 +194,11 @@ def build(dias=7):
     # con la zona de los leads para los que no pertenecen a ningun equipo.
     zona_rep = {d["nombre"]: d["zona"] for d in own.values() if d.get("zona")}
 
-    props_c = ["origen", "hubspot_owner_id", "createdate"] + PROPS_ZONA
+    # hs_sa_first_engagement_date es la marca de primer contacto con mejor
+    # llenado del portal (39%); hs_first_outreach_date trae 16% y las notas 23%.
+    # hs_time_to_first_engagement viene en milisegundos.
+    props_c = ["origen", "hubspot_owner_id", "createdate",
+               "hs_sa_first_engagement_date", "hs_time_to_first_engagement"] + PROPS_ZONA
     # 90 dias, no 30: la conversion por asesor y el rendimiento por anuncio se
     # miden en la ventana del ciclo de venta. Las ventanas cortas salen de aqui
     # filtrando en memoria, sin una sola llamada extra a la API.
@@ -219,6 +223,36 @@ def build(dias=7):
            if (d["properties"].get("closedate") or "")[:10] >= ini30.isoformat()]
     d7 = [d for d in d30
           if (d["properties"].get("closedate") or "")[:10] >= ini7.isoformat()]
+
+    # Cohorte y etapas viven en los deals CREADOS en la ventana, no en los
+    # cerrados: la pregunta es qué pasó con lo que entró, no qué cayó en el
+    # calendario. Un solo barrido de 90 días; las ventanas se cortan en memoria.
+    dc90 = list(search("deals", rango("createdate", ini90, hoy),
+                       ["pipeline", "dealstage", "hubspot_owner_id",
+                        "hs_is_closed_won", "createdate"]))
+
+    def etiquetas_etapas():
+        """{stageId: (label, orden)} de todos los pipelines de deals."""
+        out = {}
+        try:
+            r = _req("GET", "/crm/v3/pipelines/deals")
+            for pl in r.get("results", []):
+                for st in pl.get("stages", []):
+                    out[st["id"]] = (st.get("label") or st["id"],
+                                     st.get("displayOrder", 0))
+        except SystemExit:
+            pass
+        return out
+
+    ETAPAS = etiquetas_etapas()
+    # El pipeline que manda para el mapa de etapas: el que más deals recibió en
+    # los 90 días. Hoy es «Ciclo de Venta KS»; si el equipo migra de pipeline,
+    # esto lo sigue solo.
+    _pp = {}
+    for d_ in dc90:
+        pp = d_["properties"].get("pipeline")
+        _pp[pp] = _pp.get(pp, 0) + 1
+    PIPE_CICLO = max(_pp, key=_pp.get) if _pp else None
 
     def es_meta(p, nombre=""):
         return origen_de(p, nombre) in ORIGEN_META
@@ -307,9 +341,43 @@ def build(dias=7):
             a = rep_v.setdefault(info["nombre"], [0, 0.0])
             a[0] += 1
             a[1] += float(d["properties"].get("amount") or 0)
+        canales = {}
+        for c in cs:
+            k = canal_de(c["properties"])
+            canales[k] = canales.get(k, 0) + 1
+        # -- contacto humano y su velocidad ---------------------------------
+        contactados = sum(1 for c in metas
+                          if c["properties"].get("hs_sa_first_engagement_date"))
+        _hs_ms = sorted(float(c["properties"]["hs_time_to_first_engagement"])
+                        for c in metas
+                        if c["properties"].get("hs_time_to_first_engagement"))
+        mediana_h = (_hs_ms[len(_hs_ms) // 2] / 3600000.0) if _hs_ms else None
+        # -- dónde está hoy cada deal creado en la ventana ------------------
+        _corte_v = (hoy - timedelta(days=v)).isoformat()
+        dcv = [d_ for d_ in dc90
+               if (d_["properties"].get("createdate") or "")[:10] >= _corte_v]
+        et = {}
+        for d_ in dcv:
+            pr = d_["properties"]
+            if pr.get("pipeline") != PIPE_CICLO:
+                continue
+            et[pr.get("dealstage")] = et.get(pr.get("dealstage"), 0) + 1
+        etapas = [{"id": i, "nombre": ETAPAS.get(i, (i, 0))[0], "n": c2}
+                  for i, c2 in sorted(et.items(),
+                                      key=lambda kv: ETAPAS.get(kv[0], ("", 999))[1])]
+        # -- cohorte por dueño: de SUS deals de la ventana, cuántos ya ganó --
+        coh = {}
+        for d_ in dcv:
+            pr = d_["properties"]
+            if str(pr.get("hs_is_closed_won")).lower() != "true":
+                continue
+            info2 = own.get(str(pr.get("hubspot_owner_id") or ""), {})
+            if info2.get("nombre"):
+                coh[info2["nombre"]] = coh.get(info2["nombre"], 0) + 1
         asesores = [{"rep": n, "zone": zona_rep.get(n, ""), "leads": k,
                      "ventas": rep_v.get(n, [0, 0.0])[0],
-                     "mxn": rep_v.get(n, [0, 0.0])[1]}
+                     "mxn": rep_v.get(n, [0, 0.0])[1],
+                     "cohorte": coh.get(n, 0)}
                     for n, k in sorted(rep.items(), key=lambda kv: -kv[1])]
         # Un asesor puede cerrar en la ventana sin haber recibido un lead nuevo:
         # la venta viene de un lead viejo. Dejarlo fuera esconderia la venta.
@@ -330,11 +398,10 @@ def build(dias=7):
             a = wz.setdefault(z_, {"count": 0, "mxn": 0.0})
             a["count"] += 1
             a["mxn"] += float(d_["properties"].get("amount") or 0)
-        canales = {}
-        for c in cs:
-            k = canal_de(c["properties"])
-            canales[k] = canales.get(k, 0) + 1
         por_ventana[str(v)] = {
+            "contactados": contactados,
+            "primer_contacto_horas": round(mediana_h, 1) if mediana_h is not None else None,
+            "etapas": etapas,
             "leads_por_canal": canales,
             "won_meta_por_zona": wz,
             "leads_total": len(cs), "leads_meta": len(metas),

@@ -41,7 +41,37 @@ COLA = os.path.join(DATA, "instrucciones.jsonl")
 PAUSAS = os.path.join(DATA, "pausas.jsonl")
 # Kill-switch: sin esto el endpoint contesta pero NO escribe a Meta. Se quita en
 # Railway sin redesplegar, que es justo lo que quieres cuando algo sale mal.
-PAUSA_ACTIVA = os.environ.get("PAUSA_ACTIVA", "") == "1"
+_PAUSA_ENV = os.environ.get("PAUSA_ACTIVA", "") == "1"
+# El seguro también se arma desde la página, pero NUNCA para siempre: el botón
+# escribe una ventana de 24 h en el volumen y al vencer se desarma solo. La
+# variable de entorno sigue mandando como encendido permanente; este archivo es
+# el modo "ármalo ahora sin entrar a Railway".
+PAUSA_ARMADA = os.path.join(DATA, "pausa_armada.json")
+ARMADO_HORAS = 24
+
+
+def pausa_activa():
+    if _PAUSA_ENV:
+        return True
+    try:
+        with open(PAUSA_ARMADA, encoding="utf-8") as f:
+            hasta = json.load(f).get("hasta", "")
+        return bool(hasta) and ahora().isoformat() < hasta
+    except Exception:
+        return False
+
+
+def _estado_armado():
+    if _PAUSA_ENV:
+        return {"armada": True, "modo": "env", "hasta": None}
+    try:
+        with open(PAUSA_ARMADA, encoding="utf-8") as f:
+            hasta = json.load(f).get("hasta", "")
+    except Exception:
+        hasta = ""
+    viva = bool(hasta) and ahora().isoformat() < hasta
+    return {"armada": viva, "modo": "boton" if viva else "apagada",
+            "hasta": hasta if viva else None}
 # Un botón que apaga 40 anuncios de un clic no es un botón, es un accidente.
 PAUSA_MAX = int(os.environ.get("PAUSA_MAX_POR_LOTE", "5") or 5)
 PRESET_PAUSA = os.environ.get("PAUSA_PRESET", "last_14d")
@@ -418,7 +448,7 @@ class H(BaseHTTPRequestHandler):
                                    "motivo": "ya no cumple ninguna regla de pausa"})
                 continue
             r, motivos = vigentes[aid]
-            if not PAUSA_ACTIVA:
+            if not pausa_activa():
                 resultados.append({"ad_id": aid, "ok": False, "anuncio": r["name"],
                                    "motivo": "PAUSA_ACTIVA no está en 1 (kill-switch)"})
                 continue
@@ -444,8 +474,49 @@ class H(BaseHTTPRequestHandler):
                                "motivo": "; ".join(motivos) if bien else str(rr)[:160]})
         hechas = sum(1 for x in resultados if x["ok"])
         return self._send(200, json.dumps(
-            {"pausados": hechas, "activo": PAUSA_ACTIVA, "resultados": resultados},
+            {"pausados": hechas, "activo": pausa_activa(), "resultados": resultados},
             ensure_ascii=False), "application/json")
+
+    def _armar_pausa(self):
+        """Arma o desarma el seguro de pausa desde la página, por 24 h máximo.
+
+        No toca ningún anuncio: solo abre la ventana en la que el botón de pausa
+        SÍ escribe. Todo lo demás sigue igual — revalidación server-side, tope
+        por lote y guardrail KE. Si PAUSA_ACTIVA=1 vive en el entorno, ese modo
+        manda y desde aquí no se puede apagar.
+        """
+        try:
+            n = int(self.headers.get("Content-Length", 0) or 0)
+            cuerpo = json.loads(self.rfile.read(n).decode("utf-8")) if n else {}
+        except Exception:
+            cuerpo = {}
+        if _PAUSA_ENV:
+            return self._send(409, json.dumps(
+                {"ok": False, "motivo": "PAUSA_ACTIVA=1 vive en el entorno; "
+                 "se apaga en Railway, no desde la página"}), "application/json")
+        armar = bool(cuerpo.get("armar"))
+        with _lock:
+            try:
+                if armar:
+                    hasta = (ahora() + timedelta(hours=ARMADO_HORAS))                        .isoformat(timespec="seconds")
+                    with open(PAUSA_ARMADA, "w", encoding="utf-8") as f:
+                        json.dump({"hasta": hasta, "por": USER,
+                                   "desde": ahora().isoformat(timespec="seconds")}, f)
+                else:
+                    try:
+                        os.remove(PAUSA_ARMADA)
+                    except FileNotFoundError:
+                        pass
+            except Exception as e:
+                return self._send(500, json.dumps({"ok": False,
+                                                   "motivo": repr(e)[:200]}),
+                                  "application/json")
+        est = _estado_armado()
+        print("PAUSA %s por %s%s" % ("ARMADA" if est["armada"] else "DESARMADA",
+                                     USER, " hasta " + est["hasta"] if est["hasta"] else ""),
+              flush=True)
+        return self._send(200, json.dumps(dict(est, ok=True), ensure_ascii=False),
+                          "application/json")
 
     def _copiloto(self):
         """Chat con Claude. Lee datos y consulta Meta en solo-lectura; los
@@ -535,12 +606,13 @@ class H(BaseHTTPRequestHandler):
                             except Exception:
                                 pass
             return self._send(200, json.dumps(
-                {"total": len(filas), "activo": PAUSA_ACTIVA, "pausas": filas[-50:]},
+                {"total": len(filas), "activo": pausa_activa(), "pausas": filas[-50:]},
                 ensure_ascii=False), "application/json")
         if ruta == "/estado":
             with _lock:
                 return self._send(200, json.dumps(
-                    dict(_estado, pausa_activa=PAUSA_ACTIVA, pausa_max=PAUSA_MAX),
+                    dict(_estado, pausa_activa=pausa_activa(),
+                         pausa_armado=_estado_armado(), pausa_max=PAUSA_MAX),
                     ensure_ascii=False), "application/json")
         p = html_actual()
         if not p:
@@ -567,6 +639,8 @@ class H(BaseHTTPRequestHandler):
             return self._encolar()
         if self.path.startswith("/pausar"):
             return self._pausar()
+        if self.path.startswith("/armar-pausa"):
+            return self._armar_pausa()
         if self.path.startswith("/copiloto"):
             return self._copiloto()
         if self.path.startswith("/cola/hecho"):

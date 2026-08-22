@@ -126,6 +126,38 @@ zona_ambigua          homónimos sin estado
 sin_ciudad            sin ningún dato de ciudad
 ```
 
+Contacto humano, velocidad y ciclo (también dentro de cada ventana):
+
+```
+contactados            leads de Meta con un toque HUMANO. En Kommo = mensaje
+                       saliente o tarea completada con created_by de un usuario
+                       real (el bot firma con 0: contarlo daría 100%). En
+                       HubSpot = hs_sa_first_engagement_date (39% de llenado,
+                       la mejor marca del portal).
+primer_contacto_horas  mediana de horas creación→primer toque. El action time.
+etapas                 [{id, nombre, n}] dónde está HOY cada lead/deal creado en
+                       la ventana, del pipeline de ventas con más volumen. Es
+                       foto, no flujo: un ganado pasó por todas y cuenta una vez.
+por_asesor[].cohorte   de los leads que le entraron en la ventana, cuántos YA
+                       cerró (venga el cierre de cuando venga). La conversión de
+                       la tabla usa ESTA base: la de periodo castigaba al que
+                       más leads nuevos recibía.
+```
+
+El paso 3 del embudo es «Lo contactaron» cuando el corte trae `contactados`;
+sin él cae a «Tiene asesor». En Kommo «tiene asesor» medía al robot (asigna al
+crear el lead: 100% siempre); el contacto humano real ronda el 39%.
+
+### El seguro de pausa se arma desde la página (24 h)
+
+`POST /armar-pausa {armar:true|false}` escribe `data/pausa_armada.json` con un
+vencimiento a 24 h; `pausa_activa()` = env `PAUSA_ACTIVA=1` (permanente, manda y
+no se apaga desde la página) O la ventana del archivo vigente. El bloque
+`#seguro-pausa` en «Qué hago hoy» pinta el estado vía `/estado` y se esconde si
+la página se abre como archivo. Armar NO pausa nada: solo abre la ventana en la
+que el botón de pausar sí escribe; cada pausa conserva su confirmación,
+revalidación server-side, tope por lote y guardrail KE.
+
 Y a nivel raíz, el cruce anuncio↔venta:
 
 ```
