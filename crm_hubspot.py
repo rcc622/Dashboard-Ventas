@@ -370,6 +370,16 @@ def build(dias=7):
             a = rep_v.setdefault(info["nombre"], [0, 0.0])
             a[0] += 1
             a[1] += float(d["properties"].get("amount") or 0)
+        # Solo las de origen Meta, aparte: el CAC/ROAS del asesor reparte gasto
+        # de Meta y dividirlo contra ventas de otros origenes inflaba el retorno.
+        rep_vm = {}
+        for d in wv:
+            info = own.get(str(d["properties"].get("hubspot_owner_id") or ""), {})
+            if not info.get("nombre"):
+                continue
+            a = rep_vm.setdefault(info["nombre"], [0, 0.0])
+            a[0] += 1
+            a[1] += float(d["properties"].get("amount") or 0)
         canales, asig_c = {}, {}
         for c in cs:
             k = canal_de(c["properties"])
@@ -422,6 +432,8 @@ def build(dias=7):
         asesores = [{"rep": n, "zone": zona_rep.get(n, ""), "leads": k,
                      "ventas": rep_v.get(n, [0, 0.0])[0],
                      "mxn": rep_v.get(n, [0, 0.0])[1],
+                     "ventas_meta": rep_vm.get(n, [0, 0.0])[0],
+                     "mxn_meta": rep_vm.get(n, [0, 0.0])[1],
                      "cohorte": coh.get(n, 0)}
                     for n, k in sorted(rep.items(), key=lambda kv: -kv[1])]
         # Un asesor puede cerrar en la ventana sin haber recibido un lead nuevo:
@@ -430,7 +442,9 @@ def build(dias=7):
         for n, (cnt, mxn) in rep_v.items():
             if n not in vistos:
                 asesores.append({"rep": n, "zone": zona_rep.get(n, ""), "leads": 0,
-                                 "ventas": cnt, "mxn": mxn})
+                                 "ventas": cnt, "mxn": mxn,
+                                 "ventas_meta": rep_vm.get(n, [0, 0.0])[0],
+                                 "mxn_meta": rep_vm.get(n, [0, 0.0])[1]})
         # Ventas por zona del ASESOR que cerro. El deal no trae ciudad y pedirle
         # su contacto asociado seria una llamada por venta; el equipo del owner ya
         # esta en memoria y es la misma zona contra la que se mide el gasto.
@@ -444,6 +458,8 @@ def build(dias=7):
             a["count"] += 1
             a["mxn"] += float(d_["properties"].get("amount") or 0)
         por_ventana[str(v)] = {
+            # Ciclo de las ventas cerradas EN ESTA ventana (todos los canales).
+            "ttc_dias": ttc(wall),
             "embudo": {
                 "asignados_por_canal": asig_c,
                 "propuesta_por_canal": prop_c,
