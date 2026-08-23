@@ -229,7 +229,8 @@ def build(dias=7):
     # calendario. Un solo barrido de 90 días; las ventanas se cortan en memoria.
     dc90 = list(search("deals", rango("createdate", ini90, hoy),
                        ["pipeline", "dealstage", "hubspot_owner_id",
-                        "hs_is_closed_won", "createdate", "origen", "dealname"]))
+                        "hs_is_closed_won", "createdate", "origen", "dealname",
+                        "amount", "days_to_close"]))
 
     def etiquetas_etapas():
         """({stageId: (label, orden)}, {pipelineId: [(stageId, label, orden)]})."""
@@ -386,14 +387,6 @@ def build(dias=7):
             canales[k] = canales.get(k, 0) + 1
             if c["properties"].get("hubspot_owner_id"):
                 asig_c[k] = asig_c.get(k, 0) + 1
-        # Embudo total: pasos 2-3 cuentan contactos; propuesta y venta cuentan
-        # NEGOCIOS (el contacto no tiene etapa de propuesta). La nota del
-        # dashboard lo dice.
-        ven_c = {}
-        for d_ in wall:
-            pr = d_["properties"]
-            k = canal_de(pr, pr.get("dealname"))
-            ven_c[k] = ven_c.get(k, 0) + 1
         # -- contacto humano y su velocidad ---------------------------------
         contactados = sum(1 for c in metas
                           if c["properties"].get("hs_sa_first_engagement_date"))
@@ -405,12 +398,23 @@ def build(dias=7):
         _corte_v = (hoy - timedelta(days=v)).isoformat()
         dcv = [d_ for d_ in dc90
                if (d_["properties"].get("createdate") or "")[:10] >= _corte_v]
-        prop_c = {}
+        # Embudo de COHORTE: pasos 2-3 cuentan contactos creados en la ventana;
+        # propuesta y venta cuentan NEGOCIOS creados en la ventana (el contacto
+        # no tiene etapa). «Cerró venta» = de esos negocios, los YA ganados —
+        # por eso a 7 días sale casi en cero con un ciclo de ~3 meses, y ningún
+        # paso puede superar al anterior.
+        prop_c, ven_c = {}, {}
+        ven_mxn, ven_dias = 0.0, []
         for d_ in dcv:
             pr = d_["properties"]
+            k = canal_de(pr, pr.get("dealname"))
             if llego_a_propuesta(pr):
-                k = canal_de(pr, pr.get("dealname"))
                 prop_c[k] = prop_c.get(k, 0) + 1
+            if str(pr.get("hs_is_closed_won")).lower() == "true":
+                ven_c[k] = ven_c.get(k, 0) + 1
+                ven_mxn += float(pr.get("amount") or 0)
+                if pr.get("days_to_close"):
+                    ven_dias.append(float(pr["days_to_close"]))
         et = {}
         for d_ in dcv:
             pr = d_["properties"]
@@ -458,13 +462,14 @@ def build(dias=7):
             a["count"] += 1
             a["mxn"] += float(d_["properties"].get("amount") or 0)
         por_ventana[str(v)] = {
-            # Ciclo de las ventas cerradas EN ESTA ventana (todos los canales).
-            "ttc_dias": ttc(wall),
+            # Ciclo de la COHORTE: cuánto tardaron en cerrar los negocios de
+            # esta ventana que ya ganaron. None si todavía no gana ninguno.
+            "ttc_dias": round(sum(ven_dias) / len(ven_dias), 1) if ven_dias else None,
             "embudo": {
                 "asignados_por_canal": asig_c,
                 "propuesta_por_canal": prop_c,
                 "ventas_por_canal": ven_c,
-                "ventas_total": suma(wall),
+                "ventas_total": {"count": sum(ven_c.values()), "mxn": ven_mxn},
                 "etapa_propuesta": PROP_NOMBRE,
             },
             "contactados": contactados,
