@@ -124,6 +124,13 @@ def refrescar():
         else:
             log.append("== CRM ==\nsin token configurado; se usa el último corte manual")
 
+        # Google Ads: opcional; si falla no tumba el resto (queda el corte previo)
+        if os.environ.get("GOOGLE_ADS_REFRESH_TOKEN"):
+            bien, l = _corre("Google Ads", ["google_ads.py"], timeout=300)
+            log.append(l)
+            if not bien:
+                log.append("aviso: Google Ads falló; se usa el corte anterior")
+
         bien, l = _corre("Meta + dashboard", ["dashboard.py", "--refresh"])
         log.append(l)
         ok = bien

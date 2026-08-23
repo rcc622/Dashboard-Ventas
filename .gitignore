@@ -13,3 +13,4 @@ data/*.csv
 __pycache__/
 *.pyc
 .DS_Store
+.google_oauth_vars.txt
