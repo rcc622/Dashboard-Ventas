@@ -94,7 +94,11 @@ leads_por_canal       {canal: n} — Meta / Google / Web / Redes / Directo
 google_por_campana    [{campana, keyword, leads, asignados}]
 won_meta              {count, mxn} ventas con origen Meta cerradas en la ventana
 won_meta_por_zona     {zona: {count, mxn}}
-por_asesor            [{rep, zone, leads, ventas, mxn}] de ESA ventana
+por_asesor            [{rep, zone, leads, ventas, mxn}] de ESA ventana. Desde
+                      2026-08-23 ventas/mxn/cohorte cuentan TODOS los canales
+                      (leads sigue siendo los de Meta); won_meta queda solo-Meta
+embudo                {asignados_por_canal, propuesta_por_canal, ventas_por_canal,
+                      ventas_total, etapa_propuesta} — el embudo total de 5 pasos
 ```
 
 `won_meta_por_zona`: en **Kommo** es la ciudad del cliente, y cuando la venta no

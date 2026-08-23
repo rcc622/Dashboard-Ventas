@@ -353,11 +353,17 @@ def build(dias=7):
         asignables = sum(veredictos[z] for z in zonas.ZONAS)
         corte = (hoy - timedelta(days=v)).isoformat()
         wv = [d for d in dm90 if (d["properties"].get("closedate") or "")[:10] >= corte]
-        # Ventas por asesor: el dueno del deal. No se casa lead-con-venta (el lead
-        # que cerro hoy entro hace ~86 dias); es la foto del periodo, que es lo que
-        # se usa para comparar asesores entre si.
+        # TODOS los deals ganados cerrados en la ventana, de cualquier canal:
+        # cierre por asesor y embudo total. wv (solo Meta) queda para won_meta
+        # y el marcador por zona, que se miden contra el gasto de Meta.
+        wall = [d_ for d_ in d90
+                if (d_["properties"].get("closedate") or "")[:10] >= corte]
+        # Ventas por asesor: el dueno del deal, de CUALQUIER canal (antes solo
+        # Meta: escondia los cierres de referidos/organico). No se casa
+        # lead-con-venta (el lead que cerro hoy entro hace ~86 dias); es la foto
+        # del periodo, que es lo que se usa para comparar asesores entre si.
         rep_v = {}
-        for d in wv:
+        for d in wall:
             info = own.get(str(d["properties"].get("hubspot_owner_id") or ""), {})
             if not info.get("nombre"):
                 continue
@@ -373,8 +379,6 @@ def build(dias=7):
         # Embudo total: pasos 2-3 cuentan contactos; propuesta y venta cuentan
         # NEGOCIOS (el contacto no tiene etapa de propuesta). La nota del
         # dashboard lo dice.
-        wall = [d_ for d_ in d90
-                if (d_["properties"].get("closedate") or "")[:10] >= corte]
         ven_c = {}
         for d_ in wall:
             pr = d_["properties"]
