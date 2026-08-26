@@ -94,6 +94,11 @@ leads_por_canal       {canal: n} — Meta / Google / Web / Redes / Directo
 google_por_campana    [{campana, keyword, leads, asignados}]
 won_meta              {count, mxn} ventas con origen Meta cerradas en la ventana
 won_meta_por_zona     {zona: {count, mxn}}
+won_por_canal         {canal: {count, mxn}} TODAS las ventas cerradas en la
+                      ventana, por su canal de ENTRADA. Alimenta el retorno por
+                      origen: el ingreso de cada canal contra el gasto de SU
+                      plataforma (Meta, Google con corte); los canales sin gasto
+                      conectado se listan sin retorno, nunca como retorno infinito
 por_asesor            [{rep, zone, leads, ventas, mxn}] de ESA ventana. Desde
                       2026-08-23 ventas/mxn/cohorte cuentan TODOS los canales
                       (leads sigue siendo los de Meta); won_meta queda solo-Meta
