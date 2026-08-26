@@ -99,6 +99,11 @@ won_por_canal         {canal: {count, mxn}} TODAS las ventas cerradas en la
                       origen: el ingreso de cada canal contra el gasto de SU
                       plataforma (Meta, Google con corte); los canales sin gasto
                       conectado se listan sin retorno, nunca como retorno infinito
+won_zona_por_canal    {canal: {zona: {count, mxn}}} el mismo corte abierto por
+                      zona (misma regla de zona que won_meta_por_zona). Alimenta
+                      el filtro de Origen de la sección 4
+por_asesor[].por_canal {canal: [ventas, mxn]} el cierre del asesor abierto por
+                      canal de entrada, para la tabla filtrada por origen
 por_asesor            [{rep, zone, leads, ventas, mxn}] de ESA ventana. Desde
                       2026-08-23 ventas/mxn/cohorte cuentan TODOS los canales
                       (leads sigue siendo los de Meta); won_meta queda solo-Meta
@@ -435,8 +440,18 @@ Hay **dos switchers independientes**, cada uno con su `data-g`:
 - `main` — **7 / 14 / 28 / 30 / 60 / 90 días**, arranca en 7. Manda sobre los
   KPIs, las secciones 1 a 4 y el inventario. Vive fuera de toda sección porque
   manda en toda la página.
-- `retorno` — **la misma escala**, arranca en 30. Manda sobre la sección 5
+- `retorno` — **la misma escala**, arranca en 30. Manda sobre la sección 4
   completa: marcador por zona, cierre por asesor y anuncio→venta.
+- `origen` — filtro de **origen de la venta** en la misma barra de la sección 4
+  (Todo / Meta / Google / …, arranca en Todo). Filtra los tres bloques por el
+  canal de ENTRADA de la venta. Regla dura: **el retorno solo se escribe donde
+  el ingreso del origen se divide entre el gasto de SU plataforma** — Meta
+  siempre, Google en global cuando hay corte; los demás listan ingreso sin
+  cociente. Es independiente del filtro `canal` del embudo (el de la barra
+  flotante): mismo JS, distinto grupo. El panel de anuncios usa
+  `data-win="todo meta-ads"` (valores múltiples separados por espacio, que el
+  JS de `.wsw` acepta): la tabla es la misma para Todo y Meta y duplicarla
+  doblaba el HTML.
 
 Eran tres selectores con escalas distintas (`main` 7/14/28, `ventas` 30/60/90,
 `reps` las seis) y ninguno decía sobre qué mandaba. Ahora las dos barras ofrecen
