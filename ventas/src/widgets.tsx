@@ -79,7 +79,11 @@ export function WidgetGrid({ clave, widgets }: { clave: string; widgets: Widget[
   const quitar = (id: string) => fijar({ ...layout, ocultos: [...layout.ocultos.filter((x) => x !== id), id] })
   const poner = (id: string) => fijar({ ...layout, ocultos: layout.ocultos.filter((x) => x !== id) })
   const visibles = layout.orden.filter((id) => (esSep(id) ? id in layout.seps : !layout.ocultos.includes(id) && por.has(id)))
-  const agregarSep = () => { const id = 'sep:' + Date.now().toString(36); fijar({ ...layout, orden: [...layout.orden, id], seps: { ...layout.seps, [id]: 'Nueva sección' } }) }
+  const agregarSep = () => {
+    const id = 'sep:' + Date.now().toString(36)
+    fijar({ ...layout, orden: [...layout.orden, id], seps: { ...layout.seps, [id]: 'Nueva sección' } })
+    requestAnimationFrame(() => { const inp = refs.current[id]?.querySelector('input'); inp?.focus(); inp?.select() })   // listo para escribir el título
+  }
   const titularSep = (id: string, t: string) => fijar({ ...layout, seps: { ...layout.seps, [id]: t } })
   const borrarSep = (id: string) => { const seps = { ...layout.seps }; delete seps[id]; fijar({ ...layout, orden: layout.orden.filter((x) => x !== id), seps }) }
   const quitados = layout.ocultos.filter((id) => por.has(id))
@@ -169,7 +173,7 @@ export function WidgetGrid({ clave, widgets }: { clave: string; widgets: Widget[
               onDrop={(e) => { e.preventDefault(); soltar(id); setDrag(null); setOver(null) }}>
               <div className="whead">
                 <span className="grip" draggable title="Arrastra para mover" aria-hidden="true" onDragStart={onDragStart(id)} onDragEnd={() => { setDrag(null); setOver(null) }}>⋮⋮</span>
-                <h3>{w.titulo}{(w.info || []).map((t) => <Info key={t} termino={t} />)}</h3>
+                <h3><span className="wt">{w.titulo}</span>{(w.info || []).map((t) => <Info key={t} termino={t} />)}</h3>
                 <button type="button" className="wbtn" aria-label={`Mover «${w.titulo}» antes`} title="Mover antes" disabled={i === 0} onClick={() => mover(id, layout.orden.indexOf(visibles[i - 1]))}>▲</button>
                 <button type="button" className="wbtn" aria-label={`Mover «${w.titulo}» después`} title="Mover después" disabled={i === visibles.length - 1} onClick={() => mover(id, layout.orden.indexOf(visibles[i + 1]))}>▼</button>
                 <button type="button" className="wbtn" aria-label={`Quitar «${w.titulo}» del tablero`} title="Quitar del tablero" onClick={() => quitar(id)}>×</button>

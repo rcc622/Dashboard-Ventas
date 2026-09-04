@@ -140,7 +140,10 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 .widget.wtile .tile .n { font-size: clamp(28px, 13cqw, 72px); }
 .widget.wtile .tile .l { font-size: clamp(12px, 4.5cqw, 16px); }
 .widget.hset.wtile .wbody > .tile { flex: 1 1 auto; }
-.widget.wtile .whead h3 { font-size: 12px; font-weight: 600; color: var(--g2); }
+/* En una cifra el tile ya dice qué es: el encabezado queda compacto (asa, «i» y botones) y el título solo para lectores de pantalla. */
+.widget.wtile .whead { margin-bottom: 4px; }
+.widget.wtile .whead h3 .wt { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.widget.wtile .wbody > .tile { min-height: 96px; }
 
 /* ---------- salud operativa (dona + desglose) ---------- */
 /* Columnas proporcionales: la dona, los medidores y el embudo crecen con el ancho del widget (pedido de Randall 4-sep). */
@@ -394,7 +397,8 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 .widget.wperf { container-type: inline-size; }
 .perfil-wrap { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-items: start; }
 .perfil-chart, .perfil-tabla { min-width: 0; }
-.perfil-tabla .ftable td { padding: 6px 8px; white-space: nowrap; }
+.perfil-tabla .ftable td { padding: 6px 8px; }
+.perfil-tabla .ftable td.num, .perfil-tabla .ftable td:first-child { white-space: nowrap; }
 .perfil-tabla .ini { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; color: #fff; font-size: 9px; font-weight: 700; margin-right: 8px; vertical-align: middle; }
 .pdot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
 .perfil-tabla .ini.p-mantener, .pdot.p-mantener { background: var(--c4); }
