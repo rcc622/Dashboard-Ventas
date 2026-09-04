@@ -6,6 +6,7 @@ import { ChartCard } from "@/components/ChartCard";
 import { RANGE_OPTIONS, RangeFilter } from "@/components/RangeFilter";
 import { SourceBadge } from "@/components/SourceBadge";
 import { StatTile, type Tone } from "@/components/StatTile";
+import { SyncStatus } from "@/components/SyncStatus";
 import { AdvisorRanking } from "@/components/charts/AdvisorRanking";
 import { ChannelBars } from "@/components/charts/ChannelBars";
 import { FunnelBars } from "@/components/charts/FunnelBars";
@@ -85,6 +86,10 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
         </div>
       </header>
 
+      <div className="mb-4">
+        <SyncStatus />
+      </div>
+
       {notices.length > 0 && (
         <div className="mb-4 rounded-lg border border-border bg-surface px-4 py-2 text-xs text-text-2">
           {notices.map((n, i) => (
@@ -157,7 +162,7 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
         <ChartCard
           className="lg:col-span-3"
           title="Leads por canal"
-          subtitle={`Origen de los leads nuevos · ${days} días`}
+          subtitle={`Canal de entrada de los leads nuevos (utm / origen) · ${days} días`}
           table={{
             columns: ["Canal", "Leads", "Ganados"],
             rows: m.channels.map((c) => [c.name, c.leads, c.won]),
@@ -174,8 +179,9 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
       <footer className="mt-6 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
         <span>Fuente: {snapshot.sourceLabel}</span>
         <span>API JSON: /api/snapshot?dias={days}</span>
+        <span>Exportes: /api/export/leads.csv · /api/export/actividades.csv</span>
+        <span>Sincronía: /api/sync/status</span>
         <span>Salud: /api/health</span>
-        <span>Se actualiza solo cada 5 min</span>
       </footer>
     </main>
   );

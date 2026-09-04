@@ -42,6 +42,10 @@ export function fmtDateTime(iso: string): string {
 export function fmtRelative(iso: string | null, now: number = Date.now()): string {
   if (!iso) return "—";
   const mins = Math.round((now - Date.parse(iso)) / 60_000);
+  if (mins < 0) {
+    const ahead = -mins;
+    return ahead < 60 ? `en ${ahead} min` : `en ${Math.round(ahead / 60)} h`;
+  }
   if (mins < 1) return "ahora";
   if (mins < 60) return `hace ${mins} min`;
   const hours = Math.round(mins / 60);

@@ -27,6 +27,7 @@ export function AdvisorTable({ rows, staleDays }: { rows: AdvisorMetrics[]; stal
         <thead>
           <tr className="border-b border-border">
             <th className={`${th} text-left`}>Asesor</th>
+            <th className={`${th} text-left`}>Zona</th>
             <th className={th}>Nuevos</th>
             <th className={th}>Abiertos</th>
             <th className={th}>Pipeline</th>
@@ -46,7 +47,9 @@ export function AdvisorTable({ rows, staleDays }: { rows: AdvisorMetrics[]; stal
               <td className="whitespace-nowrap px-2 py-2 text-left text-text">
                 {r.name}
                 {!r.active && <span className="ml-1 text-xs text-muted">(inactivo)</span>}
+                {r.active && !r.vendedor && <span className="ml-1 text-xs text-muted">(no vende)</span>}
               </td>
+              <td className={`${td} text-left`}>{r.zona ?? "—"}</td>
               <td className={td}>{fmtInt(r.newLeads)}</td>
               <td className={td}>{fmtInt(r.openLeads)}</td>
               <td className={td}>{fmtCompactMoney(r.openValue)}</td>

@@ -31,6 +31,8 @@ export interface AdvisorMetrics {
   advisorId: string;
   name: string;
   active: boolean;
+  vendedor: boolean;
+  zona: string | null;
   newLeads: number;
   openLeads: number;
   openValue: number;
@@ -66,6 +68,13 @@ export interface ChannelRow {
   won: number;
 }
 
+export interface ZonaRow {
+  zona: string;
+  leads: number;
+  won: number;
+  wonValue: number;
+}
+
 export type Severity = "warning" | "serious" | "critical";
 
 export interface Alert {
@@ -85,6 +94,7 @@ export interface Metrics {
   funnel: { pipelineName: string; rows: FunnelRow[] };
   weekly: WeekPoint[];
   channels: ChannelRow[];
+  zonas: ZonaRow[];
   alerts: Alert[];
 }
 
@@ -176,10 +186,13 @@ export function computeMetrics(snapshot: Snapshot, opts: MetricsOptions): Metric
         if (Number.isFinite(t) && !(t <= lastActivity)) lastActivity = t;
       }
 
+      const info = advisorById.get(id);
       return {
         advisorId: id,
         name: nameOf(id),
-        active: advisorById.get(id)?.active ?? true,
+        active: info?.active ?? true,
+        vendedor: info?.vendedor ?? true,
+        zona: info?.zona ?? null,
         newLeads: mine(newInRange).length,
         openLeads: myOpen.length,
         openValue: sumValue(myOpen),
@@ -193,7 +206,8 @@ export function computeMetrics(snapshot: Snapshot, opts: MetricsOptions): Metric
         lastActivityAt: Number.isFinite(lastActivity) ? new Date(lastActivity).toISOString() : null,
       };
     })
-    .filter((a) => a.active || a.newLeads + a.openLeads + a.won + a.lost > 0)
+    // Admins / sistema (no vendedores) e inactivos solo aparecen si tienen movimiento.
+    .filter((a) => (a.active && a.vendedor) || a.newLeads + a.openLeads + a.won + a.lost > 0)
     .sort(
       (a, b) =>
         b.wonValue - a.wonValue || b.won - a.won || b.newLeads - a.newLeads || a.name.localeCompare(b.name, "es"),
@@ -245,7 +259,7 @@ export function computeMetrics(snapshot: Snapshot, opts: MetricsOptions): Metric
   // --- Leads por canal (en la ventana) -------------------------------------
   const byChannel = new Map<string, ChannelRow>();
   for (const l of newInRange) {
-    const key = l.channel?.trim() || "Sin origen";
+    const key = l.canal;
     const row = byChannel.get(key) ?? { name: key, leads: 0, won: 0 };
     row.leads += 1;
     if (l.status === "won") row.won += 1;
@@ -263,6 +277,24 @@ export function computeMetrics(snapshot: Snapshot, opts: MetricsOptions): Metric
       },
     ];
   }
+
+  // --- Leads y ventas por zona (zona efectiva: ciudad del contacto, si no la del asesor) ---
+  const byZona = new Map<string, ZonaRow>();
+  const zonaKey = (l: Lead) => l.zonaEfectiva ?? (l.zona === "SIN_DATO" ? "Sin zona" : l.zona);
+  for (const l of newInRange) {
+    const key = zonaKey(l);
+    const row = byZona.get(key) ?? { zona: key, leads: 0, won: 0, wonValue: 0 };
+    row.leads += 1;
+    byZona.set(key, row);
+  }
+  for (const l of wonInRange) {
+    const key = zonaKey(l);
+    const row = byZona.get(key) ?? { zona: key, leads: 0, won: 0, wonValue: 0 };
+    row.won += 1;
+    row.wonValue += l.value;
+    byZona.set(key, row);
+  }
+  const zonas = [...byZona.values()].sort((a, b) => b.leads - a.leads);
 
   // --- Alertas -------------------------------------------------------------
   const staleSeverity = (days: number): Severity =>
@@ -313,6 +345,7 @@ export function computeMetrics(snapshot: Snapshot, opts: MetricsOptions): Metric
     funnel: { pipelineName: mainPipeline?.name ?? "—", rows: funnelRows },
     weekly: [...buckets.values()],
     channels,
+    zonas,
     alerts: alerts.slice(0, 25),
   };
 }

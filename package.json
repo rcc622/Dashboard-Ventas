@@ -10,10 +10,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:unit": "tsc --module commonjs --target es2022 --moduleResolution node --esModuleInterop --skipLibCheck --strict --outDir .tmp-tests src/lib/kenet/zonas.ts src/lib/kenet/canal.ts src/lib/kenet/ids.ts tests/kenet.test.ts && node .tmp-tests/tests/kenet.test.js"
   },
   "dependencies": {
     "next": "16.3.4",
+    "pg": "^8.23.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "recharts": "^3.10.1"
@@ -21,6 +23,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^22",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "tailwindcss": "^4.3.3",
