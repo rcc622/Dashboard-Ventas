@@ -130,6 +130,8 @@ prospectos nuevos, actividad día/semana, leaderboard, notas), **Mis ventas**, *
 | Barra de filtros fija al hacer scroll; Entrada respeta el filtro de asesor/equipo; embudo con más aire (Randall 4-sep) | ✅ | Toolbar sticky; `entrada()` cuenta por responsable actual del lead cuando hay filtro |
 | Drill-down como en HubSpot: clic en cifra/barra → ventana con los registros y liga al lead en Kommo o HubSpot (Randall 4-sep, video) | ✅ | `DrillModal` en todo el Admin, tabla de Asesores y ficha; sin contraseña (`VENTAS_PUBLICO=1`) |
 | Configuración: ojo para activar/desactivar asesores, equipo de ventas por asesor, Guardar arriba (Randall 4-sep) | ✅ | `ocultos` y `equipos` en `data/ventas_config.json`; aplica en menú, tabla, ranking, perfiles y cifras |
+| Acceso por usuario y contraseña para asesores y administradores (Randall 4-sep; cubre el punto A de fase 2: link propio) | ✅ | Sesión en app.py, `data/ventas_usuarios.json`, panel Accesos en Configuración; el asesor solo recibe su parte del corte |
+| Reordenar las gráficas arrastrando los widgets (Randall 4-sep) | ✅ | `WidgetGrid` en Dashboard y Mi día; asa ⋮⋮ + ▲▼; orden por navegador |
 
 Hallazgo del build: **HubSpot no liga tareas ni llamadas al deal** (0 de 3,866 deals abiertos con evento), así que
 primer contacto e intentos son solo Kommo; la actividad por asesor sí incluye HubSpot.

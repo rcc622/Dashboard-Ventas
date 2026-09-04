@@ -574,6 +574,27 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   accesibilidad: un tile con «i» adentro no puede ser `<button>` (botón dentro
   de botón); ahí el botón es la cifra (`.nbtn`). Las tareas y llamadas de
   HubSpot se listan sin liga porque no vienen ligadas al deal.
+- **Acceso por usuario y contraseña** (pedido de Randall 4-sep, sustituye al «sin
+  contraseña»): la puerta de `/ventas` es una sesión propia, no el basic auth.
+  `POST /ventas/login` valida contra `data/ventas_usuarios.json` (PBKDF2-SHA256
+  con sal, `validar_usuarios`) o contra `DASH_USER`/`DASH_PASS`, que SIEMPRE entran
+  como administrador maestro; devuelve la cookie `ks_sesion` (HMAC con
+  `VENTAS_SECRET` o `data/ventas_secret.txt` generado una vez; 30 días; HttpOnly,
+  SameSite=Lax, Secure tras el proxy https). `GET /ventas/yo` dice quién soy;
+  `data.json`, `config.json` e `hist.json` exigen sesión; `POST /ventas/config` y
+  `usuarios` exigen rol admin. **Un asesor recibe solo su parte del corte**
+  (`corte_para`: sus leads, actividades, tareas y él solo en `usuarios`), así que
+  ni bajando `data.json` a mano ve a los demás; el corte completo se cachea en
+  memoria por mtime. 5 fallos de login por IP = 60 s de espera. La UI:
+  `login.tsx`, botón Salir, y en Configuración el panel «Accesos» (usuario, rol,
+  asesor ligado, contraseña opcional al editar). `VENTAS_PUBLICO=1` sigue
+  significando «sin basic auth»; sin él, basic auth y luego sesión.
+- **Widgets reordenables** (`widgets.tsx`, pedido de Randall 4-sep): el Dashboard
+  del Admin y «Mi día» son `WidgetGrid`; cada gráfica lleva asa ⋮⋮ (drag & drop
+  HTML5, `setDragImage` del widget completo) y ▲▼ por teclado. El orden vive en
+  `localStorage` (`kv_orden_admin`, `kv_orden_midia-<uid>`): preferencia de quien
+  mira, no dato. Las secciones plegables desaparecieron; los widgets `plain` (tiles)
+  no llevan tarjeta alrededor.
 - **Sin contraseña en `/ventas`** (`VENTAS_PUBLICO=1` en el servicio `mkt-ventas`,
   pedido de Randall 4-sep): `do_GET` sirve `/ventas*` (y `/` → `/ventas/` en modo
   ventas) antes del auth y `do_POST` deja pasar `/ventas/config`. Todo lo demás
