@@ -599,7 +599,13 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   conocidas, números en rango, slugs `[a-z0-9-]`, zonas `[A-Z]{2,5}`) y escribe
   atómico `data/ventas_config.json` (en el volumen, gitignored); `GET
   /ventas/config.json` lo sirve y `data.ts` lo aplica sobre el corte (manda sobre
-  el env). Prioridad `metaDe`: asesor → zona → general.
+  el env). Prioridad `metaDe`: asesor → zona → general. La misma config guarda
+  **`ocultos`** (asesores desactivados con el ojo: fuera del menú de
+  propietarios, la tabla, el ranking, los perfiles y las cifras atribuidas a
+  persona vía `pasaPersona`; la entrada de Kommo NO cambia porque los leads sin
+  asignar cuelgan de la cuenta admin) y **`equipos`** (zona por asesor que manda
+  sobre la del CRM; `'-'` = sin equipo; `zona_crm` conserva la original para
+  poder volver). El botón Guardar va en una barra sticky arriba (`.cfg-top`).
 - **HubSpot no liga tareas ni llamadas al deal** (validado 4-sep: 0 de 3,866 deals
   abiertos con evento; los eventos traen otro id). Por eso «primer contacto» e
   «intentos» son solo Kommo y lo dicen; en HubSpot se muestra «sin dato (HS)».
