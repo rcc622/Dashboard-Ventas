@@ -68,6 +68,14 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 .btn.on:hover { background: var(--ink); }
 .btn.ghost { box-shadow: none; font-weight: 500; }
 .btn-date .ico { display: inline-block; width: 12px; height: 11px; border: 2px solid var(--c1); border-top-width: 4px; border-radius: 2px; margin-right: 8px; vertical-align: -1px; }
+/* Botones Kommo · HubSpot: encendido = tinta + punto ámbar; apagado = tachado y gris, sigue siendo botón. */
+.crms { display: inline-flex; gap: 6px; }
+.tog { display: inline-flex; align-items: center; gap: 7px; }
+.tog .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--g3); }
+.tog.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+.tog.on .dot { background: var(--acc); }
+.tog.on:hover { background: var(--ink); }
+.tog:not(.on) { color: var(--g2); text-decoration: line-through; }
 .spacer { flex: 1; }
 
 /* ---------- date range picker ---------- */

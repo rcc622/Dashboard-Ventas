@@ -565,6 +565,10 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   `razon` del lead. La tabla de Asesores ordena por columna (`SortTh`), trae
   PC vencidas y cotizado vigente; la ficha lista los leads con intentos
   (`llamadas_cf`, `msjs`), última tarea hecha y alertas.
+- **Botones Kommo · HubSpot** en la barra del Admin (pedido de Randall 4-sep): `Filtros.crm`
+  enciende o apaga la data de cada CRM en TODO el tablero (`pasaCrm` en los tres filtros de
+  `metrics.ts`, más popup, ficha y bloque Entrada); siempre queda uno encendido. En el hash
+  va como `c=kommo` / `c=hubspot`; sin `c` entran los dos. Solo aparecen con corte mixto.
 - **Página Configuración** (`ventas/src/config.tsx`, pedido de Randall 4-sep): metas
   general, por zona y por asesor + factor y vigencia del cotizado, guardadas en el
   servidor: `POST /ventas/config` valida (`validar_config` en app.py: llaves

@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState, type SyntheticEvent } from 'react'
 import type { Corte, Lead, Usuario } from './types'
 import { CRM_LABEL } from './types'
-import { BUCKETS, PERFIL_LABEL, actividad, cotizado, embudo, entrada, ep, eventosFiltrados, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, metaDe, metaEnRango, metaEsperada, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type Cotizado, type FilaAsesor, type Filtros, type Perfil } from './metrics'
+import { BUCKETS, PERFIL_LABEL, actividad, cotizado, embudo, entrada, ep, eventosFiltrados, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, metaDe, metaEnRango, metaEsperada, pasaCrm, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type Cotizado, type FilaAsesor, type Filtros, type Perfil } from './metrics'
 import { BarDetailPopup, BubbleChart, Bullet, CollapsibleSection, DonutChart, FunnelChart, Gauge, Info, LlamadasBar, MiniAreaChart, Scatter, SortTh, StackedBar, activar, useEscape, useOutside, type DetRow, type Sort } from './components'
 
 const mixto = (c: Corte) => (c.fuentes || []).length > 1
@@ -67,7 +67,7 @@ export function AdminDashboard({ corte, filtros }: { corte: Corte; filtros: Filt
   const ev = useMemo(() => eventosFiltrados(corte, filtros), [corte, filtros])
   const ventas = useMemo(() => ventasFiltradas(corte, filtros), [corte, filtros])
   const filas = useMemo(() => porAsesor(corte, filtros), [corte, filtros])
-  const ent = useMemo(() => entrada(corte, filtros.rango), [corte, filtros.rango])
+  const ent = useMemo(() => entrada(corte, filtros.rango, filtros), [corte, filtros])
   const pc = useMemo(() => primerContacto(corte, leads), [corte, leads])
   const rz = useMemo(() => razones(corte, ev), [corte, ev])
   const perf = useMemo(() => perfiles(filas), [filas])
@@ -362,7 +362,7 @@ function AsesorPopup({ corte, filtros, fila, x, y, onClose, onFicha }: { corte: 
   // Arranca en el último mes del rango (el actual con los presets), no en el primero.
   const [mes, setMes] = useState(() => { const d = new Date((filtros.rango.fin - 1) * 1000); return new Date(d.getFullYear(), d.getMonth(), 1) })
   const ini = ep(mes), fin = ep(new Date(mes.getFullYear(), mes.getMonth() + 1, 1))
-  const activos = corte.leads.filter((l) => l.asesor_id === fila.u.id && vivo(l) && l.asignacion >= ini && l.asignacion < fin).sort((p, q) => q.dias_sin_cambio - p.dias_sin_cambio)
+  const activos = corte.leads.filter((l) => pasaCrm(l.crm, filtros) && l.asesor_id === fila.u.id && vivo(l) && l.asignacion >= ini && l.asignacion < fin).sort((p, q) => q.dias_sin_cambio - p.dias_sin_cambio)
   const serie = serieDiaria(fila.leadsActivos.map((l) => l.asignacion), filtros.rango)
   const cumpl = pct(fila.montoVentas, fila.metaRango)
   return (
@@ -418,7 +418,7 @@ export function Ficha({ corte, filtros, uid, onBack }: { corte: Corte; filtros: 
   const objetivo = metaMes * corte.cotizado_x
   const serie = serieDiaria(ventas.map((l) => l.cerrado), filtros.rango, true)
   const dias = Array.from({ length: 7 }, (_, i) => sumar(sem, i))
-  const evSem = corte.eventos.filter((e) => e.asesor_id === uid && e.ts >= ep(sem) && e.ts < ep(sumar(sem, 7)))
+  const evSem = corte.eventos.filter((e) => pasaCrm(e.crm, filtros) && e.asesor_id === uid && e.ts >= ep(sem) && e.ts < ep(sumar(sem, 7)))
   const cols = dias.map((d) => {
     const ini = ep(d), fin = ini + 86400
     const ev = evSem.filter((e) => e.ts >= ini && e.ts < fin)
@@ -427,7 +427,7 @@ export function Ficha({ corte, filtros, uid, onBack }: { corte: Corte; filtros: 
     const co = ev.filter((e) => e.tipo === 'cotizacion' || e.tipo === 'levantamiento').length
     return { label: fmtCorta(d), bubbles: [{ n: ll, title: 'Llamadas' }, { n: ta, cls: 'w', title: 'Tareas completadas' }, { n: co, cls: 'e', title: 'Cotizaciones y levantamientos' }].filter((b) => b.n > 0) }
   })
-  const tareas = corte.tareas_abiertas.filter((t) => t.asesor_id === uid).sort((p, q) => p.vence - q.vence).slice(0, 24)
+  const tareas = corte.tareas_abiertas.filter((t) => pasaCrm(t.crm, filtros) && t.asesor_id === uid).sort((p, q) => p.vence - q.vence).slice(0, 24)
   const hoy = ep(inicioDia(new Date()))
   return (
     <>

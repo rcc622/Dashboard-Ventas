@@ -5,9 +5,12 @@
 // Reglas de Alejandro (consultor, juntas jul-ago 2026) que viven aquí: meta en pesos
 // prorrateada al rango, cotizado vigente (≤ 90 d) contra 10× la meta mensual, tasa de
 // asignación como KPI de entrada, primer contacto en horas y perfiles actividad × venta.
-import type { Corte, Etapa, Evento, Lead, Rango, Tarea, Usuario } from './types'
+import type { Corte, Crm, Etapa, Evento, Lead, Rango, Tarea, Usuario } from './types'
 
-export interface Filtros { rango: Rango; equipo: string | null; asesor: string | null }
+/** crm = qué CRM entran (botones Kommo · HubSpot de la barra del Admin); al menos uno encendido. */
+export interface Filtros { rango: Rango; equipo: string | null; asesor: string | null; crm: Record<Crm, boolean> }
+export const TODOS_CRM: Record<Crm, boolean> = { kommo: true, hubspot: true }
+export const pasaCrm = (crm: Crm, f: Filtros) => f.crm?.[crm] !== false
 
 const DIA = 86400
 
@@ -83,18 +86,18 @@ function pasaPersona(asesorId: string | null, f: Filtros, users: Map<string, Usu
 /** Leads del corte cuya ÚLTIMA ASIGNACIÓN cae en el rango (col V de Leads_Data). */
 export function leadsFiltrados(c: Corte, f: Filtros): Lead[] {
   const users = mapaUsuarios(c)
-  return c.leads.filter((l) => enRango(l.asignacion, f.rango) && pasaPersona(l.asesor_id, f, users))
+  return c.leads.filter((l) => pasaCrm(l.crm, f) && enRango(l.asignacion, f.rango) && pasaPersona(l.asesor_id, f, users))
 }
 /** Actividades cuya fecha cae en el rango. */
 export function eventosFiltrados(c: Corte, f: Filtros): Evento[] {
   const users = mapaUsuarios(c)
-  return c.eventos.filter((e) => enRango(e.ts, f.rango) && pasaPersona(e.asesor_id, f, users))
+  return c.eventos.filter((e) => pasaCrm(e.crm, f) && enRango(e.ts, f.rango) && pasaPersona(e.asesor_id, f, users))
 }
 export const vivo = (l: Lead) => l.funnel !== 0 && l.funnel !== 5
 /** Ventas = leads ganados cuyo cierre cae en el rango (el cierre manda, no la asignación). */
 export function ventasFiltradas(c: Corte, f: Filtros): Lead[] {
   const users = mapaUsuarios(c)
-  return c.leads.filter((l) => l.funnel === 5 && enRango(l.cerrado, f.rango) && pasaPersona(l.asesor_id, f, users))
+  return c.leads.filter((l) => pasaCrm(l.crm, f) && l.funnel === 5 && enRango(l.cerrado, f.rango) && pasaPersona(l.asesor_id, f, users))
 }
 
 // ---------------------------------------------------------------- metas (MXN)
@@ -139,8 +142,8 @@ export function cotizado(leads: Lead[], dias: number, ahora = Date.now() / 1000)
 export interface Entrada { llegaron: number; sinRespuesta: number; sinRecibo: number; conRecibo: number; asignados: number; perdidos: number; tasa: number | null }
 /** Marcador de entrada: leads de Kommo creados en el rango, sin filtro de persona (los no
  *  asignados no tienen dueño). conRecibo incluye a los ya asignados. null sin fuente Kommo. */
-export function entrada(c: Corte, r: Rango): Entrada | null {
-  if (!(c.fuentes || []).some((f) => f.crm === 'kommo')) return null
+export function entrada(c: Corte, r: Rango, f?: Filtros): Entrada | null {
+  if (!(c.fuentes || []).some((x) => x.crm === 'kommo') || (f && !pasaCrm('kommo', f))) return null
   const e: Entrada = { llegaron: 0, sinRespuesta: 0, sinRecibo: 0, conRecibo: 0, asignados: 0, perdidos: 0, tasa: null }
   for (const l of c.leads) {
     if (l.crm !== 'kommo' || !enRango(l.creado, r)) continue

@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { Config, Corte, Rango } from './types'
+import type { Config, Corte, Crm, Rango } from './types'
 import { CRM_LABEL } from './types'
 import { aplicarConfig, cargar, type Carga } from './data'
 import { PRESETS, fmtCorta, fmtHora, iniciales, preset, rangoManual, vivo, type Filtros, type Preset } from './metrics'
+
+const CRMS: Crm[] = ['kommo', 'hubspot']
 import { DateRangePicker } from './DateRangePicker'
 import { AdminDashboard, Asesores, Ficha } from './admin'
 import { Calendario, MiDia, MisVentas, Prospectos } from './asesor'
@@ -48,7 +50,8 @@ function Shell({ corte, origen, error, onRetry, onConfig }: { corte: Corte; orig
   const [menu, setMenu] = useState(false)
   const [drp, setDrp] = useState(false)
   const [presetActivo, setPresetActivo] = useState<Preset | null>(r0.preset)
-  const [filtros, setFiltros] = useState<Filtros>({ rango: r0.rango, equipo: h0.eq || null, asesor: h0.as || null })
+  // c=kommo en el hash = solo Kommo encendido; c=hubspot = solo HubSpot; sin c = los dos.
+  const [filtros, setFiltros] = useState<Filtros>({ rango: r0.rango, equipo: h0.eq || null, asesor: h0.as || null, crm: { kommo: h0.c !== 'hubspot', hubspot: h0.c !== 'kommo' } })
   const [ficha, setFicha] = useState<string | null>(h0.f || null)
   // Perfil asesor: sin login por persona, se elige a quién ver. Arranca en el de la
   // URL o en el asesor con equipo que más leads activos carga.
@@ -66,6 +69,8 @@ function Shell({ corte, origen, error, onRetry, onConfig }: { corte: Corte; orig
     if (perfil === 'asesor') q.u = asesorActual
     if (filtros.equipo) q.eq = filtros.equipo
     if (filtros.asesor) q.as = filtros.asesor
+    if (!filtros.crm.kommo) q.c = 'hubspot'
+    else if (!filtros.crm.hubspot) q.c = 'kommo'
     q.r = presetActivo ?? `${filtros.rango.ini},${filtros.rango.fin}`
     const hash = '#' + Object.entries(q).map(([k, v]) => k + '=' + encodeURIComponent(v)).join('&')
     if (location.hash !== hash) history.replaceState(null, '', hash)
@@ -77,6 +82,14 @@ function Shell({ corte, origen, error, onRetry, onConfig }: { corte: Corte; orig
   const fuentes = (corte.fuentes || []).map((f) => CRM_LABEL[f.crm]).join(' + ')
 
   const cambiaPerfil = (p: Perfil) => { setPerfil(p); setPagina(p === 'admin' ? 'dashboard' : 'midia'); setFicha(null); setMenu(false) }
+  // Botones Kommo · HubSpot: incluir o excluir la data de un CRM en todo el tablero. Siempre queda uno encendido.
+  const mixto = (corte.fuentes || []).length > 1
+  const soloUno = CRMS.filter((k) => filtros.crm[k]).length === 1
+  const toggleCrm = (k: Crm) => {
+    const crm = { ...filtros.crm, [k]: !filtros.crm[k] }
+    if (!CRMS.some((x) => crm[x])) return
+    setFiltros({ ...filtros, crm, asesor: filtros.asesor && !corte.usuarios.find((u) => u.id === filtros.asesor)?.crm.some((x) => crm[x]) ? null : filtros.asesor })
+  }
   const navega = (p: Pagina) => { setPagina(p); setFicha(null); setMenu(false) }
   const actual = corte.usuarios.find((u) => u.id === asesorActual)
 
@@ -127,8 +140,17 @@ function Shell({ corte, origen, error, onRetry, onConfig }: { corte: Corte; orig
             </select>
             <select className="sel" aria-label="Propietario" value={filtros.asesor ?? ''} onChange={(e) => setFiltros({ ...filtros, asesor: e.target.value || null })}>
               <option value="">Todos los propietarios</option>
-              {usuariosOrden.filter((u) => filtros.equipo == null || u.zona === filtros.equipo).map((u) => <option key={u.id} value={u.id}>{u.nombre}</option>)}
+              {usuariosOrden.filter((u) => (filtros.equipo == null || u.zona === filtros.equipo) && u.crm.some((x) => filtros.crm[x])).map((u) => <option key={u.id} value={u.id}>{u.nombre}</option>)}
             </select>
+            {mixto && (
+              <span className="crms" role="group" aria-label="CRM incluidos en el tablero">
+                {CRMS.map((k) => { const on = filtros.crm[k]; const ultimo = on && soloUno; return (
+                  <button type="button" key={k} className={'btn tog' + (on ? ' on' : '')} aria-pressed={on} aria-disabled={ultimo || undefined}
+                    title={ultimo ? 'Al menos un CRM debe quedar encendido' : on ? `Ocultar la data de ${CRM_LABEL[k]}` : `Mostrar la data de ${CRM_LABEL[k]}`} onClick={() => toggleCrm(k)}>
+                    <span className="dot" aria-hidden="true" />{CRM_LABEL[k]}
+                  </button>) })}
+              </span>
+            )}
             <span className="spacer" />
             <span className="small muted">{fuentes ? fuentes + ' · ' : ''}corte {generado}</span>
             {horas > 8 && <span className="stale" title="El corte se regenera cada 6 horas">corte de hace {Math.round(horas)} h</span>}
