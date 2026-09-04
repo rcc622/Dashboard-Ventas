@@ -46,8 +46,9 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 .shell { display: grid; grid-template-rows: 56px 1fr; grid-template-columns: 200px 1fr; height: 100vh; }
 .header { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; background: var(--card); border-bottom: 1px solid var(--line); }
 .hleft, .hright { display: flex; align-items: center; gap: 12px; }
-.logo { margin: 0; font-size: 18px; font-weight: 700; display: inline-flex; align-items: center; gap: 9px; }
-.logo::before { content: ''; width: 14px; height: 14px; border-radius: 4px; background: var(--acc); flex: none; }
+/* Logo oficial (DISEÑO/ASSETS/LOGO-KENET-SOLAR.png → public/logo.png a 64 px de alto, se pinta a 31). */
+.logo { margin: 0; display: inline-flex; align-items: center; }
+.logo img { display: block; height: 31px; width: auto; }
 .burger { display: none; border: 1px solid var(--line); border-radius: 8px; background: var(--card); width: 36px; height: 32px; cursor: pointer; font-size: 16px; line-height: 1; }
 .usericon { width: 32px; height: 32px; border-radius: 50%; background: var(--c1-soft); color: var(--c1-ink); display: grid; place-items: center; font-weight: 700; font-size: 11px; }
 .pill { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; background: var(--card); }
@@ -470,8 +471,7 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
   .kcard.hero .n { font-size: 40px; }
   .tile .n, .kpi4 .n { font-size: 24px; }
   .frow { grid-template-columns: minmax(0, 1fr) 130px; gap: 12px; justify-content: stretch; }
-  .logo { font-size: 14px; white-space: nowrap; gap: 6px; }
-  .logo::before { width: 11px; height: 11px; }
+  .logo img { height: 24px; }
   .hleft, .hright { gap: 6px; }
   .usericon { display: none; }
   .hright .sel { max-width: 26vw; padding: 6px 4px; text-overflow: ellipsis; }
