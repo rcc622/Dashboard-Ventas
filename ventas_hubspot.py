@@ -34,9 +34,16 @@ TZ = timezone(timedelta(hours=-6))
 # etapa HubSpot -> índice canónico del embudo (0 Por contactar · 1 Conversación
 # iniciada · 2 Propuesta entregada · 3 Levantamiento agendado · 4 Levantamiento
 # hecho · 5 Contrato solicitado). Pipelines vivos: «Ciclo de Venta KS» y «2026».
+# Validado con Randall 3-sep contra los nombres reales de ambos CRM:
+#   Ciclo de Venta KS: Lead entrante=Por contactar · Conversacion Iniciada=Conversación iniciada ·
+#   Precalificación hecha=Conversación iniciada (en Kommo la precalificación vive en la cadencia, antes
+#   de Ventas) · Propuesta entregada · Levantamiento hecho · Contrato solicitado (1:1 por nombre).
+#   2026 (pipeline viejo): 1er contacto=Por contactar · Sin recibo / Bajo interes=Conversación iniciada
+#   (ya hubo contacto) · Cierre Cercano=Levantamiento hecho · Pdte Papeleria / Detalle para cierre=Contrato.
+#   Kommo tiene «Levantamiento agendado» sin gemelo en HubSpot: ahí solo caen leads de Kommo.
 CANON_HS = {
     "1409289350": 0, "1409289351": 1, "1409289352": 1, "1409289353": 2, "1409289354": 4, "1409289355": 5,
-    "1265092762": 0, "1265092763": 0, "1265092764": 1, "1265092765": 2, "1299026548": 5, "1265092766": 5,
+    "1265092762": 0, "1265092763": 1, "1265092764": 1, "1265092765": 4, "1299026548": 5, "1265092766": 5,
 }
 # Pipelines viejos («No usar», por zona, Cambaceo…): por palabra clave del nombre de la etapa.
 KW = (("contrato", 5), ("firma", 5), ("documentac", 5), ("levantamiento", 4), ("visita", 4),
@@ -222,6 +229,7 @@ def build():
 
 def selftest():
     assert canon("1409289353", "Propuesta entregada") == 2 and canon("1409289354", "x") == 4
+    assert canon("1265092763", "Sin recibo") == 1 and canon("1265092765", "Cierre Cercano") == 4
     assert canon("zzz", "Pdte Firmar Contrato") == 5 and canon("zzz", "Recibo para cotizar") == 2
     assert canon("zzz", "Stand By") == 0 and canon("zzz", "Número Teléfono") == 1
     esperado = int(datetime(2026, 9, 3, 19, 57, 1, tzinfo=timezone.utc).timestamp())
