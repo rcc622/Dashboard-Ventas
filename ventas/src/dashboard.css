@@ -49,6 +49,7 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 /* Logo oficial (DISEÑO/ASSETS/LOGO-KENET-SOLAR.png → public/logo.png a 64 px de alto, se pinta a 31). */
 .logo { margin: 0; display: inline-flex; align-items: center; }
 .logo img { display: block; height: 31px; width: auto; }
+.logo .logo-icon { display: none; height: 28px; }
 .burger { display: none; border: 1px solid var(--line); border-radius: 8px; background: var(--card); width: 36px; height: 32px; cursor: pointer; font-size: 16px; line-height: 1; }
 .usericon { width: 32px; height: 32px; border-radius: 50%; background: var(--c1-soft); color: var(--c1-ink); display: grid; place-items: center; font-weight: 700; font-size: 11px; }
 .pill { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; background: var(--card); }
@@ -471,7 +472,9 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
   .kcard.hero .n { font-size: 40px; }
   .tile .n, .kpi4 .n { font-size: 24px; }
   .frow { grid-template-columns: minmax(0, 1fr) 130px; gap: 12px; justify-content: stretch; }
-  .logo img { height: 24px; }
+  /* En angosto solo el sol: el logo completo empujaba el selector de asesor y cortaba el toggle. */
+  .logo .logo-full { display: none; }
+  .logo .logo-icon { display: block; }
   .hleft, .hright { gap: 6px; }
   .usericon { display: none; }
   .hright .sel { max-width: 26vw; padding: 6px 4px; text-overflow: ellipsis; }

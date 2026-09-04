@@ -560,6 +560,10 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   lead (Randall lo pidió así el 4-sep); ojo: los leads que aún no se asignan
   cuelgan de la cuenta admin («randall», 1,015 de 1,123 en funnel 2), así que
   con filtro quedan fuera y la tasa sube; la nota bajo el bloque lo dice.
+- **Marca**: `ventas/public/logo.png` (logo oficial, 64 px de alto, se pinta a 31 /
+  24 en móvil) y `favicon.png` + `apple-touch-icon.png` (el sol del logo), recortados
+  con PIL desde `DISEÑO/ASSETS/LOGO-KENET-SOLAR.png`. Vite copia `public/` a la
+  raíz de `dist/` y app.py los sirve con su content-type (`CTYPES`).
 - **Drill-down** (`ventas/src/drill.tsx`, pedido de Randall 4-sep calcado de los
   reportes de HubSpot): toda cifra, barra o renglón del Admin abre `DrillModal`
   con la lista de registros detrás (`Fila`: nombre con liga al CRM, CRM, asesor,

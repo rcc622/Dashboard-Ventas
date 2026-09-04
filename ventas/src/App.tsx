@@ -114,7 +114,7 @@ function Shell({ corte, origen, error, onRetry, onConfig }: { corte: Corte; orig
       <header className="header">
         <div className="hleft">
           <button type="button" className="burger" aria-label="Menú" aria-expanded={menu} aria-controls="sidebar" onClick={() => setMenu(!menu)}>☰</button>
-          <h1 className="logo"><img src="./logo.png" alt="Kenet Solar" width="200" height="31" /></h1>
+          <h1 className="logo"><img className="logo-full" src="./logo.png" alt="Kenet Solar" width="202" height="31" /><img className="logo-icon" src="./favicon.png" alt="Kenet Solar" width="28" height="28" /></h1>
         </div>
         <div className="hright">
           {perfil === 'asesor' && (
