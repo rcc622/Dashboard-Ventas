@@ -134,6 +134,13 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 .tile .l { color: var(--g2); font-size: 12px; margin-top: 4px; }
 .tile .l::before, .kpi4 .l::before, .kcard .l::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--dot, var(--c1)); margin-right: 6px; vertical-align: 1px; }
 .tiles2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+/* Cifra como widget propio: el tile llena la tarjeta y el número crece con el ancho (container query). */
+.widget.wtile { container-type: inline-size; }
+.widget.wtile .wbody > .tile { height: 100%; display: flex; flex-direction: column; justify-content: center; }
+.widget.wtile .tile .n { font-size: clamp(28px, 13cqw, 72px); }
+.widget.wtile .tile .l { font-size: clamp(12px, 4.5cqw, 16px); }
+.widget.hset.wtile .wbody > .tile { flex: 1 1 auto; }
+.widget.wtile .whead h3 { font-size: 12px; font-weight: 600; color: var(--g2); }
 
 /* ---------- salud operativa (dona + desglose) ---------- */
 /* Columnas proporcionales: la dona, los medidores y el embudo crecen con el ancho del widget (pedido de Randall 4-sep). */
@@ -383,6 +390,18 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 .scatter .p-capacitar { fill: var(--c2); }
 .scatter .p-revisar { fill: var(--c3); }
 .scatter .p-salida { fill: var(--neutral); }
+/* Perfiles: matriz + tabla de asesores. Con el widget ancho (container query) van lado a lado. */
+.widget.wperf { container-type: inline-size; }
+.perfil-wrap { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-items: start; }
+.perfil-chart, .perfil-tabla { min-width: 0; }
+.perfil-tabla .ftable td { padding: 6px 8px; white-space: nowrap; }
+.perfil-tabla .ini { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; color: #fff; font-size: 9px; font-weight: 700; margin-right: 8px; vertical-align: middle; }
+.pdot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+.perfil-tabla .ini.p-mantener, .pdot.p-mantener { background: var(--c4); }
+.perfil-tabla .ini.p-capacitar, .pdot.p-capacitar { background: var(--c2); }
+.perfil-tabla .ini.p-revisar, .pdot.p-revisar { background: var(--c3); }
+.perfil-tabla .ini.p-salida, .pdot.p-salida { background: var(--neutral); }
+@container (min-width: 760px) { .perfil-wrap { grid-template-columns: minmax(0, 1fr) minmax(300px, 380px); } }
 .perfil-legend { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; font-size: 11px; margin-top: 8px; }
 .perfil-legend .h { font-weight: 700; }
 .perfil-legend .names { color: var(--g2); }
@@ -449,12 +468,15 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 .widget.hset .whead { flex: 0 0 auto; }
 .widget.hset .wbody { flex: 1 1 auto; min-height: 0; overflow: auto; display: flex; flex-direction: column; }
 .widget.hset .wbody > * { flex: 0 0 auto; }
-.widget.hset .wbody > .funnel, .widget.hset .wbody > .scatter { flex: 1 1 0; min-height: 0; }
+.widget.hset .wbody > .funnel, .widget.hset .wbody > .perfil-wrap { flex: 1 1 0; min-height: 0; }
 .widget.hset .funnel { display: flex; flex-direction: column; justify-content: space-evenly; }
 .widget.hset .frow { flex: 1 1 0; min-height: 40px; margin-bottom: 0; align-items: stretch; }
 .widget.hset .fshape { height: auto; aspect-ratio: auto; min-height: 40px; }
 .widget.hset .flab { align-self: center; }
-.widget.hset .wbody > .scatter { width: 100%; max-width: none; height: auto; }
+.widget.hset .perfil-wrap { grid-template-rows: minmax(0, 1fr); }
+.widget.hset .perfil-chart { height: 100%; min-height: 0; display: flex; flex-direction: column; }
+.widget.hset .perfil-chart > .scatter { flex: 1 1 0; min-height: 0; }
+.widget.hset .perfil-tabla { max-height: 100%; overflow: auto; }
 .widget.plain { background: none; border: 0; box-shadow: none; padding: 0; }
 .whead { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
 .whead h3 { margin: 0; flex: 1; min-width: 0; text-wrap: balance; }
@@ -467,6 +489,13 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 .widget.dragging { opacity: .45; }
 .widget.over { outline: 2px dashed var(--c1); outline-offset: 4px; border-radius: var(--r); }
 .wreset { font-size: 11px; color: var(--g2); margin-top: 10px; }
+/* Separador: banda de título de ancho completo, editable en el lugar (tipo «Image or text» de HubSpot). */
+.widget.sep { padding: 10px 0 4px; margin-top: 6px; border-bottom: 2px solid var(--ink); }
+.widget.sep .whead { margin-bottom: 0; }
+.sep-in { flex: 1; min-width: 0; font: inherit; font-weight: 800; font-size: 15px; text-transform: uppercase; letter-spacing: .04em; color: var(--ink); border: 0; background: transparent; padding: 4px 8px; border-radius: 6px; }
+.sep-in:hover { background: var(--hover); }
+.sep-in:focus { background: var(--card); }
+.wsep-add { font-weight: 600; }
 .wadd { display: inline-flex; align-items: center; gap: 6px; margin-right: 12px; font-weight: 600; color: var(--ink); }
 .wadd select { font: inherit; font-weight: 500; padding: 3px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); max-width: 260px; }
 .widget .ctitle { text-align: left; }

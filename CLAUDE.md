@@ -614,8 +614,21 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   cargada. **Quitar y agregar** (primer paso del «inventario de gráficas» que pidió
   Randall): el × del encabezado saca el widget del tablero (`ocultos[]` en el mismo
   layout) y «Agregar gráfica» lista los quitados para regresarlos a su lugar; el
-  inventario de hoy son los 11 widgets del Admin y los 5 de Mi día, no hay
-  catálogo de métricas extra todavía. Las secciones plegables desaparecieron; los
+  inventario de hoy son los 18 widgets del Admin y los 5 de Mi día, no hay
+  catálogo de métricas extra todavía. **Cada cifra es un widget propio** (pedido de
+  Randall 4-sep: «verlos por separado para ampliarlos al tamaño que yo desee»): los
+  9 tiles (`t-leads`, `t-ventas`, `t-vendido`, `t-conversion`, `t-perdida`,
+  `t-tareas`, `t-cotizaciones`, `t-descartes`, `t-levantamientos`) llevan
+  `plain`, `span: 1`, `cls: 'wtile'` (el tile llena la tarjeta y el número crece con
+  el ancho por container query) y `desde: 'cifras' | 'actividad'`: un orden
+  guardado con el id del grupo viejo coloca los nuevos en ese mismo lugar
+  (`ordenar`). El ancho mínimo bajó a 1 columna. Toda la tarjeta de cifra es el
+  botón (`.tile.tbtn`, hover en todo el widget, video de Randall 4-sep) y la «i»
+  del glosario va en el encabezado del widget (`info`), nunca dentro del botón.
+  **Separadores** (video de Randall = «Image or text» de HubSpot): «Agregar
+  separador» mete una banda de título de ancho completo (`sep:<n>` en `orden`,
+  título en `seps{}`), editable en el lugar, se arrastra o mueve con ▲▼ y se
+  borra con ×; Restablecer tablero los quita. Las secciones plegables desaparecieron; los
   widgets `plain` (tiles) no llevan tarjeta.
 - **Gráficas fluidas** (pedido de Randall 4-sep: «que al redimensionar las gráficas
   se redimensionen también»): ninguna gráfica lleva tope en px. La dispersión de
@@ -627,7 +640,9 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   y con el alto fijo (`.hset`) se estiran a la tarjeta. Los puntos de la
   dispersión son botones (`onPunto`): un asesor abre su ficha; una burbuja «×n»
   pinta una lista inline (`.grupo-sel`) para elegir a quién abrir, que se limpia
-  al cambiar filtros.
+  al cambiar filtros. El widget Perfiles (`cls: 'wperf'`, container query) pone la
+  matriz a la izquierda y una tabla de asesores (perfil, actividad, vendido; el
+  nombre abre la ficha) a la derecha cuando mide ≥ 760 px; angosto, apilados.
 - **Sin contraseña en `/ventas`** (`VENTAS_PUBLICO=1` en el servicio `mkt-ventas`,
   pedido de Randall 4-sep): `do_GET` sirve `/ventas*` (y `/` → `/ventas/` en modo
   ventas) antes del auth y `do_POST` deja pasar `/ventas/config`. Todo lo demás
