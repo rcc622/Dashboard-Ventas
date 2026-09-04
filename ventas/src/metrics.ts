@@ -2,6 +2,9 @@
 // la interfaz solo pinta. Espejo del DASHBOARD de Sheets (dashboard_leads_kenet.gs):
 //   · rango de fecha → QUÉ LEADS (por fecha de asignación) y QUÉ ACTIVIDADES (por fecha del hecho)
 //   · equipo (zona) / asesor → todo
+// Reglas de Alejandro (consultor, juntas jul-ago 2026) que viven aquí: meta en pesos
+// prorrateada al rango, cotizado vigente (≤ 90 d) contra 10× la meta mensual, tasa de
+// asignación como KPI de entrada, primer contacto en horas y perfiles actividad × venta.
 import type { Corte, Etapa, Evento, Lead, Rango, Tarea, Usuario } from './types'
 
 export interface Filtros { rango: Rango; equipo: string | null; asesor: string | null }
@@ -23,10 +26,10 @@ export const fmtCorta = (d: Date) => `${d.getDate()} ${MESES[d.getMonth()]}`
 export const fmtHora = (ts: number) => { const d = fechaDe(ts); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` }
 export const mesNombre = (d: Date) => MESES[d.getMonth()]
 
-export type Preset = 'hoy' | 'semana' | 'mes' | 'mes_pasado' | 'trimestre'
+export type Preset = 'hoy' | 'semana' | 'mes' | 'mes_pasado' | 'trimestre' | 'd90'
 export const PRESETS: { id: Preset; label: string }[] = [
   { id: 'hoy', label: 'Hoy' }, { id: 'semana', label: 'Esta semana' }, { id: 'mes', label: 'Este mes' },
-  { id: 'mes_pasado', label: 'Mes pasado' }, { id: 'trimestre', label: 'Este trimestre' },
+  { id: 'mes_pasado', label: 'Mes pasado' }, { id: 'trimestre', label: 'Este trimestre' }, { id: 'd90', label: 'Últimos 90 días' },
 ]
 
 export function preset(p: Preset, ahora = new Date()): Rango {
@@ -38,6 +41,7 @@ export function preset(p: Preset, ahora = new Date()): Rango {
     case 'mes': { const a = new Date(h.getFullYear(), h.getMonth(), 1); return { ini: ep(a), fin: ep(new Date(h.getFullYear(), h.getMonth() + 1, 1)), label } }
     case 'mes_pasado': { const a = new Date(h.getFullYear(), h.getMonth() - 1, 1); return { ini: ep(a), fin: ep(new Date(h.getFullYear(), h.getMonth(), 1)), label } }
     case 'trimestre': { const q = Math.floor(h.getMonth() / 3) * 3; return { ini: ep(new Date(h.getFullYear(), q, 1)), fin: ep(new Date(h.getFullYear(), q + 3, 1)), label } }
+    case 'd90': return { ini: ep(sumar(h, -89)), fin: ep(h) + DIA, label }
   }
 }
 
@@ -54,10 +58,17 @@ export function fmtMoney(n: number): string {
   if (n >= 1e3) return '$' + Math.round(n / 1e3) + 'K'
   return '$' + fmtN(n)
 }
+/** Como fmtMoney pero el cero se escribe ($0), para metas y faltantes. */
+export const fmtMoney0 = (n: number) => (n ? fmtMoney(n) : '$0')
 export const fmtMXN = (n: number) => '$' + fmtN(n) + ' MXN'
 export const pct = (a: number, b: number) => (b > 0 ? Math.round((a / b) * 100) : 0)
 export const iniciales = (n: string) => n.trim().split(/\s+/).slice(0, 2).map((p) => p[0] || '').join('').toUpperCase()
 export const tipoLead = (l: Lead) => (l.embudo === 'ventas' ? 'Ventas' : l.embudo === 'hunting' ? 'Hunting' : l.embudo === 'nuevo' ? 'Nuevo' : 'Cadencia')
+export function mediana(xs: number[]): number | null {
+  if (!xs.length) return null
+  const s = [...xs].sort((a, b) => a - b), m = s.length >> 1
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2
+}
 
 // ---------------------------------------------------------------- filtros
 export function mapaUsuarios(c: Corte): Map<string, Usuario> { return new Map(c.usuarios.map((u) => [u.id, u])) }
@@ -84,6 +95,103 @@ export const vivo = (l: Lead) => l.funnel !== 0 && l.funnel !== 5
 export function ventasFiltradas(c: Corte, f: Filtros): Lead[] {
   const users = mapaUsuarios(c)
   return c.leads.filter((l) => l.funnel === 5 && enRango(l.cerrado, f.rango) && pasaPersona(l.asesor_id, f, users))
+}
+
+// ---------------------------------------------------------------- metas (MXN)
+export const META_DEFAULT = 800000
+/** Meta mensual en pesos del asesor: la suya, si no la de su zona, si no la general. */
+export const metaDe = (c: Corte, u: Usuario) => c.metas?.[u.id] ?? c.metas_zona?.[u.zona] ?? c.meta_mxn ?? META_DEFAULT
+export const metaDeId = (c: Corte, uid: string) => { const u = c.usuarios.find((x) => x.id === uid); return u ? metaDe(c, u) : c.meta_mxn ?? META_DEFAULT }
+const esPrimero = (d: Date) => d.getDate() === 1 && d.getHours() === 0 && d.getMinutes() === 0
+/** Meta mensual llevada al rango: meses completos si va de día 1 a día 1; si no, por días (30.44 por mes). */
+export function metaEnRango(metaMes: number, r: Rango): number {
+  const a = fechaDe(r.ini), b = fechaDe(r.fin)
+  if (esPrimero(a) && esPrimero(b)) {
+    const meses = (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth())
+    if (meses >= 1) return metaMes * meses
+  }
+  return metaMes * ((r.fin - r.ini) / DIA) / 30.4375
+}
+/** Lo que ya debería estar vendido a esta hora del rango (regla de tres por tiempo transcurrido). */
+export function metaEsperada(metaRango: number, r: Rango, ahora = Date.now() / 1000): number {
+  const f = Math.max(0, Math.min(1, (ahora - r.ini) / Math.max(1, r.fin - r.ini)))
+  return metaRango * f
+}
+
+// ---------------------------------------------------------------- cotizado (salud del pipeline)
+export interface Cotizado { vigente: number; viejo: number; n: number; nViejo: number; buckets: number[] }
+export const BUCKETS = ['≤ 30 d', '31-60 d', '61-90 d', '> 90 d']
+/** Fecha desde la que envejece una cotización: la del CF, o la asignación si no la hay. */
+export const fechaCotizado = (l: Lead) => l.cotizacion || l.asignacion
+/** Presupuesto de los leads activos con monto, partido por antigüedad. Vigente = ≤ dias. */
+export function cotizado(leads: Lead[], dias: number, ahora = Date.now() / 1000): Cotizado {
+  const c: Cotizado = { vigente: 0, viejo: 0, n: 0, nViejo: 0, buckets: [0, 0, 0, 0] }
+  for (const l of leads) {
+    if (!vivo(l) || l.presupuesto <= 0) continue
+    const d = (ahora - fechaCotizado(l)) / DIA
+    c.buckets[d <= 30 ? 0 : d <= 60 ? 1 : d <= 90 ? 2 : 3] += l.presupuesto
+    if (d <= dias) { c.vigente += l.presupuesto; c.n++ } else { c.viejo += l.presupuesto; c.nViejo++ }
+  }
+  return c
+}
+
+// ---------------------------------------------------------------- entrada (tasa de asignación)
+export interface Entrada { llegaron: number; sinRespuesta: number; sinRecibo: number; conRecibo: number; asignados: number; perdidos: number; tasa: number | null }
+/** Marcador de entrada: leads de Kommo creados en el rango, sin filtro de persona (los no
+ *  asignados no tienen dueño). conRecibo incluye a los ya asignados. null sin fuente Kommo. */
+export function entrada(c: Corte, r: Rango): Entrada | null {
+  if (!(c.fuentes || []).some((f) => f.crm === 'kommo')) return null
+  const e: Entrada = { llegaron: 0, sinRespuesta: 0, sinRecibo: 0, conRecibo: 0, asignados: 0, perdidos: 0, tasa: null }
+  for (const l of c.leads) {
+    if (l.crm !== 'kommo' || !enRango(l.creado, r)) continue
+    e.llegaron++
+    if (l.funnel === 0) e.perdidos++
+    else if (l.funnel === 1) e.sinRespuesta++
+    else if (l.funnel === 2) e.sinRecibo++
+    else { e.conRecibo++; if (l.funnel >= 4) e.asignados++ }
+  }
+  e.tasa = e.llegaron ? pct(e.asignados, e.llegaron) : null
+  return e
+}
+
+// ---------------------------------------------------------------- primer contacto
+export interface PrimerContacto { mediana: number | null; n: number; sinContacto: number; en24: number }
+/** Horas de la asignación a la primera llamada o tarea completada del lead. «Sin contacto» =
+ *  lleva más de un día asignado y no hay nada registrado. Los eventos vienen ordenados por ts.
+ *  Solo Kommo y solo leads en Ventas/Hunting: en HubSpot las tareas y llamadas no vienen ligadas
+ *  al deal (validado 4-sep: 0 de 3,866 deals abiertos con evento), contarlos daría «sin contacto» a todos. */
+export const conPrimerContacto = (l: Lead) => l.crm === 'kommo' && l.asesor_id != null && (l.funnel >= 4 || l.embudo === 'ventas' || l.embudo === 'hunting')
+export function primerContacto(c: Corte, leads: Lead[], ahora = Date.now() / 1000): PrimerContacto {
+  const primero = new Map<string, number>()
+  for (const e of c.eventos) {
+    if (e.tipo !== 'tarea' && e.tipo !== 'llamada_ok' && e.tipo !== 'llamada_no') continue
+    if (e.ts < e.asignacion || primero.has(e.lead)) continue
+    primero.set(e.lead, e.ts)
+  }
+  const horas: number[] = []
+  let sin = 0
+  for (const l of leads) {
+    if (!conPrimerContacto(l)) continue
+    const p = primero.get(l.id)
+    if (p != null) horas.push((p - l.asignacion) / 3600)
+    else if (ahora - l.asignacion > DIA) sin++
+  }
+  return { mediana: mediana(horas), n: horas.length, sinContacto: sin, en24: horas.filter((h) => h <= 24).length }
+}
+
+// ---------------------------------------------------------------- razones de descarte
+export function razones(c: Corte, ev: Evento[]): { razon: string; n: number }[] {
+  const rz = new Map<string, string>()
+  for (const l of c.leads) if (l.razon) rz.set(l.id, l.razon)
+  const cnt = new Map<string, number>()
+  for (const e of ev) {
+    if (e.tipo !== 'descarte') continue
+    // HubSpot trae texto libre: «.» o una letra no es una razón.
+    const t = (rz.get(e.lead) || '').trim()
+    const r = t.length > 1 ? t : 'Sin razón registrada'
+    cnt.set(r, (cnt.get(r) || 0) + 1)
+  }
+  return [...cnt].map(([razon, n]) => ({ razon, n })).sort((a, b) => b.n - a.n)
 }
 
 // ---------------------------------------------------------------- Venta
@@ -140,8 +248,9 @@ export function actividad(ev: Evento[]): Actividad {
 
 // ---------------------------------------------------------------- Asesores
 export interface FilaAsesor {
-  u: Usuario; ventas: number; meta: number | null; montoVentas: number
-  leadsActivos: Lead[]; presupuesto: number
+  u: Usuario; ventas: number; montoVentas: number
+  metaMes: number; metaRango: number; esperado: number
+  leadsActivos: Lead[]; presupuesto: number; cotizado: Cotizado; estancados: number
   llamadas: number; contestadas: number; sinContestar: number
   tareasCompletadas: number; tareasVencidas: number; sinTarea: number; pcVencidas: number
   cotizaciones: number; descartes: number; levantamientos: number
@@ -157,16 +266,38 @@ export function porAsesor(c: Corte, f: Filtros): FilaAsesor[] {
     if (!mios.length && !act.length && !vt.length) continue
     const a = actividad(act)
     const activos = mios.filter(vivo)
+    const metaMes = metaDe(c, u), metaRango = metaEnRango(metaMes, f.rango)
     filas.push({
-      u, ventas: vt.length, meta: c.metas[u.id] ?? null, montoVentas: vt.reduce((s, l) => s + l.presupuesto, 0),
+      u, ventas: vt.length, montoVentas: vt.reduce((s, l) => s + l.presupuesto, 0),
+      metaMes, metaRango, esperado: metaEsperada(metaRango, f.rango),
       leadsActivos: activos, presupuesto: activos.reduce((s, l) => s + l.presupuesto, 0),
+      cotizado: cotizado(activos, c.cotizado_dias), estancados: activos.filter((l) => l.dias_sin_cambio > 7).length,
       llamadas: a.llamadas, contestadas: a.contestadas, sinContestar: a.sinContestar,
       tareasCompletadas: a.tareas, tareasVencidas: activos.reduce((s, l) => s + l.tareas_vencidas, 0),
       sinTarea: activos.filter((l) => l.sin_tarea).length, pcVencidas: activos.filter((l) => l.pc_vencida).length,
       cotizaciones: a.cotizaciones, descartes: a.descartes, levantamientos: a.levantamientos, actividad: act,
     })
   }
-  return filas.sort((a, b) => b.leadsActivos.length - a.leadsActivos.length || b.ventas - a.ventas)
+  // De a lo más a lo menos (Alejandro): primero la venta, luego la carga.
+  return filas.sort((a, b) => b.montoVentas - a.montoVentas || b.ventas - a.ventas || b.leadsActivos.length - a.leadsActivos.length)
+}
+
+// ---------------------------------------------------------------- perfiles actividad × venta
+export type Perfil = 'mantener' | 'capacitar' | 'revisar' | 'salida'
+export const PERFIL_LABEL: Record<Perfil, string> = {
+  mantener: 'Buena actividad · buena venta', capacitar: 'Mucha actividad · baja venta',
+  revisar: 'Buena venta · baja actividad', salida: 'Baja actividad · baja venta',
+}
+export interface PuntoPerfil { u: Usuario; actividad: number; vendido: number; perfil: Perfil }
+export const actividadDe = (f: FilaAsesor) => f.llamadas + f.tareasCompletadas + f.cotizaciones + f.levantamientos
+/** Los cuatro perfiles de Samuel (29-jun): la mediana del grupo parte cada eje. */
+export function perfiles(filas: FilaAsesor[]): { pts: PuntoPerfil[]; medAct: number; medVend: number } {
+  const medAct = mediana(filas.map(actividadDe)) ?? 0, medVend = mediana(filas.map((f) => f.montoVentas)) ?? 0
+  const pts = filas.map((f) => {
+    const a = actividadDe(f), v = f.montoVentas, altaA = a > medAct, altaV = v > medVend
+    return { u: f.u, actividad: a, vendido: v, perfil: (altaA && altaV ? 'mantener' : altaA ? 'capacitar' : altaV ? 'revisar' : 'salida') as Perfil }
+  })
+  return { pts, medAct, medVend }
 }
 
 /** Serie diaria (para las mini gráficas): cuenta por día dentro del rango. */
@@ -183,23 +314,25 @@ export interface MiDia {
   /** Vencen hoy o vencieron en los últimos 14 días. El rezago más viejo solo se cuenta:
    *  en HubSpot un asesor puede cargar cientos de tareas vencidas de meses atrás. */
   tareasHoy: Tarea[]; vencidasViejas: number; hoyN: number
-  tareasHechasHoy: number; ventasHoy: number; metaDiaria: number | null
+  tareasHechasHoy: number; ventasHoy: number
+  vendidoMes: number; metaMes: number; esperadoMes: number
   llamadasHoy: number; prospectosHoy: number; eventosHoy: Evento[]; eventosSemana: Evento[]
 }
 export function miDia(c: Corte, uid: string): MiDia {
   const h = hoyIni()
-  const sem = preset('semana')
+  const sem = preset('semana'), mes = preset('mes')
   const ev = c.eventos.filter((e) => e.asesor_id === uid)
   const evHoy = ev.filter((e) => esHoy(e.ts))
-  const meta = c.metas[uid]
   const mias = c.tareas_abiertas.filter((t) => t.asesor_id === uid)
+  const metaMes = metaDeId(c, uid)
   return {
     tareasHoy: mias.filter((t) => t.vence >= h - 14 * DIA && t.vence < h + DIA).sort((a, b) => a.vence - b.vence),
     vencidasViejas: mias.filter((t) => t.vence < h - 14 * DIA).length,
     hoyN: mias.filter((t) => t.vence >= h && t.vence < h + DIA).length,
     tareasHechasHoy: evHoy.filter((e) => e.tipo === 'tarea').length,
     ventasHoy: c.leads.filter((l) => l.asesor_id === uid && l.funnel === 5 && esHoy(l.cerrado)).length,
-    metaDiaria: meta ? Math.round((meta / 22) * 10) / 10 : null,
+    vendidoMes: c.leads.filter((l) => l.asesor_id === uid && l.funnel === 5 && enRango(l.cerrado, mes)).reduce((s, l) => s + l.presupuesto, 0),
+    metaMes, esperadoMes: metaEsperada(metaMes, mes),
     llamadasHoy: evHoy.filter((e) => e.tipo === 'llamada_ok' || e.tipo === 'llamada_no').length,
     prospectosHoy: c.leads.filter((l) => l.asesor_id === uid && esHoy(l.asignacion)).length,
     eventosHoy: evHoy, eventosSemana: ev.filter((e) => enRango(e.ts, sem)),

@@ -167,8 +167,9 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 /* ---------- tabla asesores ---------- */
 .tblwrap { overflow-x: auto; background: var(--card); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); }
 .tbl { width: 100%; border-collapse: collapse; }
-.tbl th { text-align: left; font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--g2); padding: 10px 12px; background: var(--hover); border-bottom: 1px solid var(--line); white-space: nowrap; }
-.tbl td { padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; font-variant-numeric: tabular-nums; }
+.tbl th { text-align: left; font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--g2); padding: 10px 10px; background: var(--hover); border-bottom: 1px solid var(--line); white-space: nowrap; }
+.tbl td { padding: 10px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; font-variant-numeric: tabular-nums; }
+.tbl .who { min-width: 160px; }
 .tbl tr:last-child td { border-bottom: 0; }
 .tbl tr.row { cursor: pointer; }
 .tbl tr.row:hover td { background: var(--hover); }
@@ -179,16 +180,16 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 .avatar.z-SLT { background: var(--c4-soft); color: var(--c4-ink); }
 .avatar.z-TRC { background: var(--c3-soft); color: var(--c3-ink); }
 .avatar.z-MVA { background: var(--c2-soft); color: var(--c2-ink); }
-.who .nm { font-weight: 700; overflow-wrap: anywhere; }
+.who .nm { font-weight: 700; overflow-wrap: break-word; }
 .who .sub { color: var(--g2); font-size: 11px; }
 .num { font-weight: 700; font-size: 15px; }
 .minibar { height: 6px; border-radius: 999px; background: var(--track); margin-top: 5px; overflow: hidden; }
 .minibar i { display: block; height: 100%; background: var(--c1); }
-.cellbar { min-width: 130px; }
+.cellbar { min-width: 104px; }
 .cellbar .tot { font-size: 11px; color: var(--g2); margin-top: 4px; }
 
 /* ---------- popups ---------- */
-.popup { position: fixed; z-index: 300; background: var(--card); border: 1px solid var(--line); border-radius: var(--r); box-shadow: 0 12px 40px rgba(20, 22, 25, .18); width: 370px; max-width: calc(100vw - 24px); overflow: hidden; }
+.popup { position: fixed; z-index: 300; background: var(--card); border: 1px solid var(--line); border-radius: var(--r); box-shadow: 0 12px 40px rgba(20, 22, 25, .18); width: 370px; max-width: calc(100vw - 24px); max-height: calc(100vh - 16px); overflow: hidden auto; overscroll-behavior: contain; }
 .popup .ph { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
 .popup .ph .nm { font-weight: 700; flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .ib { border: 1px solid var(--line); border-radius: 8px; background: var(--card); width: 32px; height: 28px; cursor: pointer; font-weight: 700; line-height: 1; flex: none; }
@@ -203,8 +204,11 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 .pleads .lh h3 { margin: 0; }
 .mnav { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; }
 .mnav button { border: 0; border-radius: 6px; background: none; cursor: pointer; font-weight: 700; min-width: 28px; min-height: 28px; padding: 2px 6px; }
-.leadrow { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; padding: 3px 0; font-size: 12px; }
-.leadrow .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Dos líneas fijas por lead: nombre + días arriba; tipo, intentos y alerta abajo. Altura estable = popup que cabe. */
+.leadrow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1px 8px; align-items: center; padding: 5px 0; font-size: 12px; border-bottom: 1px solid var(--line); }
+.leadrow .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.leadrow .it { font-size: 11px; color: var(--g2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.leadrow .l2 { grid-column: 1 / -1; overflow: hidden; text-overflow: ellipsis; }
 .tag { font-size: 10px; border-radius: 999px; padding: 2px 7px; font-weight: 600; white-space: nowrap; background: var(--c1-soft); color: var(--c1-ink); }
 .tag.dark { background: var(--ink); color: var(--acc); }
 .tag.warn { background: #FBE4DF; color: #9A2E18; }
@@ -279,8 +283,105 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 .daygroup { margin-bottom: 14px; }
 .daygroup .dh { font-weight: 700; border-bottom: 1px solid var(--line); padding-bottom: 4px; margin-bottom: 6px; }
 
+/* ---------- bullet: valor contra meta (marca negra = meta, gris = esperado a hoy) ---------- */
+.bullet { min-width: 0; }
+.bullet .track { position: relative; height: 12px; border-radius: 999px; background: var(--track); }
+.bullet .fill { position: absolute; left: 0; top: 0; height: 100%; border-radius: 999px; background: var(--c1); }
+.bullet .tick { position: absolute; top: -4px; width: 3px; height: 20px; margin-left: -1px; background: var(--ink); border-radius: 2px; }
+.bullet .exp { position: absolute; top: -2px; width: 2px; height: 16px; margin-left: -1px; background: var(--g3); }
+.bullet.sm .track { height: 8px; }
+.bullet.sm .tick { top: -3px; height: 14px; }
+.bullet.sm .exp { top: -2px; height: 12px; }
+.brow { display: grid; grid-template-columns: 120px minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.brow .l { font-weight: 600; font-size: 12px; }
+.brow .v { font-weight: 700; font-size: 15px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.brow .sub { grid-column: 2 / -1; font-size: 11px; color: var(--g2); }
+
+/* ---------- antigüedad del cotizado: rampa ordinal claro → oscuro; lo muerto (> 90 d) rayado ---------- */
+.aging { display: flex; height: 14px; border-radius: 999px; overflow: hidden; background: var(--track); margin-top: 8px; }
+.aging i { display: block; height: 100%; }
+.aging i + i { border-left: 2px solid var(--card); }
+.ag1, .legend .lg-ag1 { background: var(--f2); }
+.ag2, .legend .lg-ag2 { background: var(--f4); }
+.ag3, .legend .lg-ag3 { background: var(--f6); }
+.ag4, .legend .lg-ag4 { background: repeating-linear-gradient(45deg, var(--neutral) 0 2px, var(--card) 2px 5px); }
+
+/* ---------- ranking de ventas ---------- */
+.rank .lr { display: grid; grid-template-columns: 22px minmax(0, 1fr) 130px auto; gap: 10px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.rank .pos { font-weight: 700; color: var(--g2); }
+.rank .pos.top { color: var(--c1-ink); }
+.rank .nm { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rank .v { font-weight: 700; white-space: nowrap; text-align: right; }
+.rank .v small { display: block; font-weight: 500; color: var(--g2); font-size: 10px; }
+
+/* ---------- entrada de leads (tasa de asignación) ---------- */
+.ent { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 18px; align-items: center; }
+.ent .hero { text-align: center; }
+.ent .hero .l { font-weight: 700; font-size: 13px; }
+.kpi-row { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
+.kpi-row > div { --dot: var(--neutral); background: var(--hover); border-radius: 10px; padding: 10px 12px; min-width: 0; }
+.kpi-row .n { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.kpi-row .l { font-size: 11px; color: var(--g2); margin-top: 2px; }
+.kpi-row .l::before { content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--dot); margin-right: 5px; vertical-align: 1px; }
+.kpi-row .e1 { --dot: var(--c1); }
+.kpi-row .e3 { --dot: var(--c2); }
+.kpi-row .e4 { --dot: var(--c4); }
+.kpi-row .e5 { --dot: var(--c3); }
+.kpi-row .e6 { --dot: var(--warn); }
+.ent-bar { cursor: default; height: 14px; margin-top: 12px; }
+.seg-neutral { background: var(--neutral); }
+.seg-ok { background: var(--c4); }
+
+/* ---------- primer contacto y razones de descarte ---------- */
+.pc-hero { display: flex; align-items: baseline; gap: 8px; }
+.pc-hero .n { font-size: 34px; font-weight: 700; line-height: 1.1; }
+.pc-hero .u { color: var(--g2); font-weight: 600; }
+.rz .lr { display: grid; grid-template-columns: minmax(0, 1fr) 90px auto; gap: 10px; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 12px; font-variant-numeric: tabular-nums; }
+.rz .bar { height: 8px; border-radius: 999px; background: var(--track); overflow: hidden; display: block; }
+.rz .bar i { display: block; height: 100%; background: var(--c3); }
+
+/* ---------- perfiles actividad × venta (dispersión) ---------- */
+.scatter { width: 100%; height: auto; display: block; }
+.scatter .grid { stroke: var(--line); }
+.scatter .med { stroke: var(--g3); stroke-dasharray: 4 3; }
+.scatter .ql { fill: var(--g2); font-size: 9px; font-weight: 700; }
+.scatter .ax { fill: var(--g2); font-size: 9px; }
+.scatter .pt text { fill: #fff; font-size: 7px; font-weight: 700; text-anchor: middle; pointer-events: none; }
+.scatter .p-mantener { fill: var(--c4); }
+.scatter .p-capacitar { fill: var(--c2); }
+.scatter .p-revisar { fill: var(--c3); }
+.scatter .p-salida { fill: var(--neutral); }
+.perfil-legend { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; font-size: 11px; margin-top: 8px; }
+.perfil-legend .h { font-weight: 700; }
+.perfil-legend .names { color: var(--g2); }
+.perfil-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
+.perfil-legend .p-mantener { background: var(--c4); }
+.perfil-legend .p-capacitar { background: var(--c2); }
+.perfil-legend .p-revisar { background: var(--c3); }
+.perfil-legend .p-salida { background: var(--neutral); }
+
+/* ---------- tabla ordenable y lista de leads ---------- */
+.tbl th .sortbtn { all: unset; cursor: pointer; display: inline-flex; align-items: center; min-height: 28px; border-radius: 4px; }
+.tbl th .sortbtn:focus-visible { outline: 3px solid var(--c1); outline-offset: 2px; }
+.tbl th[aria-sort] .sortbtn { color: var(--ink); }
+.ltbl td { vertical-align: middle; }
+.ltbl .tag { margin-right: 4px; }
+
+/* ---------- configuración de metas ---------- */
+.cfg .fld { display: grid; gap: 4px; margin-bottom: 12px; font-size: 12px; font-weight: 600; }
+.inp { border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; background: var(--card); font-weight: 600; width: 100%; max-width: 220px; font-variant-numeric: tabular-nums; }
+.inp::placeholder { color: var(--g2); font-weight: 400; }
+.cfg .ftable td { padding: 5px 8px; }
+.cfg-foot { display: flex; align-items: center; gap: 12px; margin-top: 14px; flex-wrap: wrap; }
+.cfg-msg { font-weight: 600; }
+.cfg-msg.ok { color: var(--c4-ink); }
+.cfg-msg.err { color: #9A2E18; }
+
 /* ---------- responsive ---------- */
 @media (max-width: 960px) {
+  .ent { grid-template-columns: 1fr; }
+  .kpi-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .perfil-legend { grid-template-columns: 1fr; }
   .shell { grid-template-columns: 1fr; }
   .burger { display: inline-block; }
   .sidebar { display: none; }
@@ -291,6 +392,10 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
   .drp-presets { border-right: 0; border-bottom: 1px solid var(--line); flex-direction: row; flex-wrap: wrap; }
 }
 @media (max-width: 640px) {
+  .kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rank .lr { grid-template-columns: 22px minmax(0, 1fr) auto; }
+  .rank .bullet { display: none; }
+  .brow { grid-template-columns: 90px minmax(0, 1fr) auto; }
   .popup { left: 12px !important; right: 12px; width: auto; top: auto !important; bottom: 12px; max-height: calc(100vh - 24px); overflow-y: auto; overscroll-behavior: contain; }
   .drp { left: 12px; }
   .drp-months { grid-template-columns: 1fr; }

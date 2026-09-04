@@ -22,7 +22,7 @@ Variables de entorno (en Railway, nunca en el repo):
     REFRESH_HOURS       opcional, default 6
     PORT                la pone Railway
 """
-import base64, gzip, hmac, json, os, subprocess, sys, threading, time, traceback
+import base64, gzip, hmac, json, os, re, subprocess, sys, threading, time, traceback
 from datetime import datetime, timedelta, timezone
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
@@ -40,6 +40,8 @@ VENTAS_DIST = os.path.join(HERE, "ventas", "dist")
 # Link «Ventas» de la barra flotante: en marketing apunta al servicio mkt-ventas.
 VENTAS_URL = os.environ.get("VENTAS_URL") or "/ventas/"
 VENTAS_JSON = os.path.join(DATA, "ventas.json")
+VENTAS_CONFIG = os.path.join(DATA, "ventas_config.json")   # metas en pesos desde la página (POST /ventas/config)
+VENTAS_HIST = os.path.join(DATA, "ventas_hist.jsonl")      # foto diaria del pipeline (la escribe ventas_corte.py)
 CTYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
           ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png",
           ".ico": "image/x-icon", ".woff2": "font/woff2", ".json": "application/json"}
@@ -385,6 +387,44 @@ CHAT = """
 """
 
 
+_SLUG = re.compile(r"^[a-z0-9][a-z0-9-]{0,60}$")
+_ZONA = re.compile(r"^[A-Z]{2,5}$")
+
+
+def validar_config(body):
+    """Configuración de metas de /ventas: solo llaves conocidas, números en rango, slugs
+    y zonas sanas. Devuelve el objeto limpio o lanza ValueError con el motivo."""
+    if not isinstance(body, dict):
+        raise ValueError("el cuerpo debe ser un objeto")
+
+    def numero(v, nombre, minimo):
+        try:
+            x = float(v)
+        except (TypeError, ValueError):
+            raise ValueError("%s no es un número" % nombre)
+        if x != x or x < minimo or x > 1e12:
+            raise ValueError("%s fuera de rango" % nombre)
+        return x
+
+    def tabla(v, nombre, patron):
+        if v is None:
+            return {}
+        if not isinstance(v, dict) or len(v) > 500:
+            raise ValueError("%s debe ser un objeto" % nombre)
+        out = {}
+        for k, x in v.items():
+            if not isinstance(k, str) or not patron.match(k):
+                raise ValueError("llave inválida en %s: %r" % (nombre, k))
+            out[k] = int(round(numero(x, "%s[%s]" % (nombre, k), 0)))
+        return out
+
+    return {"meta_mxn": int(round(numero(body.get("meta_mxn", 800000), "meta_mxn", 1))),
+            "cotizado_x": round(numero(body.get("cotizado_x", 10), "cotizado_x", 0.1), 2),
+            "cotizado_dias": int(round(numero(body.get("cotizado_dias", 90), "cotizado_dias", 1))),
+            "metas_zona": tabla(body.get("metas_zona"), "metas_zona", _ZONA),
+            "metas": tabla(body.get("metas"), "metas", _SLUG)}
+
+
 class H(BaseHTTPRequestHandler):
     server_version = "kenet-dash"
 
@@ -428,6 +468,23 @@ class H(BaseHTTPRequestHandler):
             if True:
                 return self._send(404, json.dumps({"error": "todavía no hay corte de ventas"}),
                                   "application/json")
+        if rel == "config.json":
+            try:
+                with open(VENTAS_CONFIG, "rb") as f:
+                    return self._send(200, f.read(), "application/json")
+            except FileNotFoundError:
+                return self._send(200, "{}", "application/json")
+        if rel == "hist.json":
+            filas = []
+            if os.path.exists(VENTAS_HIST):
+                with open(VENTAS_HIST, encoding="utf-8") as f:
+                    for ln in f:
+                        if ln.strip():
+                            try:
+                                filas.append(json.loads(ln))
+                            except ValueError:
+                                pass
+            return self._send(200, json.dumps(filas, ensure_ascii=False), "application/json")
         raiz = os.path.normpath(VENTAS_DIST)
         p = os.path.normpath(os.path.join(raiz, rel))
         if not p.startswith(raiz + os.sep) or not os.path.isfile(p):
@@ -435,6 +492,26 @@ class H(BaseHTTPRequestHandler):
         with open(p, "rb") as f:
             return self._send(200, f.read(), CTYPES.get(os.path.splitext(p)[1].lower(),
                                                         "application/octet-stream"))
+
+    def _ventas_config(self):
+        """Metas en pesos desde la página de Configuración de /ventas. Valida, escribe
+        atómico en el volumen y devuelve lo guardado. Nada de esto toca a los CRM."""
+        if DASH_MODO == "marketing":
+            return self._send(404, json.dumps({"ok": False, "error": "este servicio no sirve ventas"}),
+                              "application/json")
+        try:
+            n = int(self.headers.get("Content-Length") or 0)
+            body = json.loads(self.rfile.read(min(n, 60000)).decode("utf-8") or "{}")
+            cfg = validar_config(body)
+        except (ValueError, TypeError) as e:
+            return self._send(400, json.dumps({"ok": False, "error": str(e)}, ensure_ascii=False),
+                              "application/json")
+        os.makedirs(DATA, exist_ok=True)
+        tmp = VENTAS_CONFIG + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(cfg, f, ensure_ascii=False, indent=1)
+        os.replace(tmp, VENTAS_CONFIG)
+        return self._send(200, json.dumps({"ok": True, "config": cfg}, ensure_ascii=False), "application/json")
 
     def _autorizado(self):
         if not (USER and PASS):
@@ -722,6 +799,8 @@ class H(BaseHTTPRequestHandler):
             return self._armar_pausa()
         if self.path.startswith("/copiloto"):
             return self._copiloto()
+        if self.path.startswith("/ventas/config"):
+            return self._ventas_config()
         if self.path.startswith("/cola/hecho"):
             return self._cerrar()
         if not self.path.startswith("/refrescar"):

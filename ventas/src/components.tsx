@@ -112,16 +112,17 @@ export function DonutChart({ partes, total, label, size = 170 }: { partes: Parte
   )
 }
 
-/** Medidor de medio círculo con el porcentaje al centro (cumplimiento, tasa de contestación). */
+/** Medidor de medio círculo con el porcentaje al centro (cumplimiento, tasa de contestación).
+ *  El arco se satura en 100 %, el número no: un 140 % de meta se lee como 140 %. */
 export function Gauge({ pct: p, label, size = 180, color = 'var(--c1)' }: { pct: number | null; label: string; size?: number; color?: string }) {
   const v = p == null ? 0 : Math.max(0, Math.min(100, p))
   const L = Math.PI * 80
   return (
-    <div role="img" aria-label={`${label}: ${p == null ? 'sin dato' : Math.round(v) + '%'}`}>
+    <div role="img" aria-label={`${label}: ${p == null ? 'sin dato' : Math.round(p) + '%'}`}>
       <svg className="gauge-svg" width={size} height={size * 0.62} viewBox="0 0 200 124">
         <path d="M 20 104 A 80 80 0 0 1 180 104" fill="none" stroke="var(--track)" strokeWidth="18" strokeLinecap="round" />
         {p != null && <path d="M 20 104 A 80 80 0 0 1 180 104" fill="none" stroke={color} strokeWidth="18" strokeLinecap="round" strokeDasharray={`${(v / 100) * L} ${L}`} />}
-        <text x="100" y="98" className="gcenter" fontSize="30">{p == null ? '—' : Math.round(v) + '%'}</text>
+        <text x="100" y="98" className="gcenter" fontSize="30">{p == null ? '—' : Math.round(p) + '%'}</text>
         <text x="100" y="118" className="gcenter l">{label}</text>
       </svg>
     </div>
@@ -194,4 +195,74 @@ export function Metric({ n, l, cls = '' }: { n: number; l: string; cls?: string 
 export function Info({ termino }: { termino: Termino }) {
   const txt = GLOSARIO[termino]
   return <button type="button" className="ibtn" aria-label={`${termino}: ${txt}`} data-tip={txt} onClick={(e) => e.stopPropagation()}>i</button>
+}
+
+/** Bullet: valor contra objetivo. Marca negra = objetivo; marca gris = lo esperado a hoy.
+ *  La pista se estira al mayor de los dos para que el sobrecumplimiento también se vea. */
+export function Bullet({ value, target, expected, label, color = 'var(--c1)', fmt = fmtN, sm = false }: { value: number; target: number; expected?: number; label: string; color?: string; fmt?: (n: number) => string; sm?: boolean }) {
+  const max = Math.max(target, value, expected || 0, 1) * 1.04
+  const w = (v: number) => Math.max(0, Math.min(100, (v / max) * 100))
+  const desc = `${label}: ${fmt(value)} de ${fmt(target)} (${pct(value, target)}%)${expected != null ? `, esperado a hoy ${fmt(expected)}` : ''}`
+  return (
+    <div className={'bullet' + (sm ? ' sm' : '')} role="img" aria-label={desc} title={desc}>
+      <div className="track">
+        <i className="fill" style={{ width: w(value) + '%', background: color }} />
+        {expected != null && <i className="exp" style={{ left: w(expected) + '%' }} />}
+        <i className="tick" style={{ left: w(target) + '%' }} />
+      </div>
+    </div>
+  )
+}
+
+export interface PuntoXY { x: number; y: number; label: string; title: string; cls: string }
+/** Dispersión con las dos medianas como ejes de cuadrante. Cada punto lleva sus
+ *  iniciales y un title; la identidad completa va en la leyenda de al lado, nunca solo en el color. */
+export function Scatter({ pts, xMed, yMed, xLabel, yLabel, quad }: { pts: PuntoXY[]; xMed: number; yMed: number; xLabel: string; yLabel: string; quad: [string, string, string, string] }) {
+  const W = 340, H = 240, L = 34, B = 26, T = 16, R = 10
+  const maxX = Math.max(1, xMed, ...pts.map((p) => p.x)) * 1.1, maxY = Math.max(1, yMed, ...pts.map((p) => p.y)) * 1.1
+  // El cero de «vendido» va 24 px arriba del eje: los puntos no se sientan sobre la línea ni sobre las etiquetas.
+  const sx = (x: number) => L + (x / maxX) * (W - L - R), sy = (y: number) => H - B - 24 - (y / maxY) * (H - B - T - 24)
+  // Muchos asesores caen en el mismo lugar ($0 vendido, poca actividad). Moverlos mentiría
+  // sobre su dato: los que se enciman se juntan en UNA burbuja con el conteo y los nombres en el title.
+  const grupos: { x: number; y: number; m: PuntoXY[] }[] = []
+  for (const p of pts) {
+    const x = sx(p.x), y = sy(p.y)
+    const g = grupos.find((q) => Math.hypot(q.x - x, q.y - y) < 14)
+    if (g) g.m.push(p); else grupos.push({ x, y, m: [p] })
+  }
+  const clsMayoria = (m: PuntoXY[]) => [...m].sort((a, b) => m.filter((z) => z.cls === b.cls).length - m.filter((z) => z.cls === a.cls).length)[0].cls
+  const Lbl = ({ x, y, end, t }: { x: number; y: number; end?: boolean; t: string }) => {
+    const w = t.length * 5.6 + 8
+    return <g><rect x={end ? x - w : x - 4} y={y - 10} width={w} height={13} rx="3" fill="var(--card)" opacity=".92" /><text className="ql" x={x} y={y} textAnchor={end ? 'end' : 'start'}>{t}</text></g>
+  }
+  return (
+    <svg className="scatter" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${yLabel} contra ${xLabel}: ` + pts.map((p) => p.title).join('; ')}>
+      <line className="grid" x1={L} y1={H - B} x2={W - R} y2={H - B} /><line className="grid" x1={L} y1={T} x2={L} y2={H - B} />
+      <line className="med" x1={sx(xMed)} y1={T} x2={sx(xMed)} y2={H - B} /><line className="med" x1={L} y1={sy(yMed)} x2={W - R} y2={sy(yMed)} />
+      <text className="ax" x={(L + W - R) / 2} y={H - 6} textAnchor="middle">{xLabel} →</text>
+      <text className="ax" x={10} y={(T + H - B) / 2} textAnchor="middle" transform={`rotate(-90 10 ${(T + H - B) / 2})`}>{yLabel} →</text>
+      {grupos.map((g) => (
+        <g className="pt" key={g.m[0].label + g.m[0].title}><title>{g.m.map((p) => p.title).join('\n')}</title>
+          <circle className={clsMayoria(g.m)} cx={g.x} cy={g.y} r={g.m.length > 1 ? 12 : 9} stroke="var(--card)" strokeWidth="1.5" />
+          <text x={g.x} y={g.y + 2.5}>{g.m.length > 1 ? '×' + g.m.length : g.m[0].label}</text>
+        </g>
+      ))}
+      <Lbl x={L + 6} y={T + 10} t={quad[0]} />
+      <Lbl x={W - R - 2} y={T + 10} end t={quad[1]} />
+      <Lbl x={L + 6} y={H - B - 4} t={quad[2]} />
+      <Lbl x={W - R - 2} y={H - B - 4} end t={quad[3]} />
+    </svg>
+  )
+}
+
+export type Dir = 'asc' | 'desc'
+export interface Sort<K extends string> { key: K; dir: Dir }
+/** Encabezado ordenable: el botón lleva el texto; lo demás (glosario) va fuera del botón. */
+export function SortTh<K extends string>({ k, label, sort, onSort, className, children }: { k: K; label: string; sort: Sort<K>; onSort: (k: K) => void; className?: string; children?: ReactNode }) {
+  const on = sort.key === k
+  return (
+    <th scope="col" className={className} aria-sort={on ? (sort.dir === 'asc' ? 'ascending' : 'descending') : undefined}>
+      <button type="button" className="sortbtn" aria-label={`Ordenar por ${label}`} onClick={() => onSort(k)}>{label}<span aria-hidden="true">{on ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}</span></button>{children}
+    </th>
+  )
 }

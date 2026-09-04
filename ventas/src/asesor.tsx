@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Corte } from './types'
 import { CRM_LABEL } from './types'
-import { fechaDe, fmtCorta, fmtFecha, fmtHora, fmtMoney, fmtN, hoyIni, leaderboardHoy, miDia, tipoLead, vivo } from './metrics'
-import { Info } from './components'
+import { enRango, fechaDe, fmtCorta, fmtFecha, fmtHora, fmtMoney, fmtMoney0, fmtN, hoyIni, leaderboardHoy, metaDeId, miDia, pct, preset, tipoLead, vivo } from './metrics'
+import { Bullet, Info } from './components'
 
 // Estado de checklist, tareas propias y notas viven en el navegador del asesor
 // (localStorage): nada de esto se escribe al CRM.
@@ -53,13 +53,16 @@ export function MiDia({ corte, uid }: { corte: Corte; uid: string }) {
       ['Desc.', d.eventosHoy.filter((e) => e.tipo === 'descarte').length]] as [string, number][]
     : ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'].map((n, i) => [n, d.eventosSemana.filter((e) => (fechaDe(e.ts).getDay() + 6) % 7 === i).length] as [string, number])
   const maxB = Math.max(1, ...barras.map((b) => b[1]))
+  const faltan = Math.max(0, d.metaMes - d.vendidoMes)
 
   return (
     <>
       <div className="two" style={{ marginBottom: 14 }}>
         <div className="kpi4">
           <div><div className="n">{hechas}/{total}</div><div className="l">Tareas hoy · completadas<Info termino="Tareas hoy" /></div></div>
-          <div><div className="n">{d.ventasHoy}</div><div className="l">Ventas del día {d.metaDiaria != null ? `(meta diaria: ${d.metaDiaria})` : '(sin meta)'}</div></div>
+          <div><div className="n">{d.ventasHoy}</div><div className="l">Ventas del día</div>
+            <Bullet sm value={d.vendidoMes} target={d.metaMes} expected={d.esperadoMes} label="Vendido este mes" fmt={fmtMoney0} />
+            <div className="small muted" style={{ marginTop: 4 }}>Mes: {fmtMoney0(d.vendidoMes)} de {fmtMoney0(d.metaMes)} · {faltan ? `faltan ${fmtMoney0(faltan)}` : 'meta cumplida'}<Info termino="Meta" /></div></div>
           <div><div className="n">{d.llamadasHoy}</div><div className="l">Llamadas realizadas</div></div>
           <div><div className="n">{d.prospectosHoy}</div><div className="l">Prospectos nuevos</div></div>
         </div>
@@ -113,10 +116,13 @@ export function MiDia({ corte, uid }: { corte: Corte; uid: string }) {
 export function MisVentas({ corte, uid }: { corte: Corte; uid: string }) {
   const v = corte.leads.filter((l) => l.asesor_id === uid && l.funnel === 5).sort((a, b) => b.cerrado - a.cerrado)
   const monto = v.reduce((s, l) => s + l.presupuesto, 0)
+  const mes = preset('mes'), meta = metaDeId(corte, uid)
+  const vendidoMes = v.filter((l) => enRango(l.cerrado, mes)).reduce((s, l) => s + l.presupuesto, 0)
   return (
     <div className="panel list">
       <h3>Mis ventas · últimos {corte.dias_historia} días</h3>
-      <div className="big" style={{ marginBottom: 8 }}>{v.length} ventas · {fmtMoney(monto)}</div>
+      <div className="big" style={{ marginBottom: 4 }}>{v.length} ventas · {fmtMoney(monto)}</div>
+      <div className="small muted" style={{ marginBottom: 10 }}>Este mes {fmtMoney0(vendidoMes)} de {fmtMoney0(meta)} de meta ({pct(vendidoMes, meta)}%)<Info termino="Meta" /></div>
       {!v.length && <div className="muted">Sin ventas cerradas en el periodo.</div>}
       {v.map((l) => <div className="li" key={l.id}><span className="nm"><a href={l.link} target="_blank" rel="noreferrer">{l.nombre}</a>{mixto(corte) && <span className="tag" style={{ marginLeft: 6 }}>{CRM_LABEL[l.crm]}</span>}</span><span>{fmtMoney(l.presupuesto)}</span><span className="muted">{fmtFecha(fechaDe(l.cerrado))}</span></div>)}
     </div>

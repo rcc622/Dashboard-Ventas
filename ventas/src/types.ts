@@ -32,9 +32,15 @@ export interface Corte {
   generado: string; dias_historia: number; desde: number
   fuentes: Fuente[]
   usuarios: Usuario[]; equipos: Equipo[]; etapas: Etapa[]
-  metas: Record<string, number>
+  /** Meta mensual de venta en MXN: por asesor (slug), por zona y la general. Prioridad asesor → zona → general. */
+  metas: Record<string, number>; metas_zona: Record<string, number>; meta_mxn: number
+  /** Pipeline sano = cotizado vigente ≥ cotizado_x × meta mensual; vigente = cotizado hace ≤ cotizado_dias. */
+  cotizado_x: number; cotizado_dias: number
   leads: Lead[]; eventos: Evento[]; tareas_abiertas: Tarea[]
 }
+
+/** Lo que guarda la página de Configuración en data/ventas_config.json (app.py). */
+export interface Config { meta_mxn: number; cotizado_x: number; cotizado_dias: number; metas_zona: Record<string, number>; metas: Record<string, number> }
 
 /** Rango [ini, fin) en epoch segundos. */
 export interface Rango { ini: number; fin: number; label: string }

@@ -78,7 +78,7 @@ export function mock(): Corte {
     generado: gen, dias_historia: 90, desde: hoy - 90 * dia,
     fuentes: [{ crm: 'kommo', generado: gen, leads: 0, eventos: 0, tareas: 0 }, { crm: 'hubspot', generado: gen, leads: 0, eventos: 0, tareas: 0 }],
     usuarios, equipos: [{ id: 'MTY', nombre: 'Monterrey' }, { id: 'SLT', nombre: 'Saltillo' }, { id: 'TRC', nombre: 'Torreón' }, { id: 'MVA', nombre: 'Monclova' }],
-    etapas, metas: { 'adriana-sanchez': 70, 'marco-perez': 70, 'carlos-campillo': 50, 'samuel-giacoman': 30, 'erick-barajas': 30, 'monserrat-leon': 30 },
+    etapas, metas: { 'marco-perez': 1000000, 'samuel-giacoman': 600000 }, metas_zona: { TRC: 600000 }, meta_mxn: 800000, cotizado_x: 10, cotizado_dias: 90,
     leads, eventos, tareas_abiertas: tareas,
   }
 }

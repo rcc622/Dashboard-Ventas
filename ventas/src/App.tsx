@@ -1,17 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { Corte, Rango } from './types'
+import type { Config, Corte, Rango } from './types'
 import { CRM_LABEL } from './types'
-import { cargar, type Carga } from './data'
+import { aplicarConfig, cargar, type Carga } from './data'
 import { PRESETS, fmtCorta, fmtHora, iniciales, preset, rangoManual, vivo, type Filtros, type Preset } from './metrics'
 import { DateRangePicker } from './DateRangePicker'
 import { AdminDashboard, Asesores, Ficha } from './admin'
 import { Calendario, MiDia, MisVentas, Prospectos } from './asesor'
+import { Configuracion } from './config'
 
 type Perfil = 'admin' | 'asesor'
-type Pagina = 'dashboard' | 'asesores' | 'midia' | 'ventas' | 'prospectos' | 'calendario'
-const PAGINAS: Pagina[] = ['dashboard', 'asesores', 'midia', 'ventas', 'prospectos', 'calendario']
+type Pagina = 'dashboard' | 'asesores' | 'config' | 'midia' | 'ventas' | 'prospectos' | 'calendario'
+const PAGINAS: Pagina[] = ['dashboard', 'asesores', 'config', 'midia', 'ventas', 'prospectos', 'calendario']
 const NAV: Record<Perfil, { id: Pagina; label: string }[]> = {
-  admin: [{ id: 'dashboard', label: 'Dashboard' }, { id: 'asesores', label: 'Asesores' }],
+  admin: [{ id: 'dashboard', label: 'Dashboard' }, { id: 'asesores', label: 'Asesores' }, { id: 'config', label: 'Configuración' }],
   asesor: [{ id: 'midia', label: 'Mi día' }, { id: 'ventas', label: 'Mis ventas' }, { id: 'prospectos', label: 'Prospectos' }, { id: 'calendario', label: 'Calendario' }],
 }
 
@@ -35,10 +36,11 @@ export default function App() {
   const [intento, setIntento] = useState(0)
   useEffect(() => { setCarga(null); cargar().then(setCarga) }, [intento])
   if (!carga) return <div style={{ padding: 24 }} role="status">Cargando el corte…</div>
-  return <Shell key={intento} corte={carga.corte} origen={carga.origen} error={carga.error} onRetry={() => setIntento((i) => i + 1)} />
+  return <Shell key={intento} corte={carga.corte} origen={carga.origen} error={carga.error} onRetry={() => setIntento((i) => i + 1)}
+    onConfig={(cfg) => setCarga((c) => (c ? { ...c, corte: aplicarConfig(c.corte, cfg) } : c))} />
 }
 
-function Shell({ corte, origen, error, onRetry }: { corte: Corte; origen: 'kommo' | 'ejemplo'; error?: string; onRetry: () => void }) {
+function Shell({ corte, origen, error, onRetry, onConfig }: { corte: Corte; origen: 'kommo' | 'ejemplo'; error?: string; onRetry: () => void; onConfig: (cfg: Config) => void }) {
   const h0 = useMemo(leerHash, [])
   const r0 = useMemo(() => rangoDeHash(h0.r), [h0])
   const [perfil, setPerfil] = useState<Perfil>(h0.perfil === 'asesor' ? 'asesor' : 'admin')
@@ -82,7 +84,8 @@ function Shell({ corte, origen, error, onRetry }: { corte: Corte; origen: 'kommo
   if (perfil === 'admin') {
     contenido = ficha != null
       ? <Ficha corte={corte} filtros={filtros} uid={ficha} onBack={() => setFicha(null)} />
-      : pagina === 'asesores' ? <Asesores corte={corte} filtros={filtros} onFicha={setFicha} /> : <AdminDashboard corte={corte} filtros={filtros} />
+      : pagina === 'config' ? <Configuracion key={corte.generado} corte={corte} onSaved={onConfig} />
+        : pagina === 'asesores' ? <Asesores corte={corte} filtros={filtros} onFicha={setFicha} /> : <AdminDashboard corte={corte} filtros={filtros} />
   } else {
     contenido = pagina === 'ventas' ? <MisVentas corte={corte} uid={asesorActual} />
       : pagina === 'prospectos' ? <Prospectos corte={corte} uid={asesorActual} />
@@ -116,7 +119,7 @@ function Shell({ corte, origen, error, onRetry }: { corte: Corte; origen: 'kommo
       </nav>
       <main id="main" className="main">
         {origen === 'ejemplo' && <div className="aviso" role="status">Datos de ejemplo: no se pudo cargar el corte real{error ? ` (${error})` : ''}. Revisa que el refresh del servicio haya generado data/ventas.json. Las cifras no son reales. <button type="button" className="btn" style={{ marginLeft: 8 }} onClick={onRetry}>Reintentar</button></div>}
-        {perfil === 'admin' && (
+        {perfil === 'admin' && pagina !== 'config' && (
           <div className="toolbar">
             <select className="sel" aria-label="Equipo" value={filtros.equipo ?? ''} onChange={(e) => setFiltros({ ...filtros, equipo: e.target.value || null, asesor: null })}>
               <option value="">Todos los equipos</option>

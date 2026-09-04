@@ -542,9 +542,47 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   Equipo y propietario filtran todo. Si alguien pide de vuelta el segundo picker,
   `Filtros` ya trae el hueco: agregar `rangoActividad` y usarlo en
   `eventosFiltrados`.
-- Metas de venta por asesor: ningún CRM las guarda. Van en `VENTAS_METAS` con la
-  llave slug (`{"marco-perez": 70, "mara-galvez": 30}`); sin meta, la página
-  dice «sin meta».
+- **Metas EN PESOS** (decisión de Randall 4-sep tras las juntas con Alejandro, ver
+  `Knowledge/alejandro-requisitos-vs-ventas-2026-09-03.md`): `VENTAS_META_MXN`
+  es la meta mensual de venta de todos (default 800000) y `VENTAS_METAS`
+  (`{"marco-perez": 1000000}`, llave slug) la cambia por asesor. Ningún CRM las
+  guarda. La UI la prorratea al rango (`metaEnRango`: meses completos si el
+  rango va de día 1 a día 1, si no por días) y calcula «esperado a hoy» por
+  regla de tres (`metaEsperada`). Cumplimiento = monto vendido / meta del rango.
+- **Pipeline sano = cotizado vigente ≥ 10× la meta MENSUAL** (regla de Alejandro;
+  `VENTAS_COTIZADO_X`). Vigente = leads activos con monto cuya cotización tiene
+  ≤ 90 días (`VENTAS_COTIZADO_DIAS`; sin fecha de cotización cuenta desde la
+  asignación); lo más viejo se muestra rayado y «ya no cuenta». Vive en
+  `cotizado()` y sale en Venta (equipo), en la tabla de Asesores y en la ficha.
+- **Entrada de leads** (`entrada()`): solo Kommo, por fecha de CREACIÓN en el
+  rango y sin filtro de persona (los no asignados no tienen dueño). Tasa de
+  asignación = funnel ≥ 4 / llegaron: el KPI que Alejandro pidió resaltar. No
+  duplica el tablero de marketing: aquí es para el auditor de CRM.
+- **Primer contacto** (`primerContacto()`): mediana de horas asignación → primera
+  llamada o tarea completada, con los eventos (que traen `asignacion`) en un
+  solo recorrido. **Perfiles** (`perfiles()`): los 4 cuadrantes de Samuel con la
+  mediana del grupo como eje. **Razones de descarte**: eventos `descarte` ×
+  `razon` del lead. La tabla de Asesores ordena por columna (`SortTh`), trae
+  PC vencidas y cotizado vigente; la ficha lista los leads con intentos
+  (`llamadas_cf`, `msjs`), última tarea hecha y alertas.
+- **Página Configuración** (`ventas/src/config.tsx`, pedido de Randall 4-sep): metas
+  general, por zona y por asesor + factor y vigencia del cotizado, guardadas en el
+  servidor: `POST /ventas/config` valida (`validar_config` en app.py: llaves
+  conocidas, números en rango, slugs `[a-z0-9-]`, zonas `[A-Z]{2,5}`) y escribe
+  atómico `data/ventas_config.json` (en el volumen, gitignored); `GET
+  /ventas/config.json` lo sirve y `data.ts` lo aplica sobre el corte (manda sobre
+  el env). Prioridad `metaDe`: asesor → zona → general.
+- **HubSpot no liga tareas ni llamadas al deal** (validado 4-sep: 0 de 3,866 deals
+  abiertos con evento; los eventos traen otro id). Por eso «primer contacto» e
+  «intentos» son solo Kommo y lo dicen; en HubSpot se muestra «sin dato (HS)».
+  La actividad por ASESOR sí cuenta HubSpot (los eventos traen owner).
+- **Histórico del pipeline**: `ventas_corte.py` guarda una foto diaria
+  (`foto_pipeline`: leads y monto por etapa, total y por asesor) en
+  `data/ventas_hist.jsonl` y app.py la sirve en `GET /ventas/hist.json`. Es la
+  base de lo que Randall pidió y todavía NO tiene UI: ver el pipeline «como
+  estaba hace 7 días», su evolución, liquidez entre etapas y estancamiento. Para
+  reconstruir hacia atrás en Kommo faltan los eventos `lead_status_changed`;
+  HubSpot solo sabe cuándo entró cada deal a su etapa actual.
 - Checklist, tareas propias y notas de «Mi día» viven en `localStorage` del
   navegador del asesor. **Nada de esta página escribe a ningún CRM.**
 - Cambiar la UI: `cd ventas && npm install && npm run build` (tsc + vite) y
