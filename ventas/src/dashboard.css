@@ -500,6 +500,19 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 .sep-in:hover { background: var(--hover); }
 .sep-in:focus { background: var(--card); }
 .wsep-add { font-weight: 600; }
+.wbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; margin-bottom: 10px; font-size: 12px; color: var(--g2); }
+.wbar .wadd { margin-right: 0; }
+/* Tarjetas de la ficha como widgets: la tarjeta llena el widget y el encabezado queda compacto. */
+.widget.wcard .whead { margin-bottom: 4px; }
+.widget.wcard .whead h3 .wt { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.widget.wcard .wbody > .kcard { height: 100%; min-height: 96px; }
+.widget.hset.wcard .wbody > .kcard { flex: 1 1 auto; overflow: auto; }
+.cot-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px 20px; align-items: start; }
+.bcol.drill { cursor: pointer; border-radius: 8px; }
+.bcol.drill:hover, .bcol.drill:focus-visible { background: var(--hover); }
+.reales-lista { margin-top: 8px; display: grid; gap: 3px; font-size: 12px; }
+.reales-lista .r { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 10px; }
+.reales-lista .r .m { color: var(--g2); white-space: nowrap; }
 .wadd { display: inline-flex; align-items: center; gap: 6px; margin-right: 12px; font-weight: 600; color: var(--ink); }
 .wadd select { font: inherit; font-weight: 500; padding: 3px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); max-width: 260px; }
 .widget .ctitle { text-align: left; }

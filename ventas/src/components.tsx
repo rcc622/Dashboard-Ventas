@@ -147,13 +147,14 @@ export function MiniAreaChart({ values, height = 60, color = 'var(--c1)' }: { va
   )
 }
 
-export interface BubbleCol { label: string; bubbles: { n: number; cls?: string; title?: string }[] }
-export function BubbleChart({ cols }: { cols: BubbleCol[] }) {
+export interface BubbleCol { label: string; title?: string; bubbles: { n: number; cls?: string; title?: string }[] }
+/** `onCol`: cada columna es un botón (p. ej. una semana que se abre por día). */
+export function BubbleChart({ cols, onCol }: { cols: BubbleCol[]; onCol?: (i: number) => void }) {
   return (
     <>
       <div className="bubbles">
-        {cols.map((c) => (
-          <div className="bcol" key={c.label}>
+        {cols.map((c, i) => (
+          <div className={'bcol' + (onCol ? ' drill' : '')} key={c.label + i} title={c.title} {...(onCol ? { role: 'button', tabIndex: 0, onClick: () => onCol(i), onKeyDown: activar(() => onCol(i)), 'aria-label': (c.title || c.label) + ': ' + (c.bubbles.map((b) => `${b.title} ${b.n}`).join(', ') || 'sin actividad') } : {})}>
             {c.bubbles.map((b, i) => { const s = Math.min(46, 18 + b.n * 3); return <div key={i} className={'bubble ' + (b.cls || '')} style={{ width: s, height: s }} title={b.title} aria-label={`${b.title}: ${b.n}`}>{b.n}</div> })}
           </div>
         ))}

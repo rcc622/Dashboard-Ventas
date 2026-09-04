@@ -630,6 +630,28 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   título en `seps{}`), editable en el lugar, se arrastra o mueve con ▲▼ y se
   borra con ×; Restablecer tablero los quita. Las secciones plegables desaparecieron; los
   widgets `plain` (tiles) no llevan tarjeta.
+- **Ventas reales desde la app de comisiones** (pedido de Randall 4-sep): `ventas_comisiones.py`
+  lee `profiles` y `sales` de Supabase (solo GET, `SUPABASE_URL` + `SUPABASE_SERVICE_KEY`, la
+  misma llave del respaldo diario) y `ventas_corte.agregar_comisiones` lo mete al corte como
+  `comisiones {generado, vendedores[], ventas[]}` (o `error`). La app guarda casi solo el
+  primer nombre del vendedor: `emparejar` lo casa con el asesor del CRM cuyo slug empieza con
+  ese nombre, desempata por zona y si no puede lo deja sin asesor (la UI lo lista);
+  `VENTAS_COMISIONES_MAP` (`{"Arely Y david": "arely-tovar"}`) manda. La venta trae MES
+  (`sale_month` «Julio 2026»), no día: `ventasReales()` cuenta la venta si su mes toca el
+  rango, sin canceladas. Sale en el Admin (widget «Ventas reales · Comisiones», tabla contra
+  el CRM con drill) y en la ficha (tarjeta). `corte_para` recorta las de otros asesores. El
+  cruce se corrige en **Configuración › Ventas reales** (tabla vendedor → asesor: Automático,
+  Sin asesor o un asesor), guardado como `comisiones_map` en la config; `aplicarConfig` lo aplica
+  al vuelo en el navegador y `agregar_comisiones` lo lee del volumen en el siguiente corte.
+- **Ficha del asesor = WidgetGrid** (clave `ficha`, compartida entre asesores): tarjetas
+  `wcard` (Ventas, Cumplimiento, Cotizado vigente + antigüedad en UNA tarjeta, Ventas
+  reales), Actividad, Leads activos y Tareas abiertas; se mueven, estiran y quitan igual que
+  en el Dashboard. **Actividad respeta el rango del filtro** (queja de Randall 4-sep): hasta 21
+  días se ve por día; más largo, por semana (`BubbleChart onCol`: cada columna es un botón)
+  y el clic abre esa semana por día con «Volver a las semanas»; cambiar de rango o asesor
+  regresa a la vista del rango.
+- **Barra «Agregar gráfica / Agregar separador / Restablecer»** va ARRIBA de la rejilla
+  (`.wbar`), no al pie: Randall no encontraba dónde regresar una gráfica quitada.
 - **Gráficas fluidas** (pedido de Randall 4-sep: «que al redimensionar las gráficas
   se redimensionen también»): ninguna gráfica lleva tope en px. La dispersión de
   perfiles es un SVG 400×250 al 100 % del ancho (sin `max-width`), la dona y los

@@ -145,6 +145,16 @@ export function WidgetGrid({ clave, widgets }: { clave: string; widgets: Widget[
 
   return (
     <>
+      <div className="wbar">
+        <label className="wadd">Agregar gráfica:{' '}
+          <select value="" aria-label="Agregar una gráfica quitada al tablero" disabled={!quitados.length} onChange={(e) => { if (e.target.value) poner(e.target.value) }}>
+            <option value="">{quitados.length ? 'elegir…' : 'todas están en el tablero'}</option>
+            {quitados.map((id) => <option key={id} value={id}>{por.get(id)!.titulo}</option>)}
+          </select>
+        </label>
+        <button type="button" className="nbtn wsep-add" onClick={agregarSep}>Agregar separador</button>
+        {cambiado && <button type="button" className="nbtn wreset-btn" onClick={restablecer}>Restablecer tablero</button>}
+      </div>
       <div className="wgrid" ref={grid}>
         {visibles.map((id, i) => {
           if (esSep(id)) return (
@@ -187,18 +197,7 @@ export function WidgetGrid({ clave, widgets }: { clave: string; widgets: Widget[
           )
         })}
       </div>
-      <div className="wreset">
-        {quitados.length > 0 && (
-          <label className="wadd">Agregar gráfica:{' '}
-            <select value="" aria-label="Agregar una gráfica quitada al tablero" onChange={(e) => { if (e.target.value) poner(e.target.value) }}>
-              <option value="">elegir…</option>
-              {quitados.map((id) => <option key={id} value={id}>{por.get(id)!.titulo}</option>)}
-            </select>
-          </label>
-        )}
-        <button type="button" className="nbtn wsep-add" onClick={agregarSep}>Agregar separador</button>{' · '}
-        Arrastra el asa ⋮⋮ o usa ▲ ▼ para acomodar los widgets; estira la esquina inferior derecha (o ← → ↑ ↓) para cambiar su ancho por cuadrantes y su alto; Supr regresa el alto automático; × quita la gráfica del tablero. Se guarda en este navegador.{cambiado && <> <button type="button" className="nbtn wreset-btn" onClick={restablecer}>Restablecer tablero</button></>}
-      </div>
+      <div className="wreset">Arrastra el asa ⋮⋮ o usa ▲ ▼ para acomodar los widgets; estira la esquina inferior derecha (o ← → ↑ ↓) para cambiar su ancho por cuadrantes y su alto; Supr regresa el alto automático; × quita la gráfica del tablero y arriba, en «Agregar gráfica», la regresas. Se guarda en este navegador.</div>
     </>
   )
 }

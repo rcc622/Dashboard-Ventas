@@ -29,15 +29,27 @@ export async function cargarAccesos(): Promise<Acceso[]> {
 }
 export async function guardarAccesos(usuarios: Acceso[]): Promise<Acceso[]> { return (await post('usuarios', { usuarios })).usuarios as Acceso[] }
 
-const DEF: Config = { meta_mxn: 800000, cotizado_x: 10, cotizado_dias: 90, metas_zona: {}, metas: {}, ocultos: [], equipos: {} }
+const DEF: Config = { meta_mxn: 800000, cotizado_x: 10, cotizado_dias: 90, metas_zona: {}, metas: {}, ocultos: [], equipos: {}, comisiones_map: {} }
 
 /** La configuración guardada desde la página (config.json) manda sobre lo que trae el
  *  corte (env del servicio); y un corte anterior al 4-sep no trae metas: mismos defaults
  *  que ventas_corte.py. La zona del CRM se conserva en zona_crm para poder volver a ella. */
+const norm = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
+/** Cruce vendedor de la app de comisiones -> asesor del CRM: el mapa de Configuración manda sobre el automático. */
+function aplicarComisiones(c: Corte, mapa: Record<string, string>): Corte['comisiones'] {
+  if (!c.comisiones) return c.comisiones
+  const m = new Map(Object.entries(mapa).map(([k, v]) => [norm(k), v]))
+  const ids = new Set(c.usuarios.map((u) => u.id))
+  const vendedores = c.comisiones.vendedores.map((v) => { const f = m.get(norm(v.nombre)); return f === undefined ? v : { ...v, asesor_id: f && ids.has(f) ? f : null } })
+  const por = new Map(vendedores.map((v) => [v.id, v.asesor_id]))
+  return { ...c.comisiones, vendedores, ventas: c.comisiones.ventas.map((x) => ({ ...x, asesor_id: x.vendedor_id ? por.get(x.vendedor_id) ?? null : null })) }
+}
 export function aplicarConfig(c: Corte, cfg: Partial<Config>): Corte {
   const equipos = cfg.equipos ?? {}
   return {
     ...c,
+    comisiones_map: cfg.comisiones_map ?? c.comisiones_map ?? {},
+    comisiones: aplicarComisiones(c, cfg.comisiones_map ?? c.comisiones_map ?? {}),
     meta_mxn: cfg.meta_mxn ?? c.meta_mxn ?? DEF.meta_mxn,
     cotizado_x: cfg.cotizado_x ?? c.cotizado_x ?? DEF.cotizado_x,
     cotizado_dias: cfg.cotizado_dias ?? c.cotizado_dias ?? DEF.cotizado_dias,

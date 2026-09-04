@@ -156,6 +156,29 @@ def mezclar(partes):
     }
 
 
+def agregar_comisiones(corte):
+    """Ventas reales de la app de comisiones (Supabase). Entra solo con SUPABASE_URL +
+    SUPABASE_SERVICE_KEY; si falla, el corte sale igual que antes y `comisiones.error` lo dice."""
+    if not (os.environ.get("SUPABASE_URL") and os.environ.get("SUPABASE_SERVICE_KEY")):
+        return corte
+    try:
+        import ventas_comisiones
+        forzados = {}
+        try:   # Configuración > Ventas reales: {nombre en la app: slug o ''}; vive en el volumen
+            with open(os.path.join(os.path.dirname(OUT), "ventas_config.json"), encoding="utf-8") as f:
+                forzados = json.load(f).get("comisiones_map") or {}
+        except (OSError, ValueError):
+            pass
+        corte["comisiones"] = ventas_comisiones.build(corte["usuarios"], forzados)
+        con = sum(1 for v in corte["comisiones"]["vendedores"] if v["asesor_id"])
+        print("comisiones: %d ventas · %d vendedores (%d con asesor del CRM)"
+              % (len(corte["comisiones"]["ventas"]), len(corte["comisiones"]["vendedores"]), con))
+    except Exception as e:
+        aviso("comisiones falló: %r" % e)
+        corte["comisiones"] = {"error": str(e)[:200], "vendedores": [], "ventas": []}
+    return corte
+
+
 HIST = os.path.join(os.path.dirname(OUT), "ventas_hist.jsonl")
 
 
@@ -221,7 +244,7 @@ if __name__ == "__main__":
     partes = fuentes()
     if not partes:
         sys.exit("ningún CRM entregó corte: se conserva el ventas.json anterior")
-    corte = mezclar(partes)
+    corte = agregar_comisiones(mezclar(partes))
     print("corte: %s · %d asesores · %d leads · %d actividades · %d tareas abiertas"
           % (" + ".join(f["crm"] for f in corte["fuentes"]), len(corte["usuarios"]),
              len(corte["leads"]), len(corte["eventos"]), len(corte["tareas_abiertas"])))

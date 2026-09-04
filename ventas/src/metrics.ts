@@ -5,7 +5,7 @@
 // Reglas de Alejandro (consultor, juntas jul-ago 2026) que viven aquí: meta en pesos
 // prorrateada al rango, cotizado vigente (≤ 90 d) contra 10× la meta mensual, tasa de
 // asignación como KPI de entrada, primer contacto en horas y perfiles actividad × venta.
-import type { Corte, Crm, Etapa, Evento, Lead, Rango, Tarea, Usuario } from './types'
+import type { Corte, Crm, Etapa, Evento, Lead, Rango, Tarea, Usuario, VentaReal, Origen } from './types'
 
 /** crm = qué CRM entran (botones Kommo · HubSpot de la barra del Admin); al menos uno encendido. */
 export interface Filtros { rango: Rango; equipo: string | null; asesor: string | null; crm: Record<Crm, boolean> }
@@ -215,7 +215,7 @@ export function razones(c: Corte, ev: Evento[]): { razon: string; n: number; lea
 // ---------------------------------------------------------------- detalle (drill-down)
 // Cada cifra del tablero abre una ventana con los registros que la componen (Randall, 4-sep,
 // como el drill-down de los reportes de HubSpot). Una Fila = un renglón de esa ventana.
-export interface Fila { id: string; nombre: string; link?: string; crm: Crm; asesor: string; detalle: string; monto?: number; cuando?: number }
+export interface Fila { id: string; nombre: string; link?: string; crm: Origen; asesor: string; detalle: string; monto?: number; cuando?: number }
 export function mapaLeads(c: Corte): Map<string, Lead> { return new Map(c.leads.map((l) => [l.id, l])) }
 export const nombreAsesor = (c: Corte, id: string | null) => (id == null ? 'Sin asesor' : c.usuarios.find((u) => u.id === id)?.nombre || id)
 export function filasDeLeads(leads: Lead[], detalle: (l: Lead) => string, cuando: (l: Lead) => number = (l) => l.asignacion): Fila[] {
@@ -398,3 +398,33 @@ export const TIPO_LABEL: Record<string, string> = {
   tarea: 'Tareas', llamada_ok: 'Llamadas contestadas', llamada_no: 'Llamadas sin contestar',
   cotizacion: 'Cotizaciones', levantamiento: 'Levantamientos', descarte: 'Descartes',
 }
+
+// ---------------------------------------------------------------- Ventas reales (app de comisiones)
+export interface VentaRealFila { u: Usuario | null; nombre: string; n: number; monto: number; ventas: VentaReal[] }
+export interface VentasReales { filas: VentaRealFila[]; ventas: VentaReal[]; sinAsesor: string[]; total: number; n: number }
+const finMes = (t: number) => { const d = new Date(t * 1000); return new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime() / 1000 }
+/** Ventas de la app de comisiones cuyo MES de venta toca el rango (la app no guarda el día), sin
+ *  canceladas. Con filtro de asesor o equipo entran solo las cruzadas con ese asesor; sin filtro
+ *  también las de vendedores que no se pudieron casar con el CRM (fila «sin asesor»). */
+export function ventasReales(c: Corte, f: Filtros): VentasReales {
+  const com = c.comisiones
+  if (!com) return { filas: [], ventas: [], sinAsesor: [], total: 0, n: 0 }
+  const users = mapaUsuarios(c), oc = ocultosDe(c)
+  const sel = com.ventas.filter((v) => !v.cancelada && v.fecha != null && v.fecha < f.rango.fin && finMes(v.fecha) > f.rango.ini
+    && (v.asesor_id ? pasaPersona(v.asesor_id, f, users, oc) : f.asesor == null && f.equipo == null))
+  const grupos = new Map<string, VentaRealFila>()
+  for (const v of sel) {
+    const k = v.asesor_id || 'v:' + v.vendedor
+    const u = v.asesor_id ? users.get(v.asesor_id) || null : null
+    const g = grupos.get(k) || { u, nombre: u ? u.nombre : v.vendedor, n: 0, monto: 0, ventas: [] }
+    g.n++; g.monto += v.monto; g.ventas.push(v); grupos.set(k, g)
+  }
+  const filas = [...grupos.values()].sort((a, b) => b.monto - a.monto)
+  const sinAsesor = [...new Set(com.vendedores.filter((v) => v.rol === 'vendor' && !v.asesor_id).map((v) => v.nombre))].sort()
+  return { filas, ventas: sel, sinAsesor, total: sel.reduce((s, v) => s + v.monto, 0), n: sel.length }
+}
+export const filasDeVentasReales = (vs: VentaReal[]): Fila[] => vs.map((v) => ({
+  id: 'c:' + v.id, nombre: v.cliente || 'Sin nombre', link: v.liga || undefined, crm: 'comisiones', asesor: v.vendedor,
+  detalle: [v.mes_texto, v.origen, v.compartida_con ? 'compartida con ' + v.compartida_con : ''].filter(Boolean).join(' · '),
+  monto: v.monto, cuando: v.fecha ?? undefined,
+}))

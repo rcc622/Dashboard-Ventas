@@ -432,12 +432,18 @@ def validar_config(body):
     for k, v in equipos.items():
         if not (isinstance(k, str) and _SLUG.match(k) and isinstance(v, str) and (v == "-" or _ZONA.match(v))):
             raise ValueError("equipo inválido: %r" % ((k, v),))
+    cmap = body.get("comisiones_map") or {}
+    if not isinstance(cmap, dict) or len(cmap) > 500:
+        raise ValueError("comisiones_map debe ser un objeto")
+    for k, v in cmap.items():
+        if not (isinstance(k, str) and 0 < len(k) <= 80 and isinstance(v, str) and (v == "" or _SLUG.match(v))):
+            raise ValueError("cruce de comisiones inválido: %r" % ((k, v),))
     return {"meta_mxn": int(round(numero(body.get("meta_mxn", 800000), "meta_mxn", 1))),
             "cotizado_x": round(numero(body.get("cotizado_x", 10), "cotizado_x", 0.1), 2),
             "cotizado_dias": int(round(numero(body.get("cotizado_dias", 90), "cotizado_dias", 1))),
             "metas_zona": tabla(body.get("metas_zona"), "metas_zona", _ZONA),
             "metas": tabla(body.get("metas"), "metas", _SLUG),
-            "ocultos": sorted(set(ocultos)), "equipos": dict(equipos)}
+            "ocultos": sorted(set(ocultos)), "equipos": dict(equipos), "comisiones_map": dict(cmap)}
 
 
 # ---------------------------------------------------------------- accesos de /ventas
@@ -584,6 +590,10 @@ def corte_para(uid):
     f["eventos"] = [e for e in c.get("eventos", []) if e.get("asesor_id") == uid]
     f["tareas_abiertas"] = [t for t in c.get("tareas_abiertas", []) if t.get("asesor_id") == uid]
     f["metas"] = {k: v for k, v in (c.get("metas") or {}).items() if k == uid}
+    if isinstance(c.get("comisiones"), dict):
+        com = c["comisiones"]
+        f["comisiones"] = dict(com, vendedores=[v for v in com.get("vendedores", []) if v.get("asesor_id") == uid],
+                               ventas=[v for v in com.get("ventas", []) if v.get("asesor_id") == uid])
     return json.dumps(f, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
 
 

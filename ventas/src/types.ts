@@ -28,10 +28,17 @@ export interface Evento { ts: number; tipo: TipoEvento; asesor_id: string | null
 export interface Tarea { id: string; crm: Crm; lead: string; lead_nombre: string; asesor_id: string | null; texto: string; tipo: string; vence: number; vencida: boolean; link: string }
 
 export interface Fuente { crm: Crm; generado: string; leads: number; eventos: number; tareas: number }
+/** App de comisiones (Supabase): la venta que sí se cobró, cruzada con el asesor del CRM por nombre. */
+export interface VendedorCom { id: string; nombre: string; zona: string; rol: string; asesor_id: string | null }
+export interface VentaReal { id: string; vendedor_id: string | null; asesor_id: string | null; vendedor: string; cliente: string; zona: string; mes: string | null; mes_texto: string; fecha: number | null; monto: number; comisionable: number; cancelada: boolean; liga: string; origen: string; compartida_con: string }
+export interface Comisiones { generado?: string; error?: string; vendedores: VendedorCom[]; ventas: VentaReal[] }
 
 export interface Corte {
   generado: string; dias_historia: number; desde: number
   fuentes: Fuente[]
+  comisiones?: Comisiones
+  /** Configuración: nombre en la app de comisiones -> slug del CRM ('' = sin asesor). */
+  comisiones_map?: Record<string, string>
   usuarios: Usuario[]; equipos: Equipo[]; etapas: Etapa[]
   /** Meta mensual de venta en MXN: por asesor (slug), por zona y la general. Prioridad asesor → zona → general. */
   metas: Record<string, number>; metas_zona: Record<string, number>; meta_mxn: number
@@ -44,7 +51,7 @@ export interface Corte {
 
 /** Lo que guarda la página de Configuración en data/ventas_config.json (app.py).
  *  equipos: zona por asesor que manda sobre la del CRM ('-' = sin equipo). */
-export interface Config { meta_mxn: number; cotizado_x: number; cotizado_dias: number; metas_zona: Record<string, number>; metas: Record<string, number>; ocultos: string[]; equipos: Record<string, string> }
+export interface Config { meta_mxn: number; cotizado_x: number; cotizado_dias: number; metas_zona: Record<string, number>; metas: Record<string, number>; ocultos: string[]; equipos: Record<string, string>; comisiones_map: Record<string, string> }
 
 /** Sesión de /ventas (cookie firmada por app.py). uid de un asesor = su slug en el corte. */
 export interface Yo { uid: string; rol: 'admin' | 'asesor'; nombre: string }
@@ -54,4 +61,5 @@ export interface Acceso { id: string; usuario: string; nombre: string; rol: 'adm
 /** Rango [ini, fin) en epoch segundos. */
 export interface Rango { ini: number; fin: number; label: string }
 
-export const CRM_LABEL: Record<Crm, string> = { kommo: 'Kommo', hubspot: 'HubSpot' }
+export type Origen = Crm | 'comisiones'
+export const CRM_LABEL: Record<Origen, string> = { kommo: 'Kommo', hubspot: 'HubSpot', comisiones: 'Comisiones' }

@@ -31,6 +31,8 @@ export function Configuracion({ corte, onSaved }: { corte: Corte; onSaved: (cfg:
   const [ocultos, setOcultos] = useState<Set<string>>(() => new Set(corte.ocultos || []))
   // '' = como en el CRM; código de zona = ese equipo; '-' = sin equipo.
   const [equipos, setEquipos] = useState<Record<string, string>>(() => Object.fromEntries(corte.usuarios.map((u) => [u.id, u.zona_crm != null && u.zona !== u.zona_crm ? (u.zona || '-') : ''])))
+  // Ventas reales: nombre en la app de comisiones -> slug del CRM ('' = sin asesor). Solo lo fijado a mano; lo demás es automático.
+  const [comMap, setComMap] = useState<Record<string, string>>(() => ({ ...(corte.comisiones_map || {}) }))
   const [estado, setEstado] = useState<Estado | null>(null)
   const [guardando, setGuardando] = useState(false)
   const usuarios = useMemo(() => [...corte.usuarios].sort((a, b) => a.nombre.localeCompare(b.nombre)), [corte])
@@ -65,7 +67,7 @@ export function Configuracion({ corte, onSaved }: { corte: Corte; onSaved: (cfg:
     for (const [k, v] of Object.entries(asesores)) { if (v.trim() === '') continue; const n = num(v); if (n == null) return `La meta de ${corte.usuarios.find((u) => u.id === k)?.nombre || k} no es un número.`; metas[k] = n }
     const eq: Record<string, string> = {}
     for (const [k, v] of Object.entries(equipos)) if (v) eq[k] = v
-    return { meta_mxn: g, cotizado_x: x, cotizado_dias: Math.round(d), metas_zona, metas, ocultos: [...ocultos], equipos: eq }
+    return { meta_mxn: g, cotizado_x: x, cotizado_dias: Math.round(d), metas_zona, metas, ocultos: [...ocultos], equipos: eq, comisiones_map: comMap }
   }
   const borrador = armar()
   const cfg = typeof borrador === 'string' ? null : borrador
@@ -151,7 +153,32 @@ export function Configuracion({ corte, onSaved }: { corte: Corte; onSaved: (cfg:
           </div>
         )}
       </div>
-      <div className="panel" style={{ marginTop: 14 }}>
+              {corte.comisiones && (
+          <div className="panel" style={{ marginBottom: 14 }}>
+            <h3>Ventas reales · app de comisiones<Info termino="Ventas reales" /></h3>
+            <div className="small muted" style={{ marginBottom: 8 }}>Cada vendedor de la app se cruza solo con el asesor del CRM por su primer nombre y zona. Aquí se corrige el cruce; «Automático» deja la regla, «Sin asesor» lo saca del tablero. Aplica al guardar.</div>
+            <div className="scrollx"><table className="ftable" aria-label="Cruce de vendedores de la app de comisiones con asesores del CRM">
+              <thead><tr><th scope="col">Vendedor en la app</th><th scope="col">Zona</th><th scope="col" className="num">Ventas</th><th scope="col">Asesor en el CRM</th></tr></thead>
+              <tbody>
+                {corte.comisiones.vendedores.filter((v) => v.rol === 'vendor').sort((a, b) => a.nombre.localeCompare(b.nombre)).map((v) => {
+                  const n = corte.comisiones!.ventas.filter((x) => x.vendedor_id === v.id && !x.cancelada).length
+                  const fijo = comMap[v.nombre]
+                  return (
+                    <tr key={v.id}>
+                      <td>{v.nombre}</td><td>{v.zona || '—'}</td><td className="num">{fmtN(n)}</td>
+                      <td><select className="sel" aria-label={'Asesor del CRM para ' + v.nombre} value={fijo === undefined ? '' : fijo === '' ? '-' : fijo} onChange={(ev) => { const val = ev.target.value; setComMap((mp) => { const c = { ...mp }; if (val === '') delete c[v.nombre]; else c[v.nombre] = val === '-' ? '' : val; return c }) }}>
+                        <option value="">Automático{v.asesor_id ? ` (${corte.usuarios.find((u) => u.id === v.asesor_id)?.nombre || v.asesor_id})` : ' (sin asesor)'}</option>
+                        <option value="-">Sin asesor</option>
+                        {usuarios.map((u) => <option key={u.id} value={u.id}>{u.nombre}</option>)}
+                      </select></td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table></div>
+          </div>
+        )}
+<div className="panel" style={{ marginTop: 14 }}>
         <h3>Asesores · {fmtN(activos)} activos de {fmtN(usuarios.length)}</h3>
         <div className="small muted" style={{ marginBottom: 10 }}>Ojo cerrado = desactivado: no sale en el menú de propietarios, en la tabla, en el ranking ni en los perfiles, y sus leads y actividades no cuentan en las cifras del equipo. La entrada de leads de Kommo no cambia. El equipo manda sobre el que trae el CRM.</div>
         <div className="tblwrap" style={{ boxShadow: 'none' }}>

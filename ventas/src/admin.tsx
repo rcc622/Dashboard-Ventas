@@ -1,8 +1,8 @@
 import { useLayoutEffect, useMemo, useRef, useState, type SyntheticEvent, useEffect } from 'react'
-import type { Corte, Lead, Usuario } from './types'
+import type { Corte, Evento, Lead, Usuario } from './types'
 import { CRM_LABEL } from './types'
-import { BUCKETS, PERFIL_LABEL, actividad, cotizado, dias, embudo, entrada, ep, etapaDe, eventosFiltrados, fechaCotizado, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, metaDe, metaEnRango, metaEsperada, pasaCrm, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, type Fila, type FilaAsesor, type Filtros, type Perfil , type PuntoPerfil } from './metrics'
-import { BarDetailPopup, BubbleChart, Bullet, DonutChart, FunnelChart, Gauge, Info, LlamadasBar, MiniAreaChart, Scatter, SortTh, StackedBar, activar, useEscape, useOutside, type DetRow, type Sort } from './components'
+import { BUCKETS, PERFIL_LABEL, actividad, cotizado, dias, embudo, entrada, ep, etapaDe, eventosFiltrados, fechaCotizado, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, metaDe, metaEnRango, metaEsperada, pasaCrm, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, type Fila, type FilaAsesor, type Filtros, type Perfil , type PuntoPerfil, ventasReales, filasDeVentasReales } from './metrics'
+import { BarDetailPopup, BubbleChart, Bullet, DonutChart, FunnelChart, Gauge, Info, LlamadasBar, MiniAreaChart, Scatter, SortTh, StackedBar, activar, useEscape, useOutside, type DetRow, type Sort, type BubbleCol } from './components'
 import { DrillModal, type Drill } from './drill'
 import { WidgetGrid, type Widget } from './widgets'
 
@@ -92,6 +92,7 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
   const pc = useMemo(() => primerContacto(corte, leads), [corte, leads])
   const rz = useMemo(() => razones(corte, ev), [corte, ev])
   const perf = useMemo(() => perfiles(filas), [filas])
+  const vr = ventasReales(corte, filtros)
   const [drill, setDrill] = useState<Drill | null>(null)
   const ver = (titulo: string, filas: Fila[], sub?: string) => setDrill({ titulo, filas, sub })
   const s = salud(leads)
@@ -189,6 +190,26 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
         {filas.length > ranking.length && <div className="small muted" style={{ marginTop: 8 }}>Top {ranking.length} de {filas.length}; la tabla de Asesores trae a todos.</div>}
       </>
     ), { info: ['Ranking'], cls: 'rank' }),
+    ...(corte.comisiones ? [W('reales', 'Ventas reales · Comisiones', (
+      <>
+        {vr.filas.length > 0 && (
+          <div className="scrollx"><table className="ftable">
+            <thead><tr><th scope="col">Asesor</th><th scope="col" className="num">Ventas reales</th><th scope="col" className="num">Monto real</th><th scope="col" className="num">Ventas CRM</th><th scope="col" className="num">Monto CRM</th></tr></thead>
+            <tbody>
+              {vr.filas.map((r) => { const cr = r.u ? filas.find((x) => x.u.id === r.u!.id) : undefined; return (
+                <tr key={r.nombre} className="drill" role="button" tabIndex={0} aria-label={`${r.nombre}: ${fmtN(r.n)} ventas reales, ${fmtMoney0(r.monto)}. Ver detalle`}
+                  onClick={() => ver(`Ventas reales · ${r.nombre}`, filasDeVentasReales(r.ventas), rango + ' · mes de venta en la app de comisiones')} onKeyDown={activar(() => ver(`Ventas reales · ${r.nombre}`, filasDeVentasReales(r.ventas), rango + ' · mes de venta en la app de comisiones'))}>
+                  <td>{r.nombre}{!r.u && <span className="muted"> · sin asesor en el CRM</span>}</td>
+                  <td className="num">{fmtN(r.n)}</td><td className="num">{fmtMoney0(r.monto)}</td>
+                  <td className="num">{cr ? fmtN(cr.ventas) : '—'}</td><td className="num">{cr ? fmtMoney0(cr.montoVentas) : '—'}</td>
+                </tr>) })}
+            </tbody>
+          </table></div>
+        )}
+        {!vr.filas.length && <div className="muted">Sin ventas en la app de comisiones para este rango{filtros.asesor || filtros.equipo ? ' y este filtro' : ''}.</div>}
+        <div className="small muted" style={{ marginTop: 8 }}>Fuente: app de comisiones, por mes de venta y sin canceladas · corte {(corte.comisiones.generado || '').slice(0, 16).replace('T', ' ')}.{vr.sinAsesor.length ? ` Vendedores sin asesor en el CRM: ${vr.sinAsesor.join(', ')}.` : ''}{corte.comisiones.error ? ` Error al leer la app: ${corte.comisiones.error}` : ''}</div>
+      </>
+    ), { info: ['Ventas reales'] })] : []),
     W('pipeline', 'Cotizado vs vendido vs meta', (
       <>
         <div className="brow">
@@ -496,13 +517,20 @@ function AsesorPopup({ corte, filtros, fila, x, y, onClose, onFicha }: { corte: 
 // ---------------------------------------------------------------- Ficha
 const lunes = (d: Date) => sumar(inicioDia(d), -((d.getDay() + 6) % 7))
 
+const wg = (id: string, titulo: string, nodo: React.ReactNode, opts: Partial<Widget> = {}): Widget => ({ id, titulo, nodo, ...opts })
+
+/** Ficha del asesor. Es un WidgetGrid (clave «ficha», compartida entre asesores): cada tarjeta se
+ *  mueve, estira o quita igual que en el Dashboard. Cotizado vigente y su antigüedad van en UNA
+ *  tarjeta; la actividad respeta el rango del filtro (por día hasta 21 días, si no por semana con
+ *  clic para abrir la semana). */
 export function Ficha({ corte, filtros, uid, onBack }: { corte: Corte; filtros: Filtros; uid: string; onBack: () => void }) {
   const u = corte.usuarios.find((x) => x.id === uid)
   const f: Filtros = { ...filtros, asesor: uid, equipo: null }
   const leads = useMemo(() => leadsFiltrados(corte, f), [corte, filtros, uid])   // eslint-disable-line react-hooks/exhaustive-deps
   const ventas = useMemo(() => ventasFiltradas(corte, f), [corte, filtros, uid]) // eslint-disable-line react-hooks/exhaustive-deps
-  const [sem, setSem] = useState(() => lunes(new Date()))
+  const [sem, setSem] = useState<Date | null>(null)   // semana abierta en Actividad; null = vista del rango
   const [drill, setDrill] = useState<Drill | null>(null)
+  useEffect(() => setSem(null), [filtros.rango.ini, filtros.rango.fin, uid])
   if (!u) return <div className="panel">Asesor no encontrado. <button type="button" className="btn" onClick={onBack}>← Volver</button></div>
   const rango = filtros.rango.label
   const metaMes = metaDe(corte, u), metaRango = metaEnRango(metaMes, filtros.rango), esperado = metaEsperada(metaRango, filtros.rango)
@@ -512,50 +540,80 @@ export function Ficha({ corte, filtros, uid, onBack }: { corte: Corte; filtros: 
   const vigentes = activos.filter((l) => l.presupuesto > 0 && diasDesde(fechaCotizado(l)) <= corte.cotizado_dias)
   const objetivo = metaMes * corte.cotizado_x
   const serie = serieDiaria(ventas.map((l) => l.cerrado), filtros.rango, true)
-  const dias = Array.from({ length: 7 }, (_, i) => sumar(sem, i))
-  const evSem = corte.eventos.filter((e) => pasaCrm(e.crm, filtros) && e.asesor_id === uid && e.ts >= ep(sem) && e.ts < ep(sumar(sem, 7)))
-  const cols = dias.map((d) => {
-    const ini = ep(d), fin = ini + 86400
-    const ev = evSem.filter((e) => e.ts >= ini && e.ts < fin)
-    const ll = ev.filter((e) => e.tipo === 'llamada_ok' || e.tipo === 'llamada_no').length
-    const ta = ev.filter((e) => e.tipo === 'tarea').length
-    const co = ev.filter((e) => e.tipo === 'cotizacion' || e.tipo === 'levantamiento').length
-    return { label: fmtCorta(d), bubbles: [{ n: ll, title: 'Llamadas' }, { n: ta, cls: 'w', title: 'Tareas completadas' }, { n: co, cls: 'e', title: 'Cotizaciones y levantamientos' }].filter((b) => b.n > 0) }
-  })
+  const vr = ventasReales(corte, f)
+  // Actividad: el rango manda. Hasta 21 días se ve por día; más largo, por semana y cada semana se abre por día.
+  const ini = filtros.rango.ini, fin = filtros.rango.fin
+  const evRango = corte.eventos.filter((e) => pasaCrm(e.crm, filtros) && e.asesor_id === uid && e.ts >= ini && e.ts < fin)
+  const burbujas = (ev: Evento[]) => [
+    { n: ev.filter((e) => e.tipo === 'llamada_ok' || e.tipo === 'llamada_no').length, title: 'Llamadas' },
+    { n: ev.filter((e) => e.tipo === 'tarea').length, cls: 'w', title: 'Tareas completadas' },
+    { n: ev.filter((e) => e.tipo === 'cotizacion' || e.tipo === 'levantamiento').length, cls: 'e', title: 'Cotizaciones y levantamientos' },
+  ].filter((b) => b.n > 0)
+  const entre = (a: number, b: number) => evRango.filter((e) => e.ts >= a && e.ts < b)
+  const diasRango = Math.round((fin - ini) / 86400)
+  let cols: BubbleCol[], evVista: Evento[], vista: string, onCol: ((i: number) => void) | undefined
+  if (sem) {
+    const ds = Array.from({ length: 7 }, (_, i) => sumar(sem, i))
+    evVista = entre(ep(sem), ep(sumar(sem, 7)))
+    cols = ds.map((d) => ({ label: fmtCorta(d), bubbles: burbujas(entre(ep(d), ep(d) + 86400)) }))
+    vista = `Semana del ${fmtCorta(ds[0])} al ${fmtCorta(ds[6])}, por día`
+  } else if (diasRango <= 21) {
+    const d0 = inicioDia(new Date(ini * 1000))
+    const ds = Array.from({ length: Math.max(1, diasRango) }, (_, i) => sumar(d0, i))
+    evVista = evRango
+    cols = ds.map((d) => ({ label: fmtCorta(d), bubbles: burbujas(entre(ep(d), ep(d) + 86400)) }))
+    vista = `Por día · ${rango}`
+  } else {
+    const semanas: Date[] = []
+    for (let d = lunes(new Date(ini * 1000)); ep(d) < fin; d = sumar(d, 7)) semanas.push(d)
+    evVista = evRango
+    cols = semanas.map((d) => ({ label: fmtCorta(d), title: `Semana del ${fmtCorta(d)}. Clic para ver por día`, bubbles: burbujas(entre(Math.max(ini, ep(d)), Math.min(fin, ep(sumar(d, 7))))) }))
+    onCol = (i) => setSem(semanas[i])
+    vista = `Por semana · ${rango} · clic en una semana para verla por día`
+  }
   const tareas = corte.tareas_abiertas.filter((t) => pasaCrm(t.crm, filtros) && t.asesor_id === uid).sort((p, q) => p.vence - q.vence).slice(0, 24)
   const hoy = ep(inicioDia(new Date()))
-  return (
-    <>
-      <div className="ficha-tools">
-        <button type="button" className="btn" onClick={onBack}>← Volver</button>
-        <div className="who"><div className={avatarCls(u)} aria-hidden="true">{iniciales(u.nombre)}</div><div><h2 className="nm" style={{ margin: 0, fontSize: 14 }}>{u.nombre}</h2><div className="sub">{subAsesor(corte, u)}</div></div></div>
-        <span className="tag dark">{activos.length} leads activos</span>
-      </div>
-      <div className="kgrid">
-        <div className="kcard hero"><div className="l">Ventas · {filtros.rango.label}</div><div className="n"><Cifra label={`${ventas.length} ventas, ${fmtMoney0(monto)}`} onClick={() => setDrill({ titulo: `Ventas de ${u.nombre}`, filas: fVentas(ventas), sub: rango + ' · fecha = cierre' })}><b>{ventas.length}</b> <span style={{ fontSize: 22 }}>{fmtMoney0(monto)}</span></Cifra></div><MiniAreaChart values={serie} height={56} /><div className="small muted">Conversión {leads.length ? pct(ventas.length, leads.length) + '%' : '—'}: {ventas.length} ventas / {leads.length} leads asignados en el rango<Info termino="Conversión" /></div></div>
-        <div className="kcard k2"><div className="l">Cumplimiento<Info termino="Cumplimiento" /></div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', gap: 8 }}><div className="n">{pct(monto, metaRango)}%</div><Gauge pct={pct(monto, metaRango)} label="meta" size={120} color="var(--c2)" /></div>
-          <div className="small muted">meta del rango {fmtMoney0(metaRango)} ({fmtMoney0(metaMes)}/mes) · esperado a hoy {fmtMoney0(esperado)} · {monto >= metaRango ? 'meta cumplida' : `faltan ${fmtMoney0(metaRango - monto)}`}</div></div>
-        <div className="kcard k3"><div className="l">Cotizado vigente<Info termino="Cotizado vigente" /></div><div className="n"><Cifra label={`Cotizado vigente ${fmtMoney0(cot.vigente)}`} onClick={() => setDrill({ titulo: `Cotizado vigente de ${u.nombre}`, filas: fCotizado(vigentes), sub: `≤ ${corte.cotizado_dias} días · ${rango}` })}>{fmtMoney0(cot.vigente)}</Cifra></div>
+  const widgets: Widget[] = [
+    wg('ventas', 'Ventas · ' + rango, (
+      <div className="kcard hero"><div className="l">Ventas · {rango}</div><div className="n"><Cifra label={`${ventas.length} ventas, ${fmtMoney0(monto)}`} onClick={() => setDrill({ titulo: `Ventas de ${u.nombre}`, filas: fVentas(ventas), sub: rango + ' · fecha = cierre' })}><b>{ventas.length}</b> <span style={{ fontSize: 22 }}>{fmtMoney0(monto)}</span></Cifra></div><MiniAreaChart values={serie} height={56} /><div className="small muted">Conversión {leads.length ? pct(ventas.length, leads.length) + '%' : '—'}: {ventas.length} ventas / {leads.length} leads asignados en el rango<Info termino="Conversión" /></div></div>
+    ), { plain: true, span: 2, cls: 'wcard' }),
+    wg('cumplimiento', 'Cumplimiento', (
+      <div className="kcard k2"><div className="l">Cumplimiento<Info termino="Cumplimiento" /></div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', gap: 8 }}><div className="n">{pct(monto, metaRango)}%</div><Gauge pct={pct(monto, metaRango)} label="meta" size={120} color="var(--c2)" /></div>
+        <div className="small muted">meta del rango {fmtMoney0(metaRango)} ({fmtMoney0(metaMes)}/mes) · esperado a hoy {fmtMoney0(esperado)} · {monto >= metaRango ? 'meta cumplida' : `faltan ${fmtMoney0(metaRango - monto)}`}</div></div>
+    ), { plain: true, span: 2, cls: 'wcard' }),
+    wg('cotizado', 'Cotizado vigente y antigüedad', (
+      <div className="kcard k3"><div className="cot-grid">
+        <div><div className="l">Cotizado vigente<Info termino="Cotizado vigente" /></div><div className="n"><Cifra label={`Cotizado vigente ${fmtMoney0(cot.vigente)}`} onClick={() => setDrill({ titulo: `Cotizado vigente de ${u.nombre}`, filas: fCotizado(vigentes), sub: `≤ ${corte.cotizado_dias} días · ${rango}` })}>{fmtMoney0(cot.vigente)}</Cifra></div>
           <Bullet value={cot.vigente} target={objetivo} label="Cotizado vigente" color="var(--c2)" fmt={fmtMoney0} />
           <div className="small muted" style={{ marginTop: 6 }}>objetivo {fmtMoney0(objetivo)} = {corte.cotizado_x}× la meta mensual · {fmtN(cot.n)} lead{cot.n === 1 ? '' : 's'} con monto<Info termino="Pipeline 10×" /></div></div>
-        <div className="kcard k4"><div className="l">Antigüedad del cotizado<Info termino="Antigüedad" /></div>
+        <div><div className="l">Antigüedad del cotizado<Info termino="Antigüedad" /></div>
           <Antiguedad c={cot} leads={activos} onVer={(t, filas) => setDrill({ titulo: `${t} · ${u.nombre}`, filas, sub: rango })} />
           <div className="small muted" style={{ marginTop: 6 }}>{cot.viejo > 0 ? `${fmtMoney(cot.viejo)} en ${fmtN(cot.nViejo)} leads pasan de ${corte.cotizado_dias} días: ya no cuentan.` : 'Nada pasa de ' + corte.cotizado_dias + ' días.'}</div></div>
-      </div>
-      <div className="panel" style={{ marginBottom: 14 }}>
-        <div className="chart"><div className="ch"><h3 style={{ margin: 0 }}>Actividad por día</h3>
-          <span className="mnav"><button type="button" aria-label="Semana anterior" onClick={() => setSem(sumar(sem, -7))}>‹</button><span aria-live="polite">{fmtCorta(dias[0])} – {fmtCorta(dias[6])}</span><button type="button" aria-label="Semana siguiente" onClick={() => setSem(sumar(sem, 7))}>›</button></span></div></div>
-        <BubbleChart cols={cols} />
+      </div></div>
+    ), { plain: true, span: 2, cls: 'wcard' }),
+    ...(corte.comisiones ? [wg('reales', 'Ventas reales · Comisiones', (
+      <div className="kcard k4"><div className="l">Ventas reales · Comisiones<Info termino="Ventas reales" /></div>
+        <div className="n"><Cifra label={`${vr.n} ventas reales, ${fmtMoney0(vr.total)}`} onClick={() => setDrill({ titulo: `Ventas reales de ${u.nombre}`, filas: filasDeVentasReales(vr.ventas), sub: rango + ' · mes de venta en la app de comisiones' })}><b>{vr.n}</b> <span style={{ fontSize: 22 }}>{fmtMoney0(vr.total)}</span></Cifra></div>
+        {vr.n > 0 ? (
+          <div className="reales-lista">{vr.ventas.slice(0, 6).map((v) => <div className="r" key={v.id}><span className="nm">{v.cliente || 'Sin nombre'}</span><span className="m">{v.mes_texto}</span><span>{fmtMoney0(v.monto)}</span></div>)}{vr.ventas.length > 6 && <div className="muted">+{vr.ventas.length - 6} más en el detalle</div>}</div>
+        ) : <div className="small muted">Sin ventas en la app de comisiones para este rango.{corte.comisiones.error ? ` Error al leer la app: ${corte.comisiones.error}` : ''}</div>}
+        <div className="small muted" style={{ marginTop: 6 }}>CRM: {ventas.length} ganadas por {fmtMoney0(monto)} en el rango.</div></div>
+    ), { plain: true, span: 2, cls: 'wcard' })] : []),
+    wg('actividad', 'Actividad', (
+      <>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 6 }}>
+          <span className="small muted" aria-live="polite">{vista}</span>
+          {sem && <button type="button" className="nbtn" onClick={() => setSem(null)}>‹ Volver a las semanas</button>}
+        </div>
+        <BubbleChart cols={cols} onCol={onCol} />
         <div className="legend"><span><i className="lg-comp" aria-hidden="true" />Llamadas</span><span><i className="lg-warn" aria-hidden="true" />Tareas completadas</span><span><i className="lg-e" aria-hidden="true" />Cotizaciones · levantamientos</span>
-          <button type="button" onClick={() => setDrill({ titulo: `Actividad de ${u.nombre} · semana del ${fmtCorta(dias[0])}`, filas: filasDeEventos(corte, evSem) })}>Ver las {fmtN(evSem.length)} actividades de la semana ›</button></div>
-      </div>
-      <div className="panel" style={{ marginBottom: 14 }}>
-        <h3>Leads activos · {fmtN(activos.length)}<Info termino="Estancados" /></h3>
-        <LeadsTabla corte={corte} leads={activos} />
-      </div>
-      <div className="panel">
-        <h3>Tareas abiertas</h3>
+          <button type="button" onClick={() => setDrill({ titulo: `Actividad de ${u.nombre} · ${sem ? 'semana del ' + fmtCorta(sem) : rango}`, filas: filasDeEventos(corte, evVista) })}>Ver las {fmtN(evVista.length)} actividades ›</button></div>
+      </>
+    ), { span: 6 }),
+    wg('leads', `Leads activos · ${fmtN(activos.length)}`, <LeadsTabla corte={corte} leads={activos} />, { span: 6, info: ['Estancados'] }),
+    wg('tareas', 'Tareas abiertas', (
+      <>
         {!tareas.length && <div className="muted">Sin tareas abiertas en el CRM para este asesor.</div>}
         <div className="cards">
           {tareas.map((t) => { const d = Math.floor((t.vence - hoy) / 86400); const nm = t.lead_nombre || t.texto || 'Sin nombre'; return (
@@ -566,7 +624,17 @@ export function Ficha({ corte, filtros, uid, onBack }: { corte: Corte; filtros: 
               <div className="dd">{d < 0 ? `Vencida hace ${-d} día${d === -1 ? '' : 's'}` : d === 0 ? 'Vence hoy' : `${d} día${d === 1 ? '' : 's'} restantes`}</div>
             </div>) })}
         </div>
+      </>
+    ), { span: 6 }),
+  ]
+  return (
+    <>
+      <div className="ficha-tools">
+        <button type="button" className="btn" onClick={onBack}>← Volver</button>
+        <div className="who"><div className={avatarCls(u)} aria-hidden="true">{iniciales(u.nombre)}</div><div><h2 className="nm" style={{ margin: 0, fontSize: 14 }}>{u.nombre}</h2><div className="sub">{subAsesor(corte, u)}</div></div></div>
+        <span className="tag dark">{activos.length} leads activos</span>
       </div>
+      <WidgetGrid clave="ficha" widgets={widgets} />
       {drill && <DrillModal d={drill} onClose={() => setDrill(null)} />}
     </>
   )
