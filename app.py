@@ -31,6 +31,11 @@ DATA = os.environ.get("DASH_DATA", os.path.join(HERE, "data"))
 OUT = os.environ.get("DASH_OUT", os.path.join(HERE, "out"))
 # Dashboard de ventas (/ventas): React compilado en ventas/dist + corte de
 # ventas_kommo.py en el volumen. Mismo basic auth que la portada.
+# DASH_MODO separa los dos tableros en servicios distintos de Railway:
+#   marketing -> solo Meta + CRM de marketing (como antes de /ventas)
+#   ventas    -> solo el corte de ventas; / redirige a /ventas/
+#   ambos     -> los dos en el mismo proceso (default)
+DASH_MODO = (os.environ.get("DASH_MODO") or "ambos").strip().lower()
 VENTAS_DIST = os.path.join(HERE, "ventas", "dist")
 VENTAS_JSON = os.path.join(DATA, "ventas.json")
 CTYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
@@ -109,6 +114,10 @@ def _corre(nombre, args, timeout=1500):
     return r.returncode == 0, linea
 
 
+class _SoloVentas(Exception):
+    """Corta el refresh después del corte de ventas cuando DASH_MODO=ventas."""
+
+
 def refrescar():
     """Jala Meta (siempre) + CRM (si hay token) y regenera el HTML."""
     with _lock:
@@ -118,7 +127,9 @@ def refrescar():
     log, ok = [], True
     try:
         # CRM primero: si falla, el dashboard igual se genera con el corte anterior.
-        if os.environ.get("HUBSPOT_TOKEN"):
+        if DASH_MODO == "ventas":
+            log.append("== modo ventas == se omite Meta y el CRM de marketing")
+        elif os.environ.get("HUBSPOT_TOKEN"):
             bien, l = _corre("CRM HubSpot", ["crm_hubspot.py"])
             log.append(l)
             if not bien:
@@ -134,12 +145,15 @@ def refrescar():
         # Corte del dashboard de ventas (/ventas): Kommo + HubSpot, los que tengan
         # token. Opcional: si falla queda el ventas.json anterior y la página lo
         # dice por la fecha de «generado».
-        if os.environ.get("KOMMO_LONG_TOKEN") or os.environ.get("HUBSPOT_TOKEN"):
+        if DASH_MODO != "marketing" and (os.environ.get("KOMMO_LONG_TOKEN") or os.environ.get("HUBSPOT_TOKEN")):
             bien, l = _corre("Ventas (Kommo+HubSpot)", ["ventas_corte.py"])
             log.append(l)
             if not bien:
                 log.append("aviso: ventas_corte falló; se usa el corte anterior de ventas.json")
 
+        if DASH_MODO == "ventas":
+            ok = bien if 'bien' in dir() else True
+            raise _SoloVentas()
         # Google Ads: opcional; si falla no tumba el resto (queda el corte previo)
         if os.environ.get("GOOGLE_ADS_REFRESH_TOKEN"):
             bien, l = _corre("Google Ads", ["google_ads.py"], timeout=300)
@@ -150,6 +164,8 @@ def refrescar():
         bien, l = _corre("Meta + dashboard", ["dashboard.py", "--refresh"])
         log.append(l)
         ok = bien
+    except _SoloVentas:
+        pass
     except subprocess.TimeoutExpired:
         log.append("TIMEOUT: el refresh pasó de 25 minutos")
         ok = False
@@ -669,6 +685,8 @@ class H(BaseHTTPRequestHandler):
                     ensure_ascii=False), "application/json")
         if ruta == "/ventas" or ruta.startswith("/ventas/"):
             return self._ventas(ruta)
+        if DASH_MODO == "ventas":
+            return self._send(302, "", extra={"Location": "/ventas/"})
         p = html_actual()
         if not p:
             with _lock:

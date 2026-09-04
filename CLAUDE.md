@@ -478,6 +478,22 @@ un rango de fechas explícito donde Ads Manager no tiene preset.
 
 ## Dashboard de ventas — `/ventas` (React, corte Kommo + HubSpot)
 
+### Dos servicios en Railway, un solo repo (`DASH_MODO`)
+
+Randall no quiere mezclar el tablero de marketing con el de ventas. El mismo
+código corre en dos servicios del proyecto `hearty-intuition`, separados por la
+variable `DASH_MODO` de `app.py`:
+
+| Servicio | `DASH_MODO` | URL | Qué corre |
+|---|---|---|---|
+| `mkt-dashboard` | `marketing` | mkt-dashboard-production-d85b.up.railway.app | Meta + CRM de marketing, como siempre. **No** corre `ventas_corte.py` y no tiene tokens de Kommo. |
+| `mkt-ventas` | `ventas` | mkt-ventas-production.up.railway.app | Solo `ventas_corte.py` (HubSpot + Kommo); `/` redirige a `/ventas/`. Volumen propio `/data`. |
+
+Default `ambos` = los dos en un proceso (solo para local). Deploy: `railway up
+--service <nombre> --detach` desde este directorio; cada servicio tiene sus
+propias variables (`railway variables --service <nombre> --json`). Un
+`railway up` a un servicio NO toca al otro.
+
 Segundo tablero en el mismo servicio: la vista operativa de leads y asesores
 que vivía en el Sheet «Dashboard Leads Kenet» (Apps Script
 `Kommo Salesbot/dashboard_leads_kenet.gs`), ahora con los DOS CRM juntos: los
@@ -549,14 +565,18 @@ Pasó por el protocolo creativo (hallmark audit + guías web + dataviz +
 impeccable critique/harden + WCAG) con Playwright a 1280 y 390. Lo que quedó
 como regla, para no regresar:
 
-- **Paleta = spec armonizado con la marca (decisión de Randall 3-sep):** tinta
-  carbón `--ink: #141619` (no #000), grises cálidos (`--g2: #6E6A64` = 5.4:1 en
-  blanco y 4.9:1 sobre hover; el #888 del spec daba 3.5:1), papel blanco, Inter
-  y bordes 2px intactos. Acento amarillo `--acc: #FFB300` ≤5% del viewport y
-  **solo** como relleno bajo carbón o texto sobre carbón (10.1:1): marca del
-  logo, texto del toggle activo, barra del nav activo, fila propia del
-  leaderboard, banda detrás del número héroe de la ficha. Nunca amarillo sobre
-  blanco (1.8:1) ni en marcas de datos.
+- **Mundo visual (rediseño 3-sep, pedido de Randall: «estilo BI en tarjetas»,
+  referencias You Exec / TuDashboard; el B/N del spec original quedó
+  descartado):** fondo `#F3F6FB`, tarjetas blancas radio 12 con sombra suave,
+  Inter, tinta `#141619`, texto secundario `#5B6472` (6:1). Acento de marca
+  `#FFB300` solo en UI (marca del logo, activo del nav/toggle, botón primario
+  con tinta), nunca como texto sobre blanco. **Colores de datos validados con
+  el validador de `dataviz`:** azul `#2D6CDF` (serie principal), ámbar oscuro
+  `#C77700` (segunda serie), púrpura `#6E4BD8`, teal `#0F8F83`; coral `#D9482B`
+  solo como estado «vencida»; «sin tarea» va rayado. Rampa del embudo de una
+  sola tonalidad `#7FA3EC → #143577` (`--ordinal` OK). Gráficas propias en
+  `components.tsx`: `DonutChart` (SVG), `Gauge` (medio círculo), `FunnelChart`
+  (trapecios reales, ancho ∝ leads), `MiniAreaChart`, `BubbleChart`.
 - **Todo lo clicable es teclado:** filas de la tabla (`tabIndex` + Enter/espacio),
   barras apiladas (`role=button`), acordeones y tareas son `<button>`, popups son
   `role=dialog` y cierran con Escape (`useEscape`). Anillo de foco global

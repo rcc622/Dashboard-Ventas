@@ -37,29 +37,30 @@ export function CollapsibleSection({ title, defaultOpen = false, children }: { t
 
 export interface Seg { val: number; cls: string }
 /** Barra apilada normalizada: el largo total es total/max (máximo global), los
- *  segmentos reparten ese largo. Sin total → pista vacía. Si recibe onClick es
- *  un control: foco, Enter y espacio abren el detalle igual que el click. */
+ *  segmentos reparten ese largo sobre una pista clara. Si recibe onClick es un
+ *  control: foco, Enter y espacio abren el detalle igual que el click. */
 export function StackedBar({ segs, total, max, onClick, title }: { segs: Seg[]; total: number; max: number; onClick?: (e: SyntheticEvent<HTMLDivElement>) => void; title?: string }) {
-  const w = total > 0 && max > 0 ? Math.max(4, Math.min(100, (total / max) * 100)) : 100
+  const w = total > 0 && max > 0 ? Math.max(4, Math.min(100, (total / max) * 100)) : 0
   const ctrl = onClick ? { role: 'button', tabIndex: 0, onClick, onKeyDown: activar(onClick as (e: SyntheticEvent<HTMLElement>) => void), 'aria-label': title } : {}
   return (
-    <div className="sbar" style={{ width: w + '%' }} title={title} {...ctrl}>
-      {total > 0 && segs.map((s, i) => <i key={i} className={s.cls} style={{ width: pct(s.val, total) + '%' }} />)}
+    <div className="sbar" title={title} {...ctrl}>
+      {total > 0 && <div style={{ width: w + '%', display: 'flex', height: '100%' }}>{segs.map((s, i) => <i key={i} className={s.cls} style={{ width: pct(s.val, total) + '%' }} />)}</div>}
     </div>
   )
 }
 
-/** Recuadro «Llamadas Hechas» con desglose al pasar el mouse, al enfocar o al hacer click. */
+/** Recuadro «Llamadas hechas» con desglose al pasar el mouse, al enfocar o al hacer click. */
 export function LlamadasBar({ total, ok, no }: { total: number; ok: number; no: number }) {
   const [tip, setTip] = useState(false)
   const resumen = `Llamadas hechas: ${fmtN(total)}. Contestadas ${fmtN(ok)} (${pct(ok, total)}%), sin contestar ${fmtN(no)} (${pct(no, total)}%)`
   return (
     <div className="llam-box" tabIndex={0} aria-label={resumen} onMouseEnter={() => setTip(true)} onMouseLeave={() => setTip(false)}
       onFocus={() => setTip(true)} onBlur={() => setTip(false)} onClick={() => setTip((t) => !t)}>
-      <div className="llam-head"><span>Llamadas Hechas</span><span>{fmtN(total)}</span></div>
+      <div className="llam-head"><span>Llamadas hechas</span><span>{fmtN(total)}</span></div>
       <StackedBar segs={[{ val: ok, cls: 'seg-comp' }, { val: no, cls: 'seg-warn' }]} total={total} max={total} />
+      <div className="legend"><span><i className="lg-comp" aria-hidden="true" />Contestadas {fmtN(ok)}</span><span><i className="lg-warn" aria-hidden="true" />Sin contestar {fmtN(no)}</span></div>
       {tip && (
-        <div className="tip" style={{ left: 14, top: 64 }} aria-hidden="true">
+        <div className="tip" style={{ left: 0, top: 58 }} aria-hidden="true">
           <div className="r"><span>Contestadas</span><b>{fmtN(ok)}</b><span>{pct(ok, total)}%</span></div>
           <div className="r"><span>Sin contestar</span><b>{fmtN(no)}</b><span>{pct(no, total)}%</span></div>
           <div className="r t"><span>Total</span><b>{fmtN(total)}</b><span>100%</span></div>
@@ -89,26 +90,55 @@ export function BarDetailPopup({ anchor, title, total, rows, onClose }: { anchor
   )
 }
 
-export function Donut({ pct: p, label }: { pct: number; label: string }) {
-  const v = Math.max(0, Math.min(100, p))
+export interface Parte { val: number; color: string; label: string }
+/** Dona SVG de partes con total al centro. Sin partes → anillo de pista. */
+export function DonutChart({ partes, total, label, size = 170 }: { partes: Parte[]; total: number; label: string; size?: number }) {
+  const r = 42, C = 2 * Math.PI * r
+  let acc = 0
   return (
-    <div className="donut-wrap" role="img" aria-label={`${label}: ${Math.round(v)}%`}>
-      <div className="donut" style={{ background: `conic-gradient(var(--ink) ${v}%, var(--g3) 0)` }}><span>{Math.round(v)}%</span></div>
-      <div className="donut-l">{label}</div>
+    <div className="donutbox" role="img" aria-label={`${label}: ${partes.map((p) => `${p.label} ${fmtN(p.val)} (${pct(p.val, total)}%)`).join(', ')}`}>
+      <svg className="donut-svg" width={size} height={size} viewBox="0 0 120 120">
+        <circle cx="60" cy="60" r={r} fill="none" stroke="var(--track)" strokeWidth="16" />
+        {total > 0 && partes.map((p, i) => {
+          const len = (p.val / total) * C
+          const el = <circle key={i} cx="60" cy="60" r={r} fill="none" stroke={p.color} strokeWidth="16" strokeDasharray={`${Math.max(0, len - 2)} ${C}`} strokeDashoffset={-acc} transform="rotate(-90 60 60)" />
+          acc += len
+          return el
+        })}
+        <text x="60" y="57" className="dcenter" fontSize="20">{fmtN(total)}</text>
+        <text x="60" y="72" className="dcenter l">{label.split(' ')[0]}</text>
+      </svg>
     </div>
   )
 }
 
-export function MiniAreaChart({ values, height = 60 }: { values: number[]; height?: number }) {
+/** Medidor de medio círculo con el porcentaje al centro (cumplimiento, tasa de contestación). */
+export function Gauge({ pct: p, label, size = 180, color = 'var(--c1)' }: { pct: number | null; label: string; size?: number; color?: string }) {
+  const v = p == null ? 0 : Math.max(0, Math.min(100, p))
+  const L = Math.PI * 80
+  return (
+    <div role="img" aria-label={`${label}: ${p == null ? 'sin dato' : Math.round(v) + '%'}`}>
+      <svg className="gauge-svg" width={size} height={size * 0.62} viewBox="0 0 200 124">
+        <path d="M 20 104 A 80 80 0 0 1 180 104" fill="none" stroke="var(--track)" strokeWidth="18" strokeLinecap="round" />
+        {p != null && <path d="M 20 104 A 80 80 0 0 1 180 104" fill="none" stroke={color} strokeWidth="18" strokeLinecap="round" strokeDasharray={`${(v / 100) * L} ${L}`} />}
+        <text x="100" y="98" className="gcenter" fontSize="30">{p == null ? '—' : Math.round(v) + '%'}</text>
+        <text x="100" y="118" className="gcenter l">{label}</text>
+      </svg>
+    </div>
+  )
+}
+
+export function MiniAreaChart({ values, height = 60, color = 'var(--c1)' }: { values: number[]; height?: number; color?: string }) {
   const id = useId().replace(/:/g, '')
   const W = 300, H = height, n = values.length, max = Math.max(1, ...values)
-  const pts = values.map((v, i) => [n > 1 ? (i / (n - 1)) * W : W / 2, H - 4 - (v / max) * (H - 8)])
+  const pts = values.map((v, i) => [n > 1 ? (i / (n - 1)) * W : W / 2, H - 4 - (v / max) * (H - 10)])
   const line = pts.map((p) => p.join(',')).join(' ')
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} preserveAspectRatio="none" aria-hidden="true" style={{ color: 'var(--ink)' }}>
-      <defs><linearGradient id={id} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="currentColor" stopOpacity=".35" /><stop offset="1" stopColor="currentColor" stopOpacity="0" /></linearGradient></defs>
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} preserveAspectRatio="none" aria-hidden="true" style={{ color }}>
+      <defs><linearGradient id={id} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="currentColor" stopOpacity=".28" /><stop offset="1" stopColor="currentColor" stopOpacity=".02" /></linearGradient></defs>
+      <line x1="0" y1={H - 1} x2={W} y2={H - 1} stroke="var(--line)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
       <polygon points={`0,${H} ${line} ${W},${H}`} fill={`url(#${id})`} />
-      <polyline points={line} fill="none" stroke="currentColor" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+      <polyline points={line} fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
     </svg>
   )
 }
@@ -129,25 +159,25 @@ export function BubbleChart({ cols }: { cols: BubbleCol[] }) {
   )
 }
 
-export interface FunnelStage { nombre: string; valor: number; display: string; n?: number; sub?: string }
-/** Embudo centrado: ancho proporcional al valor, badge de cambio contra la etapa
- *  anterior y conector trapezoidal (solo contorno) entre barras. */
+export interface FunnelStage { nombre: string; n: number; sub?: string }
+const RAMPA = ['var(--f1)', 'var(--f2)', 'var(--f3)', 'var(--f4)', 'var(--f5)', 'var(--f6)', 'var(--f6)']
+/** Embudo real: trapecios apilados, ancho proporcional a los leads de cada etapa,
+ *  rampa de un solo tono (claro → oscuro) y etiqueta a la derecha. */
 export function FunnelChart({ stages }: { stages: FunnelStage[] }) {
-  const max = Math.max(1, ...stages.map((s) => s.valor))
-  const ancho = (v: number) => Math.max(6, (v / max) * 100)
+  const max = Math.max(1, ...stages.map((s) => s.n))
+  const w = (n: number) => Math.max(14, (n / max) * 100)
   return (
-    <div>
+    <div role="img" aria-label={'Embudo: ' + stages.map((s) => `${s.nombre} ${s.n}`).join(', ')}>
       {stages.map((s, i) => {
-        const prev = i > 0 ? stages[i - 1] : null
-        const delta = prev && prev.valor > 0 ? Math.round(((s.valor - prev.valor) / prev.valor) * 100) : null
+        const a = w(s.n), b = i + 1 < stages.length ? w(stages[i + 1].n) : a * 0.75
+        const pts = `${50 - a / 2},0 ${50 + a / 2},0 ${50 + b / 2},38 ${50 - b / 2},38`
         return (
-          <div className="fstage" key={s.nombre}>
-            {prev && <FunnelConnector from={ancho(prev.valor)} to={ancho(s.valor)} />}
-            <div className="top">
-              <span>{s.nombre}{s.sub && <span className="muted small"> · {s.sub}</span>}</span>
-              <span className="val">{s.display}{delta != null && <span className={delta < 0 ? 'badge-dn' : 'badge-up'} aria-label={`${delta < 0 ? 'baja' : 'sube'} ${Math.abs(delta)}% contra la etapa anterior`}>{delta < 0 ? '▼' : '▲'} {Math.abs(delta)}%</span>}</span>
+          <div className="frow" key={s.nombre}>
+            <div className="fshape">
+              <svg viewBox="0 0 100 38" preserveAspectRatio="none" aria-hidden="true"><polygon points={pts} fill={RAMPA[Math.min(i, RAMPA.length - 1)]} stroke="var(--card)" strokeWidth="1" vectorEffect="non-scaling-stroke" /></svg>
+              <div className="fnum" style={{ color: i < 2 ? 'var(--ink)' : '#fff' }}>{fmtN(s.n)}</div>
             </div>
-            <div className="fbar-wrap"><div className="fbar" style={{ width: ancho(s.valor) + '%' }} title={s.n != null ? `${s.n} leads` : undefined}>{s.n != null ? s.n : ''}</div></div>
+            <div className="flab"><div className="nm">{s.nombre}</div><div className="sub">{s.sub}</div></div>
           </div>
         )
       })}
@@ -155,18 +185,8 @@ export function FunnelChart({ stages }: { stages: FunnelStage[] }) {
   )
 }
 
-function FunnelConnector({ from, to }: { from: number; to: number }) {
-  const l1 = (100 - from) / 2, r1 = 100 - l1, l2 = (100 - to) / 2, r2 = 100 - l2
-  return (
-    <svg className="fconn" viewBox="0 0 100 10" preserveAspectRatio="none" width="100%" height="10" aria-hidden="true" style={{ color: 'var(--ink)' }}>
-      <polyline points={`${l1},0 ${l2},10`} stroke="currentColor" strokeWidth="1.5" fill="none" vectorEffect="non-scaling-stroke" />
-      <polyline points={`${r1},0 ${r2},10`} stroke="currentColor" strokeWidth="1.5" fill="none" vectorEffect="non-scaling-stroke" />
-    </svg>
-  )
-}
-
-export function Metric({ n, l }: { n: number; l: string }) {
-  return <div className="metric"><div className="n">{fmtN(n)}</div><div className="l">{l}</div></div>
+export function Metric({ n, l, cls = '' }: { n: number; l: string; cls?: string }) {
+  return <div className={'tile ' + cls}><div className="n">{fmtN(n)}</div><div className="l">{l}</div></div>
 }
 
 /** Botón «i» con la definición del término: tooltip en hover y en foco, texto
