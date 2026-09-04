@@ -134,11 +134,11 @@ function Shell({ corte, origen, error, onRetry, onConfig }: { corte: Corte; orig
         {origen === 'ejemplo' && <div className="aviso" role="status">Datos de ejemplo: no se pudo cargar el corte real{error ? ` (${error})` : ''}. Revisa que el refresh del servicio haya generado data/ventas.json. Las cifras no son reales. <button type="button" className="btn" style={{ marginLeft: 8 }} onClick={onRetry}>Reintentar</button></div>}
         {perfil === 'admin' && pagina !== 'config' && (
           <div className="toolbar">
-            <select className="sel" aria-label="Equipo" value={filtros.equipo ?? ''} onChange={(e) => setFiltros({ ...filtros, equipo: e.target.value || null, asesor: null })}>
+            <select className="sel sel-eq" aria-label="Equipo" value={filtros.equipo ?? ''} onChange={(e) => setFiltros({ ...filtros, equipo: e.target.value || null, asesor: null })}>
               <option value="">Todos los equipos</option>
               {corte.equipos.map((q) => <option key={q.id} value={q.id}>{q.nombre}</option>)}
             </select>
-            <select className="sel" aria-label="Propietario" value={filtros.asesor ?? ''} onChange={(e) => setFiltros({ ...filtros, asesor: e.target.value || null })}>
+            <select className="sel sel-as" aria-label="Propietario" value={filtros.asesor ?? ''} onChange={(e) => setFiltros({ ...filtros, asesor: e.target.value || null })}>
               <option value="">Todos los propietarios</option>
               {usuariosOrden.filter((u) => (filtros.equipo == null || u.zona === filtros.equipo) && u.crm.some((x) => filtros.crm[x])).map((u) => <option key={u.id} value={u.id}>{u.nombre}</option>)}
             </select>
