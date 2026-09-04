@@ -128,6 +128,7 @@ prospectos nuevos, actividad día/semana, leaderboard, notas), **Mis ventas**, *
 | #19 Alertas por correo · #20 score de llamadas | ❌ | Fuera del tablero (server / bot) |
 | Botones Kommo · HubSpot (pedido de Randall 4-sep) | ✅ | Barra del Admin: incluir o excluir la data de cada CRM en todo el tablero; queda en la URL (`c=kommo` / `c=hubspot`) |
 | Barra de filtros fija al hacer scroll; Entrada respeta el filtro de asesor/equipo; embudo con más aire (Randall 4-sep) | ✅ | Toolbar sticky; `entrada()` cuenta por responsable actual del lead cuando hay filtro |
+| Drill-down como en HubSpot: clic en cifra/barra → ventana con los registros y liga al lead en Kommo o HubSpot (Randall 4-sep, video) | ✅ | `DrillModal` en todo el Admin, tabla de Asesores y ficha; sin contraseña (`VENTAS_PUBLICO=1`) |
 
 Hallazgo del build: **HubSpot no liga tareas ni llamadas al deal** (0 de 3,866 deals abiertos con evento), así que
 primer contacto e intentos son solo Kommo; la actividad por asesor sí incluye HubSpot.
