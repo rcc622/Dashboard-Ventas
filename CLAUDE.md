@@ -640,6 +640,14 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   ≤ 960 px vuelve a ser estática porque ocupa tres renglones. Los selectores
   tienen ancho fijo (160 / 250 px): un `select` se ensancha con la opción más
   larga y movía los botones Kommo · HubSpot al filtrar.
+- **Ganados y perdidos NO son leads activos** (regla de Randall 4-sep): a un lead en
+  etapa ganado (`funnel 5`) o perdido (`funnel 0`) no se le revisa actividad ni
+  tareas; solo cuenta para ventas, % cierre, perdidos, razones de pérdida y tasa de
+  pérdida. `vivo(l)` es el filtro: `porAsesor` (estancados, PC vencidas, sin tarea,
+  tareas vencidas, cotizado), `primerContacto().sin`, la tabla de la ficha, el popup
+  y Prospectos van sobre activos; las tareas abiertas de Mi día excluyen las de
+  leads cerrados (en HubSpot no se puede saber: la tarea no viene ligada al deal).
+  El tile «Tasa de pérdida» = asignados en el rango ya perdidos / asignados.
 - **Primer contacto** (`primerContacto()`): mediana de horas asignación → primera
   llamada o tarea completada, con los eventos (que traen `asignacion`) en un
   solo recorrido. **Perfiles** (`perfiles()`): los 4 cuadrantes de Samuel con la

@@ -98,6 +98,8 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
   const con = s.ventasCon + s.huntCon, sin = s.ventasSin + s.huntSin, tot = con + sin
   const hayHunting = s.huntCon + s.huntSin > 0
   const asignados = leads.filter((l) => l.funnel === 4)
+  // Tasa de pérdida: de los leads asignados en el rango (activos + ganados + perdidos), cuántos ya se perdieron.
+  const perdidos = leads.filter((l) => l.funnel === 0), baseAsignados = leads.filter((l) => l.funnel === 4 || l.funnel === 5 || l.funnel === 0).length
   const et = embudo(leads, corte.etapas || [])
   const a = actividad(ev)
   const monto = ventas.reduce((x, l) => x + l.presupuesto, 0)
@@ -150,6 +152,7 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
         <div className="tile t2"><Cifra label={`${fmtN(ventas.length)} ventas cerradas`} onClick={() => ver('Ventas cerradas en el rango', fVentas(ventas), rango + ' · fecha = cierre')}>{fmtN(ventas.length)}</Cifra><div className="l">Ventas cerradas en el rango</div></div>
         <div className="tile t3"><Cifra label={`${fmtMoney(monto)} vendido`} onClick={() => ver('Vendido en el rango', fVentas(ventas), rango + ' · fecha = cierre')}>{fmtMoney(monto)}</Cifra><div className="l">Vendido · meta {fmtMoney0(metaRango)}<Info termino="Meta" /></div></div>
         <div className="tile t4"><Cifra label={`conversión ${leads.length ? pct(ventas.length, leads.length) + '%' : 'sin dato'}`} onClick={() => ver('Ventas que cuentan en la conversión', fVentas(ventas), `${fmtN(ventas.length)} ventas / ${fmtN(leads.length)} leads asignados · ${rango}`)}>{leads.length ? pct(ventas.length, leads.length) + '%' : '—'}</Cifra><div className="l">Conversión ventas / asignados<Info termino="Conversión" /></div></div>
+        <div className="tile t5"><Cifra label={`${fmtN(perdidos.length)} leads perdidos`} onClick={() => ver('Leads perdidos · asignados en el rango', filasDeLeads(perdidos, (l) => `Perdido · ${l.razon || 'sin razón'}`, (l) => l.cerrado), rango + ' · fecha = descarte')}>{pct(perdidos.length, baseAsignados)}%</Cifra><div className="l">Tasa de pérdida · {fmtN(perdidos.length)} perdidos de {fmtN(baseAsignados)} asignados<Info termino="Tasa de pérdida" /></div></div>
       </div>
     ), { plain: true }),
     W('ranking', 'Ranking de ventas', (

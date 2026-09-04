@@ -189,7 +189,7 @@ export function primerContacto(c: Corte, leads: Lead[], ahora = Date.now() / 100
     if (!conPrimerContacto(l)) continue
     const p = primero.get(l.id)
     if (p != null) con.push({ lead: l, horas: (p - l.asignacion) / 3600 })
-    else if (ahora - l.asignacion > DIA) sin.push(l)
+    else if (vivo(l) && ahora - l.asignacion > DIA) sin.push(l)   // regla Randall 4-sep: a ganados y perdidos no se les revisa actividad
   }
   const horas = con.map((x) => x.horas)
   return { mediana: mediana(horas), n: con.length, sinContacto: sin.length, en24: horas.filter((h) => h <= 24).length, con, sin }
@@ -364,7 +364,10 @@ export function miDia(c: Corte, uid: string): MiDia {
   const sem = preset('semana'), mes = preset('mes')
   const ev = c.eventos.filter((e) => e.asesor_id === uid)
   const evHoy = ev.filter((e) => esHoy(e.ts))
-  const mias = c.tareas_abiertas.filter((t) => t.asesor_id === uid)
+  // Tareas de leads ya ganados o perdidos no son pendientes de seguimiento (regla Randall 4-sep);
+  // en HubSpot la tarea no viene ligada al deal, así que ahí no se puede saber y se dejan.
+  const cerrados = new Set(c.leads.filter((l) => !vivo(l)).map((l) => l.id))
+  const mias = c.tareas_abiertas.filter((t) => t.asesor_id === uid && !cerrados.has(t.lead))
   const metaMes = metaDeId(c, uid)
   return {
     tareasHoy: mias.filter((t) => t.vence >= h - 14 * DIA && t.vence < h + DIA).sort((a, b) => a.vence - b.vence),

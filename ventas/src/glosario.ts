@@ -7,6 +7,7 @@ export const GLOSARIO = {
   'Sin tarea': 'Lead asignado sin ninguna tarea abierta: se cerró la anterior y no quedó seguimiento.',
   'Cumplimiento': 'Monto vendido en el rango (por fecha de cierre) entre la meta prorrateada al rango.',
   'Conversión': 'Ventas cerradas en el rango entre leads asignados en el rango. Es por periodo, no por cohorte.',
+  'Tasa de pérdida': 'Leads asignados en el rango que terminaron en perdido, entre todos los asignados en el rango (activos + ganados + perdidos). Ganados y perdidos dejan de ser leads activos: no se les revisa actividad ni tareas; solo cuentan para ventas, cierre, pérdidas y razones de pérdida.',
   'Salud operativa': 'Leads asignados en Ventas o Hunting con última asignación en el rango, partidos por si ya traen presupuesto.',
   'Monto cotizado': 'Suma del presupuesto de los leads que hoy están en cada etapa del embudo Ventas.',
   'Tiempo promedio': 'Días promedio que los leads llevan en su etapa actual (días sin cambio en el CRM).',

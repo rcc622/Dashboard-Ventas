@@ -129,6 +129,7 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 .tile.t2 { --dot: var(--c4); }
 .tile.t3 { --dot: var(--c2); }
 .tile.t4 { --dot: var(--c3); }
+.tile.t5 { --dot: var(--neutral); }
 .tile .n { font-size: 28px; font-weight: 700; line-height: 1.1; overflow-wrap: anywhere; }
 .tile .l { color: var(--g2); font-size: 12px; margin-top: 4px; }
 .tile .l::before, .kpi4 .l::before, .kcard .l::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--dot, var(--c1)); margin-right: 6px; vertical-align: 1px; }
