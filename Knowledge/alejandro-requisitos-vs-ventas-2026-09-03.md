@@ -126,6 +126,7 @@ prospectos nuevos, actividad día/semana, leaderboard, notas), **Mis ventas**, *
 | #17 Ranking en Admin | ✅ | Panel «Ranking de ventas» (top 8) |
 | #18 Paso 2 del 1:1 en la ficha | ✅ | Ficha: cumplimiento, cotizado vigente vs 10×, antigüedad, leads |
 | #19 Alertas por correo · #20 score de llamadas | ❌ | Fuera del tablero (server / bot) |
+| Botones Kommo · HubSpot (pedido de Randall 4-sep) | ✅ | Barra del Admin: incluir o excluir la data de cada CRM en todo el tablero; queda en la URL (`c=kommo` / `c=hubspot`) |
 
 Hallazgo del build: **HubSpot no liga tareas ni llamadas al deal** (0 de 3,866 deals abiertos con evento), así que
 primer contacto e intentos son solo Kommo; la actividad por asesor sí incluye HubSpot.
