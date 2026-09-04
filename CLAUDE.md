@@ -578,3 +578,26 @@ como regla, para no regresar:
   hover y foco, definición completa en `aria-label`. Área de toque 28 px.
 - Prospectos tiene búsqueda por nombre/etapa; el aviso de datos de ejemplo
   trae botón «Reintentar». Un solo rango de fechas (decisión de Randall).
+
+---
+
+## Salud por zona (score 0-100)
+
+Idea tomada de [claude-ads](https://github.com/AgriciDaniel/claude-ads) (MIT), sin
+instalar nada: once controles por zona y ventana en `controles()` de
+`dashboard.py`, pesados por impacto (`PESO`: crit 5, alto 3, medio 1).
+
+- **salud** = pesos que pasan ÷ pesos conocidos. **cobertura** = conocidos ÷ los
+  que aplican. Cobertura < 60% → sin nota (guion); 60-79 → nota con `~`.
+- `sin_dato` (deberíamos saberlo y no) baja la cobertura; `no_aplica` (no hay
+  formularios, no hay videos, Meta no reporta aprendizaje) sale del denominador.
+- Zona sin un solo anuncio con entrega en la ventana → sin nota, aunque el
+  pixel o el reparto fallen: no está corriendo, no "va mal".
+- Nota de cuenta = promedio de zonas ponderado por gasto; se guarda en
+  `historico_semanal.csv` como `salud_7d` y sale como chip vs corte anterior.
+- Controles nuevos que no existían como bandera: `uso_presupuesto()` (adset
+  activo toda la ventana que gastó < 30% de lo configurado), `aprendizaje()`
+  (`learning_stage_info`, Meta solo lo devuelve en algunos objetivos),
+  `gancho()` (25% del video visto ÷ impresiones, contra la mediana de la cuenta),
+  edad del creativo (`created_time` vía `adstatus`) y pixel (`meta.py pixels`).
+- Son avisos: ninguno entra a `MOTIVOS_PAUSA`. La regla de pausa no cambió.
