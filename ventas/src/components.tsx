@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject, type SyntheticEvent } from 'react'
+import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject, type SyntheticEvent , type SVGProps } from 'react'
 import { fmtN, pct } from './metrics'
 import { GLOSARIO, type Termino } from './glosario'
 
@@ -225,36 +225,41 @@ export function Bullet({ value, target, expected, label, color = 'var(--c1)', fm
 export interface PuntoXY { x: number; y: number; label: string; title: string; cls: string }
 /** Dispersión con las dos medianas como ejes de cuadrante. Cada punto lleva sus
  *  iniciales y un title; la identidad completa va en la leyenda de al lado, nunca solo en el color. */
-export function Scatter({ pts, xMed, yMed, xLabel, yLabel, quad }: { pts: PuntoXY[]; xMed: number; yMed: number; xLabel: string; yLabel: string; quad: [string, string, string, string] }) {
-  const W = 340, H = 240, L = 34, B = 26, T = 16, R = 10
+export function Scatter({ pts, xMed, yMed, xLabel, yLabel, quad, onPunto }: { pts: PuntoXY[]; xMed: number; yMed: number; xLabel: string; yLabel: string; quad: [string, string, string, string]; onPunto?: (idx: number[]) => void }) {
+  // 400 × 250: el SVG llena el ancho del widget (sin tope) y crece con él; a media pantalla queda
+  // como antes, a pantalla completa los puntos y las letras se ven al doble.
+  const W = 400, H = 250, L = 34, B = 26, T = 16, R = 10
   const maxX = Math.max(1, xMed, ...pts.map((p) => p.x)) * 1.1, maxY = Math.max(1, yMed, ...pts.map((p) => p.y)) * 1.1
   // El cero de «vendido» va 24 px arriba del eje: los puntos no se sientan sobre la línea ni sobre las etiquetas.
   const sx = (x: number) => L + (x / maxX) * (W - L - R), sy = (y: number) => H - B - 24 - (y / maxY) * (H - B - T - 24)
   // Muchos asesores caen en el mismo lugar ($0 vendido, poca actividad). Moverlos mentiría
   // sobre su dato: los que se enciman se juntan en UNA burbuja con el conteo y los nombres en el title.
-  const grupos: { x: number; y: number; m: PuntoXY[] }[] = []
-  for (const p of pts) {
+  const grupos: { x: number; y: number; m: PuntoXY[]; idx: number[] }[] = []
+  pts.forEach((p, i) => {
     const x = sx(p.x), y = sy(p.y)
     const g = grupos.find((q) => Math.hypot(q.x - x, q.y - y) < 14)
-    if (g) g.m.push(p); else grupos.push({ x, y, m: [p] })
-  }
+    if (g) { g.m.push(p); g.idx.push(i) } else grupos.push({ x, y, m: [p], idx: [i] })
+  })
   const clsMayoria = (m: PuntoXY[]) => [...m].sort((a, b) => m.filter((z) => z.cls === b.cls).length - m.filter((z) => z.cls === a.cls).length)[0].cls
   const Lbl = ({ x, y, end, t }: { x: number; y: number; end?: boolean; t: string }) => {
     const w = t.length * 5.6 + 8
     return <g><rect x={end ? x - w : x - 4} y={y - 10} width={w} height={13} rx="3" fill="var(--card)" opacity=".92" /><text className="ql" x={x} y={y} textAnchor={end ? 'end' : 'start'}>{t}</text></g>
   }
   return (
-    <svg className="scatter" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${yLabel} contra ${xLabel}: ` + pts.map((p) => p.title).join('; ')}>
+    <svg className="scatter" viewBox={`0 0 ${W} ${H}`} role={onPunto ? 'group' : 'img'} aria-label={`${yLabel} contra ${xLabel}: ` + pts.map((p) => p.title).join('; ')}>
       <line className="grid" x1={L} y1={H - B} x2={W - R} y2={H - B} /><line className="grid" x1={L} y1={T} x2={L} y2={H - B} />
       <line className="med" x1={sx(xMed)} y1={T} x2={sx(xMed)} y2={H - B} /><line className="med" x1={L} y1={sy(yMed)} x2={W - R} y2={sy(yMed)} />
       <text className="ax" x={(L + W - R) / 2} y={H - 6} textAnchor="middle">{xLabel} →</text>
       <text className="ax" x={10} y={(T + H - B) / 2} textAnchor="middle" transform={`rotate(-90 10 ${(T + H - B) / 2})`}>{yLabel} →</text>
-      {grupos.map((g) => (
-        <g className="pt" key={g.m[0].label + g.m[0].title}><title>{g.m.map((p) => p.title).join('\n')}</title>
-          <circle className={clsMayoria(g.m)} cx={g.x} cy={g.y} r={g.m.length > 1 ? 12 : 9} stroke="var(--card)" strokeWidth="1.5" />
-          <text x={g.x} y={g.y + 2.5}>{g.m.length > 1 ? '×' + g.m.length : g.m[0].label}</text>
-        </g>
-      ))}
+      {grupos.map((g) => {
+        const ctrl: SVGProps<SVGGElement> = onPunto ? { role: 'button', tabIndex: 0, onClick: () => onPunto(g.idx), onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onPunto(g.idx) } }, 'aria-label': g.m.length > 1 ? `${g.m.length} asesores en el mismo punto: ${g.m.map((p) => p.title).join('; ')}. Elegir uno` : `${g.m[0].title}. Ver ficha` } : {}
+        return (
+          <g className={'pt' + (onPunto ? ' drill' : '')} key={g.m[0].label + g.m[0].title} {...ctrl}><title>{g.m.map((p) => p.title).join('\n')}</title>
+            <circle className={clsMayoria(g.m)} cx={g.x} cy={g.y} r={g.m.length > 1 ? 12 : 9} stroke="var(--card)" strokeWidth="1.5" />
+            <text x={g.x} y={g.y + 2.5}>{g.m.length > 1 ? '×' + g.m.length : g.m[0].label}</text>
+          </g>
+        )
+      })}
       <Lbl x={L + 6} y={T + 10} t={quad[0]} />
       <Lbl x={W - R - 2} y={T + 10} end t={quad[1]} />
       <Lbl x={L + 6} y={H - B - 4} t={quad[2]} />

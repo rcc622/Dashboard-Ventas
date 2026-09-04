@@ -7,10 +7,11 @@ import type { Termino } from './glosario'
 // por teclado) y un asa en la esquina inferior derecha que estira el ANCHO por cuadrantes
 // (2 a 6 columnas) y el ALTO por filas de 40 px (el alto por defecto es el del contenido; al
 // fijarlo, el contenido se desplaza adentro y el embudo y la dispersión crecen con la tarjeta).
-// Orden, anchos y altos viven en localStorage por clave (admin / midia-<uid>): son preferencia
-// de quien mira, no dato del CRM.
+// Cada widget se puede quitar del tablero (×) y volver a poner desde «Agregar gráfica», que lista
+// las quitadas: ese es el inventario. Orden, anchos, altos y quitados viven en localStorage por
+// clave (admin / midia-<uid>): son preferencia de quien mira, no dato del CRM.
 export interface Widget { id: string; titulo: string; nodo: ReactNode; span?: number; plain?: boolean; info?: Termino[]; cls?: string }
-interface Layout { orden: string[]; spans: Record<string, number>; altos: Record<string, number> }
+interface Layout { orden: string[]; spans: Record<string, number>; altos: Record<string, number>; ocultos: string[] }
 
 export const COLS = 6
 const MIN = 2
@@ -23,10 +24,10 @@ const clampFilas = (n: number) => Math.max(MIN_FILAS, Math.min(MAX_FILAS, Math.r
 const leerLayout = (clave: string): Layout => {
   try {
     const v = JSON.parse(localStorage.getItem('kv_orden_' + clave) || 'null') as string[] | Partial<Layout> | null
-    if (Array.isArray(v)) return { orden: v, spans: {}, altos: {} }              // formato anterior: solo orden
-    if (v && Array.isArray(v.orden)) return { orden: v.orden, spans: v.spans || {}, altos: v.altos || {} }
+    if (Array.isArray(v)) return { orden: v, spans: {}, altos: {}, ocultos: [] }              // formato anterior: solo orden
+    if (v && Array.isArray(v.orden)) return { orden: v.orden, spans: v.spans || {}, altos: v.altos || {}, ocultos: v.ocultos || [] }
   } catch { /* nada guardado o modo privado */ }
-  return { orden: [], spans: {}, altos: {} }
+  return { orden: [], spans: {}, altos: {}, ocultos: [] }
 }
 const guardarLayout = (clave: string, l: Layout) => { try { localStorage.setItem('kv_orden_' + clave, JSON.stringify(l)) } catch { /* modo privado */ } }
 /** Orden guardado + los widgets nuevos al final; los que ya no existen se descartan. */
@@ -60,6 +61,10 @@ export function WidgetGrid({ clave, widgets }: { clave: string; widgets: Widget[
     if (f === undefined) delete altos[id]; else altos[id] = clampFilas(f)
     fijar({ ...layout, altos })
   }
+  const quitar = (id: string) => fijar({ ...layout, ocultos: [...layout.ocultos.filter((x) => x !== id), id] })
+  const poner = (id: string) => fijar({ ...layout, ocultos: layout.ocultos.filter((x) => x !== id) })
+  const visibles = layout.orden.filter((id) => !layout.ocultos.includes(id) && por.has(id))
+  const quitados = layout.ocultos.filter((id) => por.has(id))
   const soltar = (destino: string) => { if (drag && drag !== destino) mover(drag, layout.orden.indexOf(destino)) }
   const onDragStart = (id: string) => (e: DragEvent<HTMLSpanElement>) => {
     e.dataTransfer.effectAllowed = 'move'
@@ -109,17 +114,17 @@ export function WidgetGrid({ clave, widgets }: { clave: string; widgets: Widget[
     else return
     e.preventDefault()
   }
-  const restablecer = () => { fijar({ orden: ids, spans: {}, altos: {} }); try { localStorage.removeItem('kv_orden_' + clave) } catch { /* nada */ } }
+  const restablecer = () => { fijar({ orden: ids, spans: {}, altos: {}, ocultos: [] }); try { localStorage.removeItem('kv_orden_' + clave) } catch { /* nada */ } }
   const cambiado = layout.orden.join() !== ids.join()
     || Object.keys(layout.spans).some((id) => por.has(id) && layout.spans[id] !== (por.get(id)?.span ?? 3))
     || Object.keys(layout.altos).some((id) => por.has(id))
+    || quitados.length > 0
 
   return (
     <>
       <div className="wgrid" ref={grid}>
-        {layout.orden.map((id, i) => {
-          const w = por.get(id)
-          if (!w) return null
+        {visibles.map((id, i) => {
+          const w = por.get(id)!
           const span = spanDe(id), filas = altoDe(id)
           const px = filas ? filas * FILA : undefined
           return (
@@ -131,8 +136,9 @@ export function WidgetGrid({ clave, widgets }: { clave: string; widgets: Widget[
               <div className="whead">
                 <span className="grip" draggable title="Arrastra para mover" aria-hidden="true" onDragStart={onDragStart(id)} onDragEnd={() => { setDrag(null); setOver(null) }}>⋮⋮</span>
                 <h3>{w.titulo}{(w.info || []).map((t) => <Info key={t} termino={t} />)}</h3>
-                <button type="button" className="wbtn" aria-label={`Mover «${w.titulo}» antes`} title="Mover antes" disabled={i === 0} onClick={() => mover(id, i - 1)}>▲</button>
-                <button type="button" className="wbtn" aria-label={`Mover «${w.titulo}» después`} title="Mover después" disabled={i === layout.orden.length - 1} onClick={() => mover(id, i + 1)}>▼</button>
+                <button type="button" className="wbtn" aria-label={`Mover «${w.titulo}» antes`} title="Mover antes" disabled={i === 0} onClick={() => mover(id, layout.orden.indexOf(visibles[i - 1]))}>▲</button>
+                <button type="button" className="wbtn" aria-label={`Mover «${w.titulo}» después`} title="Mover después" disabled={i === visibles.length - 1} onClick={() => mover(id, layout.orden.indexOf(visibles[i + 1]))}>▼</button>
+                <button type="button" className="wbtn" aria-label={`Quitar «${w.titulo}» del tablero`} title="Quitar del tablero" onClick={() => quitar(id)}>×</button>
               </div>
               <div className="wbody">{w.nodo}</div>
               <span className="wresize" role="slider" tabIndex={0} aria-label={`Tamaño de «${w.titulo}»`} aria-valuemin={MIN} aria-valuemax={COLS} aria-valuenow={span}
@@ -143,7 +149,17 @@ export function WidgetGrid({ clave, widgets }: { clave: string; widgets: Widget[
           )
         })}
       </div>
-      <div className="wreset">Arrastra el asa ⋮⋮ o usa ▲ ▼ para acomodar los widgets; estira la esquina inferior derecha (o ← → ↑ ↓) para cambiar su ancho por cuadrantes y su alto; Supr regresa el alto automático. Se guarda en este navegador.{cambiado && <> <button type="button" className="nbtn" onClick={restablecer}>Restablecer orden y tamaños</button></>}</div>
+      <div className="wreset">
+        {quitados.length > 0 && (
+          <label className="wadd">Agregar gráfica:{' '}
+            <select value="" aria-label="Agregar una gráfica quitada al tablero" onChange={(e) => { if (e.target.value) poner(e.target.value) }}>
+              <option value="">elegir…</option>
+              {quitados.map((id) => <option key={id} value={id}>{por.get(id)!.titulo}</option>)}
+            </select>
+          </label>
+        )}
+        Arrastra el asa ⋮⋮ o usa ▲ ▼ para acomodar los widgets; estira la esquina inferior derecha (o ← → ↑ ↓) para cambiar su ancho por cuadrantes y su alto; Supr regresa el alto automático; × quita la gráfica del tablero. Se guarda en este navegador.{cambiado && <> <button type="button" className="nbtn" onClick={restablecer}>Restablecer tablero</button></>}
+      </div>
     </>
   )
 }

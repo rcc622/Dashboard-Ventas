@@ -1,7 +1,7 @@
-import { useLayoutEffect, useMemo, useRef, useState, type SyntheticEvent } from 'react'
+import { useLayoutEffect, useMemo, useRef, useState, type SyntheticEvent, useEffect } from 'react'
 import type { Corte, Lead, Usuario } from './types'
 import { CRM_LABEL } from './types'
-import { BUCKETS, PERFIL_LABEL, actividad, cotizado, dias, embudo, entrada, ep, etapaDe, eventosFiltrados, fechaCotizado, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, metaDe, metaEnRango, metaEsperada, pasaCrm, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, type Fila, type FilaAsesor, type Filtros, type Perfil } from './metrics'
+import { BUCKETS, PERFIL_LABEL, actividad, cotizado, dias, embudo, entrada, ep, etapaDe, eventosFiltrados, fechaCotizado, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, metaDe, metaEnRango, metaEsperada, pasaCrm, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, type Fila, type FilaAsesor, type Filtros, type Perfil , type PuntoPerfil } from './metrics'
 import { BarDetailPopup, BubbleChart, Bullet, DonutChart, FunnelChart, Gauge, Info, LlamadasBar, MiniAreaChart, Scatter, SortTh, StackedBar, activar, useEscape, useOutside, type DetRow, type Sort } from './components'
 import { DrillModal, type Drill } from './drill'
 import { WidgetGrid, type Widget } from './widgets'
@@ -81,6 +81,9 @@ function LeadsTabla({ corte, leads, max = 40 }: { corte: Corte; leads: Lead[]; m
 
 // ---------------------------------------------------------------- Dashboard
 export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filtros: Filtros; onFicha: (uid: string) => void }) {
+  // Punto agrupado («×n») de la dispersión: lista inline para elegir a quién abrir; se limpia al cambiar filtros.
+  const [grupo, setGrupo] = useState<PuntoPerfil[] | null>(null)
+  useEffect(() => setGrupo(null), [filtros])
   const leads = useMemo(() => leadsFiltrados(corte, filtros), [corte, filtros])
   const ev = useMemo(() => eventosFiltrados(corte, filtros), [corte, filtros])
   const ventas = useMemo(() => ventasFiltradas(corte, filtros), [corte, filtros])
@@ -273,7 +276,15 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
         <>
           <Scatter
             pts={perf.pts.map((p) => ({ x: p.actividad, y: p.vendido, label: iniciales(p.u.nombre), title: `${p.u.nombre}: ${fmtN(p.actividad)} actividades, ${fmtMoney0(p.vendido)} vendido (${PERFIL_LABEL[p.perfil]})`, cls: PERFIL_CLS[p.perfil] }))}
-            xMed={perf.medAct} yMed={perf.medVend} xLabel="actividad registrada" yLabel="vendido" quad={['Revisar', 'Mantener', 'Salida', 'Capacitar']} />
+            xMed={perf.medAct} yMed={perf.medVend} xLabel="actividad registrada" yLabel="vendido" quad={['Revisar', 'Mantener', 'Salida', 'Capacitar']}
+            onPunto={(idx) => { if (idx.length === 1) onFicha(perf.pts[idx[0]].u.id); else setGrupo(idx.map((i) => perf.pts[i])) }} />
+          {grupo && (
+            <div className="grupo-sel" role="group" aria-label="Asesores en el mismo punto">
+              <span className="muted">{grupo.length} asesores en el mismo punto. Abrir ficha de:</span>
+              {grupo.map((p) => <button type="button" key={p.u.id} className="nbtn" onClick={() => { setGrupo(null); onFicha(p.u.id) }}>{p.u.nombre}</button>)}
+              <button type="button" className="wbtn" aria-label="Cerrar la lista" title="Cerrar" onClick={() => setGrupo(null)}>×</button>
+            </div>
+          )}
           <div className="perfil-legend">
             {PERFILES.map((p) => <div key={p}><div className="h"><i className={PERFIL_CLS[p]} aria-hidden="true" />{PERFIL_LABEL[p]} · {porPerfil(p).length}</div><div className="names">{porPerfil(p).length ? porPerfil(p).map((x, i) => <span key={x.u.id}>{i > 0 ? ', ' : ''}<button type="button" className="nbtn" onClick={() => onFicha(x.u.id)} title="Abrir ficha">{x.u.nombre}</button></span>) : '—'}</div></div>)}
           </div>

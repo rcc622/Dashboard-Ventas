@@ -611,8 +611,23 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   fluidos (la fila de KPIs de Entrada es `auto-fit`; la tabla de etapas va en
   `.scrollx`). Gotcha E2E: tras un drag & drop HTML5, Chromium se traga el
   siguiente `pointerdown` de Playwright: probar el resize en una página recién
-  cargada. Las secciones plegables desaparecieron; los widgets `plain` (tiles) no
-  llevan tarjeta.
+  cargada. **Quitar y agregar** (primer paso del «inventario de gráficas» que pidió
+  Randall): el × del encabezado saca el widget del tablero (`ocultos[]` en el mismo
+  layout) y «Agregar gráfica» lista los quitados para regresarlos a su lugar; el
+  inventario de hoy son los 11 widgets del Admin y los 5 de Mi día, no hay
+  catálogo de métricas extra todavía. Las secciones plegables desaparecieron; los
+  widgets `plain` (tiles) no llevan tarjeta.
+- **Gráficas fluidas** (pedido de Randall 4-sep: «que al redimensionar las gráficas
+  se redimensionen también»): ninguna gráfica lleva tope en px. La dispersión de
+  perfiles es un SVG 400×250 al 100 % del ancho (sin `max-width`), la dona y los
+  medidores llevan `width: 100%; height: auto` dentro de `.widget` y sus
+  columnas son proporcionales (`minmax(150px, 1fr) 2fr` en Salud,
+  `minmax(180px, 1fr) 2fr` en Entrada, `2fr minmax(160px, 1fr)` en Llamadas);
+  las bandas del embudo crecen con el ancho (`aspect-ratio: 8 / 1`, mínimo 46 px)
+  y con el alto fijo (`.hset`) se estiran a la tarjeta. Los puntos de la
+  dispersión son botones (`onPunto`): un asesor abre su ficha; una burbuja «×n»
+  pinta una lista inline (`.grupo-sel`) para elegir a quién abrir, que se limpia
+  al cambiar filtros.
 - **Sin contraseña en `/ventas`** (`VENTAS_PUBLICO=1` en el servicio `mkt-ventas`,
   pedido de Randall 4-sep): `do_GET` sirve `/ventas*` (y `/` → `/ventas/` en modo
   ventas) antes del auth y `do_POST` deja pasar `/ventas/config`. Todo lo demás

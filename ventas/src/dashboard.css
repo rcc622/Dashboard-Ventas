@@ -135,7 +135,9 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 .tiles2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 
 /* ---------- salud operativa (dona + desglose) ---------- */
-.salud-grid { display: grid; grid-template-columns: 180px 1fr; gap: 18px; align-items: center; }
+/* Columnas proporcionales: la dona, los medidores y el embudo crecen con el ancho del widget (pedido de Randall 4-sep). */
+.salud-grid { display: grid; grid-template-columns: minmax(150px, 1fr) 2fr; gap: 18px; align-items: center; }
+.widget .donut-svg, .widget .gauge-svg { width: 100%; height: auto; max-width: 100%; }
 .donutbox { display: grid; place-items: center; }
 .donut-svg { display: block; }
 .dcenter { text-anchor: middle; font-weight: 700; fill: var(--ink); }
@@ -154,8 +156,9 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 .embudo { display: grid; grid-template-columns: 1.1fr 1fr; gap: 14px; }
 .funnel { padding: 6px 0 2px; }
 /* La forma va acotada (máx. 380 px) y centrada; entre banda y banda hay aire. */
-.frow { display: grid; grid-template-columns: minmax(150px, 380px) minmax(150px, 210px); gap: 18px; align-items: center; margin-bottom: 7px; justify-content: center; }
-.fshape { position: relative; height: 46px; }
+.frow { display: grid; grid-template-columns: minmax(150px, 1fr) minmax(150px, 240px); gap: 18px; align-items: center; margin-bottom: 7px; justify-content: center; }
+/* width: 100% es obligatorio: con aspect-ratio y ancho auto el navegador derivaba el ancho del min-height (46 × 8 = 368 px) y se salía de la columna. */
+.fshape { position: relative; width: 100%; height: auto; aspect-ratio: 8 / 1; min-height: 46px; }
 .fshape svg { display: block; width: 100%; height: 100%; overflow: visible; }
 .fnum { position: absolute; inset: 0; display: grid; place-items: center; font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; pointer-events: none; }
 .flab .nm { font-weight: 600; font-size: 13px; }
@@ -172,7 +175,7 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 /* ---------- actividad ---------- */
 .llam-box { position: relative; }
 .llam-head { display: flex; justify-content: space-between; font-weight: 700; margin-bottom: 8px; }
-.llam-grid { display: grid; grid-template-columns: 1fr 190px; gap: 16px; align-items: center; }
+.llam-grid { display: grid; grid-template-columns: 2fr minmax(160px, 1fr); gap: 16px; align-items: center; }
 .sbar { height: 12px; border-radius: 999px; background: var(--track); display: flex; overflow: hidden; cursor: pointer; }
 .sbar i { display: block; height: 100%; }
 .sbar i + i { border-left: 2px solid var(--card); }
@@ -338,7 +341,7 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 .rank .v small { display: block; font-weight: 500; color: var(--g2); font-size: 10px; }
 
 /* ---------- entrada de leads (tasa de asignación) ---------- */
-.ent { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 18px; align-items: center; }
+.ent { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(0, 2fr); gap: 18px; align-items: center; }
 .ent .hero { text-align: center; }
 .ent .hero .l { font-weight: 700; font-size: 13px; }
 .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 10px; }
@@ -365,7 +368,11 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 
 /* ---------- perfiles actividad × venta (dispersión) ---------- */
 /* Acotada: el SVG escala texto y puntos con el ancho; a 900 px de tarjeta salía gigante. */
-.scatter { width: 100%; max-width: 520px; height: auto; display: block; margin: 0 auto; }
+.scatter { width: 100%; height: auto; display: block; }
+.scatter .pt.drill { cursor: pointer; }
+.scatter .pt.drill:hover circle, .scatter .pt.drill:focus-visible circle { stroke: var(--ink); stroke-width: 2.5; }
+.scatter .pt.drill:focus-visible { outline: none; }
+.grupo-sel { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 8px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--hover); font-size: 12px; }
 .scatter .grid { stroke: var(--line); }
 .scatter .med { stroke: var(--g3); stroke-dasharray: 4 3; }
 .scatter .ql { fill: var(--g2); font-size: 9px; font-weight: 700; }
@@ -444,7 +451,7 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 .widget.hset .wbody > .funnel, .widget.hset .wbody > .scatter { flex: 1 1 0; min-height: 0; }
 .widget.hset .funnel { display: flex; flex-direction: column; justify-content: space-evenly; }
 .widget.hset .frow { flex: 1 1 0; min-height: 40px; margin-bottom: 0; align-items: stretch; }
-.widget.hset .fshape { height: auto; min-height: 40px; }
+.widget.hset .fshape { height: auto; aspect-ratio: auto; min-height: 40px; }
 .widget.hset .flab { align-self: center; }
 .widget.hset .wbody > .scatter { width: 100%; max-width: none; height: auto; }
 .widget.plain { background: none; border: 0; box-shadow: none; padding: 0; }
@@ -459,6 +466,8 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 .widget.dragging { opacity: .45; }
 .widget.over { outline: 2px dashed var(--c1); outline-offset: 4px; border-radius: var(--r); }
 .wreset { font-size: 11px; color: var(--g2); margin-top: 10px; }
+.wadd { display: inline-flex; align-items: center; gap: 6px; margin-right: 12px; font-weight: 600; color: var(--ink); }
+.wadd select { font: inherit; font-weight: 500; padding: 3px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); max-width: 260px; }
 .widget .ctitle { text-align: left; }
 
 /* ---------- entrada (login) ---------- */
