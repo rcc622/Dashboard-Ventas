@@ -232,6 +232,8 @@ export function filasDeEventos(c: Corte, ev: Evento[]): Fila[] {
   }).sort((a, b) => (b.cuando || 0) - (a.cuando || 0))
 }
 export const etapaDe = (l: Lead) => `${tipoLead(l)} · ${l.etapa}`
+/** «1 día», «2 días»: sin abreviar (Randall) y sin plural falso. */
+export const dias = (n: number) => `${fmtN(n)} día${n === 1 ? '' : 's'}`
 
 // ---------------------------------------------------------------- Venta
 export interface Salud { ventasCon: number; ventasSin: number; huntCon: number; huntSin: number }

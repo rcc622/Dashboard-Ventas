@@ -1,26 +1,26 @@
 import { useLayoutEffect, useMemo, useRef, useState, type SyntheticEvent } from 'react'
 import type { Corte, Lead, Usuario } from './types'
 import { CRM_LABEL } from './types'
-import { BUCKETS, PERFIL_LABEL, actividad, cotizado, embudo, entrada, ep, etapaDe, eventosFiltrados, fechaCotizado, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, metaDe, metaEnRango, metaEsperada, pasaCrm, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, type Fila, type FilaAsesor, type Filtros, type Perfil } from './metrics'
+import { BUCKETS, PERFIL_LABEL, actividad, cotizado, dias, embudo, entrada, ep, etapaDe, eventosFiltrados, fechaCotizado, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, metaDe, metaEnRango, metaEsperada, pasaCrm, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, type Fila, type FilaAsesor, type Filtros, type Perfil } from './metrics'
 import { BarDetailPopup, BubbleChart, Bullet, CollapsibleSection, DonutChart, FunnelChart, Gauge, Info, LlamadasBar, MiniAreaChart, Scatter, SortTh, StackedBar, activar, useEscape, useOutside, type DetRow, type Sort } from './components'
 import { DrillModal, type Drill } from './drill'
 
 const mixto = (c: Corte) => (c.fuentes || []).length > 1
-const crmCorto = (l: { crm: Lead['crm'] }) => (l.crm === 'hubspot' ? 'HS' : 'KM')
+const crmCorto = (l: { crm: Lead['crm'] }) => CRM_LABEL[l.crm]
 const subAsesor = (c: Corte, u: Usuario) => zonaNombre(c, u.zona) + ' · ' + u.crm.map((x) => CRM_LABEL[x]).join(' + ')
 const avatarCls = (u: Usuario) => 'avatar' + (u.zona ? ' z-' + u.zona : '')
 const RAMPA = ['var(--f1)', 'var(--f2)', 'var(--f3)', 'var(--f4)', 'var(--f5)', 'var(--f6)', 'var(--f6)']
 // HubSpot no trae llamadas ni mensajes por deal: mejor decirlo que pintar «0 llam».
-const intentos = (l: Lead) => (l.crm === 'hubspot' ? 'sin dato (HS)' : `${fmtN(l.llamadas_cf)} llam · ${fmtN(l.msjs)} msj`)
-const hace = (ts: number, hoy: number) => { if (!ts) return '—'; const d = Math.floor((hoy - ts) / 86400); return d <= 0 ? 'hoy' : `hace ${d}d` }
+const intentos = (l: Lead) => (l.crm === 'hubspot' ? 'sin dato en HubSpot' : `${fmtN(l.llamadas_cf)} llamadas · ${fmtN(l.msjs)} mensajes`)
+const hace = (ts: number, hoy: number) => { if (!ts) return '—'; const d = Math.floor((hoy - ts) / 86400); return d <= 0 ? 'hoy' : `hace ${dias(d)}` }
 const PERFIL_CLS: Record<Perfil, string> = { mantener: 'p-mantener', capacitar: 'p-capacitar', revisar: 'p-revisar', salida: 'p-salida' }
 const PERFILES: Perfil[] = ['mantener', 'capacitar', 'revisar', 'salida']
 const AHORA = () => Date.now() / 1000
 const diasDesde = (ts: number) => Math.max(0, Math.floor((AHORA() - ts) / 86400))
 // Filas para la ventana de detalle según de qué cifra vienen.
-const fLeads = (ls: Lead[]) => filasDeLeads(ls, (l) => `${etapaDe(l)} · ${l.dias_sin_cambio}d sin cambio`)
+const fLeads = (ls: Lead[]) => filasDeLeads(ls, (l) => `${etapaDe(l)} · ${dias(l.dias_sin_cambio)} sin cambio`)
 const fVentas = (ls: Lead[]) => filasDeLeads(ls, (l) => `Ganado · ${etapaDe(l)}`, (l) => l.cerrado)
-const fCotizado = (ls: Lead[]) => filasDeLeads(ls, (l) => `${etapaDe(l)} · cotizado hace ${diasDesde(fechaCotizado(l))} d`, (l) => fechaCotizado(l))
+const fCotizado = (ls: Lead[]) => filasDeLeads(ls, (l) => `${etapaDe(l)} · cotizado hace ${dias(diasDesde(fechaCotizado(l)))}`, (l) => fechaCotizado(l))
 const fEntrada = (ls: Lead[]) => filasDeLeads(ls, (l) => l.funnel_label, (l) => l.creado)
 /** Botón que se ve como la cifra: el tile entero no puede ser botón porque adentro va el «i» del glosario. */
 function Cifra({ children, onClick, label }: { children: React.ReactNode; onClick: () => void; label: string }) {
@@ -53,7 +53,7 @@ function LeadsTabla({ corte, leads, max = 40 }: { corte: Corte; leads: Lead[]; m
   return (
     <div className="tblwrap" style={{ boxShadow: 'none' }}>
       <table className="ftable ltbl">
-        <thead><tr><th>Lead</th><th>Etapa</th><th className="num">Monto</th><th>Intentos<Info termino="Intentos" /></th><th>Últ. tarea hecha</th><th className="num">Sin cambio</th><th>Alertas</th></tr></thead>
+        <thead><tr><th>Lead</th><th>Etapa</th><th className="num">Monto</th><th>Intentos<Info termino="Intentos" /></th><th>Última tarea hecha</th><th className="num">Días sin cambio</th><th>Alertas</th></tr></thead>
         <tbody>
           {rows.map((l) => (
             <tr key={l.id}>
@@ -62,9 +62,9 @@ function LeadsTabla({ corte, leads, max = 40 }: { corte: Corte; leads: Lead[]; m
               <td className="num">{fmtMoney(l.presupuesto)}</td>
               <td>{intentos(l)}</td>
               <td>{hace(l.ult_tarea, hoy)}</td>
-              <td className="num">{l.dias_sin_cambio}d</td>
+              <td className="num">{l.dias_sin_cambio}</td>
               <td>
-                {l.pc_vencida && <span className="tag warn">PC vencida</span>}
+                {l.pc_vencida && <span className="tag warn">Primer contacto vencido</span>}
                 {l.sin_tarea && <span className="tag warn">sin tarea</span>}
                 {l.tareas_vencidas > 0 && <span className="tag warn">{l.tareas_vencidas} vencida{l.tareas_vencidas > 1 ? 's' : ''}</span>}
                 {l.dias_sin_cambio > 7 && <span className="tag">estancado</span>}
@@ -218,18 +218,18 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
         <div className="embudo">
           <div className="panel">
             <h3 className="ctitle">Embudo de ventas por etapa</h3>
-            <FunnelChart stages={et.map((e) => ({ nombre: e.nombre, n: e.n, sub: `${fmtMoney(e.monto)} · ${e.n ? e.dias.toFixed(1) + 'd en etapa' : 'sin leads'}` }))}
+            <FunnelChart stages={et.map((e) => ({ nombre: e.nombre, n: e.n, sub: `${fmtMoney(e.monto)} · ${e.n ? e.dias.toFixed(1) + ' días en etapa' : 'sin leads'}` }))}
               onStage={(i) => ver(`${et[i].nombre} · embudo Ventas`, et[i].id === -2 ? fVentas(et[i].leads) : fLeads(et[i].leads), rango)} />
           </div>
           <div className="panel">
             <h3 className="ctitle">Monto cotizado y tiempo por etapa<Info termino="Monto cotizado" /><Info termino="Tiempo promedio" /></h3>
             <table className="ftable">
-              <thead><tr><th>Etapa</th><th className="num">Leads</th><th className="num">Monto</th><th className="num">Días prom.</th><th className="num">Acum.</th></tr></thead>
+              <thead><tr><th>Etapa</th><th className="num">Leads</th><th className="num">Monto</th><th className="num">Días promedio</th><th className="num">Acumulado</th></tr></thead>
               <tbody>
                 {et.map((e, i) => (
                   <tr key={e.id} className="drill" role="button" tabIndex={0} aria-label={`${e.nombre}: ${fmtN(e.n)} leads, ${fmtMoney(e.monto)}. Ver leads`}
                     onClick={() => ver(`${e.nombre} · embudo Ventas`, e.id === -2 ? fVentas(e.leads) : fLeads(e.leads), rango)} onKeyDown={activar(() => ver(`${e.nombre} · embudo Ventas`, e.id === -2 ? fVentas(e.leads) : fLeads(e.leads), rango))}>
-                    <td><span className="sw" style={{ background: RAMPA[Math.min(i, RAMPA.length - 1)] }} aria-hidden="true" />{e.nombre}</td><td className="num">{fmtN(e.n)}</td><td className="num">{fmtMoney(e.monto)}</td><td className="num">{e.n ? e.dias.toFixed(1) + 'd' : '—'}</td><td className="num muted">{e.acumulado.toFixed(1)}d</td>
+                    <td><span className="sw" style={{ background: RAMPA[Math.min(i, RAMPA.length - 1)] }} aria-hidden="true" />{e.nombre}</td><td className="num">{fmtN(e.n)}</td><td className="num">{fmtMoney(e.monto)}</td><td className="num">{e.n ? e.dias.toFixed(1) : '—'}</td><td className="num muted">{e.acumulado.toFixed(1)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -265,7 +265,7 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
             <div className="small muted">
               <button type="button" className="nbtn" onClick={() => ver('Leads con primer contacto registrado', filasDeLeads(pc.con.map((x) => x.lead), (l) => { const h = pc.con.find((x) => x.lead.id === l.id)?.horas || 0; return `${etapaDe(l)} · primer contacto a las ${h < 48 ? h.toFixed(1) + ' h' : Math.round(h / 24) + ' d'}` }), rango)}>{fmtN(pc.n)} leads con contacto registrado</button>
               {' · '}{fmtN(pc.en24)} en menos de 24 h ({pct(pc.en24, pc.n)}%){' · '}
-              <button type="button" className="nbtn" onClick={() => ver('Leads sin contacto tras un día asignados', filasDeLeads(pc.sin, (l) => `${etapaDe(l)} · asignado hace ${diasDesde(l.asignacion)} d, sin llamada ni tarea`), rango)}>{fmtN(pc.sinContacto)} sin contacto tras un día asignados</button>
+              <button type="button" className="nbtn" onClick={() => ver('Leads sin contacto tras un día asignados', filasDeLeads(pc.sin, (l) => `${etapaDe(l)} · asignado hace ${dias(diasDesde(l.asignacion))}, sin llamada ni tarea`), rango)}>{fmtN(pc.sinContacto)} sin contacto tras un día asignados</button>
               {mixto(corte) ? ' · solo Kommo' : ''}
             </div>
             <h3 style={{ marginTop: 18 }}>Razón de descarte<Info termino="Razón de descarte" /></h3>
@@ -352,14 +352,14 @@ export function Asesores({ corte, filtros, onFicha }: { corte: Corte; filtros: F
           <thead><tr>
             <SortTh k="nombre" label="Asesor" {...th} />
             <SortTh k="vendido" label="Vendido" {...th}><Info termino="Vendido" /></SortTh>
-            <SortTh k="cotizado" label="Cotizado vig." {...th}><Info termino="Cotizado vigente" /></SortTh>
+            <SortTh k="cotizado" label="Cotizado vigente" {...th}><Info termino="Cotizado vigente" /></SortTh>
             <SortTh k="leads" label="Leads activos" {...th}><Info termino="Leads activos" /></SortTh>
             <SortTh k="llamadas" label="Llamadas" {...th}><Info termino="Llamadas" /></SortTh>
             <SortTh k="tareas" label="Tareas" {...th}><Info termino="Tareas" /></SortTh>
-            <SortTh k="pc" label="PC venc." {...th}><Info termino="PC vencidas" /></SortTh>
-            <SortTh k="cotiz" label="Cotiz." {...th} />
-            <SortTh k="desc" label="Desc." {...th} />
-            <SortTh k="lev" label="Levant." {...th} />
+            <SortTh k="pc" label="Primer contacto vencido" {...th}><Info termino="Primer contacto vencido" /></SortTh>
+            <SortTh k="cotiz" label="Cotizaciones" {...th} />
+            <SortTh k="desc" label="Descartes" {...th} />
+            <SortTh k="lev" label="Levantamientos" {...th} />
           </tr></thead>
           <tbody>
             {filas.map((f) => {
@@ -376,7 +376,7 @@ export function Asesores({ corte, filtros, onFicha }: { corte: Corte; filtros: F
                     <div className="tot">{pct(f.montoVentas, f.metaRango)}% de {fmtMoney0(f.metaRango)}</div>
                   </td>
                   <td className="num">{fmtMoney0(f.cotizado.vigente)}{f.cotizado.viejo > 0 && <div className="small muted" style={{ fontWeight: 500 }}>+{fmtMoney(f.cotizado.viejo)} viejo</div>}</td>
-                  <td><div className="num">{f.leadsActivos.length}</div><div className="minibar" aria-hidden="true"><i style={{ width: pct(f.leadsActivos.length, maxLeads) + '%' }} /></div>{f.estancados > 0 && <div className="small muted">{f.estancados} estancados</div>}</td>
+                  <td><div className="num">{f.leadsActivos.length}</div><div className="minibar" aria-hidden="true"><i style={{ width: pct(f.leadsActivos.length, maxLeads) + '%' }} /></div>{f.estancados > 0 && <div className="small muted">{f.estancados} estancado{f.estancados === 1 ? '' : 's'}</div>}</td>
                   <td className="cellbar">
                     <StackedBar segs={[{ val: f.contestadas, cls: 'seg-comp' }, { val: f.sinContestar, cls: 'seg-warn' }]} total={f.llamadas} max={maxLlam}
                       title={`Llamadas de ${f.u.nombre}: ${f.contestadas} contestadas, ${f.sinContestar} sin contestar. Abrir detalle`}
@@ -436,7 +436,7 @@ function AsesorPopup({ corte, filtros, fila, x, y, onClose, onFicha }: { corte: 
       <div className="kpi3">
         <div><div className="l">Vendido</div><div className="v">{fmtMoney0(fila.montoVentas)}</div></div>
         <div><div className="l">Cumplimiento<Info termino="Cumplimiento" /></div><div className="v">{cumpl}%</div></div>
-        <div><div className="l">Cotizado vig.</div><div className="v">{fmtMoney0(fila.cotizado.vigente)}</div></div>
+        <div><div className="l">Cotizado vigente</div><div className="v">{fmtMoney0(fila.cotizado.vigente)}</div></div>
       </div>
       <div className="pchart"><MiniAreaChart values={serie} height={54} /><div className="small muted">Leads asignados por día · {filtros.rango.label}</div></div>
       <div className="pleads">
@@ -447,8 +447,8 @@ function AsesorPopup({ corte, filtros, fila, x, y, onClose, onFicha }: { corte: 
           {activos.slice(0, 6).map((l) => (
             <div className="leadrow" key={l.id}>
               <a className="nm" href={l.link} target="_blank" rel="noreferrer" title={l.nombre + ' · abrir en ' + CRM_LABEL[l.crm]}>{l.nombre}</a>
-              <span className="it">{l.dias_sin_cambio}d</span>
-              <span className="it l2"><span className="tag" title={CRM_LABEL[l.crm]}>{tipoLead(l)}{mixto(corte) ? ' · ' + crmCorto(l) : ''}</span> {intentos(l)}{(l.pc_vencida || l.sin_tarea) && <> <span className="tag warn">{l.pc_vencida ? 'PC vencida' : 'sin tarea'}</span></>}</span>
+              <span className="it">{dias(l.dias_sin_cambio)} sin cambio</span>
+              <span className="it l2"><span className="tag" title={CRM_LABEL[l.crm]}>{tipoLead(l)}{mixto(corte) ? ' · ' + crmCorto(l) : ''}</span> {intentos(l)}{(l.pc_vencida || l.sin_tarea) && <> <span className="tag warn">{l.pc_vencida ? 'Primer contacto vencido' : 'sin tarea'}</span></>}</span>
             </div>
           ))}
           {activos.length > 6 && <div className="small muted">+{activos.length - 6} más en la ficha</div>}
@@ -531,7 +531,7 @@ export function Ficha({ corte, filtros, uid, onBack }: { corte: Corte; filtros: 
               <span className={'tag' + (t.vencida ? ' warn' : '')}>{t.tipo}</span>
               <div className="nm">{t.link ? <a href={t.link} target="_blank" rel="noreferrer">{nm}</a> : nm}</div>
               <div className="ds">{t.lead_nombre ? (t.texto || 'Sin descripción') : CRM_LABEL[t.crm]}</div>
-              <div className="dd">{d < 0 ? `Vencida hace ${-d}d` : d === 0 ? 'Vence hoy' : `${d}d restantes`}</div>
+              <div className="dd">{d < 0 ? `Vencida hace ${-d} día${d === -1 ? '' : 's'}` : d === 0 ? 'Vence hoy' : `${d} día${d === 1 ? '' : 's'} restantes`}</div>
             </div>) })}
         </div>
       </div>

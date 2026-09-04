@@ -46,7 +46,7 @@ export function DrillModal({ d, onClose }: { d: Drill; onClose: () => void }) {
                 {filas.slice(0, max).map((f) => (
                   <tr key={f.id}>
                     <td>{f.link ? <a href={f.link} target="_blank" rel="noreferrer" title={'Abrir en ' + CRM_LABEL[f.crm]}>{f.nombre}</a> : <span className="muted">{f.nombre}</span>}</td>
-                    <td><span className="tag" title={CRM_LABEL[f.crm]}>{f.crm === 'hubspot' ? 'HS' : 'KM'}</span></td>
+                    <td><span className="tag">{CRM_LABEL[f.crm]}</span></td>
                     <td>{f.asesor}</td>
                     <td>{f.detalle}</td>
                     <td className="num">{f.monto ? fmtMoney(f.monto) : '—'}</td>

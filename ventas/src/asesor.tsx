@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Corte } from './types'
 import { CRM_LABEL } from './types'
-import { enRango, fechaDe, fmtCorta, fmtFecha, fmtHora, fmtMoney, fmtMoney0, fmtN, hoyIni, leaderboardHoy, metaDeId, miDia, pct, preset, tipoLead, vivo } from './metrics'
+import { dias, enRango, fechaDe, fmtCorta, fmtFecha, fmtHora, fmtMoney, fmtMoney0, fmtN, hoyIni, leaderboardHoy, metaDeId, miDia, pct, preset, tipoLead, vivo } from './metrics'
 import { Bullet, Info } from './components'
 
 // Estado de checklist, tareas propias y notas viven en el navegador del asesor
@@ -49,8 +49,8 @@ export function MiDia({ corte, uid }: { corte: Corte; uid: string }) {
 
   const barras = tab === 'dia'
     ? [['Llamadas', d.eventosHoy.filter((e) => e.tipo.startsWith('llamada')).length], ['Tareas', d.eventosHoy.filter((e) => e.tipo === 'tarea').length],
-      ['Cotiz.', d.eventosHoy.filter((e) => e.tipo === 'cotizacion').length], ['Levant.', d.eventosHoy.filter((e) => e.tipo === 'levantamiento').length],
-      ['Desc.', d.eventosHoy.filter((e) => e.tipo === 'descarte').length]] as [string, number][]
+      ['Cotizaciones', d.eventosHoy.filter((e) => e.tipo === 'cotizacion').length], ['Levantamientos', d.eventosHoy.filter((e) => e.tipo === 'levantamiento').length],
+      ['Descartes', d.eventosHoy.filter((e) => e.tipo === 'descarte').length]] as [string, number][]
     : ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'].map((n, i) => [n, d.eventosSemana.filter((e) => (fechaDe(e.ts).getDay() + 6) % 7 === i).length] as [string, number])
   const maxB = Math.max(1, ...barras.map((b) => b[1]))
   const faltan = Math.max(0, d.metaMes - d.vendidoMes)
@@ -99,9 +99,9 @@ export function MiDia({ corte, uid }: { corte: Corte; uid: string }) {
             <h3>Leaderboard · Hoy</h3>
             {ranking.map((r, i) => (
               <div className={'lr' + (r.u.id === uid ? ' me' : '')} key={r.u.id} aria-current={r.u.id === uid ? 'true' : undefined}>
-                <span className={'pos' + (i < 3 ? ' top' : '')}>{i + 1}</span><span>{r.u.nombre}</span><span>{r.ventas} ventas</span><span className="muted">{r.puntos} act.</span>
+                <span className={'pos' + (i < 3 ? ' top' : '')}>{i + 1}</span><span>{r.u.nombre}</span><span>{r.ventas} ventas</span><span className="muted">{r.puntos} actividades</span>
               </div>))}
-            <div className="small muted" style={{ marginTop: 6 }}>act. = llamadas, tareas, cotizaciones y levantamientos registrados hoy<Info termino="act." /></div>
+            <div className="small muted" style={{ marginTop: 6 }}>Actividades = llamadas, tareas, cotizaciones y levantamientos registrados hoy<Info termino="Actividades" /></div>
           </div>
           <div className="panel notes">
             <h3>Notas del día</h3>
@@ -147,7 +147,7 @@ export function Prospectos({ corte, uid }: { corte: Corte; uid: string }) {
       {p.slice(0, 200).map((l) => (
         <div className="li" key={l.id}>
           <span className="nm"><a href={l.link} target="_blank" rel="noreferrer">{l.nombre}</a> <span className="tag">{tipoLead(l)} · {l.etapa}{mixto(corte) ? ' · ' + CRM_LABEL[l.crm] : ''}</span></span>
-          <span>{fmtMoney(l.presupuesto)}</span><span className="muted">{l.dias_sin_cambio}d sin cambio{l.tareas_vencidas ? ` · ${l.tareas_vencidas} vencida${l.tareas_vencidas > 1 ? 's' : ''}` : ''}</span>
+          <span>{fmtMoney(l.presupuesto)}</span><span className="muted">{dias(l.dias_sin_cambio)} sin cambio{l.tareas_vencidas ? ` · ${l.tareas_vencidas} tarea${l.tareas_vencidas > 1 ? 's' : ''} vencida${l.tareas_vencidas > 1 ? 's' : ''}` : ''}</span>
         </div>))}
       {p.length > 200 && <div className="small muted">Se muestran 200 de {p.length}</div>}
     </div>
