@@ -594,18 +594,25 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   son `WidgetGrid` sobre una rejilla de **6 columnas**. Cada gráfica lleva asa ⋮⋮
   (drag & drop HTML5, `setDragImage` del widget completo) y ▲▼ por teclado para
   el orden, y un **asa en la esquina inferior derecha** (`.wresize`, `role=slider`)
-  que se arrastra con pointer events y ajusta el ancho por cuadrantes: de 2 a 6
+  que se arrastra con pointer events y ajusta el **ancho** por cuadrantes, de 2 a 6
   columnas (`Widget.span` = ancho por defecto en columnas; 3 = media pantalla,
-  6 = todo; con teclado ← → Home End). El ancho de una columna sale del ancho real
-  de la rejilla (`clientWidth` − 5 gaps) / 6, y el span se redondea al más cercano.
-  Orden y anchos viven juntos en `localStorage` (`kv_orden_admin`,
-  `kv_orden_midia-<uid>`, forma `{orden, spans}`; el formato viejo de solo lista
-  se migra al leer): preferencia de quien mira, no dato. En ≤ 960 px todo va a una
-  columna y el asa se esconde. Los contenidos deben ser fluidos (la fila de KPIs
-  de Entrada es `auto-fit`; la tabla de etapas va en `.scrollx`). Gotcha E2E: tras
-  un drag & drop HTML5, Chromium se traga el siguiente `pointerdown` de
-  Playwright: probar el resize en una página recién cargada. Las secciones
-  plegables desaparecieron; los widgets `plain` (tiles) no llevan tarjeta.
+  6 = todo; teclado ← → Home End), y el **alto** en filas de 40 px (`FILA`, de 4 a
+  30 filas; teclado ↑ ↓; Supr regresa al alto automático). El ancho de una columna
+  sale del ancho real de la rejilla (`clientWidth` − 5 gaps) / 6 y el span se
+  redondea al más cercano; el alto solo se fija cuando el arrastre se mueve en
+  vertical más de media fila, para que estirar solo a lo ancho no congele el alto.
+  Con alto fijo (`.hset`) la tarjeta es columna flex: el cuerpo (`.wbody`) toma el
+  resto y se desplaza adentro, y el embudo (bandas `preserveAspectRatio=none`) y la
+  dispersión (SVG con viewBox) crecen con la tarjeta; lo demás conserva su tamaño.
+  Orden, anchos y altos viven juntos en `localStorage` (`kv_orden_admin`,
+  `kv_orden_midia-<uid>`, forma `{orden, spans, altos}`; el formato viejo de solo
+  lista se migra al leer): preferencia de quien mira, no dato. En ≤ 960 px todo va
+  a una columna con alto automático y el asa se esconde. Los contenidos deben ser
+  fluidos (la fila de KPIs de Entrada es `auto-fit`; la tabla de etapas va en
+  `.scrollx`). Gotcha E2E: tras un drag & drop HTML5, Chromium se traga el
+  siguiente `pointerdown` de Playwright: probar el resize en una página recién
+  cargada. Las secciones plegables desaparecieron; los widgets `plain` (tiles) no
+  llevan tarjeta.
 - **Sin contraseña en `/ventas`** (`VENTAS_PUBLICO=1` en el servicio `mkt-ventas`,
   pedido de Randall 4-sep): `do_GET` sirve `/ventas*` (y `/` → `/ventas/` en modo
   ventas) antes del auth y `do_POST` deja pasar `/ventas/config`. Todo lo demás
