@@ -1,4 +1,5 @@
-import { Pool, type PoolClient } from "pg";
+import type { Pool, PoolClient } from "pg";
+import { createPool, describeUrl } from "@/lib/db";
 import type { Snapshot, SyncRun } from "@/lib/model";
 import type { SnapshotStore } from "./index";
 
@@ -47,6 +48,19 @@ create table if not exists crm_activities (
   id text primary key, ts timestamptz, tipo text, advisor_id text, lead_id text, pipeline_id text,
   synced_at timestamptz not null default now()
 );
+create table if not exists ext_ventas (
+  id text primary key, cliente text, vendedor text, vendedor_id text, vendedor_compartido text, zona_texto text, zona text,
+  mes text, monto_contrato numeric, monto_comisionable numeric, paneles int, metodo_pago text, origen text, referido_por text,
+  hubspot_link text, comision_pagada boolean, cancelada boolean, lead_id text, advisor_id text,
+  created_at timestamptz, updated_at timestamptz, synced_at timestamptz not null default now()
+);
+create table if not exists ext_proyectos (
+  id text primary key, folio text, folio_odoo text, cliente text, telefono text, phone_key text, email text, zona text,
+  estatus text, etapa_id text, etapa text, etapa_orden int, etapa_desde timestamptz, fecha_agenda date, fecha_instalacion date,
+  fecha_cierre date, paneles int, kw numeric, vendedor text, origen text, anticipo_pagado boolean, instalado_cobrado boolean,
+  medidor_pagado boolean, saldo_vencido numeric, meses_atraso int, proxima_fecha_pago date, tickets_abiertos int,
+  lead_id text, advisor_id text, created_at timestamptz, updated_at timestamptz, synced_at timestamptz not null default now()
+);
 create table if not exists sync_runs (
   id text primary key, mode text, reason text, source text, started_at timestamptz, finished_at timestamptz,
   ok boolean, duration_ms int, requests int, counts jsonb, error text
@@ -81,17 +95,11 @@ export class PostgresStore implements SnapshotStore {
   private ready: Promise<void> | null = null;
 
   constructor(private readonly url: string) {
-    const ssl = /sslmode=require|supabase\.co|railway\.app|rlwy\.net/.test(url) && !/localhost|127\.0\.0\.1/.test(url);
-    this.pool = new Pool({ connectionString: url, max: 4, ssl: ssl ? { rejectUnauthorized: false } : undefined });
+    this.pool = createPool(url, 4);
   }
 
   describe(): string {
-    try {
-      const u = new URL(this.url);
-      return `postgres en ${u.hostname}${u.pathname}`;
-    } catch {
-      return "postgres";
-    }
+    return `postgres en ${describeUrl(this.url)}`;
   }
 
   private ensure(): Promise<void> {
@@ -168,6 +176,36 @@ export class PostgresStore implements SnapshotStore {
         "crm_tasks",
         ["id", "advisor_id", "lead_id", "text", "due_at", "completed", "task_type_id", "updated_at"],
         snapshot.tasks.map((t) => [t.id, t.advisorId, t.leadId, t.text, t.dueAt, t.completed, t.taskTypeId ?? null, t.updatedAt ?? null]),
+      );
+      await replaceRows(
+        client,
+        "ext_ventas",
+        [
+          "id", "cliente", "vendedor", "vendedor_id", "vendedor_compartido", "zona_texto", "zona", "mes", "monto_contrato",
+          "monto_comisionable", "paneles", "metodo_pago", "origen", "referido_por", "hubspot_link", "comision_pagada", "cancelada",
+          "lead_id", "advisor_id", "created_at", "updated_at",
+        ],
+        (snapshot.ventas ?? []).map((v) => [
+          v.id, v.cliente, v.vendedor, v.vendedorId, v.vendedorCompartido, v.zonaTexto, v.zona, v.mes, v.montoContrato,
+          v.montoComisionable, v.paneles, v.metodoPago, v.origen, v.referidoPor, v.hubspotLink, v.comisionPagada, v.cancelada,
+          v.leadId, v.advisorId, v.createdAt, v.updatedAt,
+        ]),
+      );
+      await replaceRows(
+        client,
+        "ext_proyectos",
+        [
+          "id", "folio", "folio_odoo", "cliente", "telefono", "phone_key", "email", "zona", "estatus", "etapa_id", "etapa",
+          "etapa_orden", "etapa_desde", "fecha_agenda", "fecha_instalacion", "fecha_cierre", "paneles", "kw", "vendedor", "origen",
+          "anticipo_pagado", "instalado_cobrado", "medidor_pagado", "saldo_vencido", "meses_atraso", "proxima_fecha_pago",
+          "tickets_abiertos", "lead_id", "advisor_id", "created_at", "updated_at",
+        ],
+        (snapshot.proyectos ?? []).map((p) => [
+          p.id, p.folio, p.folioOdoo, p.cliente, p.telefono, p.phoneKey ?? null, p.email, p.zona, p.estatus, p.etapaId, p.etapa,
+          p.etapaOrden, p.etapaDesde, p.fechaAgenda, p.fechaInstalacion, p.fechaCierre, p.paneles, p.kw, p.vendedor, p.origen,
+          p.anticipoPagado, p.instaladoCobrado, p.medidorPagado, p.saldoVencido, p.mesesAtraso, p.proximaFechaPago,
+          p.ticketsAbiertos, p.leadId, p.advisorId, p.createdAt, p.updatedAt,
+        ]),
       );
       await replaceRows(
         client,

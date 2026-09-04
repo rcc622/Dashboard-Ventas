@@ -22,6 +22,16 @@ export function SyncStatus() {
       {" · "}
       {s.store}
       {s.lastError ? ` · ${s.lastError}` : ""}
+      {s.integraciones
+        .filter((i) => i.configurada)
+        .map((i) => (
+          <span key={i.id}>
+            {" · "}
+            <span className={i.ok === false ? "text-serious" : "text-text-2"}>
+              {i.label}: {i.ok === false ? `error (${i.error})` : `${i.registros} registros, ${i.vinculados} ligados a Kommo`}
+            </span>
+          </span>
+        ))}
     </p>
   );
 }

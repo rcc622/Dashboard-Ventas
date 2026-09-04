@@ -867,6 +867,9 @@ export const kommoSource: DataSource = {
         tasks: openTasks.map((t) => normalizeTask(t, nowIso)).filter((t) => t.leadId),
         activities,
         lossReasons: Object.fromEntries([...catalog.lossReasons].map(([k, v]) => [String(k), v])),
+        ventas: [],
+        proyectos: [],
+        integraciones: {},
         warnings,
         cursor,
       };
@@ -962,6 +965,9 @@ export const kommoSource: DataSource = {
         tasks: openTasks.map((t) => normalizeTask(t, nowIso)).filter((t) => t.leadId),
         activities,
         lossReasons: Object.fromEntries([...catalog.lossReasons].map(([k, v]) => [String(k), v])),
+        ventas: prev.ventas ?? [],
+        proyectos: prev.proyectos ?? [],
+        integraciones: prev.integraciones ?? {},
         warnings: catalog.warnings,
         cursor,
       };

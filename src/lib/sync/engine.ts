@@ -1,3 +1,4 @@
+import { integraciones, syncIntegraciones } from "@/lib/integraciones";
 import type { Snapshot, SyncMode, SyncRun } from "@/lib/model";
 import { getActiveSource } from "@/lib/sources";
 import { getStore } from "@/lib/store";
@@ -26,6 +27,7 @@ export interface SyncStatus {
   intervalMin: number;
   refreshHours: number;
   counts: Record<string, number>;
+  integraciones: Array<{ id: string; label: string; configurada: boolean; ok: boolean | null; syncedAt: string | null; error: string | null; registros: number; vinculados: number; destino: string | null }>;
 }
 
 interface EngineState {
@@ -87,6 +89,10 @@ export async function ensureLoaded(): Promise<void> {
         // Un snapshot guardado por otra fuente (p. ej. demo) no sirve cuando ya hay CRM.
         const source = getActiveSource();
         if (saved && saved.source === source.id) {
+          // Snapshots guardados por versiones previas: campos nuevos vacíos.
+          saved.ventas ??= [];
+          saved.proyectos ??= [];
+          saved.integraciones ??= {};
           state.snapshot = saved;
           state.lastSuccessAt = saved.fetchedAt;
           log(`snapshot cargado de ${store.describe()} (${saved.leads.length} leads, ${saved.fetchedAt})`);
@@ -116,6 +122,8 @@ function counts(s: Snapshot): Record<string, number> {
     actividades: s.activities.length,
     sinOrigen: porCanal["Sin origen"] ?? 0,
     sinCiudad: s.leads.filter((l) => l.zona === "SIN_DATO").length,
+    ventas: s.ventas.length,
+    proyectos: s.proyectos.length,
   };
 }
 
@@ -168,6 +176,10 @@ async function execute(requested: SyncMode, reason: string): Promise<SyncRun> {
       mode === "incremental" && prev
         ? await source.fetchIncremental!(prev, prev.cursor!.leadsUpdatedAt || prev.fetchedAt)
         : await source.fetchSnapshot();
+    snapshot.ventas ??= [];
+    snapshot.proyectos ??= [];
+    snapshot.integraciones ??= {};
+    await syncIntegraciones(snapshot, prev);
     state.snapshot = snapshot;
     run.counts = counts(snapshot);
     run.requests = source.lastRequestCount?.() ?? 0;
@@ -240,6 +252,20 @@ export function getStatus(): SyncStatus {
     intervalMin: mins,
     refreshHours: refreshHours(),
     counts: state.snapshot ? counts(state.snapshot) : {},
+    integraciones: integraciones.map((i) => {
+      const e = state.snapshot?.integraciones?.[i.id];
+      return {
+        id: i.id,
+        label: i.label,
+        configurada: i.isConfigured(),
+        ok: e?.ok ?? null,
+        syncedAt: e?.syncedAt ?? null,
+        error: e?.error ?? null,
+        registros: e?.registros ?? 0,
+        vinculados: e?.vinculados ?? 0,
+        destino: i.destino(),
+      };
+    }),
   };
 }
 

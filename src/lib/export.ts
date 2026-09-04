@@ -141,6 +141,49 @@ export function tablaActividades(s: Snapshot): Tabla {
   return { columns, rows };
 }
 
+export function tablaVentas(s: Snapshot): Tabla {
+  const advisor = new Map(s.advisors.map((a) => [a.id, a.name]));
+  const lead = new Map(s.leads.map((l) => [l.id, l]));
+  const columns = [
+    "ID", "Cliente", "Vendedor", "Vendedor compartido", "Zona", "Zona (texto)", "Mes", "Monto contrato", "Monto comisionable",
+    "Paneles", "Método de pago", "Origen", "Referido por", "HubSpot", "Comisión pagada", "Cancelada", "Creada", "Actualizada",
+    "Lead Kommo", "Lead nombre", "Canal Kommo", "Asesor Kommo",
+  ];
+  const rows: Row[] = s.ventas.map((v) => {
+    const l = v.leadId ? lead.get(v.leadId) : undefined;
+    return [
+      v.id, v.cliente, v.vendedor ?? "", v.vendedorCompartido ?? "", v.zona, v.zonaTexto ?? "", v.mes ?? "", v.montoContrato,
+      v.montoComisionable, v.paneles ?? "", v.metodoPago ?? "", v.origen ?? "", v.referidoPor ?? "", v.hubspotLink ?? "",
+      v.comisionPagada ? "SÍ" : "NO", v.cancelada ? "SÍ" : "NO", fechaLocal(v.createdAt), fechaLocal(v.updatedAt),
+      v.leadId ?? "", l?.name ?? "", l?.canal ?? "", v.advisorId ? (advisor.get(v.advisorId) ?? "") : "",
+    ];
+  });
+  return { columns, rows };
+}
+
+export function tablaProyectos(s: Snapshot): Tabla {
+  const advisor = new Map(s.advisors.map((a) => [a.id, a.name]));
+  const lead = new Map(s.leads.map((l) => [l.id, l]));
+  const columns = [
+    "ID", "Folio", "Folio Odoo", "Cliente", "Teléfono", "Zona", "Estatus", "Etapa", "Etapa desde", "Fecha agenda",
+    "Fecha instalación", "Fecha cierre", "Paneles", "kW", "Vendedor", "Origen", "Anticipo pagado", "Instalado cobrado",
+    "Medidor pagado", "Saldo vencido", "Meses atraso", "Próximo pago", "Tickets abiertos", "Creado", "Actualizado",
+    "Lead Kommo", "Lead nombre", "Canal Kommo", "Asesor Kommo",
+  ];
+  const rows: Row[] = s.proyectos.map((p) => {
+    const l = p.leadId ? lead.get(p.leadId) : undefined;
+    return [
+      p.id, p.folio, p.folioOdoo ?? "", p.cliente, p.telefono ?? "", p.zona ?? "", p.estatus, p.etapa ?? "",
+      fechaLocal(p.etapaDesde), p.fechaAgenda ?? "", p.fechaInstalacion ?? "", p.fechaCierre ?? "", p.paneles ?? "", p.kw ?? "",
+      p.vendedor ?? "", p.origen ?? "", p.anticipoPagado ? "SÍ" : "NO", p.instaladoCobrado ? "SÍ" : "NO",
+      p.medidorPagado ? "SÍ" : "NO", p.saldoVencido, p.mesesAtraso, p.proximaFechaPago ?? "", p.ticketsAbiertos,
+      fechaLocal(p.createdAt), fechaLocal(p.updatedAt),
+      p.leadId ?? "", l?.name ?? "", l?.canal ?? "", p.advisorId ? (advisor.get(p.advisorId) ?? "") : "",
+    ];
+  });
+  return { columns, rows };
+}
+
 /** CSV con BOM (Excel) y comas, comillas escapadas, fin de línea CRLF. */
 export function toCsv(t: Tabla): string {
   const cell = (v: string | number): string => {

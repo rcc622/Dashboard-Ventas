@@ -1,6 +1,6 @@
 # Dashboard Ventas
 
-Capa de **sincronía omnicanal** del CRM de Kenet Solar más un dashboard de control de asesores encima. Lee **Kommo** con las mismas credenciales y reglas que el salesbot (`rcc622/Kommo-ia`) y el dashboard de marketing (`rcc622/MKT-Autonomus`), guarda un snapshot normalizado (volumen o Postgres) y lo expone en JSON/CSV para el dashboard, Google Sheets, mesa de ayuda, comisiones y las integraciones que vengan. Corre en Railway.
+Capa de **sincronía omnicanal** del CRM de Kenet Solar más un dashboard de control de asesores encima. Lee **Kommo** con las mismas credenciales y reglas que el salesbot (`rcc622/Kommo-ia`), conecta en solo lectura las plataformas que viven en Supabase / Vercel (**Mesa de Ayuda** y **Comisiones-ventas**), guarda un snapshot normalizado (volumen o Postgres) y lo expone en JSON/CSV para el dashboard, Google Sheets y las integraciones que vengan. Corre en Railway.
 
 > El dashboard visual va a cambiar. Lo que se queda es la capa de datos: `src/lib` (fuentes, modelo, sync, store, exportes) y las rutas `/api/*`.
 
@@ -95,6 +95,8 @@ Railway tiene salida HTTPS libre: la app consulta la API de Kommo directo, sin I
 | `POST /api/webhooks/kommo?key=…` | Webhook de Kommo. |
 | `/api/export/leads.csv` · `.json` | Un renglón por lead. Las primeras 28 columnas son las de `Leads_Data` del Sheet; después van canal, origen, zona, ciudad, utm, teléfono… |
 | `/api/export/actividades.csv` · `.json` | Un renglón por actividad. Primeras 6 columnas = `Eventos_Data` del Sheet. |
+| `/api/export/ventas.csv` · `.json` | Ventas de Comisiones-ventas con su lead y asesor de Kommo. |
+| `/api/export/proyectos.csv` · `.json` | Proyectos de Mesa de Ayuda con su lead y asesor de Kommo. |
 | `/api/snapshot?dias=30&full=1` | Métricas calculadas (+ snapshot normalizado completo con `full=1`). |
 
 Todo menos `/api/health`, `/salud` y `/api/webhooks/*` pide Basic Auth cuando existe `DASH_PASS`.
@@ -110,10 +112,36 @@ var r = UrlFetchApp.fetch('https://<dominio>/api/export/leads.csv', {
 var filas = Utilities.parseCsv(r.getContentText());
 ```
 
-## Integraciones (mesa de ayuda, comisiones, …)
+## Integraciones con las plataformas en Supabase / Vercel
 
-- **Lectura del CRM**: con `DATABASE_URL` las tablas `crm_*` quedan en Postgres; mesa de ayuda (Supabase) y comisiones (Supabase) pueden consultarlas por SQL, o consumir `/api/export/*.json` por HTTP. Si se prefiere una sola base, `DATABASE_URL` acepta la cadena de conexión de Supabase.
-- **Nuevas fuentes**: un archivo en `src/lib/sources/<nombre>.ts` que implemente `DataSource` (y opcionalmente `fetchIncremental`), registrado en `src/lib/sources/index.ts`. Métricas, exportes y UI no cambian: solo conocen el modelo normalizado (`src/lib/model.ts`).
+Mesa de Ayuda (front en Vercel, base en Supabase) y Comisiones-ventas (Supabase) no viven en Railway. La conexión es **de solo lectura, por Postgres**, con la cadena de conexión de cada proyecto de Supabase; corre dentro de cada ciclo de sincronía y falla aislada (si una base no responde, el CRM sigue y el error queda en `/estado`).
+
+| Integración | Variable | Lee | Vincula con Kommo |
+|---|---|---|---|
+| Comisiones-ventas | `COMISIONES_DATABASE_URL` | `sales` + `profiles` (vendedor, zona, mes, monto, comisionable, método de pago, origen, referido, comisión pagada, cancelada) | lead por **nombre del cliente**; asesor por nombre del vendedor |
+| Mesa de Ayuda | `MESA_AYUDA_DATABASE_URL` | `proyectos` + `journey_etapas` + `tickets` abiertos (folio, cliente, teléfono, zona, estatus, etapa del journey, fechas de agenda / instalación / cierre, paneles, kW, cobranza: anticipo, instalado, medidor, saldo vencido, meses de atraso) | lead por **teléfono** del cliente; asesor por nombre del vendedor |
+
+Dónde queda lo leído:
+
+- `snapshot.ventas` y `snapshot.proyectos` (con `leadId` / `advisorId` cuando hubo cruce), en `/api/snapshot?full=1`.
+- Exportes `/api/export/ventas.csv|json` y `/api/export/proyectos.csv|json` (traen el lead, su canal y el asesor de Kommo).
+- Con `DATABASE_URL`: tablas `ext_ventas` y `ext_proyectos` junto a las `crm_*`, para cruzar lead → venta → instalación → cobranza por SQL.
+- `/api/sync/status` reporta por integración: registros, cuántos quedaron ligados a Kommo, error.
+
+Cadena de conexión: Supabase → Project Settings → Database → Connection string (Session o Transaction pooler; SSL lo maneja la app). Recomendado crear un rol de solo lectura en cada proyecto y usar ese usuario en la cadena:
+
+```sql
+create role dashboard_ro login password '<contraseña larga>';
+grant usage on schema public to dashboard_ro;
+grant select on all tables in schema public to dashboard_ro;
+alter default privileges in schema public grant select on tables to dashboard_ro;
+```
+
+Notas:
+
+- El cruce por nombre (comisiones) es aproximado: Kommo nombra los leads «Juan Pérez — Google Ads» y se compara la parte antes del guion, sin acentos ni mayúsculas. Agregar el teléfono o el id de lead de Kommo a `sales` lo volvería exacto.
+- **mkt-dashboard no se conecta**: solo se reutilizan sus nombres de variables y sus reglas de zona.
+- **Nuevas fuentes**: un archivo en `src/lib/sources/<nombre>.ts` que implemente `DataSource`, o una integración en `src/lib/integraciones/<nombre>.ts` registrada en `src/lib/integraciones/index.ts`. Métricas, exportes y UI no cambian: solo conocen el modelo normalizado (`src/lib/model.ts`).
 
 ## Variables de entorno
 
@@ -129,6 +157,8 @@ var filas = Utilities.parseCsv(r.getContentText());
 | `SYNC_DISABLED` | — | `1` apaga el programador (CI). |
 | `DASH_DATA` | `./data` | Directorio del snapshot (volumen `/data` en Railway). Alias: `DATA_DIR`. |
 | `DATABASE_URL` | — | Postgres; si existe manda sobre el volumen. |
+| `COMISIONES_DATABASE_URL` | — | Supabase de Comisiones-ventas (solo lectura). |
+| `MESA_AYUDA_DATABASE_URL` | — | Supabase de Mesa de Ayuda (solo lectura). |
 | `DASH_USER` / `DASH_PASS` | `admin` / — | Basic Auth (alias `DASHBOARD_USER` / `DASHBOARD_PASSWORD`). |
 | `DASHBOARD_STALE_DAYS` | `3` | Días sin movimiento para «sin atención». |
 | `DASHBOARD_TZ` | `America/Monterrey` | Zona horaria de fechas y exportes. |
@@ -141,7 +171,8 @@ src/lib/kenet/        ids.ts (IDs de la cuenta) · canal.ts (canal) · zonas.ts 
 src/lib/sources/      kommo.ts (API v4: corte completo e incremental) · mock.ts (demo) · index.ts (registro)
 src/lib/model.ts      modelo normalizado: Advisor, Pipeline, Lead, Contact, Task, Activity, Snapshot, SyncRun
 src/lib/sync/         engine.ts (una corrida a la vez, estado, bitácora) · scheduler.ts (10 min / 6 h)
-src/lib/store/        file.ts (volumen) · postgres.ts (tablas crm_*)
+src/lib/store/        file.ts (volumen) · postgres.ts (tablas crm_* y ext_*)
+src/lib/integraciones/ comisiones.ts · mesa.ts (Supabase, solo lectura) · vinculos.ts (cruce por teléfono / nombre)
 src/lib/export.ts     Leads_Data / Eventos_Data compatibles con el Sheet
 src/lib/metrics.ts    métricas del dashboard
 src/app/              página, rutas /api/*, proxy.ts (Basic Auth), instrumentation.ts (arranque del programador)

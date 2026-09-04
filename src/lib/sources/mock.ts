@@ -221,6 +221,9 @@ export function buildDemoSnapshot(now: Date = new Date()): Snapshot {
     tasks,
     activities: activities.sort((a, b) => a.ts.localeCompare(b.ts)),
     lossReasons,
+    ventas: [],
+    proyectos: [],
+    integraciones: {},
     warnings: ["Modo demo con datos ficticios. Define KOMMO_SUBDOMAIN y KOMMO_LONG_TOKEN para conectar el CRM real."],
     cursor: { leadsUpdatedAt: now.toISOString(), eventsAt: now.toISOString(), windowFrom: iso(nowMs - 120 * DAY_MS) },
   };

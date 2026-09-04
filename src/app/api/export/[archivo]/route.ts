@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSnapshot } from "@/lib/cache";
-import { tablaActividades, tablaLeads, toCsv, type Tabla } from "@/lib/export";
+import { tablaActividades, tablaLeads, tablaProyectos, tablaVentas, toCsv, type Tabla } from "@/lib/export";
 
 export const dynamic = "force-dynamic";
 
@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
  * Exportes planos del snapshot sincronizado:
  *   /api/export/leads.csv · /api/export/leads.json
  *   /api/export/actividades.csv · /api/export/actividades.json
+ *   /api/export/ventas.csv (Comisiones) · /api/export/proyectos.csv (Mesa de Ayuda)
  * Las primeras columnas coinciden con Leads_Data / Eventos_Data del Sheet.
  */
 export async function GET(_request: Request, ctx: { params: Promise<{ archivo: string }> }) {
@@ -23,7 +24,9 @@ export async function GET(_request: Request, ctx: { params: Promise<{ archivo: s
   let tabla: Tabla;
   if (tipo === "leads") tabla = tablaLeads(result.snapshot);
   else if (tipo === "actividades") tabla = tablaActividades(result.snapshot);
-  else return NextResponse.json({ ok: false, error: "Exporte desconocido. Usa leads o actividades (.csv o .json)." }, { status: 404 });
+  else if (tipo === "ventas") tabla = tablaVentas(result.snapshot);
+  else if (tipo === "proyectos") tabla = tablaProyectos(result.snapshot);
+  else return NextResponse.json({ ok: false, error: "Exporte desconocido. Usa leads, actividades, ventas o proyectos (.csv o .json)." }, { status: 404 });
 
   if (ext === "csv") {
     return new NextResponse(toCsv(tabla), {

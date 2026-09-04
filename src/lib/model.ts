@@ -146,6 +146,88 @@ export interface Activity {
   pipelineId?: string;
 }
 
+// --- Integraciones externas (Supabase: comisiones y mesa de ayuda) --------------
+
+/** Una venta capturada en Comisiones-ventas (tabla `sales`). */
+export interface Venta {
+  id: string;
+  cliente: string;
+  vendedor: string | null;
+  vendedorId: string | null;
+  vendedorCompartido: string | null;
+  /** Zona tal cual la captura (Monterrey / Saltillo / Torreón / Monclova). */
+  zonaTexto: string | null;
+  /** MTY / SLT / TRC / MVA / FUERA / … */
+  zona: string;
+  mes: string | null;
+  montoContrato: number;
+  montoComisionable: number;
+  paneles: number | null;
+  metodoPago: string | null;
+  origen: string | null;
+  referidoPor: string | null;
+  hubspotLink: string | null;
+  comisionPagada: boolean;
+  cancelada: boolean;
+  createdAt: string;
+  updatedAt: string;
+  /** Lead de Kommo vinculado por nombre de cliente (si se encontró). */
+  leadId: string | null;
+  /** Asesor de Kommo vinculado por nombre (si se encontró). */
+  advisorId: string | null;
+}
+
+/** Un proyecto (instalación) de Mesa de Ayuda (tabla `proyectos`). */
+export interface Proyecto {
+  id: string;
+  folio: string;
+  folioOdoo: string | null;
+  cliente: string;
+  telefono: string | null;
+  phoneKey?: string;
+  email: string | null;
+  zona: string | null;
+  estatus: string;
+  etapaId: string | null;
+  etapa: string | null;
+  etapaOrden: number | null;
+  etapaDesde: string | null;
+  fechaAgenda: string | null;
+  fechaInstalacion: string | null;
+  fechaCierre: string | null;
+  paneles: number | null;
+  kw: number | null;
+  vendedor: string | null;
+  origen: string | null;
+  anticipoPagado: boolean;
+  instaladoCobrado: boolean;
+  medidorPagado: boolean;
+  saldoVencido: number;
+  mesesAtraso: number;
+  proximaFechaPago: string | null;
+  ticketsAbiertos: number;
+  createdAt: string;
+  updatedAt: string;
+  /** Lead de Kommo vinculado por teléfono (si se encontró). */
+  leadId: string | null;
+  /** Asesor de Kommo vinculado por nombre del vendedor (si se encontró). */
+  advisorId: string | null;
+}
+
+export type IntegracionId = "comisiones" | "mesa";
+
+export interface IntegracionEstado {
+  id: IntegracionId;
+  label: string;
+  configurada: boolean;
+  ok: boolean | null;
+  syncedAt: string | null;
+  error: string | null;
+  registros: number;
+  vinculados: number;
+  destino: string | null;
+}
+
 export interface SyncCursor {
   /** Máximo updated_at de leads visto (ISO). */
   leadsUpdatedAt: string;
@@ -169,6 +251,11 @@ export interface Snapshot {
   tasks: Task[];
   activities: Activity[];
   lossReasons: Record<string, string>;
+  /** Ventas de Comisiones-ventas (Supabase), si está conectado. */
+  ventas: Venta[];
+  /** Proyectos de Mesa de Ayuda (Supabase), si está conectado. */
+  proyectos: Proyecto[];
+  integraciones: Partial<Record<IntegracionId, IntegracionEstado>>;
   /** Avisos no fatales (permisos faltantes, datos parciales, modo demo). */
   warnings: string[];
   cursor?: SyncCursor;
