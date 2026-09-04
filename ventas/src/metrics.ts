@@ -77,27 +77,32 @@ export function mediana(xs: number[]): number | null {
 export function mapaUsuarios(c: Corte): Map<string, Usuario> { return new Map(c.usuarios.map((u) => [u.id, u])) }
 export function zonaNombre(c: Corte, zona: string): string { return c.equipos.find((e) => e.id === zona)?.nombre || (zona || 'Sin equipo') }
 
-function pasaPersona(asesorId: string | null, f: Filtros, users: Map<string, Usuario>): boolean {
+/** Asesores desactivados en Configuración (ojo cerrado): fuera del menú, de la tabla y de
+ *  toda cifra atribuida a persona. Un filtro explícito de asesor (por URL) sí los deja ver. */
+export const ocultosDe = (c: Corte) => new Set(c.ocultos || [])
+export const usuariosVisibles = (c: Corte) => { const o = ocultosDe(c); return c.usuarios.filter((u) => !o.has(u.id)) }
+function pasaPersona(asesorId: string | null, f: Filtros, users: Map<string, Usuario>, ocultos: Set<string>): boolean {
   if (f.asesor != null) return asesorId === f.asesor
+  if (asesorId != null && ocultos.has(asesorId)) return false
   if (f.equipo != null) return asesorId != null && users.get(asesorId)?.zona === f.equipo
   return true
 }
 
 /** Leads del corte cuya ÚLTIMA ASIGNACIÓN cae en el rango (col V de Leads_Data). */
 export function leadsFiltrados(c: Corte, f: Filtros): Lead[] {
-  const users = mapaUsuarios(c)
-  return c.leads.filter((l) => pasaCrm(l.crm, f) && enRango(l.asignacion, f.rango) && pasaPersona(l.asesor_id, f, users))
+  const users = mapaUsuarios(c), oc = ocultosDe(c)
+  return c.leads.filter((l) => pasaCrm(l.crm, f) && enRango(l.asignacion, f.rango) && pasaPersona(l.asesor_id, f, users, oc))
 }
 /** Actividades cuya fecha cae en el rango. */
 export function eventosFiltrados(c: Corte, f: Filtros): Evento[] {
-  const users = mapaUsuarios(c)
-  return c.eventos.filter((e) => pasaCrm(e.crm, f) && enRango(e.ts, f.rango) && pasaPersona(e.asesor_id, f, users))
+  const users = mapaUsuarios(c), oc = ocultosDe(c)
+  return c.eventos.filter((e) => pasaCrm(e.crm, f) && enRango(e.ts, f.rango) && pasaPersona(e.asesor_id, f, users, oc))
 }
 export const vivo = (l: Lead) => l.funnel !== 0 && l.funnel !== 5
 /** Ventas = leads ganados cuyo cierre cae en el rango (el cierre manda, no la asignación). */
 export function ventasFiltradas(c: Corte, f: Filtros): Lead[] {
-  const users = mapaUsuarios(c)
-  return c.leads.filter((l) => pasaCrm(l.crm, f) && l.funnel === 5 && enRango(l.cerrado, f.rango) && pasaPersona(l.asesor_id, f, users))
+  const users = mapaUsuarios(c), oc = ocultosDe(c)
+  return c.leads.filter((l) => pasaCrm(l.crm, f) && l.funnel === 5 && enRango(l.cerrado, f.rango) && pasaPersona(l.asesor_id, f, users, oc))
 }
 
 // ---------------------------------------------------------------- metas (MXN)
@@ -147,10 +152,13 @@ export interface Entrada { llegaron: number; sinRespuesta: number; sinRecibo: nu
  *  conRecibo incluye a los ya asignados. null sin fuente Kommo o con Kommo apagado. */
 export function entrada(c: Corte, r: Rango, f?: Filtros): Entrada | null {
   if (!(c.fuentes || []).some((x) => x.crm === 'kommo') || (f && !pasaCrm('kommo', f))) return null
-  const users = mapaUsuarios(c)
+  const users = mapaUsuarios(c), oc = ocultosDe(c)
+  // La entrada es de la empresa: sin filtro de persona cuentan todos los leads, aunque su
+  // responsable sea un asesor desactivado (la cuenta admin carga los no asignados).
+  const porPersona = !!f && (f.asesor != null || f.equipo != null)
   const L: Record<CatEntrada, Lead[]> = { llegaron: [], sinRespuesta: [], sinRecibo: [], conRecibo: [], asignados: [], perdidos: [] }
   for (const l of c.leads) {
-    if (l.crm !== 'kommo' || !enRango(l.creado, r) || (f && !pasaPersona(l.asesor_id, f, users))) continue
+    if (l.crm !== 'kommo' || !enRango(l.creado, r) || (porPersona && !pasaPersona(l.asesor_id, f, users, oc))) continue
     L.llegaron.push(l)
     if (l.funnel === 0) L.perdidos.push(l)
     else if (l.funnel === 1) L.sinRespuesta.push(l)
@@ -290,7 +298,7 @@ export interface FilaAsesor {
 export function porAsesor(c: Corte, f: Filtros): FilaAsesor[] {
   const leads = leadsFiltrados(c, f), ev = eventosFiltrados(c, f), ventas = ventasFiltradas(c, f)
   const filas: FilaAsesor[] = []
-  for (const u of c.usuarios) {
+  for (const u of (f.asesor != null ? c.usuarios : usuariosVisibles(c))) {
     const mios = leads.filter((l) => l.asesor_id === u.id)
     const act = ev.filter((e) => e.asesor_id === u.id)
     const vt = ventas.filter((l) => l.asesor_id === u.id)
@@ -373,7 +381,7 @@ export function miDia(c: Corte, uid: string): MiDia {
 export interface Ranking { u: Usuario; ventas: number; puntos: number }
 /** Leaderboard del día: ventas cerradas hoy y actividades registradas hoy. */
 export function leaderboardHoy(c: Corte): Ranking[] {
-  return c.usuarios.map((u) => ({
+  return usuariosVisibles(c).map((u) => ({
     u,
     ventas: c.leads.filter((l) => l.asesor_id === u.id && l.funnel === 5 && esHoy(l.cerrado)).length,
     puntos: c.eventos.filter((e) => e.asesor_id === u.id && esHoy(e.ts)).length,

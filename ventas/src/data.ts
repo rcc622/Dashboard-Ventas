@@ -3,12 +3,13 @@ import { mock } from './mock'
 
 export interface Carga { corte: Corte; origen: 'kommo' | 'ejemplo'; error?: string }
 
-const DEF: Config = { meta_mxn: 800000, cotizado_x: 10, cotizado_dias: 90, metas_zona: {}, metas: {} }
+const DEF: Config = { meta_mxn: 800000, cotizado_x: 10, cotizado_dias: 90, metas_zona: {}, metas: {}, ocultos: [], equipos: {} }
 
 /** La configuración guardada desde la página (config.json) manda sobre lo que trae el
  *  corte (env del servicio); y un corte anterior al 4-sep no trae metas: mismos defaults
- *  que ventas_corte.py. */
+ *  que ventas_corte.py. La zona del CRM se conserva en zona_crm para poder volver a ella. */
 export function aplicarConfig(c: Corte, cfg: Partial<Config>): Corte {
+  const equipos = cfg.equipos ?? {}
   return {
     ...c,
     meta_mxn: cfg.meta_mxn ?? c.meta_mxn ?? DEF.meta_mxn,
@@ -16,6 +17,12 @@ export function aplicarConfig(c: Corte, cfg: Partial<Config>): Corte {
     cotizado_dias: cfg.cotizado_dias ?? c.cotizado_dias ?? DEF.cotizado_dias,
     metas_zona: cfg.metas_zona ?? c.metas_zona ?? {},
     metas: cfg.metas ?? c.metas ?? {},
+    ocultos: cfg.ocultos ?? c.ocultos ?? [],
+    usuarios: c.usuarios.map((u) => {
+      const crm = u.zona_crm ?? u.zona
+      const ov = equipos[u.id]
+      return { ...u, zona_crm: crm, zona: ov == null ? crm : ov === '-' ? '' : ov }
+    }),
   }
 }
 

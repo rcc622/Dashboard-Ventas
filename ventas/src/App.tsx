@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { Config, Corte, Crm, Rango } from './types'
 import { CRM_LABEL } from './types'
 import { aplicarConfig, cargar, type Carga } from './data'
-import { PRESETS, fmtCorta, fmtHora, iniciales, preset, rangoManual, vivo, type Filtros, type Preset } from './metrics'
+import { PRESETS, fmtCorta, fmtHora, iniciales, preset, rangoManual, usuariosVisibles, vivo, type Filtros, type Preset } from './metrics'
 
 const CRMS: Crm[] = ['kommo', 'hubspot']
 import { DateRangePicker } from './DateRangePicker'
@@ -59,8 +59,9 @@ function Shell({ corte, origen, error, onRetry, onConfig }: { corte: Corte; orig
     if (h0.u && corte.usuarios.some((u) => u.id === h0.u)) return h0.u
     const n = new Map<string, number>()
     for (const l of corte.leads) if (l.asesor_id != null && vivo(l)) n.set(l.asesor_id, (n.get(l.asesor_id) || 0) + 1)
-    const conEquipo = corte.usuarios.filter((u) => u.zona)
-    const pool = conEquipo.length ? conEquipo : corte.usuarios
+    const visibles = usuariosVisibles(corte)
+    const conEquipo = visibles.filter((u) => u.zona)
+    const pool = conEquipo.length ? conEquipo : visibles.length ? visibles : corte.usuarios
     return [...pool].sort((a, b) => (n.get(b.id) || 0) - (n.get(a.id) || 0))[0]?.id ?? ''
   })
   useEffect(() => {
@@ -76,7 +77,8 @@ function Shell({ corte, origen, error, onRetry, onConfig }: { corte: Corte; orig
     if (location.hash !== hash) history.replaceState(null, '', hash)
   }, [perfil, pagina, ficha, asesorActual, filtros, presetActivo])
 
-  const usuariosOrden = useMemo(() => [...corte.usuarios].sort((a, b) => a.nombre.localeCompare(b.nombre)), [corte])
+  // Solo los activos: los desactivados en Configuración no salen en ningún menú.
+  const usuariosOrden = useMemo(() => usuariosVisibles(corte).sort((a, b) => a.nombre.localeCompare(b.nombre)), [corte])
   const generado = useMemo(() => { const d = new Date(corte.generado); return isNaN(d.getTime()) ? corte.generado : `${fmtCorta(d)} ${fmtHora(d.getTime() / 1000)}` }, [corte])
   const horas = useMemo(() => { const d = new Date(corte.generado).getTime(); return isNaN(d) ? 0 : (Date.now() - d) / 36e5 }, [corte])
   const fuentes = (corte.fuentes || []).map((f) => CRM_LABEL[f.crm]).join(' + ')

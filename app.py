@@ -421,11 +421,21 @@ def validar_config(body):
             out[k] = int(round(numero(x, "%s[%s]" % (nombre, k), 0)))
         return out
 
+    ocultos = body.get("ocultos") or []
+    if not isinstance(ocultos, list) or len(ocultos) > 500 or not all(isinstance(x, str) and _SLUG.match(x) for x in ocultos):
+        raise ValueError("ocultos debe ser una lista de asesores")
+    equipos = body.get("equipos") or {}
+    if not isinstance(equipos, dict) or len(equipos) > 500:
+        raise ValueError("equipos debe ser un objeto")
+    for k, v in equipos.items():
+        if not (isinstance(k, str) and _SLUG.match(k) and isinstance(v, str) and (v == "-" or _ZONA.match(v))):
+            raise ValueError("equipo inválido: %r" % ((k, v),))
     return {"meta_mxn": int(round(numero(body.get("meta_mxn", 800000), "meta_mxn", 1))),
             "cotizado_x": round(numero(body.get("cotizado_x", 10), "cotizado_x", 0.1), 2),
             "cotizado_dias": int(round(numero(body.get("cotizado_dias", 90), "cotizado_dias", 1))),
             "metas_zona": tabla(body.get("metas_zona"), "metas_zona", _ZONA),
-            "metas": tabla(body.get("metas"), "metas", _SLUG)}
+            "metas": tabla(body.get("metas"), "metas", _SLUG),
+            "ocultos": sorted(set(ocultos)), "equipos": dict(equipos)}
 
 
 class H(BaseHTTPRequestHandler):

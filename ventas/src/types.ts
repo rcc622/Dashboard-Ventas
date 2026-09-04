@@ -3,7 +3,8 @@
 // es un slug de nombre para que la misma persona cuente una sola vez en ambos CRM.
 
 export type Crm = 'kommo' | 'hubspot'
-export interface Usuario { id: string; nombre: string; zona: string; crm: Crm[]; ids: Partial<Record<Crm, number | string>> }
+/** zona = la efectiva (la de Configuración manda); zona_crm = la que trae el CRM, para poder volver a ella. */
+export interface Usuario { id: string; nombre: string; zona: string; zona_crm?: string; crm: Crm[]; ids: Partial<Record<Crm, number | string>> }
 export interface Equipo { id: string; nombre: string }          // zonas MTY / SLT / TRC / MVA
 export interface Etapa { id: number; nombre: string }           // etapas canónicas del embudo Ventas, en orden
 export type Embudo = 'ventas' | 'hunting' | 'cadencia' | 'nuevo'
@@ -36,11 +37,14 @@ export interface Corte {
   metas: Record<string, number>; metas_zona: Record<string, number>; meta_mxn: number
   /** Pipeline sano = cotizado vigente ≥ cotizado_x × meta mensual; vigente = cotizado hace ≤ cotizado_dias. */
   cotizado_x: number; cotizado_dias: number
+  /** Asesores desactivados desde Configuración (ojo cerrado): fuera del tablero y del menú. */
+  ocultos: string[]
   leads: Lead[]; eventos: Evento[]; tareas_abiertas: Tarea[]
 }
 
-/** Lo que guarda la página de Configuración en data/ventas_config.json (app.py). */
-export interface Config { meta_mxn: number; cotizado_x: number; cotizado_dias: number; metas_zona: Record<string, number>; metas: Record<string, number> }
+/** Lo que guarda la página de Configuración en data/ventas_config.json (app.py).
+ *  equipos: zona por asesor que manda sobre la del CRM ('-' = sin equipo). */
+export interface Config { meta_mxn: number; cotizado_x: number; cotizado_dias: number; metas_zona: Record<string, number>; metas: Record<string, number>; ocultos: string[]; equipos: Record<string, string> }
 
 /** Rango [ini, fin) en epoch segundos. */
 export interface Rango { ini: number; fin: number; label: string }

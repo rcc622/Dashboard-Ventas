@@ -426,7 +426,14 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 .inp { border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; background: var(--card); font-weight: 600; width: 100%; max-width: 220px; font-variant-numeric: tabular-nums; }
 .inp::placeholder { color: var(--g2); font-weight: 400; }
 .cfg .ftable td { padding: 5px 8px; }
-.cfg-foot { display: flex; align-items: center; gap: 12px; margin-top: 14px; flex-wrap: wrap; }
+/* Barra de Guardar fija arriba (Randall: abajo se escondía); mismo truco que la toolbar. */
+.cfg-top { position: sticky; top: -18px; z-index: 60; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: -18px -22px 14px; padding: 16px 22px 12px; background: var(--bg); border-bottom: 1px solid var(--line); }
+.cfg .sel { width: 100%; max-width: 260px; font-weight: 500; }
+.eye { appearance: none; border: 1px solid var(--line); background: var(--card); border-radius: 8px; width: 38px; height: 30px; cursor: pointer; display: inline-grid; place-items: center; color: var(--c1-ink); }
+.eye[aria-pressed="false"] { color: var(--g2); background: var(--hover); }
+.eye:hover { outline: 2px solid var(--c1); outline-offset: 1px; }
+.cfg tr.oculto td { color: var(--g2); }
+.cfg tr.oculto .nm { text-decoration: line-through; }
 .cfg-msg { font-weight: 600; }
 .cfg-msg.ok { color: var(--c4-ink); }
 .cfg-msg.err { color: #9A2E18; }
@@ -434,6 +441,7 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 /* ---------- responsive ---------- */
 @media (max-width: 960px) {
   .toolbar, .toolbar:first-child { position: static; margin: 0 0 16px; padding: 0; border: 0; background: transparent; }
+  .cfg-top { position: static; margin: 0 0 14px; padding: 0; border: 0; background: transparent; }
   .ent { grid-template-columns: 1fr; }
   .kpi-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .perfil-legend { grid-template-columns: 1fr; }
