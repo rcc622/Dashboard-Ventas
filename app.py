@@ -37,6 +37,8 @@ OUT = os.environ.get("DASH_OUT", os.path.join(HERE, "out"))
 #   ambos     -> los dos en el mismo proceso (default)
 DASH_MODO = (os.environ.get("DASH_MODO") or "ambos").strip().lower()
 VENTAS_DIST = os.path.join(HERE, "ventas", "dist")
+# Link «Ventas» de la barra flotante: en marketing apunta al servicio mkt-ventas.
+VENTAS_URL = os.environ.get("VENTAS_URL") or "/ventas/"
 VENTAS_JSON = os.path.join(DATA, "ventas.json")
 CTYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
           ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png",
@@ -216,7 +218,7 @@ BARRA = """
   align-items:center;background:#0E1420;color:#EAEFFB;border:2px solid #29344D;padding:9px 13px;
   font:13px 'Segoe UI',system-ui,sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.35)">
   <span id="kmsg" style="font:11.5px ui-monospace,Consolas,monospace;color:#9AA8C6">%(msg)s</span>
-  <a href="/ventas/" style="color:#9AA8C6;font-weight:700;text-decoration:none" title="Dashboard de ventas">Ventas &rsaquo;</a>
+  <a href="%(ventas_url)s" style="color:#9AA8C6;font-weight:700;text-decoration:none" title="Dashboard de ventas">Ventas &rsaquo;</a>
   <button id="kbtn" style="font:700 13px 'Segoe UI',system-ui,sans-serif;background:#2B5BFF;
     color:#fff;border:none;padding:7px 15px;cursor:pointer">Actualizar ahora</button>
 </div>
@@ -404,6 +406,10 @@ class H(BaseHTTPRequestHandler):
 
     def _ventas(self, ruta):
         """Sirve el build de ventas/ y su corte. Solo lectura, detrás del auth."""
+        # En el servicio de marketing el tablero de ventas vive en otro servicio:
+        # se manda allá (VENTAS_URL) en vez de servir datos de ejemplo.
+        if DASH_MODO == "marketing":
+            return self._send(302, "", extra={"Location": os.environ.get("VENTAS_URL") or "/"})
         if ruta == "/ventas":
             return self._send(302, "", extra={"Location": "/ventas/"})
         rel = ruta[len("/ventas/"):] or "index.html"
@@ -695,7 +701,7 @@ class H(BaseHTTPRequestHandler):
                    if corriendo else
                    "Todavía no hay dashboard generado. Usa el botón Actualizar o revisa /estado.")
             return self._send(503, "<h1>Dashboard Kenet</h1><p>%s</p>%s"
-                              % (msg, BARRA % {"msg": "sin datos aún"}))
+                              % (msg, BARRA % {"msg": "sin datos aún", "ventas_url": VENTAS_URL}))
         with open(p, encoding="utf-8") as f:
             doc = f.read()
         with _lock:
@@ -703,7 +709,7 @@ class H(BaseHTTPRequestHandler):
         msg = ("actualizado %s" % ue[11:16]) if ue else "datos del archivo"
         if ok is False:
             msg = "último refresh falló"
-        return self._send(200, doc + BARRA % {"msg": msg} + CHAT)
+        return self._send(200, doc + BARRA % {"msg": msg, "ventas_url": VENTAS_URL} + CHAT)
 
     def do_POST(self):
         if not self._autorizado():

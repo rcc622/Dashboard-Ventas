@@ -56,7 +56,7 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 .pill.sm button { padding: 4px 12px; font-size: 12px; }
 .sidebar { background: var(--card); border-right: 1px solid var(--line); padding: 14px 12px; display: flex; flex-direction: column; gap: 6px; }
 .nav { border: 0; border-radius: 8px; padding: 9px 12px; font-weight: 600; cursor: pointer; background: transparent; text-align: left; color: var(--g2); }
-.nav.on { background: var(--acc-soft); color: var(--ink); box-shadow: inset 4px 0 0 var(--acc); }
+.nav.on { background: var(--acc-soft); color: var(--ink); }
 .main { overflow-y: auto; padding: 18px 22px 48px; }
 .aviso { border: 1px solid var(--c2); background: var(--c2-soft); border-radius: var(--r); padding: 10px 14px; margin-bottom: 14px; font-size: 12px; }
 .stale { border-radius: 999px; background: var(--c2-soft); color: var(--c2-ink); padding: 3px 9px; font-size: 11px; font-weight: 700; white-space: nowrap; }
@@ -102,12 +102,15 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 .ctitle { text-align: center; }
 
 /* ---------- tiles ---------- */
-.tile { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); padding: 14px 16px; border-top: 4px solid var(--c1); min-width: 0; }
-.tile.t2 { border-top-color: var(--c4); }
-.tile.t3 { border-top-color: var(--c2); }
-.tile.t4 { border-top-color: var(--c3); }
+/* El color de cada tile va en un punto junto a la etiqueta (--dot), no en un borde:
+   un borde grueso de color sobre una tarjeta redondeada choca con las esquinas. */
+.tile { --dot: var(--c1); background: var(--card); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); padding: 14px 16px; min-width: 0; }
+.tile.t2 { --dot: var(--c4); }
+.tile.t3 { --dot: var(--c2); }
+.tile.t4 { --dot: var(--c3); }
 .tile .n { font-size: 28px; font-weight: 700; line-height: 1.1; overflow-wrap: anywhere; }
 .tile .l { color: var(--g2); font-size: 12px; margin-top: 4px; }
+.tile .l::before, .kpi4 .l::before, .kcard .l::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--dot, var(--c1)); margin-right: 6px; vertical-align: 1px; }
 .tiles2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 
 /* ---------- salud operativa (dona + desglose) ---------- */
@@ -215,8 +218,8 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 /* ---------- ficha ---------- */
 .ficha-tools { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; flex-wrap: wrap; }
 .kgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
-.kcard { min-width: 0; border-top: 4px solid var(--c1); }
-.kcard.k2 { border-top-color: var(--c4); } .kcard.k3 { border-top-color: var(--c2); } .kcard.k4 { border-top-color: var(--c3); }
+.kcard { --dot: var(--c1); min-width: 0; }
+.kcard.k2 { --dot: var(--c4); } .kcard.k3 { --dot: var(--c2); } .kcard.k4 { --dot: var(--c3); }
 .kcard .l { font-size: 11px; color: var(--g2); text-transform: uppercase; letter-spacing: .05em; }
 .kcard .n { font-size: 34px; font-weight: 700; line-height: 1.1; margin-top: 4px; overflow-wrap: anywhere; }
 .kcard.hero .n { font-size: 52px; }
@@ -239,10 +242,10 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 
 /* ---------- mi día ---------- */
 .kpi4 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.kpi4 > div { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); padding: 14px 16px; border-top: 4px solid var(--c1); min-width: 0; }
-.kpi4 > div:nth-child(2) { border-top-color: var(--c4); }
-.kpi4 > div:nth-child(3) { border-top-color: var(--c2); }
-.kpi4 > div:nth-child(4) { border-top-color: var(--c3); }
+.kpi4 > div { --dot: var(--c1); background: var(--card); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); padding: 14px 16px; min-width: 0; }
+.kpi4 > div:nth-child(2) { --dot: var(--c4); }
+.kpi4 > div:nth-child(3) { --dot: var(--c2); }
+.kpi4 > div:nth-child(4) { --dot: var(--c3); }
 .kpi4 .n { font-size: 28px; font-weight: 700; line-height: 1.1; }
 .kpi4 .l { font-size: 12px; color: var(--g2); margin-top: 4px; }
 .chart .ch { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 8px; }
@@ -266,7 +269,7 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 .add-task input { width: 100%; border: 0; background: transparent; }
 .leader { font-variant-numeric: tabular-nums; }
 .leader .lr { display: grid; grid-template-columns: 26px 1fr auto auto; gap: 10px; padding: 7px 6px; border-bottom: 1px solid var(--line); align-items: center; border-radius: 6px; }
-.leader .lr.me { background: var(--acc-soft); font-weight: 700; box-shadow: inset 4px 0 0 var(--acc); padding-left: 10px; }
+.leader .lr.me { background: var(--acc-soft); font-weight: 700; }
 .leader .pos { font-weight: 700; color: var(--g2); }
 .leader .pos.top { color: var(--c1-ink); }
 .notes textarea { width: 100%; height: 88px; border: 0; resize: none; padding: 0; background: transparent; }
