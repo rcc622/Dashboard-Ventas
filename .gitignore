@@ -14,3 +14,12 @@ __pycache__/
 *.pyc
 .DS_Store
 .google_oauth_vars.txt
+
+# Dashboard de ventas (React): dist/ se commitea a propósito, Railway no compila Node
+ventas/node_modules/
+ventas/public/data.json
+ventas/npm-install.log
+ventas/.vite/
+
+# config local del hook de diseño (impeccable), no es parte del servicio
+.impeccable/

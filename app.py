@@ -22,13 +22,20 @@ Variables de entorno (en Railway, nunca en el repo):
     REFRESH_HOURS       opcional, default 6
     PORT                la pone Railway
 """
-import base64, hmac, json, os, subprocess, sys, threading, time, traceback
+import base64, gzip, hmac, json, os, subprocess, sys, threading, time, traceback
 from datetime import datetime, timedelta, timezone
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.environ.get("DASH_DATA", os.path.join(HERE, "data"))
 OUT = os.environ.get("DASH_OUT", os.path.join(HERE, "out"))
+# Dashboard de ventas (/ventas): React compilado en ventas/dist + corte de
+# ventas_kommo.py en el volumen. Mismo basic auth que la portada.
+VENTAS_DIST = os.path.join(HERE, "ventas", "dist")
+VENTAS_JSON = os.path.join(DATA, "ventas.json")
+CTYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
+          ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png",
+          ".ico": "image/x-icon", ".woff2": "font/woff2", ".json": "application/json"}
 PORT = int(os.environ.get("PORT", "8080"))
 REFRESH_HOURS = float(os.environ.get("REFRESH_HOURS", "6"))
 USER = os.environ.get("DASH_USER", "")
@@ -124,6 +131,15 @@ def refrescar():
         else:
             log.append("== CRM ==\nsin token configurado; se usa el último corte manual")
 
+        # Corte del dashboard de ventas (/ventas): Kommo + HubSpot, los que tengan
+        # token. Opcional: si falla queda el ventas.json anterior y la página lo
+        # dice por la fecha de «generado».
+        if os.environ.get("KOMMO_LONG_TOKEN") or os.environ.get("HUBSPOT_TOKEN"):
+            bien, l = _corre("Ventas (Kommo+HubSpot)", ["ventas_corte.py"])
+            log.append(l)
+            if not bien:
+                log.append("aviso: ventas_corte falló; se usa el corte anterior de ventas.json")
+
         # Google Ads: opcional; si falla no tumba el resto (queda el corte previo)
         if os.environ.get("GOOGLE_ADS_REFRESH_TOKEN"):
             bien, l = _corre("Google Ads", ["google_ads.py"], timeout=300)
@@ -184,6 +200,7 @@ BARRA = """
   align-items:center;background:#0E1420;color:#EAEFFB;border:2px solid #29344D;padding:9px 13px;
   font:13px 'Segoe UI',system-ui,sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.35)">
   <span id="kmsg" style="font:11.5px ui-monospace,Consolas,monospace;color:#9AA8C6">%(msg)s</span>
+  <a href="/ventas/" style="color:#9AA8C6;font-weight:700;text-decoration:none" title="Dashboard de ventas">Ventas &rsaquo;</a>
   <button id="kbtn" style="font:700 13px 'Segoe UI',system-ui,sans-serif;background:#2B5BFF;
     color:#fff;border:none;padding:7px 15px;cursor:pointer">Actualizar ahora</button>
 </div>
@@ -368,6 +385,34 @@ class H(BaseHTTPRequestHandler):
             self.send_header(k, v)
         self.end_headers()
         self.wfile.write(data)
+
+    def _ventas(self, ruta):
+        """Sirve el build de ventas/ y su corte. Solo lectura, detrás del auth."""
+        if ruta == "/ventas":
+            return self._send(302, "", extra={"Location": "/ventas/"})
+        rel = ruta[len("/ventas/"):] or "index.html"
+        if rel == "data.json":
+            try:
+                with open(VENTAS_JSON, "rb") as f:
+                    cuerpo = f.read()
+            except FileNotFoundError:
+                cuerpo = None
+            if cuerpo is not None:
+                # Con los dos CRM el corte pasa de 15 MB; comprimido baja a ~2.
+                if "gzip" in (self.headers.get("Accept-Encoding") or ""):
+                    return self._send(200, gzip.compress(cuerpo, 6), "application/json",
+                                      extra={"Content-Encoding": "gzip", "Vary": "Accept-Encoding"})
+                return self._send(200, cuerpo, "application/json")
+            if True:
+                return self._send(404, json.dumps({"error": "todavía no hay corte de ventas"}),
+                                  "application/json")
+        raiz = os.path.normpath(VENTAS_DIST)
+        p = os.path.normpath(os.path.join(raiz, rel))
+        if not p.startswith(raiz + os.sep) or not os.path.isfile(p):
+            return self._send(404, "no")
+        with open(p, "rb") as f:
+            return self._send(200, f.read(), CTYPES.get(os.path.splitext(p)[1].lower(),
+                                                        "application/octet-stream"))
 
     def _autorizado(self):
         if not (USER and PASS):
@@ -622,6 +667,8 @@ class H(BaseHTTPRequestHandler):
                     dict(_estado, pausa_activa=pausa_activa(),
                          pausa_armado=_estado_armado(), pausa_max=PAUSA_MAX),
                     ensure_ascii=False), "application/json")
+        if ruta == "/ventas" or ruta.startswith("/ventas/"):
+            return self._ventas(ruta)
         p = html_actual()
         if not p:
             with _lock:

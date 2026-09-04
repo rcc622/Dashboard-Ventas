@@ -473,3 +473,108 @@ un rango de fechas explícito donde Ads Manager no tiene preset.
   agregó porque esos bloques degradan a una nota gris cuando falta un dato: sin
   el test, romperlos se ve exactamente igual que no tener datos todavía.
   `--demo <dir>` deja el HTML en disco para verlo en el navegador.
+
+---
+
+## Dashboard de ventas — `/ventas` (React, corte Kommo + HubSpot)
+
+Segundo tablero en el mismo servicio: la vista operativa de leads y asesores
+que vivía en el Sheet «Dashboard Leads Kenet» (Apps Script
+`Kommo Salesbot/dashboard_leads_kenet.gs`), ahora con los DOS CRM juntos: los
+asesores que siguen en HubSpot y los que ya están en Kommo salen en la misma
+tabla. La especificación de diseño está en `Knowledge/kenet-solar-design-spec.md`
+y es la referencia visual: blanco y negro, bordes rectos de 2px, sombra solo en
+popups, sin emojis.
+
+```
+ventas_corte.py    junta las partes y escribe data/ventas.json. Es el ÚNICO que escribe.
+ventas_kommo.py    parte Kommo: port del .gs (leads 90d o cerrados en 90d, actividades, tareas abiertas)
+ventas_hubspot.py  parte HubSpot: deals = leads, tasks/calls = actividades, owners con equipo
+ventas/            React 19 + Vite + TS. src/App.tsx · src/dashboard.css · src/metrics.ts (TODAS las cifras)
+ventas/dist/       build COMMITEADO a propósito: Railway no compila Node; app.py lo sirve tal cual
+app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json — mismo basic auth que la portada
+```
+
+- El refresh corre `ventas_corte.py` cuando hay `KOMMO_LONG_TOKEN` o
+  `HUBSPOT_TOKEN`; entra cada CRM que tenga token y uno que falle no tumba al
+  otro (`fuentes[]` en el JSON dice cuáles entraron). Para ver los dos en una
+  página el servicio necesita los dos tokens: en `mkt-dashboard` (HubSpot) basta
+  agregar `KOMMO_SUBDOMAIN` + `KOMMO_LONG_TOKEN`; la portada de marketing sigue
+  en HubSpot porque `refrescar()` prefiere ese token para `crm_recon.json`.
+- **Un asesor = un humano.** La llave entre CRM es el nombre normalizado
+  (`ventas_corte.slug`: primer nombre + primer apellido, sin acentos) y los alias
+  que la regla no resuelve sola viven en `ALIAS` ("Randall Cruz" ↔ "Randall",
+  "Javier T" ↔ "Javier Tonche"). Un asesor con el mismo nombre en los dos CRM
+  aparece UNA vez con `crm: ["kommo","hubspot"]`. Solo salen asesores con algo
+  que mostrar en 90 días (HubSpot tiene 30 owners, la mitad inactivos).
+- Ids de texto: `k:<id>` / `h:<id>`; cada lead/evento/tarea trae `crm`.
+  Equipos = zonas MTY/SLT/TRC/MVA (Kommo: grupo KS-<zona>; HubSpot: equipo del
+  owner). Etapas del embudo = las de Ventas en Kommo; HubSpot traduce las suyas
+  (`CANON_HS`: Lead entrante→Por contactar, Precalificación→Conversación
+  iniciada, Levantamiento hecho, Contrato solicitado).
+- **Lo que HubSpot NO sabe igual que Kommo** (aproximaciones, documentadas en
+  el docstring de `ventas_hubspot.py`): tareas por lead solo como «hay próxima
+  actividad» (`notes_next_activity_date`: 1 abierta, vencida si ya pasó);
+  cotización/levantamiento solo del deal que HOY está en esa etapa (el portal
+  no tiene `hs_date_entered_*`); recibo/mensajes no existen. Llamada contestada
+  = `COMPLETED` o duración > 0. La búsqueda de HubSpot se corta en 10,000
+  resultados: `buscar()` pagina por ventanas de días.
+- **Las cifras se calculan en el navegador** (`metrics.ts`) sobre el corte
+  completo. El rango de fecha filtra leads por **última asignación** y
+  actividades por **fecha del hecho** (los mismos alcances de los dos pickers
+  del Sheet, con un solo picker); las ventas se cuentan por fecha de **cierre**.
+  Equipo y propietario filtran todo. Si alguien pide de vuelta el segundo picker,
+  `Filtros` ya trae el hueco: agregar `rangoActividad` y usarlo en
+  `eventosFiltrados`.
+- Metas de venta por asesor: ningún CRM las guarda. Van en `VENTAS_METAS` con la
+  llave slug (`{"marco-perez": 70, "mara-galvez": 30}`); sin meta, la página
+  dice «sin meta».
+- Checklist, tareas propias y notas de «Mi día» viven en `localStorage` del
+  navegador del asesor. **Nada de esta página escribe a ningún CRM.**
+- Cambiar la UI: `cd ventas && npm install && npm run build` (tsc + vite) y
+  commitear `ventas/dist/`. En dev, `npm run dev` sirve `../data/ventas.json`
+  como `/data.json` por un middleware de `vite.config.ts`: el corte real
+  **nunca** va a `public/` (entraría al build y al repo con nombres de clientes).
+- Pruebas: `python ventas_kommo.py --selftest`, `python ventas_hubspot.py
+  --selftest`, `python ventas_corte.py --selftest`. Corte real local con los dos
+  CRM: exportar `HUBSPOT_TOKEN` (vive en `Z:\KENET SOLAR\MARKETING\APIs.txt`)
+  y `KOMMO_ENV="…/Kommo Salesbot/fase1-webhook/.env"`, luego
+  `python ventas_corte.py` (~4 min, solo GET). El aviso
+  `incoming_sms_message: HTTP 400` es normal: ese tipo de evento no existe en la
+  cuenta de Kommo y el .gs también lo ignoraba.
+
+### Reglas de diseño y accesibilidad de `/ventas` (auditoría 3-sep)
+
+Pasó por el protocolo creativo (hallmark audit + guías web + dataviz +
+impeccable critique/harden + WCAG) con Playwright a 1280 y 390. Lo que quedó
+como regla, para no regresar:
+
+- **Paleta = spec armonizado con la marca (decisión de Randall 3-sep):** tinta
+  carbón `--ink: #141619` (no #000), grises cálidos (`--g2: #6E6A64` = 5.4:1 en
+  blanco y 4.9:1 sobre hover; el #888 del spec daba 3.5:1), papel blanco, Inter
+  y bordes 2px intactos. Acento amarillo `--acc: #FFB300` ≤5% del viewport y
+  **solo** como relleno bajo carbón o texto sobre carbón (10.1:1): marca del
+  logo, texto del toggle activo, barra del nav activo, fila propia del
+  leaderboard, banda detrás del número héroe de la ficha. Nunca amarillo sobre
+  blanco (1.8:1) ni en marcas de datos.
+- **Todo lo clicable es teclado:** filas de la tabla (`tabIndex` + Enter/espacio),
+  barras apiladas (`role=button`), acordeones y tareas son `<button>`, popups son
+  `role=dialog` y cierran con Escape (`useEscape`). Anillo de foco global
+  `:focus-visible` 3 px negro con 2 px de aire; nunca `outline: 0`.
+- **Barras apiladas:** 2 px de papel entre segmentos y el tercer segmento («sin
+  tarea») rayado a 45°, para que se distinga sin color, en impresión y con
+  daltonismo. Números de columnas con `tabular-nums`; los números héroe no.
+- **Móvil (≤ 640):** el popup del asesor es hoja inferior anclada (`top:auto`);
+  el header con perfil Asesor esconde el icono y acota el selector a 34vw.
+  Targets ≥ 28 px en desktop y ≥ 36 px con `pointer: coarse`.
+- **Estado en el hash de la URL** (`#perfil=…&p=…&f=…&u=…&eq=…&as=…&r=…`):
+  recargar conserva la vista y la ficha de un asesor se puede compartir.
+- `leaderboardHoy` y `miDia` van en `useMemo`: sin eso cada tecla en las notas
+  recorría 48k eventos.
+- Aviso de datos de ejemplo trae la causa real (`HTTP 404`, red) y el toolbar
+  marca «corte de hace N h» cuando el corte pasa de 8 h.
+- Glosario: botón «i» (`Info` + `glosario.ts`) en encabezados de tabla, Salud
+  operativa, embudo, Cumplimiento/Conversión, Tareas hoy y «act.». Tooltip en
+  hover y foco, definición completa en `aria-label`. Área de toque 28 px.
+- Prospectos tiene búsqueda por nombre/etapa; el aviso de datos de ejemplo
+  trae botón «Reintentar». Un solo rango de fechas (decisión de Randall).

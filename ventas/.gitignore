@@ -1,0 +1,4 @@
+node_modules
+.vite
+public/data.json
+npm-install.log

@@ -5,3 +5,6 @@ __pycache__/
 .env
 .env.*
 !.env.example
+ventas/node_modules/
+ventas/public/data.json
+ventas/npm-install.log
