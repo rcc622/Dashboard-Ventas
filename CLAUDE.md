@@ -734,6 +734,39 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   `incoming_sms_message: HTTP 400` es normal: ese tipo de evento no existe en la
   cuenta de Kommo y el .gs también lo ignoraba.
 
+### Tipografía: IBM Plex Sans (4-sep)
+
+Antes decía `font-family: Inter` **y nunca la cargaba**: cero peticiones de fuente, ninguna
+familia en `document.fonts`, y el ancho de un texto con `Inter, system-ui` medía exactamente lo
+mismo que con `system-ui` solo. O sea que el tablero se veía con la fuente del sistema (Segoe UI
+en las máquinas del equipo) y por eso se sentía genérico. Ahora la fuente **se carga de verdad**
+con `<link>` a Google Fonts en `ventas/index.html` (con `preconnect`, pesos 400/500/600/700,
+`display=swap`).
+
+Se eligió con un panel de agentes que midió los archivos woff2 reales, no de memoria:
+
+- **Sus diez dígitos miden 600/1000 em en los cuatro pesos**, así que las columnas de montos
+  alinean por diseño y ningún widget nuevo puede romper una columna por olvidar `tabular-nums`
+  (con Inter sí pasa: sus cifras por defecto son proporcionales, de 407 a 646). Las ~20
+  declaraciones de `font-variant-numeric: tabular-nums` que ya existen quedan inertes; se dejan.
+- **Distingue lo que Inter confunde a 11px:** la I lleva travesaños, la l lleva cola, el 1 lleva
+  bandera, y el 0 (600) es más angosto que la O (708). Son montos, folios y teléfonos.
+- **Escala compensada:** su altura de x es 0.516 em contra 0.5459 de Inter, 5.5 % menos cuerpo
+  visible al mismo px. Por eso el texto de interfaz subió medio pixel (cuerpo 13 → 13.5, tablas y
+  etiquetas 12 → 12.5, texto chico y encabezados 11 → 11.5, iniciales 9 → 9.5). Las cifras
+  grandes NO se tocaron: ahí manda el alto total, no la altura de x. No se paga en ancho: Plex es
+  ~4 % más angosta por glifo, así que las filas quedan casi igual de anchas que antes.
+- **Plex no tiene figuras proporcionales:** toda cifra cae en caja de 0.6 em y a 28-72px el 1 y
+  las comas abren huecos. Se cierran con `letter-spacing: -.02em` en las clases de cifra. Si algún
+  día se ve mal, la salida es bajar el máximo del `clamp` de 72 a 64px, no cambiar de fuente.
+- **El texto de tabla va a peso 500:** a 400 y 11-12px sobre el gris secundario se adelgaza.
+- **Riesgo asumido:** la voz es la de IBM Carbon, o sea instrumento de datos serio. La marca la
+  siguen cargando el ámbar `#FFB300` y el logo, no la tipografía. Segundo lugar: Fira Sans (más
+  densidad en columnas de dinero por su `tnum` de 560/1000, pero menos carácter y estática).
+- En una cifra el encabezado del widget no ocupa una fila propia: se recuesta en la esquina
+  superior derecha de la tarjeta (`.widget.wtile .whead` absoluto), porque la «i» y los controles
+  quedaban flotando sueltos sobre el tablero.
+
 ### Auditoría 4-sep (ui-ux-pro-max + accesibilidad + Playwright en producción)
 
 Randall reportó «fallas en diseño y usabilidad». Se midieron contrastes reales en el navegador
@@ -784,7 +817,7 @@ como regla, para no regresar:
 - **Mundo visual (rediseño 3-sep, pedido de Randall: «estilo BI en tarjetas»,
   referencias You Exec / TuDashboard; el B/N del spec original quedó
   descartado):** fondo `#F3F6FB`, tarjetas blancas radio 12 con sombra suave,
-  Inter, tinta `#141619`, texto secundario `#5B6472` (6:1). Acento de marca
+  **IBM Plex Sans**, tinta `#141619`, texto secundario `#5B6472` (6:1). Acento de marca
   `#FFB300` solo en UI (marca del logo, activo del nav/toggle, botón primario
   con tinta), nunca como texto sobre blanco. **Colores de datos validados con
   el validador de `dataviz`:** azul `#2D6CDF` (serie principal), ámbar oscuro
