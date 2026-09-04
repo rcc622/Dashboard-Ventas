@@ -207,14 +207,14 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
           </div>
         </div>
       </div>
-    ), { span: 2 })] : []),
+    ), { span: 6 })] : []),
     W('embudo', 'Embudo de ventas por etapa', (
       <FunnelChart stages={et.map((e) => ({ nombre: e.nombre, n: e.n, sub: `${fmtMoney(e.monto)} · ${e.n ? e.dias.toFixed(1) + ' días en etapa' : 'sin leads'}` }))}
         onStage={(i) => ver(`${et[i].nombre} · embudo Ventas`, et[i].id === -2 ? fVentas(et[i].leads) : fLeads(et[i].leads), rango)} />
     )),
     W('etapas', 'Monto cotizado y tiempo por etapa', (
       <>
-        <table className="ftable">
+        <div className="scrollx"><table className="ftable">
           <thead><tr><th>Etapa</th><th className="num">Leads</th><th className="num">Monto</th><th className="num">Días promedio</th><th className="num">Acumulado</th></tr></thead>
           <tbody>
             {et.map((e, i) => (
@@ -224,7 +224,7 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
         <div className="muted small" style={{ marginTop: 10 }}>
           Foto de hoy del embudo Ventas: leads en cada etapa, suma de sus presupuestos y días promedio que llevan ahí. Cierre = ganados del rango, días desde su asignación.
           {mixto(corte) ? ' Las etapas de HubSpot (Ciclo de Venta KS) se traducen a las de Kommo: Lead entrante = Por contactar, Conversación iniciada y Precalificación hecha = Conversación iniciada; HubSpot no tiene Levantamiento agendado ni Hunting.' : ''}

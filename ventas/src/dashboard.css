@@ -341,7 +341,7 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 .ent { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 18px; align-items: center; }
 .ent .hero { text-align: center; }
 .ent .hero .l { font-weight: 700; font-size: 13px; }
-.kpi-row { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
+.kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 10px; }
 .kpi-row > * { --dot: var(--neutral); background: var(--hover); border: 0; border-radius: 10px; padding: 10px 12px; min-width: 0; }
 .kpi-row .n { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .kpi-row .l { font-size: 11px; color: var(--g2); margin-top: 2px; }
@@ -424,9 +424,16 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 .modal .mf { padding: 8px 18px 12px; border-top: 1px solid var(--line); }
 
 /* ---------- widgets reordenables (asa ⋮⋮ + ▲▼) ---------- */
-.wgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start; }
-.widget { min-width: 0; }
-.widget.span2 { grid-column: 1 / -1; }
+/* 6 columnas como HubSpot: cada widget ocupa de 2 a 6 (gridColumn: span N desde widgets.tsx). */
+.wgrid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px; align-items: start; }
+.widget { min-width: 0; position: relative; }
+.wresize { position: absolute; right: 3px; bottom: 3px; width: 22px; height: 22px; cursor: ew-resize; color: var(--g3); touch-action: none; border-radius: 6px; }
+.wresize::before { content: ''; position: absolute; right: 5px; bottom: 5px; width: 10px; height: 10px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; border-radius: 0 0 3px 0; }
+.wresize:hover, .wresize:focus-visible { color: var(--ink); background: var(--hover); }
+.widget.plain .wresize { bottom: -2px; }
+.widget.resizing { outline: 2px solid var(--c1); outline-offset: 3px; border-radius: var(--r); }
+.widget.resizing .wresize::after, .wresize:focus-visible::after { content: attr(data-ancho); position: absolute; right: 26px; bottom: 2px; font-size: 11px; font-weight: 700; background: var(--ink); color: #fff; padding: 2px 7px; border-radius: 6px; white-space: nowrap; }
+.scrollx { overflow-x: auto; }
 .widget.plain { background: none; border: 0; box-shadow: none; padding: 0; }
 .whead { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
 .whead h3 { margin: 0; flex: 1; min-width: 0; text-wrap: balance; }
@@ -476,7 +483,8 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
   .cfg-top { position: static; margin: 0 0 14px; padding: 0; border: 0; background: transparent; }
   .ent { grid-template-columns: 1fr; }
   .wgrid { grid-template-columns: 1fr; }
-  .kpi-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .widget { grid-column: auto !important; }
+  .wresize { display: none; }
   .perfil-legend { grid-template-columns: 1fr; }
   .shell { grid-template-columns: 1fr; }
   .burger { display: inline-block; }
@@ -493,7 +501,6 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
   .modal .mh { flex-wrap: wrap; }
   .modal .mh .sel { width: 100%; max-width: 100%; order: 3; }
   .toolbar .sel-eq, .toolbar .sel-as { width: calc(50% - 5px); }
-  .kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .rank .lr { grid-template-columns: 22px minmax(0, 1fr) auto; }
   .rank .bullet { display: none; }
   .brow { grid-template-columns: 90px minmax(0, 1fr) auto; }

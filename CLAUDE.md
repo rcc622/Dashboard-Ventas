@@ -589,12 +589,23 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   `login.tsx`, botón Salir, y en Configuración el panel «Accesos» (usuario, rol,
   asesor ligado, contraseña opcional al editar). `VENTAS_PUBLICO=1` sigue
   significando «sin basic auth»; sin él, basic auth y luego sesión.
-- **Widgets reordenables** (`widgets.tsx`, pedido de Randall 4-sep): el Dashboard
-  del Admin y «Mi día» son `WidgetGrid`; cada gráfica lleva asa ⋮⋮ (drag & drop
-  HTML5, `setDragImage` del widget completo) y ▲▼ por teclado. El orden vive en
-  `localStorage` (`kv_orden_admin`, `kv_orden_midia-<uid>`): preferencia de quien
-  mira, no dato. Las secciones plegables desaparecieron; los widgets `plain` (tiles)
-  no llevan tarjeta alrededor.
+- **Widgets reordenables y redimensionables** (`widgets.tsx`, pedidos de Randall
+  4-sep, calcados de los tableros de HubSpot): el Dashboard del Admin y «Mi día»
+  son `WidgetGrid` sobre una rejilla de **6 columnas**. Cada gráfica lleva asa ⋮⋮
+  (drag & drop HTML5, `setDragImage` del widget completo) y ▲▼ por teclado para
+  el orden, y un **asa en la esquina inferior derecha** (`.wresize`, `role=slider`)
+  que se arrastra con pointer events y ajusta el ancho por cuadrantes: de 2 a 6
+  columnas (`Widget.span` = ancho por defecto en columnas; 3 = media pantalla,
+  6 = todo; con teclado ← → Home End). El ancho de una columna sale del ancho real
+  de la rejilla (`clientWidth` − 5 gaps) / 6, y el span se redondea al más cercano.
+  Orden y anchos viven juntos en `localStorage` (`kv_orden_admin`,
+  `kv_orden_midia-<uid>`, forma `{orden, spans}`; el formato viejo de solo lista
+  se migra al leer): preferencia de quien mira, no dato. En ≤ 960 px todo va a una
+  columna y el asa se esconde. Los contenidos deben ser fluidos (la fila de KPIs
+  de Entrada es `auto-fit`; la tabla de etapas va en `.scrollx`). Gotcha E2E: tras
+  un drag & drop HTML5, Chromium se traga el siguiente `pointerdown` de
+  Playwright: probar el resize en una página recién cargada. Las secciones
+  plegables desaparecieron; los widgets `plain` (tiles) no llevan tarjeta.
 - **Sin contraseña en `/ventas`** (`VENTAS_PUBLICO=1` en el servicio `mkt-ventas`,
   pedido de Randall 4-sep): `do_GET` sirve `/ventas*` (y `/` → `/ventas/` en modo
   ventas) antes del auth y `do_POST` deja pasar `/ventas/config`. Todo lo demás
