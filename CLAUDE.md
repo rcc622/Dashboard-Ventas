@@ -696,6 +696,18 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   enciende o apaga la data de cada CRM en TODO el tablero (`pasaCrm` en los tres filtros de
   `metrics.ts`, más popup, ficha y bloque Entrada); siempre queda uno encendido. En el hash
   va como `c=kommo` / `c=hubspot`; sin `c` entran los dos. Solo aparecen con corte mixto.
+- **Configuración son DOS secciones con interruptor** (pedido de Randall 4-sep): «Vendedores» es
+  cómo se mide al equipo (metas en pesos general/zona/vendedor, equipo, ojo de activo, cruce con la
+  app de comisiones) y «Usuarios de la plataforma» es quién puede entrar. Son cosas distintas: un
+  vendedor del CRM existe aunque nadie le haya creado cuenta, y una cuenta de administrador no
+  corresponde a ningún vendedor. Un solo botón Guardar arriba escribe las dos. En la tabla de
+  vendedores hay una columna «Cuenta» que dice si ya tiene y, si no, la crea ligada de una vez.
+- **Alta de cuentas con correo** (pedido de Randall 4-sep): el identificador de entrada puede ser
+  un **correo** o el usuario corto de antes (`_USUARIO` acepta los dos formatos, hasta 64
+  caracteres). Una cuenta se **desactiva sin borrarla** (`activo: false`): conserva contraseña e
+  historial y `autenticar` la rechaza. NO se exige que quede un administrador en la lista, a
+  propósito: `DASH_USER`/`DASH_PASS` siempre entra como administrador maestro, así que un tablero
+  con puras cuentas de vendedor es válido; la página lo avisa pero no lo bloquea.
 - **Página Configuración** (`ventas/src/config.tsx`, pedido de Randall 4-sep): metas
   general, por zona y por asesor + factor y vigencia del cotizado, guardadas en el
   servidor: `POST /ventas/config` valida (`validar_config` en app.py: llaves

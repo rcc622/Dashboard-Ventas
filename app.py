@@ -452,7 +452,9 @@ def validar_config(body):
 # claro); la sesión es una cookie firmada con HMAC (VENTAS_SECRET o un secreto generado una vez
 # en el volumen). Un asesor solo recibe SU parte del corte (ver corte_para); el admin, todo.
 # DASH_USER/DASH_PASS siguen entrando como administrador: es la llave maestra si se pierde todo.
-_USUARIO = re.compile(r"^[a-z0-9._-]{3,40}$")
+# Identificador de entrada: correo completo o usuario corto. Los dos conviven: las cuentas
+# viejas siguen entrando con su usuario y las nuevas se dan de alta con el correo de la persona.
+_USUARIO = re.compile(r"^[a-z0-9._+-]{3,64}$|^[a-z0-9._+-]{1,64}@[a-z0-9-]+(\.[a-z0-9-]+)+$")
 _SESION_SEG = 30 * 86400
 _LOGIN_FALLOS = {}           # ip -> [intentos, bloqueado_hasta]
 _CORTE_CACHE = {"mtime": None, "corte": None}
@@ -526,6 +528,8 @@ def autenticar(usuario, pwd):
     for u in leer_usuarios():
         if u.get("usuario") == usuario and u.get("salt") and u.get("hash"):
             if hmac.compare_digest(hash_password(pwd or "", u["salt"])[1], u["hash"]):
+                if u.get("activo") is False:
+                    return None
                 return {"uid": u.get("id") or usuario, "rol": u.get("rol") or "asesor", "nombre": u.get("nombre") or usuario}
             return None
     return None
@@ -543,14 +547,15 @@ def validar_usuarios(body, actuales):
             raise ValueError("acceso inválido")
         usuario = str(x.get("usuario") or "").strip().lower()
         if not _USUARIO.match(usuario):
-            raise ValueError("usuario inválido: %r (3-40 letras, números, punto, guion)" % usuario)
+            raise ValueError("«%s» no sirve para entrar: escribe un correo completo, o un usuario corto de 3 a 64 letras minúsculas, números, punto o guion" % usuario)
         if usuario in vistos or (USER and usuario == USER.lower()):
-            raise ValueError("usuario repetido: %s" % usuario)
+            raise ValueError("ese correo ya tiene cuenta: %s" % usuario)
         vistos.add(usuario)
         rol = x.get("rol") if x.get("rol") in ("admin", "asesor") else "asesor"
+        activo = x.get("activo") is not False
         uid = str(x.get("id") or "").strip()
         if rol == "asesor" and not _SLUG.match(uid):
-            raise ValueError("el acceso %s debe estar ligado a un asesor" % usuario)
+            raise ValueError("la cuenta %s debe estar ligada a un vendedor: sin eso no sabemos qué tablero mostrarle" % usuario)
         if rol == "admin":
             uid = "admin:" + usuario
         nombre = str(x.get("nombre") or usuario).strip()[:80]
@@ -563,12 +568,16 @@ def validar_usuarios(body, actuales):
             salt, h = previos[usuario]["salt"], previos[usuario]["hash"]
         else:
             raise ValueError("falta la contraseña de %s" % usuario)
-        out.append({"id": uid, "usuario": usuario, "nombre": nombre, "rol": rol, "salt": salt, "hash": h})
+        out.append({"id": uid, "usuario": usuario, "nombre": nombre, "rol": rol, "activo": activo, "salt": salt, "hash": h})
+    # A propósito NO se exige que quede un administrador en la lista: DASH_USER/DASH_PASS entra
+    # siempre como administrador maestro, así que un tablero con puras cuentas de vendedor es
+    # válido y común. La página lo avisa, pero no lo bloquea.
     return out
 
 
 def usuarios_publicos(lista):
-    return [{"id": u.get("id"), "usuario": u.get("usuario"), "nombre": u.get("nombre"), "rol": u.get("rol")} for u in lista]
+    return [{"id": u.get("id"), "usuario": u.get("usuario"), "nombre": u.get("nombre"), "rol": u.get("rol"),
+             "activo": u.get("activo") is not False} for u in lista]
 
 
 def corte_cargado():
