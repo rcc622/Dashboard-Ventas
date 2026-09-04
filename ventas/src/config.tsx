@@ -115,7 +115,7 @@ export function Configuracion({ corte, onSaved }: { corte: Corte; onSaved: (cfg:
         <div className="panel">
           <h3>Meta por zona</h3>
           <table className="ftable">
-            <thead><tr><th>Zona</th><th>Meta mensual (MXN)</th><th className="num">Efectiva</th></tr></thead>
+            <thead><tr><th scope="col">Zona</th><th scope="col">Meta mensual (MXN)</th><th scope="col" className="num">Efectiva</th></tr></thead>
             <tbody>
               {corte.equipos.map((e) => (
                 <tr key={e.id}>
@@ -134,7 +134,7 @@ export function Configuracion({ corte, onSaved }: { corte: Corte; onSaved: (cfg:
         {accesos == null ? <div className="muted">Cargando accesos…</div> : (
           <div className="tblwrap" style={{ boxShadow: 'none' }}>
             <table className="ftable">
-              <thead><tr><th>Usuario (para entrar)</th><th>Contraseña</th><th>Rol</th><th>Asesor ligado</th><th></th></tr></thead>
+              <thead><tr><th scope="col">Usuario (para entrar)</th><th scope="col">Contraseña</th><th scope="col">Rol</th><th scope="col">Asesor ligado</th><th scope="col"><span className="sr-solo">Acciones</span></th></tr></thead>
               <tbody>
                 {accesos.map((a, i) => (
                   <tr key={i}>
@@ -183,7 +183,7 @@ export function Configuracion({ corte, onSaved }: { corte: Corte; onSaved: (cfg:
         <div className="small muted" style={{ marginBottom: 10 }}>Ojo cerrado = desactivado: no sale en el menú de propietarios, en la tabla, en el ranking ni en los perfiles, y sus leads y actividades no cuentan en las cifras del equipo. La entrada de leads de Kommo no cambia. El equipo manda sobre el que trae el CRM.</div>
         <div className="tblwrap" style={{ boxShadow: 'none' }}>
           <table className="ftable">
-            <thead><tr><th>Activo</th><th>Asesor</th><th>Equipo de ventas</th><th>Meta propia (MXN)</th><th className="num">Meta efectiva</th></tr></thead>
+            <thead><tr><th scope="col">Activo</th><th scope="col">Asesor</th><th scope="col">Equipo de ventas</th><th scope="col">Meta propia (MXN)</th><th scope="col" className="num">Meta efectiva</th></tr></thead>
             <tbody>
               {usuarios.map((u) => {
                 const oculto = ocultos.has(u.id), zcrm = u.zona_crm ?? u.zona

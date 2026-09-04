@@ -9,11 +9,14 @@
   --bg: #F3F6FB; --card: #fff; --line: #E3E8F0; --track: #E9EEF6; --hover: #F3F6FB; --paper: #fff;
   --ink: #141619; --g2: #5B6472; --g3: #B9C2CF; --acc: #FFB300; --acc-soft: #FFF4D6;
   --c1: #2D6CDF; --c1-soft: #E8EFFC; --c1-ink: #1F55B8;
-  --c2: #C77700; --c2-soft: #FFF1D6; --c2-ink: #8A5300;
+  --c2: #A65F00; --c2-soft: #FFF1D6; --c2-ink: #8A5300;
   --c3: #6E4BD8; --c3-soft: #ECE7FB; --c3-ink: #4F32B0;
-  --c4: #0F8F83; --c4-soft: #E1F4F2; --c4-ink: #0B6B62;
-  --warn: #D9482B; --neutral: #7A8494; --neutral-soft: #EEF1F5; --neutral-ink: #4A5361;
-  --f1: #7FA3EC; --f2: #5B8AE6; --f3: #3A72DC; --f4: #2358BF; --f5: #1B479C; --f6: #143577;
+  --c4: #0C7A70; --c4-soft: #E1F4F2; --c4-ink: #0B6B62;
+  --warn: #D9482B; --neutral: #6B7484; --neutral-soft: #EEF1F5; --neutral-ink: #4A5361;
+  --f1: #6E97E9; --f2: #4E80E2; --f3: #3A72DC; --f4: #2358BF; --f5: #1B479C; --f6: #143577;
+  /* --line separa (decorativo); --edge dibuja el contorno de un control y por eso llega a 3:1
+     (WCAG 1.4.11). Con --line los botones y campos no tenían límite visible: 1.23:1. */
+  --edge: #848E9E;
   --r: 12px; --shadow: 0 1px 2px rgba(20, 22, 25, .05), 0 6px 20px rgba(20, 22, 25, .06);
 }
 * { box-sizing: border-box; }
@@ -33,11 +36,13 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 .nav:not(.on):hover, .pill button:not(.on):hover, .shead:hover, .pfoot:hover, .task:hover, .add-task:hover { background: var(--hover); }
 .btn:active, .ib:active, .nav:active, .pill button:active, .mnav button:active, .drp-nav button:active { transform: translateY(1px); }
 .btn:disabled, .ib:disabled { opacity: .55; cursor: not-allowed; transform: none; }
+/* Solo para lectores de pantalla: fuera de la vista pero dentro del árbol de accesibilidad. */
+.sr-solo { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .skip { position: absolute; left: -999px; top: 8px; z-index: 400; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font-weight: 700; }
 .skip:focus { left: 8px; }
 
 /* ---------- glosario ---------- */
-.ibtn { position: relative; width: 18px; height: 18px; padding: 0; margin-left: 5px; border: 1px solid var(--g3); border-radius: 50%; background: var(--card); color: var(--g2); font-size: 10px; font-weight: 700; line-height: 1; cursor: help; vertical-align: 1px; text-transform: none; letter-spacing: 0; }
+.ibtn { position: relative; width: 24px; height: 24px; padding: 0; margin-left: 5px; border: 1px solid var(--g2); border-radius: 50%; background: var(--card); color: var(--g2); font-size: 10px; font-weight: 700; line-height: 1; cursor: help; vertical-align: 1px; text-transform: none; letter-spacing: 0; }
 .ibtn::after { content: attr(data-tip); display: none; position: absolute; left: 0; top: calc(100% + 6px); z-index: 160; width: 240px; padding: 8px 10px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); font-size: 11px; font-weight: 400; line-height: 1.4; text-align: left; white-space: normal; color: var(--ink); }
 .ibtn::before { content: ''; position: absolute; inset: -5px; }
 .ibtn:hover::after, .ibtn:focus-visible::after { display: block; }
@@ -50,7 +55,7 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 .logo { margin: 0; display: inline-flex; align-items: center; }
 .logo img { display: block; height: 31px; width: auto; }
 .logo .logo-icon { display: none; height: 28px; }
-.burger { display: none; border: 1px solid var(--line); border-radius: 8px; background: var(--card); width: 36px; height: 32px; cursor: pointer; font-size: 16px; line-height: 1; }
+.burger { display: none; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); width: 36px; height: 32px; cursor: pointer; font-size: 16px; line-height: 1; }
 .usericon { width: 32px; height: 32px; border-radius: 50%; background: var(--c1-soft); color: var(--c1-ink); display: grid; place-items: center; font-weight: 700; font-size: 11px; }
 .pill { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; background: var(--card); }
 .pill button { border: 0; background: transparent; padding: 6px 14px; font-weight: 600; cursor: pointer; border-radius: 999px; }
@@ -71,7 +76,7 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 /* top:-18px y no 0: Chrome mide el sticky desde el borde de contenido de .main (18 px de padding);
    con 0 quedaba una franja arriba por la que se asomaba lo que iba pasando. Medido con Playwright. */
 .toolbar:first-child { margin-top: -18px; padding-top: 16px; }
-.sel, .btn { border: 1px solid var(--line); border-radius: 8px; background: var(--card); padding: 7px 12px; font-weight: 600; cursor: pointer; box-shadow: 0 1px 2px rgba(20, 22, 25, .04); }
+.sel, .btn { border: 1px solid var(--edge); border-radius: 8px; background: var(--card); padding: 7px 12px; font-weight: 600; cursor: pointer; box-shadow: 0 1px 2px rgba(20, 22, 25, .04); }
 .btn.on { background: var(--ink); color: var(--acc); border-color: var(--ink); }
 .btn.on:hover { background: var(--ink); }
 .btn.ghost { box-shadow: none; font-weight: 500; }
@@ -99,7 +104,7 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 .drp-presets button.on { background: var(--ink); color: var(--acc); }
 .drp-cal { padding: 12px; }
 .drp-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-.drp-nav button { border: 1px solid var(--line); border-radius: 8px; background: var(--card); width: 32px; height: 30px; cursor: pointer; font-weight: 700; }
+.drp-nav button { border: 1px solid var(--edge); border-radius: 8px; background: var(--card); width: 32px; height: 30px; cursor: pointer; font-weight: 700; }
 .drp-months { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
 .mon { width: max-content; margin: 0 auto; }
 .mon .mt { text-align: center; font-weight: 700; margin-bottom: 6px; }
@@ -229,7 +234,7 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 .popup { position: fixed; z-index: 300; background: var(--card); border: 1px solid var(--line); border-radius: var(--r); box-shadow: 0 12px 40px rgba(20, 22, 25, .18); width: 370px; max-width: calc(100vw - 24px); max-height: calc(100vh - 16px); overflow: hidden auto; overscroll-behavior: contain; }
 .popup .ph { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
 .popup .ph .nm { font-weight: 700; flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.ib { border: 1px solid var(--line); border-radius: 8px; background: var(--card); width: 32px; height: 28px; cursor: pointer; font-weight: 700; line-height: 1; flex: none; }
+.ib { border: 1px solid var(--edge); border-radius: 8px; background: var(--card); width: 32px; height: 28px; cursor: pointer; font-weight: 700; line-height: 1; flex: none; }
 .kpi3 { display: grid; grid-template-columns: 1fr 1fr 1fr; border-bottom: 1px solid var(--line); }
 .kpi3 div { padding: 10px 14px; border-right: 1px solid var(--line); }
 .kpi3 div:last-child { border-right: 0; }
@@ -325,7 +330,7 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 .bullet .track { position: relative; height: 12px; border-radius: 999px; background: var(--track); }
 .bullet .fill { position: absolute; left: 0; top: 0; height: 100%; border-radius: 999px; background: var(--c1); }
 .bullet .tick { position: absolute; top: -4px; width: 3px; height: 20px; margin-left: -1px; background: var(--ink); border-radius: 2px; }
-.bullet .exp { position: absolute; top: -2px; width: 2px; height: 16px; margin-left: -1px; background: var(--g3); }
+.bullet .exp { position: absolute; top: -2px; width: 2px; height: 16px; margin-left: -1px; background: var(--g2); }   /* con --g3 la marca de «esperado a hoy» quedaba en 1.8:1 */
 .bullet.sm .track { height: 8px; }
 .bullet.sm .tick { top: -3px; height: 14px; }
 .bullet.sm .exp { top: -2px; height: 12px; }
@@ -388,7 +393,7 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 .scatter .med { stroke: var(--g3); stroke-dasharray: 4 3; }
 .scatter .ql { fill: var(--g2); font-size: 9px; font-weight: 700; }
 .scatter .ax { fill: var(--g2); font-size: 9px; }
-.scatter .pt text { fill: #fff; font-size: 7px; font-weight: 700; text-anchor: middle; pointer-events: none; }
+.scatter .pt text { fill: #fff; font-size: 9px; font-weight: 700; text-anchor: middle; pointer-events: none; paint-order: stroke; stroke: rgba(0, 0, 0, .45); stroke-width: 2.5px; stroke-linejoin: round; }
 .scatter .p-mantener { fill: var(--c4); }
 .scatter .p-capacitar { fill: var(--c2); }
 .scatter .p-revisar { fill: var(--c3); }
@@ -399,12 +404,17 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 .perfil-chart, .perfil-tabla { min-width: 0; }
 .perfil-tabla .ftable td { padding: 6px 8px; }
 .perfil-tabla .ftable td.num, .perfil-tabla .ftable td:first-child { white-space: nowrap; }
-.perfil-tabla .ini { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; color: #fff; font-size: 9px; font-weight: 700; margin-right: 8px; vertical-align: middle; }
+.perfil-tabla .ini { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; font-size: 9px; font-weight: 700; margin-right: 8px; vertical-align: middle; }
 .pdot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
-.perfil-tabla .ini.p-mantener, .pdot.p-mantener { background: var(--c4); }
-.perfil-tabla .ini.p-capacitar, .pdot.p-capacitar { background: var(--c2); }
-.perfil-tabla .ini.p-revisar, .pdot.p-revisar { background: var(--c3); }
-.perfil-tabla .ini.p-salida, .pdot.p-salida { background: var(--neutral); }
+/* Blanco de 9 px sobre ámbar/teal/gris daba 3.6-3.9:1. Mismo patrón del avatar: fondo suave + tinta. */
+.pdot.p-mantener { background: var(--c4); }
+.pdot.p-capacitar { background: var(--c2); }
+.pdot.p-revisar { background: var(--c3); }
+.pdot.p-salida { background: var(--neutral); }
+.perfil-tabla .ini.p-mantener { background: var(--c4-soft); color: var(--c4-ink); }
+.perfil-tabla .ini.p-capacitar { background: var(--c2-soft); color: var(--c2-ink); }
+.perfil-tabla .ini.p-revisar { background: var(--c3-soft); color: var(--c3-ink); }
+.perfil-tabla .ini.p-salida { background: var(--neutral-soft); color: var(--neutral-ink); }
 @container (min-width: 760px) { .perfil-wrap { grid-template-columns: minmax(0, 1fr) minmax(300px, 380px); } }
 .perfil-legend { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; font-size: 11px; margin-top: 8px; }
 .perfil-legend .h { font-weight: 700; }
@@ -458,7 +468,7 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 /* 6 columnas como HubSpot: cada widget ocupa de 2 a 6 (gridColumn: span N desde widgets.tsx). */
 .wgrid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px; align-items: start; }
 .widget { min-width: 0; position: relative; }
-.wresize { position: absolute; right: 3px; bottom: 3px; width: 22px; height: 22px; cursor: nwse-resize; color: var(--g3); touch-action: none; border-radius: 6px; }
+.wresize { position: absolute; right: 2px; bottom: 2px; width: 24px; height: 24px; cursor: nwse-resize; color: var(--g2); touch-action: none; border-radius: 6px; }
 .wresize::before { content: ''; position: absolute; right: 5px; bottom: 5px; width: 10px; height: 10px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; border-radius: 0 0 3px 0; }
 .wresize:hover, .wresize:focus-visible { color: var(--ink); background: var(--hover); }
 .widget.plain .wresize { bottom: -2px; }
@@ -483,11 +493,22 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 .widget.hset .perfil-tabla { max-height: 100%; overflow: auto; }
 .widget.plain { background: none; border: 0; box-shadow: none; padding: 0; }
 .whead { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+/* Auditoría 4-sep: 27 botones diminutos flotando sobre el tablero eran el ruido visual #1.
+   Con mouse, los controles del widget solo aparecen al pasar por encima o al enfocar (nunca
+   display:none, para que el tabulador los siga alcanzando); con dedo se quedan visibles. */
+.wctl { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+@media (hover: hover) and (pointer: fine) {
+  .wctl, .widget > .whead > .grip { opacity: 0; transition: opacity 120ms ease; }
+  .widget:hover .wctl, .widget:focus-within .wctl,
+  .widget:hover > .whead > .grip, .widget:focus-within > .whead > .grip { opacity: 1; }
+  .wresize { opacity: 0; transition: opacity 120ms ease; }
+  .widget:hover .wresize, .widget:focus-within .wresize, .widget.resizing .wresize { opacity: 1; }
+}
 .whead h3 { margin: 0; flex: 1; min-width: 0; text-wrap: balance; }
-.grip { cursor: grab; color: var(--g3); font-size: 16px; line-height: 1; letter-spacing: -3px; padding: 3px 5px 3px 2px; border-radius: 6px; user-select: none; touch-action: none; }
+.grip { cursor: grab; color: var(--g2); font-size: 16px; line-height: 1; letter-spacing: -3px; display: inline-grid; place-items: center; width: 24px; height: 24px; padding: 0; border-radius: 6px; user-select: none; touch-action: none; }
 .grip:hover { color: var(--ink); background: var(--hover); }
 .grip:active { cursor: grabbing; }
-.wbtn { appearance: none; border: 1px solid var(--line); background: var(--card); border-radius: 6px; width: 26px; height: 24px; font-size: 9px; cursor: pointer; color: var(--g2); padding: 0; }
+.wbtn { appearance: none; border: 1px solid var(--edge); background: var(--card); border-radius: 6px; width: 26px; height: 24px; font-size: 9px; cursor: pointer; color: var(--g2); padding: 0; }
 .wbtn:hover:not(:disabled) { background: var(--hover); color: var(--ink); }
 .wbtn:disabled { opacity: .3; cursor: default; }
 .widget.dragging { opacity: .45; }
@@ -499,7 +520,7 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 .sep-in { flex: 1; min-width: 0; font: inherit; font-weight: 800; font-size: 15px; text-transform: uppercase; letter-spacing: .04em; color: var(--ink); border: 0; background: transparent; padding: 4px 8px; border-radius: 6px; }
 .sep-in:hover { background: var(--hover); }
 .sep-in:focus { background: var(--card); }
-.wsep-add { font-weight: 600; }
+.wsep-add, .wreset-btn { font-weight: 600; padding: 5px 4px; min-height: 24px; }
 .wbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; margin-bottom: 10px; font-size: 12px; color: var(--g2); }
 .wbar .wadd { margin-right: 0; }
 /* Tarjetas de la ficha como widgets: la tarjeta llena el widget y el encabezado queda compacto. */
@@ -514,7 +535,7 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 .reales-lista .r { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 10px; }
 .reales-lista .r .m { color: var(--g2); white-space: nowrap; }
 .wadd { display: inline-flex; align-items: center; gap: 6px; margin-right: 12px; font-weight: 600; color: var(--ink); }
-.wadd select { font: inherit; font-weight: 500; padding: 3px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); max-width: 260px; }
+.wadd select { font: inherit; font-weight: 500; padding: 4px 6px; min-height: 26px; border: 1px solid var(--edge); border-radius: 6px; background: var(--card); max-width: 260px; }
 .widget .ctitle { text-align: left; }
 
 /* ---------- entrada (login) ---------- */
@@ -531,13 +552,13 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 
 /* ---------- configuración de metas ---------- */
 .cfg .fld { display: grid; gap: 4px; margin-bottom: 12px; font-size: 12px; font-weight: 600; }
-.inp { border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; background: var(--card); font-weight: 600; width: 100%; max-width: 220px; font-variant-numeric: tabular-nums; }
+.inp { border: 1px solid var(--edge); border-radius: 8px; padding: 7px 10px; background: var(--card); font-weight: 600; width: 100%; max-width: 220px; font-variant-numeric: tabular-nums; }
 .inp::placeholder { color: var(--g2); font-weight: 400; }
 .cfg .ftable td { padding: 5px 8px; }
 /* Barra de Guardar fija arriba (Randall: abajo se escondía); mismo truco que la toolbar. */
 .cfg-top { position: sticky; top: -18px; z-index: 60; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: -18px -22px 14px; padding: 16px 22px 12px; background: var(--bg); border-bottom: 1px solid var(--line); }
 .cfg .sel { width: 100%; max-width: 260px; font-weight: 500; }
-.eye { appearance: none; border: 1px solid var(--line); background: var(--card); border-radius: 8px; width: 38px; height: 30px; cursor: pointer; display: inline-grid; place-items: center; color: var(--c1-ink); }
+.eye { appearance: none; border: 1px solid var(--edge); background: var(--card); border-radius: 8px; width: 38px; height: 30px; cursor: pointer; display: inline-grid; place-items: center; color: var(--c1-ink); }
 .eye[aria-pressed="false"] { color: var(--g2); background: var(--hover); }
 .eye:hover { outline: 2px solid var(--c1); outline-offset: 1px; }
 .cfg tr.oculto td { color: var(--g2); }
@@ -547,10 +568,18 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 .cfg-msg.err { color: #9A2E18; }
 
 /* ---------- responsive ---------- */
+/* Entre tableta y laptop chica: 2 columnas. Con una sola, una cifra ocupaba 776 px de ancho. */
+@media (min-width: 700px) and (max-width: 999px) {
+  .wgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .wgrid .widget { grid-column: span 2 !important; }
+  .wgrid .widget.wtile, .wgrid .widget.wcard { grid-column: span 1 !important; }
+  .wresize { display: none; }
+}
 @media (max-width: 960px) {
   .toolbar, .toolbar:first-child { position: static; margin: 0 0 16px; padding: 0; border: 0; background: transparent; }
   .cfg-top { position: static; margin: 0 0 14px; padding: 0; border: 0; background: transparent; }
   .ent { grid-template-columns: 1fr; }
+  .wgrid { grid-template-columns: 1fr; }
   .wgrid { grid-template-columns: 1fr; }
   .widget { grid-column: auto !important; height: auto !important; }
   .widget.hset .wbody { overflow: visible; }
@@ -597,4 +626,9 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
   .mon .d { width: 40px; height: 36px; }
   .pill button { padding: 8px 14px; }
   .pill.sm button { padding: 7px 12px; }
+}
+
+/* Quien pide menos movimiento no ve transiciones ni desplazamientos animados. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }

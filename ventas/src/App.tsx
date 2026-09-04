@@ -3,7 +3,7 @@ import type { Config, Corte, Crm, Rango, Yo } from './types'
 import { CRM_LABEL } from './types'
 import { aplicarConfig, cargar, logout, yo as pedirYo, type Carga } from './data'
 import { Login } from './login'
-import { PRESETS, fmtCorta, fmtHora, iniciales, preset, rangoManual, usuariosVisibles, vivo, type Filtros, type Preset } from './metrics'
+import { PRESETS, fmtCorta, fmtHora, iniciales, preset, rangoManual, usuariosVisibles, vivo, zonaNombre, type Filtros, type Preset } from './metrics'
 
 const CRMS: Crm[] = ['kommo', 'hubspot']
 import { DateRangePicker } from './DateRangePicker'
@@ -151,6 +151,8 @@ function Shell({ yo, corte, origen, error, onRetry, onConfig, onLogout }: { yo: 
         {NAV[perfil].map((n) => <button type="button" key={n.id} className={'nav' + (pagina === n.id && ficha == null ? ' on' : '')} aria-current={pagina === n.id && ficha == null ? 'page' : undefined} onClick={() => navega(n.id)}>{n.label}</button>)}
       </nav>
       <main id="main" className="main">
+        {/* Nombra la página para lectores de pantalla y cierra el salto h1 -> h3. */}
+        <h2 className="sr-solo">{ficha ? 'Ficha del asesor' : (NAV[perfil].find((n) => n.id === pagina)?.label ?? 'Tablero')}</h2>
         {origen === 'ejemplo' && <div className="aviso" role="status">Datos de ejemplo: no se pudo cargar el corte real{error ? ` (${error})` : ''}. Revisa que el refresh del servicio haya generado data/ventas.json. Las cifras no son reales. <button type="button" className="btn" style={{ marginLeft: 8 }} onClick={onRetry}>Reintentar</button></div>}
         {perfil === 'admin' && pagina !== 'config' && (
           <div className="toolbar">
@@ -172,6 +174,10 @@ function Shell({ yo, corte, origen, error, onRetry, onConfig, onLogout }: { yo: 
               </span>
             )}
             <span className="spacer" />
+            {/* Cambiar filtros redibuja todo el tablero sin avisar a un lector de pantalla: esto lo anuncia. */}
+            <span className="sr-solo" role="status" aria-live="polite">
+              {`Mostrando ${filtros.rango.label}, ${filtros.equipo ? zonaNombre(corte, filtros.equipo) : 'todos los equipos'}, ${filtros.asesor ? (corte.usuarios.find((u) => u.id === filtros.asesor)?.nombre ?? filtros.asesor) : 'todos los propietarios'}.`}
+            </span>
             <span className="small muted">{fuentes ? fuentes + ' · ' : ''}corte {generado}</span>
             {horas > 8 && <span className="stale" title="El corte se regenera cada 6 horas">corte de hace {Math.round(horas)} h</span>}
             <button type="button" className="btn btn-date" aria-haspopup="dialog" aria-expanded={drp} onClick={() => setDrp(!drp)}><span className="ico" aria-hidden="true" />{filtros.rango.label}</button>

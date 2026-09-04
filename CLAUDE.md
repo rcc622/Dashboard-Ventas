@@ -734,6 +734,47 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   `incoming_sms_message: HTTP 400` es normal: ese tipo de evento no existe en la
   cuenta de Kommo y el .gs también lo ignoraba.
 
+### Auditoría 4-sep (ui-ux-pro-max + accesibilidad + Playwright en producción)
+
+Randall reportó «fallas en diseño y usabilidad». Se midieron contrastes reales en el navegador
+(fórmula WCAG), targets, orden de foco y comportamiento a 390 / 768 / 820 / 1024 / 1440 px y con
+zoom al 200 %. Lo que se corrigió, para no regresar:
+
+- **`--edge: #848E9E` es el borde de los controles** (`.sel .btn .ib .wbtn .inp .eye .burger .ibtn`,
+  selects de la barra). `--line` (#E3E8F0) da **1.23:1** y sirve solo para separar; un control
+  necesita 3:1 (WCAG 1.4.11). Sin esto los campos y botones no tenían límite visible.
+- **Colores de datos con texto blanco encima**: `--c2` #C77700 → **#A65F00**, `--c4` #0F8F83 →
+  **#0C7A70**, `--neutral` #7A8494 → **#6B7484**. Estaban en 3.4-4.0:1 con blanco de 9 px y hacen
+  falta 4.5:1. La rampa del embudo corre un tono (`--f1` #7FA3EC → **#6E97E9**): la primera banda
+  daba 2.51:1 contra la tarjeta y una banda ES el dato.
+- **Los controles del widget (⋮⋮ ▲ ▼ ×) solo aparecen al pasar el mouse o al enfocar** (`.wctl`,
+  `@media (hover: hover)`; con dedo siempre visibles). Con 9 cifras sueltas eran 27 botones
+  diminutos flotando sobre el tablero: el ruido visual número uno. Nunca `display: none`, para que
+  el tabulador los siga alcanzando.
+- **Tablet en 2 columnas** entre 700 y 999 px (`.wtile`/`.wcard` a 1, el resto a 2). El corte de
+  960 px mandaba todo a una columna y una cifra ocupaba 776 px de ancho.
+- **Una fila de tabla nunca es `role="button"`**: deja huérfanos a sus `<td>` y el lector deja de
+  anunciar fila y columna. El control va en la celda del nombre (`.nbtn`), y así tampoco quedan
+  botones anidados dentro de otro. Aplica a Ventas reales, etapas del embudo y la tabla de Asesores
+  (el clic en toda la fila sigue funcionando con mouse).
+- **Los tres diálogos toman el foco al abrir y lo devuelven al cerrar** (`useFocoDialogo`, patrón
+  que ya tenía `drill.tsx`) y declaran `aria-modal`: popup de barras, resumen del asesor y
+  calendario. Antes el foco se quedaba en `<body>` y había que recorrer la tabla otra vez.
+- **Targets al mínimo de 24 px** (WCAG 2.2 AA): `.wresize` 22 → 24, `.grip` con caja de 24,
+  «Agregar separador» y «Restablecer tablero» con `min-height`. El asa de arrastre y la de tamaño
+  pasan de `--g3` (1.8:1) a `--g2`.
+- **Cada página se nombra** con un `<h2 className="sr-solo">` al inicio de `<main>`: el único `h1`
+  es el logo y decía lo mismo en Dashboard, Asesores y Configuración; además cerraba el salto
+  h1 → h3. `.sr-solo` es la clase para texto solo de lector de pantalla.
+- **El cambio de filtros se anuncia** (`role="status"` con rango, equipo y propietario): el tablero
+  se redibujaba en silencio. Los días elegidos del calendario llevan `aria-pressed` (antes el
+  estado era solo color). Todo `<th>` lleva `scope`, las tablas de etapas y perfiles llevan
+  `aria-label`, y el tooltip del glosario se cierra con Escape.
+- **`prefers-reduced-motion`** apaga transiciones y desplazamiento animado.
+- Falsos positivos ya verificados, no volver a «arreglar»: el número dentro de la banda del embudo
+  sí contrasta (tinta en las dos primeras, blanco en las oscuras); `.ibtn` extiende su área con
+  `::before { inset: -5px }`; el `outline: none` de la dispersión tiene reemplazo (`stroke`).
+
 ### Reglas de diseño y accesibilidad de `/ventas` (auditoría 3-sep)
 
 Pasó por el protocolo creativo (hallmark audit + guías web + dataviz +

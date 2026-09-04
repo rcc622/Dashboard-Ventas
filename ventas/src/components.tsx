@@ -41,7 +41,8 @@ export interface Seg { val: number; cls: string }
  *  control: foco, Enter y espacio abren el detalle igual que el click. */
 export function StackedBar({ segs, total, max, onClick, title }: { segs: Seg[]; total: number; max: number; onClick?: (e: SyntheticEvent<HTMLDivElement>) => void; title?: string }) {
   const w = total > 0 && max > 0 ? Math.max(4, Math.min(100, (total / max) * 100)) : 0
-  const ctrl = onClick ? { role: 'button', tabIndex: 0, onClick, onKeyDown: activar(onClick as (e: SyntheticEvent<HTMLElement>) => void), 'aria-label': title } : {}
+  // Sin onClick era un div enfocable con aria-label y sin rol: ARIA lo prohibe en un «generic».
+  const ctrl = onClick ? { role: 'button', tabIndex: 0, onClick, onKeyDown: activar(onClick as (e: SyntheticEvent<HTMLElement>) => void), 'aria-label': title } : { role: 'group', 'aria-label': title }
   return (
     <div className="sbar" title={title} {...ctrl}>
       {total > 0 && <div style={{ width: w + '%', display: 'flex', height: '100%' }}>{segs.map((s, i) => <i key={i} className={s.cls} style={{ width: pct(s.val, total) + '%' }} />)}</div>}
@@ -73,15 +74,26 @@ export function LlamadasBar({ total, ok, no, onClick }: { total: number; ok: num
 export interface DetRow { label: string; val: number; onVer?: () => void }
 /** Detalle de una barra de la tabla: aparece debajo del elemento clickeado. Un renglón con
  *  onVer es botón y abre la lista de registros. */
+/** Al abrir un diálogo el foco entra en él y al cerrarlo regresa a donde estaba. Sin esto, con
+ *  teclado el foco se queda atrás y hay que recorrer toda la tabla otra vez. */
+export function useFocoDialogo(ref: RefObject<HTMLElement | null>) {
+  useEffect(() => {
+    const antes = document.activeElement as HTMLElement | null
+    ref.current?.querySelector<HTMLElement>('button, input, select, [tabindex]')?.focus()
+    return () => antes?.focus?.()
+  }, [])   // eslint-disable-line react-hooks/exhaustive-deps
+}
+
 export function BarDetailPopup({ anchor, title, total, rows, onClose }: { anchor: DOMRect; title: string; total: number; rows: DetRow[]; onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null)
   useOutside(ref, onClose)
   useEscape(onClose)
+  useFocoDialogo(ref)
   const W = 300
   const left = Math.max(8, Math.min(anchor.left, window.innerWidth - W - 8))
   const top = anchor.bottom + 6 + 220 > window.innerHeight ? Math.max(8, anchor.top - 6 - 200) : anchor.bottom + 6
   return (
-    <div className="popup" ref={ref} style={{ left, top, width: W }} role="dialog" aria-label={title}>
+    <div className="popup" ref={ref} style={{ left, top, width: W }} role="dialog" aria-modal="true" aria-label={title}>
       <div className="ph"><span className="nm">{title}</span><button type="button" className="ib" aria-label="Cerrar" onClick={onClose}>×</button></div>
       <div className="pbody detail-rows">
         {rows.map((r) => r.onVer
@@ -203,7 +215,9 @@ export function Metric({ n, l, cls = '' }: { n: number; l: string; cls?: string 
  *  completo en aria-label para lectores de pantalla. */
 export function Info({ termino }: { termino: Termino }) {
   const txt = GLOSARIO[termino]
-  return <button type="button" className="ibtn" aria-label={`${termino}: ${txt}`} data-tip={txt} onClick={(e) => e.stopPropagation()}>i</button>
+  // Escape cierra el tooltip sin mover el puntero (WCAG 1.4.13).
+  return <button type="button" className="ibtn" aria-label={`${termino}: ${txt}`} data-tip={txt} onClick={(e) => e.stopPropagation()}
+    onKeyDown={(e) => { if (e.key === 'Escape') e.currentTarget.blur() }}>i</button>
 }
 
 /** Bullet: valor contra objetivo. Marca negra = objetivo; marca gris = lo esperado a hoy.

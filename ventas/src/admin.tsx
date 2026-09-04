@@ -2,7 +2,7 @@ import { useLayoutEffect, useMemo, useRef, useState, type SyntheticEvent, useEff
 import type { Corte, Evento, Lead, Usuario } from './types'
 import { CRM_LABEL } from './types'
 import { BUCKETS, PERFIL_LABEL, actividad, cotizado, dias, embudo, entrada, ep, etapaDe, eventosFiltrados, fechaCotizado, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, metaDe, metaEnRango, metaEsperada, pasaCrm, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, type Fila, type FilaAsesor, type Filtros, type Perfil , type PuntoPerfil, ventasReales, filasDeVentasReales } from './metrics'
-import { BarDetailPopup, BubbleChart, Bullet, DonutChart, FunnelChart, Gauge, Info, LlamadasBar, MiniAreaChart, Scatter, SortTh, StackedBar, activar, useEscape, useOutside, type DetRow, type Sort, type BubbleCol } from './components'
+import { BarDetailPopup, BubbleChart, Bullet, DonutChart, FunnelChart, Gauge, Info, LlamadasBar, MiniAreaChart, Scatter, SortTh, StackedBar, activar, useEscape, useOutside, type DetRow, type Sort, type BubbleCol, useFocoDialogo } from './components'
 import { DrillModal, type Drill } from './drill'
 import { WidgetGrid, type Widget } from './widgets'
 
@@ -54,7 +54,7 @@ function LeadsTabla({ corte, leads, max = 40 }: { corte: Corte; leads: Lead[]; m
   return (
     <div className="tblwrap" style={{ boxShadow: 'none' }}>
       <table className="ftable ltbl">
-        <thead><tr><th>Lead</th><th>Etapa</th><th className="num">Monto</th><th>Intentos<Info termino="Intentos" /></th><th>Última tarea hecha</th><th className="num">Días sin cambio</th><th>Alertas</th></tr></thead>
+        <thead><tr><th scope="col">Lead</th><th scope="col">Etapa</th><th scope="col" className="num">Monto</th><th scope="col">Intentos<Info termino="Intentos" /></th><th scope="col">Última tarea hecha</th><th className="num">Días sin cambio</th><th>Alertas</th></tr></thead>
         <tbody>
           {rows.map((l) => (
             <tr key={l.id}>
@@ -197,9 +197,9 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
             <thead><tr><th scope="col">Asesor</th><th scope="col" className="num">Ventas reales</th><th scope="col" className="num">Monto real</th><th scope="col" className="num">Ventas CRM</th><th scope="col" className="num">Monto CRM</th></tr></thead>
             <tbody>
               {vr.filas.map((r) => { const cr = r.u ? filas.find((x) => x.u.id === r.u!.id) : undefined; return (
-                <tr key={r.nombre} className="drill" role="button" tabIndex={0} aria-label={`${r.nombre}: ${fmtN(r.n)} ventas reales, ${fmtMoney0(r.monto)}. Ver detalle`}
-                  onClick={() => ver(`Ventas reales · ${r.nombre}`, filasDeVentasReales(r.ventas), rango + ' · mes de venta en la app de comisiones')} onKeyDown={activar(() => ver(`Ventas reales · ${r.nombre}`, filasDeVentasReales(r.ventas), rango + ' · mes de venta en la app de comisiones'))}>
-                  <td>{r.nombre}{!r.u && <span className="muted"> · sin asesor en el CRM</span>}</td>
+                <tr key={r.nombre}>
+                  <td><button type="button" className="nbtn" aria-label={`${r.nombre}: ${fmtN(r.n)} ventas reales, ${fmtMoney0(r.monto)}. Ver detalle`}
+                    onClick={() => ver(`Ventas reales · ${r.nombre}`, filasDeVentasReales(r.ventas), rango + ' · mes de venta en la app de comisiones')}>{r.nombre}</button>{!r.u && <span className="muted"> · sin asesor en el CRM</span>}</td>
                   <td className="num">{fmtN(r.n)}</td><td className="num">{fmtMoney0(r.monto)}</td>
                   <td className="num">{cr ? fmtN(cr.ventas) : '—'}</td><td className="num">{cr ? fmtMoney0(cr.montoVentas) : '—'}</td>
                 </tr>) })}
@@ -260,13 +260,13 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
     )),
     W('etapas', 'Monto cotizado y tiempo por etapa', (
       <>
-        <div className="scrollx"><table className="ftable">
-          <thead><tr><th>Etapa</th><th className="num">Leads</th><th className="num">Monto</th><th className="num">Días promedio</th><th className="num">Acumulado</th></tr></thead>
+        <div className="scrollx"><table className="ftable" aria-label="Monto cotizado y tiempo por etapa">
+          <thead><tr><th scope="col">Etapa</th><th scope="col" className="num">Leads</th><th scope="col" className="num">Monto</th><th scope="col" className="num">Días promedio</th><th scope="col" className="num">Acumulado</th></tr></thead>
           <tbody>
             {et.map((e, i) => (
-              <tr key={e.id} className="drill" role="button" tabIndex={0} aria-label={`${e.nombre}: ${fmtN(e.n)} leads, ${fmtMoney(e.monto)}. Ver leads`}
-                onClick={() => ver(`${e.nombre} · embudo Ventas`, e.id === -2 ? fVentas(e.leads) : fLeads(e.leads), rango)} onKeyDown={activar(() => ver(`${e.nombre} · embudo Ventas`, e.id === -2 ? fVentas(e.leads) : fLeads(e.leads), rango))}>
-                <td><span className="sw" style={{ background: RAMPA[Math.min(i, RAMPA.length - 1)] }} aria-hidden="true" />{e.nombre}</td><td className="num">{fmtN(e.n)}</td><td className="num">{fmtMoney(e.monto)}</td><td className="num">{e.n ? e.dias.toFixed(1) : '—'}</td><td className="num muted">{e.acumulado.toFixed(1)}</td>
+              <tr key={e.id}>
+                <td><span className="sw" style={{ background: RAMPA[Math.min(i, RAMPA.length - 1)] }} aria-hidden="true" /><button type="button" className="nbtn" aria-label={`${e.nombre}: ${fmtN(e.n)} leads, ${fmtMoney(e.monto)}. Ver leads`}
+                  onClick={() => ver(`${e.nombre} · embudo Ventas`, e.id === -2 ? fVentas(e.leads) : fLeads(e.leads), rango)}>{e.nombre}</button></td><td className="num">{fmtN(e.n)}</td><td className="num">{fmtMoney(e.monto)}</td><td className="num">{e.n ? e.dias.toFixed(1) : '—'}</td><td className="num muted">{e.acumulado.toFixed(1)}</td>
               </tr>
             ))}
           </tbody>
@@ -325,7 +325,7 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
               )}
             </div>
             <div className="scrollx perfil-tabla">
-              <table className="ftable">
+              <table className="ftable" aria-label="Asesores por perfil">
                 <thead><tr><th scope="col">Asesor</th><th scope="col">Perfil</th><th scope="col" className="num">Actividad</th><th scope="col" className="num">Vendido</th></tr></thead>
                 <tbody>
                   {[...perf.pts].sort((a, b) => PERFILES.indexOf(a.perfil) - PERFILES.indexOf(b.perfil) || b.vendido - a.vendido).map((x) => (
@@ -417,12 +417,10 @@ export function Asesores({ corte, filtros, onFicha }: { corte: Corte; filtros: F
           <tbody>
             {filas.map((f) => {
               const tar = f.tareasCompletadas + f.tareasVencidas + f.sinTarea
-              const abrirTeclado = activar((e) => { const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); abrir(f, r.left + 60, r.bottom) })
               const evDe = (...tipos: string[]) => f.actividad.filter((e) => tipos.includes(e.tipo))
               return (
-                <tr key={f.u.id} className="row" tabIndex={0} aria-haspopup="dialog" aria-label={`Ver resumen de ${f.u.nombre}`}
-                  onClick={(e) => abrir(f, e.clientX, e.clientY)} onKeyDown={abrirTeclado}>
-                  <td><div className="who"><div className={avatarCls(f.u)} title={subAsesor(corte, f.u)} aria-hidden="true">{iniciales(f.u.nombre)}</div><div><div className="nm">{f.u.nombre}</div><div className="sub">{f.ventas} venta{f.ventas === 1 ? '' : 's'} · meta {fmtMoney0(f.metaMes)}/mes</div></div></div></td>
+                <tr key={f.u.id} className="row" onClick={(e) => abrir(f, e.clientX, e.clientY)}>
+                  <td><div className="who"><div className={avatarCls(f.u)} title={subAsesor(corte, f.u)} aria-hidden="true">{iniciales(f.u.nombre)}</div><div><div className="nm"><button type="button" className="nbtn" aria-haspopup="dialog" aria-label={`Ver resumen de ${f.u.nombre}`} onClick={(e) => { e.stopPropagation(); const r = e.currentTarget.getBoundingClientRect(); abrir(f, r.right, r.bottom) }}>{f.u.nombre}</button></div><div className="sub">{f.ventas} venta{f.ventas === 1 ? '' : 's'} · meta {fmtMoney0(f.metaMes)}/mes</div></div></div></td>
                   <td className="cellbar">
                     <div className="num">{fmtMoney0(f.montoVentas)}</div>
                     <Bullet sm value={f.montoVentas} target={f.metaRango} expected={f.esperado} label={'Vendido de ' + f.u.nombre} fmt={fmtMoney0} />
@@ -469,6 +467,7 @@ function AsesorPopup({ corte, filtros, fila, x, y, onClose, onFicha }: { corte: 
   const ref = useRef<HTMLDivElement>(null)
   useOutside(ref, onClose)
   useEscape(onClose)
+  useFocoDialogo(ref)
   // La altura real se sabe hasta que existe: se mide y se sube lo necesario para que el pie quede en pantalla.
   const [top, setTop] = useState(y)
   useLayoutEffect(() => { const h = ref.current?.getBoundingClientRect().height || 0; setTop(Math.max(8, Math.min(y, window.innerHeight - 8 - h))) }, [y])
@@ -479,7 +478,7 @@ function AsesorPopup({ corte, filtros, fila, x, y, onClose, onFicha }: { corte: 
   const serie = serieDiaria(fila.leadsActivos.map((l) => l.asignacion), filtros.rango)
   const cumpl = pct(fila.montoVentas, fila.metaRango)
   return (
-    <div className="popup" ref={ref} style={{ left: x, top }} role="dialog" aria-label={`Resumen de ${fila.u.nombre}`}>
+    <div className="popup" ref={ref} style={{ left: x, top }} role="dialog" aria-modal="true" aria-label={`Resumen de ${fila.u.nombre}`}>
       <div className="ph">
         <div className={avatarCls(fila.u)} aria-hidden="true">{iniciales(fila.u.nombre)}</div>
         <div className="nm">{fila.u.nombre}<div className="small muted">{subAsesor(corte, fila.u)}</div></div>

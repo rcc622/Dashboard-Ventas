@@ -147,7 +147,7 @@ export function WidgetGrid({ clave, widgets }: { clave: string; widgets: Widget[
     <>
       <div className="wbar">
         <label className="wadd">Agregar gráfica:{' '}
-          <select value="" aria-label="Agregar una gráfica quitada al tablero" disabled={!quitados.length} onChange={(e) => { if (e.target.value) poner(e.target.value) }}>
+          <select value="" aria-label="Agregar gráfica quitada al tablero" disabled={!quitados.length} onChange={(e) => { if (e.target.value) poner(e.target.value) }}>
             <option value="">{quitados.length ? 'elegir…' : 'todas están en el tablero'}</option>
             {quitados.map((id) => <option key={id} value={id}>{por.get(id)!.titulo}</option>)}
           </select>
@@ -166,9 +166,11 @@ export function WidgetGrid({ clave, widgets }: { clave: string; widgets: Widget[
               <div className="whead">
                 <span className="grip" draggable title="Arrastra para mover" aria-hidden="true" onDragStart={onDragStart(id)} onDragEnd={() => { setDrag(null); setOver(null) }}>⋮⋮</span>
                 <input className="sep-in" value={layout.seps[id]} aria-label="Título del separador" placeholder="Título de la sección" onChange={(e) => titularSep(id, e.target.value)} />
-                <button type="button" className="wbtn" aria-label="Mover separador antes" title="Mover antes" disabled={i === 0} onClick={() => mover(id, layout.orden.indexOf(visibles[i - 1]))}>▲</button>
-                <button type="button" className="wbtn" aria-label="Mover separador después" title="Mover después" disabled={i === visibles.length - 1} onClick={() => mover(id, layout.orden.indexOf(visibles[i + 1]))}>▼</button>
-                <button type="button" className="wbtn" aria-label="Borrar separador" title="Borrar separador" onClick={() => borrarSep(id)}>×</button>
+                <span className="wctl">
+                  <button type="button" className="wbtn" aria-label="Mover separador antes" title="Mover antes" disabled={i === 0} onClick={() => mover(id, layout.orden.indexOf(visibles[i - 1]))}>▲</button>
+                  <button type="button" className="wbtn" aria-label="Mover separador después" title="Mover después" disabled={i === visibles.length - 1} onClick={() => mover(id, layout.orden.indexOf(visibles[i + 1]))}>▼</button>
+                  <button type="button" className="wbtn" aria-label="Borrar separador" title="Borrar separador" onClick={() => borrarSep(id)}>×</button>
+                </span>
               </div>
             </section>
           )
@@ -184,9 +186,11 @@ export function WidgetGrid({ clave, widgets }: { clave: string; widgets: Widget[
               <div className="whead">
                 <span className="grip" draggable title="Arrastra para mover" aria-hidden="true" onDragStart={onDragStart(id)} onDragEnd={() => { setDrag(null); setOver(null) }}>⋮⋮</span>
                 <h3><span className="wt">{w.titulo}</span>{(w.info || []).map((t) => <Info key={t} termino={t} />)}</h3>
-                <button type="button" className="wbtn" aria-label={`Mover «${w.titulo}» antes`} title="Mover antes" disabled={i === 0} onClick={() => mover(id, layout.orden.indexOf(visibles[i - 1]))}>▲</button>
-                <button type="button" className="wbtn" aria-label={`Mover «${w.titulo}» después`} title="Mover después" disabled={i === visibles.length - 1} onClick={() => mover(id, layout.orden.indexOf(visibles[i + 1]))}>▼</button>
-                <button type="button" className="wbtn" aria-label={`Quitar «${w.titulo}» del tablero`} title="Quitar del tablero" onClick={() => quitar(id)}>×</button>
+                <span className="wctl">
+                  <button type="button" className="wbtn" aria-label={`Mover «${w.titulo}» antes`} title="Mover antes" disabled={i === 0} onClick={() => mover(id, layout.orden.indexOf(visibles[i - 1]))}>▲</button>
+                  <button type="button" className="wbtn" aria-label={`Mover «${w.titulo}» después`} title="Mover después" disabled={i === visibles.length - 1} onClick={() => mover(id, layout.orden.indexOf(visibles[i + 1]))}>▼</button>
+                  <button type="button" className="wbtn" aria-label={`Quitar «${w.titulo}» del tablero`} title="Quitar del tablero" onClick={() => quitar(id)}>×</button>
+                </span>
               </div>
               <div className="wbody">{w.nodo}</div>
               <span className="wresize" role="slider" tabIndex={0} aria-label={`Tamaño de «${w.titulo}»`} aria-valuemin={MIN} aria-valuemax={COLS} aria-valuenow={span}

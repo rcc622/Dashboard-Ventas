@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import type { Rango } from './types'
 import { PRESETS, fmtFecha, inicioDia, preset, rangoManual, sumar, type Preset } from './metrics'
-import { useEscape, useOutside } from './components'
+import { useEscape, useFocoDialogo, useOutside } from './components'
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 const DOW = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do']
@@ -14,6 +14,7 @@ export function DateRangePicker({ rango, presetActivo, onApply, onClose }: Props
   const ref = useRef<HTMLDivElement>(null)
   useOutside(ref, onClose)
   useEscape(onClose)
+  useFocoDialogo(ref)
   const [a, setA] = useState<Date | null>(new Date(rango.ini * 1000))
   const [b, setB] = useState<Date | null>(sumar(new Date(rango.fin * 1000), -1))
   const [pre, setPre] = useState<Preset | null>(presetActivo)
@@ -37,7 +38,7 @@ export function DateRangePicker({ rango, presetActivo, onApply, onClose }: Props
   const lo = a && b ? (a <= b ? a : b) : a, hi = a && b ? (a <= b ? b : a) : null
 
   return (
-    <div className="drp" ref={ref} role="dialog" aria-label="Rango de fechas">
+    <div className="drp" ref={ref} role="dialog" aria-modal="true" aria-label="Rango de fechas">
       <div className="drp-presets">
         <div className="t">Predeterminados</div>
         {PRESETS.map((p) => <button type="button" key={p.id} className={pre === p.id ? 'on' : ''} aria-pressed={pre === p.id} onClick={() => clickPreset(p.id)}>{p.label}</button>)}
@@ -80,7 +81,7 @@ function Mes({ ini, lo, hi, onDia }: { ini: Date; lo: Date | null; hi: Date | nu
       <div className="mt">{MESES[ini.getMonth()]} {ini.getFullYear()}</div>
       <div className="grid">
         {DOW.map((d) => <div className="dow" key={d} aria-hidden="true">{d}</div>)}
-        {celdas.map((d, i) => d ? <button type="button" key={i} className={cls(d)} aria-label={fmtFecha(d)} onClick={() => onDia(d)}>{d.getDate()}</button> : <span key={i} />)}
+        {celdas.map((d, i) => d ? <button type="button" key={i} className={cls(d)} aria-label={fmtFecha(d)} aria-pressed={cls(d) !== 'd'} onClick={() => onDia(d)}>{d.getDate()}</button> : <span key={i} />)}
       </div>
     </div>
   )

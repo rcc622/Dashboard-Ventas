@@ -41,7 +41,7 @@ export function DrillModal({ d, onClose }: { d: Drill; onClose: () => void }) {
           {!filas.length && <div className="muted" style={{ padding: 16 }}>Nada que mostrar{nq ? ` para «${q}»` : ''}.</div>}
           {filas.length > 0 && (
             <table className="ftable dtable">
-              <thead><tr><th>Registro</th><th>CRM</th><th>Asesor</th><th>Detalle</th><th className="num">Monto</th><th>Cuándo</th></tr></thead>
+              <thead><tr><th scope="col">Registro</th><th scope="col">CRM</th><th scope="col">Asesor</th><th scope="col">Detalle</th><th scope="col" className="num">Monto</th><th scope="col">Cuándo</th></tr></thead>
               <tbody>
                 {filas.slice(0, max).map((f) => (
                   <tr key={f.id}>
