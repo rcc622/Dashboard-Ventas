@@ -267,10 +267,10 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 
 /* ---------- mi día ---------- */
 .kpi4 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.kpi4 > div { --dot: var(--c1); background: var(--card); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); padding: 14px 16px; min-width: 0; }
-.kpi4 > div:nth-child(2) { --dot: var(--c4); }
-.kpi4 > div:nth-child(3) { --dot: var(--c2); }
-.kpi4 > div:nth-child(4) { --dot: var(--c3); }
+.kpi4 > * { --dot: var(--c1); background: var(--card); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); padding: 14px 16px; min-width: 0; }
+.kpi4 > :nth-child(2) { --dot: var(--c4); }
+.kpi4 > :nth-child(3) { --dot: var(--c2); }
+.kpi4 > :nth-child(4) { --dot: var(--c3); }
 .kpi4 .n { font-size: 28px; font-weight: 700; line-height: 1.1; }
 .kpi4 .l { font-size: 12px; color: var(--g2); margin-top: 4px; }
 .chart .ch { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 8px; }
@@ -340,7 +340,7 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 .ent .hero { text-align: center; }
 .ent .hero .l { font-weight: 700; font-size: 13px; }
 .kpi-row { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
-.kpi-row > div { --dot: var(--neutral); background: var(--hover); border-radius: 10px; padding: 10px 12px; min-width: 0; }
+.kpi-row > * { --dot: var(--neutral); background: var(--hover); border: 0; border-radius: 10px; padding: 10px 12px; min-width: 0; }
 .kpi-row .n { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .kpi-row .l { font-size: 11px; color: var(--g2); margin-top: 2px; }
 .kpi-row .l::before { content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--dot); margin-right: 5px; vertical-align: 1px; }
@@ -362,7 +362,8 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 .rz .bar i { display: block; height: 100%; background: var(--c3); }
 
 /* ---------- perfiles actividad × venta (dispersión) ---------- */
-.scatter { width: 100%; height: auto; display: block; }
+/* Acotada: el SVG escala texto y puntos con el ancho; a 900 px de tarjeta salía gigante. */
+.scatter { width: 100%; max-width: 520px; height: auto; display: block; margin: 0 auto; }
 .scatter .grid { stroke: var(--line); }
 .scatter .med { stroke: var(--g3); stroke-dasharray: 4 3; }
 .scatter .ql { fill: var(--g2); font-size: 9px; font-weight: 700; }
@@ -387,6 +388,38 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 .tbl th[aria-sort] .sortbtn { color: var(--ink); }
 .ltbl td { vertical-align: middle; }
 .ltbl .tag { margin-right: 4px; }
+
+/* ---------- drill-down: todo lo que tiene cifra abre su lista ---------- */
+.drill { cursor: pointer; }
+.drill:hover, .drill:focus-visible { outline: 2px solid var(--c1); outline-offset: 3px; border-radius: 8px; }
+.tbtn { appearance: none; text-align: left; width: 100%; font: inherit; color: inherit; cursor: pointer; }
+/* La cifra como botón (el tile entero no puede serlo: adentro va el «i» del glosario). */
+.nbtn { appearance: none; border: 0; background: none; padding: 0; margin: 0; font: inherit; color: inherit; cursor: pointer; text-align: left; border-radius: 6px; }
+.nbtn:hover, .nbtn:focus-visible { outline: 2px solid var(--c1); outline-offset: 3px; }
+.small .nbtn { text-decoration: underline; text-decoration-color: var(--g3); text-underline-offset: 2px; }
+.tile .n.nbtn, .kcard .n .nbtn { display: inline-block; }
+.tile.tbtn:hover, .tile.tbtn:focus-visible, .kpi4 > button:hover, .kpi4 > button:focus-visible, .kpi-row > button:hover, .kpi-row > button:focus-visible { outline: 2px solid var(--c1); outline-offset: 2px; }
+.legend-list button.lr { border: 0; width: 100%; font: inherit; color: inherit; cursor: pointer; text-align: left; }
+.legend-list button.lr:hover, .legend-list button.lr:focus-visible { outline: 2px solid var(--c1); outline-offset: -2px; }
+.legend > button { appearance: none; border: 0; background: none; padding: 2px 4px; margin: -2px -4px; border-radius: 6px; font: inherit; color: inherit; cursor: pointer; display: inline-flex; align-items: center; }
+.legend > button:hover, .legend > button:focus-visible { outline: 2px solid var(--c1); outline-offset: 1px; }
+.detail-rows button.r { appearance: none; border: 0; background: none; width: 100%; font: inherit; color: inherit; cursor: pointer; text-align: left; border-radius: 6px; }
+.detail-rows button.r:hover, .detail-rows button.r:focus-visible { background: var(--hover); }
+.ftable tr.drill:hover td, .ftable tr.drill:focus-visible td { background: var(--hover); }
+.ftable tr.drill:focus-visible { outline-offset: -2px; }
+.hint { font-size: 11px; color: var(--g2); }
+
+/* ---------- ventana de detalle ---------- */
+.modal-bg { position: fixed; inset: 0; z-index: 400; background: rgba(20, 22, 25, .45); display: grid; place-items: center; padding: 12px; }
+.modal { width: min(1120px, 100%); max-height: min(90vh, 100%); background: var(--card); border-radius: var(--r); box-shadow: 0 24px 60px rgba(20, 22, 25, .3); display: flex; flex-direction: column; overflow: hidden; }
+.modal .mh { display: flex; gap: 12px; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+.modal .mh .mt { flex: 1; min-width: 0; }
+.modal .mh h2 { margin: 0 0 2px; font-size: 15px; overflow-wrap: anywhere; }
+.modal .mh .sel { width: 300px; max-width: 42%; font-weight: 500; }
+.modal .mb { overflow: auto; padding: 0 18px 12px; }
+.modal .dtable th { position: sticky; top: 0; background: var(--card); z-index: 1; }
+.modal .dtable td { vertical-align: middle; }
+.modal .mf { padding: 8px 18px 12px; border-top: 1px solid var(--line); }
 
 /* ---------- configuración de metas ---------- */
 .cfg .fld { display: grid; gap: 4px; margin-bottom: 12px; font-size: 12px; font-weight: 600; }
@@ -414,6 +447,10 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
   .drp-presets { border-right: 0; border-bottom: 1px solid var(--line); flex-direction: row; flex-wrap: wrap; }
 }
 @media (max-width: 640px) {
+  .modal-bg { padding: 0; align-items: end; }
+  .modal { max-height: 100%; height: 100%; border-radius: 0; }
+  .modal .mh { flex-wrap: wrap; }
+  .modal .mh .sel { width: 100%; max-width: 100%; order: 3; }
   .toolbar .sel-eq, .toolbar .sel-as { width: calc(50% - 5px); }
   .kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .rank .lr { grid-template-columns: 22px minmax(0, 1fr) auto; }

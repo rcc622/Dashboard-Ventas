@@ -139,7 +139,8 @@ export function cotizado(leads: Lead[], dias: number, ahora = Date.now() / 1000)
 }
 
 // ---------------------------------------------------------------- entrada (tasa de asignación)
-export interface Entrada { llegaron: number; sinRespuesta: number; sinRecibo: number; conRecibo: number; asignados: number; perdidos: number; tasa: number | null }
+export type CatEntrada = 'llegaron' | 'sinRespuesta' | 'sinRecibo' | 'conRecibo' | 'asignados' | 'perdidos'
+export interface Entrada { llegaron: number; sinRespuesta: number; sinRecibo: number; conRecibo: number; asignados: number; perdidos: number; tasa: number | null; listas: Record<CatEntrada, Lead[]> }
 /** Marcador de entrada: leads de Kommo creados en el rango. Con filtro de asesor o equipo se
  *  cuentan por el RESPONSABLE ACTUAL del lead (Randall, 4-sep: «el dato solo del asesor»);
  *  los que aún no se asignan cuelgan de la cuenta admin y quedan fuera de ese recorte.
@@ -147,21 +148,21 @@ export interface Entrada { llegaron: number; sinRespuesta: number; sinRecibo: nu
 export function entrada(c: Corte, r: Rango, f?: Filtros): Entrada | null {
   if (!(c.fuentes || []).some((x) => x.crm === 'kommo') || (f && !pasaCrm('kommo', f))) return null
   const users = mapaUsuarios(c)
-  const e: Entrada = { llegaron: 0, sinRespuesta: 0, sinRecibo: 0, conRecibo: 0, asignados: 0, perdidos: 0, tasa: null }
+  const L: Record<CatEntrada, Lead[]> = { llegaron: [], sinRespuesta: [], sinRecibo: [], conRecibo: [], asignados: [], perdidos: [] }
   for (const l of c.leads) {
     if (l.crm !== 'kommo' || !enRango(l.creado, r) || (f && !pasaPersona(l.asesor_id, f, users))) continue
-    e.llegaron++
-    if (l.funnel === 0) e.perdidos++
-    else if (l.funnel === 1) e.sinRespuesta++
-    else if (l.funnel === 2) e.sinRecibo++
-    else { e.conRecibo++; if (l.funnel >= 4) e.asignados++ }
+    L.llegaron.push(l)
+    if (l.funnel === 0) L.perdidos.push(l)
+    else if (l.funnel === 1) L.sinRespuesta.push(l)
+    else if (l.funnel === 2) L.sinRecibo.push(l)
+    else { L.conRecibo.push(l); if (l.funnel >= 4) L.asignados.push(l) }
   }
-  e.tasa = e.llegaron ? pct(e.asignados, e.llegaron) : null
-  return e
+  return { llegaron: L.llegaron.length, sinRespuesta: L.sinRespuesta.length, sinRecibo: L.sinRecibo.length, conRecibo: L.conRecibo.length,
+    asignados: L.asignados.length, perdidos: L.perdidos.length, tasa: L.llegaron.length ? pct(L.asignados.length, L.llegaron.length) : null, listas: L }
 }
 
 // ---------------------------------------------------------------- primer contacto
-export interface PrimerContacto { mediana: number | null; n: number; sinContacto: number; en24: number }
+export interface PrimerContacto { mediana: number | null; n: number; sinContacto: number; en24: number; con: { lead: Lead; horas: number }[]; sin: Lead[] }
 /** Horas de la asignación a la primera llamada o tarea completada del lead. «Sin contacto» =
  *  lleva más de un día asignado y no hay nada registrado. Los eventos vienen ordenados por ts.
  *  Solo Kommo y solo leads en Ventas/Hunting: en HubSpot las tareas y llamadas no vienen ligadas
@@ -174,31 +175,55 @@ export function primerContacto(c: Corte, leads: Lead[], ahora = Date.now() / 100
     if (e.ts < e.asignacion || primero.has(e.lead)) continue
     primero.set(e.lead, e.ts)
   }
-  const horas: number[] = []
-  let sin = 0
+  const con: { lead: Lead; horas: number }[] = []
+  const sin: Lead[] = []
   for (const l of leads) {
     if (!conPrimerContacto(l)) continue
     const p = primero.get(l.id)
-    if (p != null) horas.push((p - l.asignacion) / 3600)
-    else if (ahora - l.asignacion > DIA) sin++
+    if (p != null) con.push({ lead: l, horas: (p - l.asignacion) / 3600 })
+    else if (ahora - l.asignacion > DIA) sin.push(l)
   }
-  return { mediana: mediana(horas), n: horas.length, sinContacto: sin, en24: horas.filter((h) => h <= 24).length }
+  const horas = con.map((x) => x.horas)
+  return { mediana: mediana(horas), n: con.length, sinContacto: sin.length, en24: horas.filter((h) => h <= 24).length, con, sin }
 }
 
 // ---------------------------------------------------------------- razones de descarte
-export function razones(c: Corte, ev: Evento[]): { razon: string; n: number }[] {
-  const rz = new Map<string, string>()
-  for (const l of c.leads) if (l.razon) rz.set(l.id, l.razon)
-  const cnt = new Map<string, number>()
+export function razones(c: Corte, ev: Evento[]): { razon: string; n: number; leads: Lead[] }[] {
+  const porId = mapaLeads(c)
+  const grupos = new Map<string, Lead[]>()
   for (const e of ev) {
     if (e.tipo !== 'descarte') continue
+    const l = porId.get(e.lead)
+    if (!l) continue
     // HubSpot trae texto libre: «.» o una letra no es una razón.
-    const t = (rz.get(e.lead) || '').trim()
+    const t = (l.razon || '').trim()
     const r = t.length > 1 ? t : 'Sin razón registrada'
-    cnt.set(r, (cnt.get(r) || 0) + 1)
+    const g = grupos.get(r) || []
+    g.push(l); grupos.set(r, g)
   }
-  return [...cnt].map(([razon, n]) => ({ razon, n })).sort((a, b) => b.n - a.n)
+  return [...grupos].map(([razon, leads]) => ({ razon, n: leads.length, leads })).sort((a, b) => b.n - a.n)
 }
+
+// ---------------------------------------------------------------- detalle (drill-down)
+// Cada cifra del tablero abre una ventana con los registros que la componen (Randall, 4-sep,
+// como el drill-down de los reportes de HubSpot). Una Fila = un renglón de esa ventana.
+export interface Fila { id: string; nombre: string; link?: string; crm: Crm; asesor: string; detalle: string; monto?: number; cuando?: number }
+export function mapaLeads(c: Corte): Map<string, Lead> { return new Map(c.leads.map((l) => [l.id, l])) }
+export const nombreAsesor = (c: Corte, id: string | null) => (id == null ? 'Sin asesor' : c.usuarios.find((u) => u.id === id)?.nombre || id)
+export function filasDeLeads(leads: Lead[], detalle: (l: Lead) => string, cuando: (l: Lead) => number = (l) => l.asignacion): Fila[] {
+  return leads.map((l) => ({ id: l.id, nombre: l.nombre || l.id, link: l.link || undefined, crm: l.crm, asesor: l.asesor || 'Sin asesor', detalle: detalle(l), monto: l.presupuesto || undefined, cuando: cuando(l) || undefined }))
+}
+/** Una fila por actividad. En HubSpot las tareas y llamadas no vienen ligadas al deal: se listan
+ *  igual (asesor, tipo y fecha) pero sin liga, y la ventana lo dice. */
+export function filasDeEventos(c: Corte, ev: Evento[]): Fila[] {
+  const porId = mapaLeads(c)
+  return ev.map((e, i) => {
+    const l = porId.get(e.lead)
+    return { id: e.lead + ':' + e.ts + ':' + i, nombre: l ? (l.nombre || l.id) : `${TIPO_LABEL[e.tipo] || e.tipo} · sin deal ligado`, link: l?.link || undefined, crm: e.crm,
+      asesor: nombreAsesor(c, e.asesor_id), detalle: (TIPO_LABEL[e.tipo] || e.tipo) + (l ? ' · ' + tipoLead(l) + ' · ' + l.etapa : ''), monto: l?.presupuesto || undefined, cuando: e.ts }
+  }).sort((a, b) => (b.cuando || 0) - (a.cuando || 0))
+}
+export const etapaDe = (l: Lead) => `${tipoLead(l)} · ${l.etapa}`
 
 // ---------------------------------------------------------------- Venta
 export interface Salud { ventasCon: number; ventasSin: number; huntCon: number; huntSin: number }
@@ -214,20 +239,20 @@ export function salud(leads: Lead[]): Salud {
 }
 
 // ---------------------------------------------------------------- Embudo
-export interface EtapaEmbudo { id: number; nombre: string; n: number; monto: number; dias: number; acumulado: number }
+export interface EtapaEmbudo { id: number; nombre: string; n: number; monto: number; dias: number; acumulado: number; leads: Lead[] }
 /** Foto por etapa del embudo Ventas: cuántos están HOY en cada etapa, cuánto
  *  suman sus presupuestos y cuántos días llevan ahí en promedio (días sin cambio). */
 export function embudo(leads: Lead[], etapas: Etapa[]): EtapaEmbudo[] {
-  const out: EtapaEmbudo[] = etapas.map((e) => ({ id: e.id, nombre: e.nombre, n: 0, monto: 0, dias: 0, acumulado: 0 }))
-  const cierre: EtapaEmbudo = { id: -2, nombre: 'Cierre', n: 0, monto: 0, dias: 0, acumulado: 0 }
+  const out: EtapaEmbudo[] = etapas.map((e) => ({ id: e.id, nombre: e.nombre, n: 0, monto: 0, dias: 0, acumulado: 0, leads: [] }))
+  const cierre: EtapaEmbudo = { id: -2, nombre: 'Cierre', n: 0, monto: 0, dias: 0, acumulado: 0, leads: [] }
   const idx = new Map(out.map((e, i) => [e.id, i]))
   const suma = new Map<number, number>()
   for (const l of leads) {
-    if (l.funnel === 5) { cierre.n++; cierre.monto += l.presupuesto; cierre.dias += Math.max(0, (l.cerrado - l.asignacion) / DIA); continue }
+    if (l.funnel === 5) { cierre.n++; cierre.monto += l.presupuesto; cierre.dias += Math.max(0, (l.cerrado - l.asignacion) / DIA); cierre.leads.push(l); continue }
     if (l.embudo !== 'ventas' || l.funnel !== 4) continue
     const i = idx.get(l.etapa_id)
     if (i == null) continue
-    out[i].n++; out[i].monto += l.presupuesto; suma.set(i, (suma.get(i) || 0) + l.dias_sin_cambio)
+    out[i].n++; out[i].monto += l.presupuesto; out[i].leads.push(l); suma.set(i, (suma.get(i) || 0) + l.dias_sin_cambio)
   }
   out.forEach((e, i) => { e.dias = e.n ? (suma.get(i) || 0) / e.n : 0 })
   cierre.dias = cierre.n ? cierre.dias / cierre.n : 0

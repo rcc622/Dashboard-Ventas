@@ -98,7 +98,7 @@ function Shell({ corte, origen, error, onRetry, onConfig }: { corte: Corte; orig
     contenido = ficha != null
       ? <Ficha corte={corte} filtros={filtros} uid={ficha} onBack={() => setFicha(null)} />
       : pagina === 'config' ? <Configuracion key={corte.generado} corte={corte} onSaved={onConfig} />
-        : pagina === 'asesores' ? <Asesores corte={corte} filtros={filtros} onFicha={setFicha} /> : <AdminDashboard corte={corte} filtros={filtros} />
+        : pagina === 'asesores' ? <Asesores corte={corte} filtros={filtros} onFicha={setFicha} /> : <AdminDashboard corte={corte} filtros={filtros} onFicha={setFicha} />
   } else {
     contenido = pagina === 'ventas' ? <MisVentas corte={corte} uid={asesorActual} />
       : pagina === 'prospectos' ? <Prospectos corte={corte} uid={asesorActual} />

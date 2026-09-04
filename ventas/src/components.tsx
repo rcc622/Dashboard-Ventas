@@ -49,13 +49,13 @@ export function StackedBar({ segs, total, max, onClick, title }: { segs: Seg[]; 
   )
 }
 
-/** Recuadro «Llamadas hechas» con desglose al pasar el mouse, al enfocar o al hacer click. */
-export function LlamadasBar({ total, ok, no }: { total: number; ok: number; no: number }) {
+/** Recuadro «Llamadas hechas» con desglose al pasar el mouse o al enfocar; el click abre el detalle. */
+export function LlamadasBar({ total, ok, no, onClick }: { total: number; ok: number; no: number; onClick?: () => void }) {
   const [tip, setTip] = useState(false)
   const resumen = `Llamadas hechas: ${fmtN(total)}. Contestadas ${fmtN(ok)} (${pct(ok, total)}%), sin contestar ${fmtN(no)} (${pct(no, total)}%)`
   return (
-    <div className="llam-box" tabIndex={0} aria-label={resumen} onMouseEnter={() => setTip(true)} onMouseLeave={() => setTip(false)}
-      onFocus={() => setTip(true)} onBlur={() => setTip(false)} onClick={() => setTip((t) => !t)}>
+    <div className={'llam-box' + (onClick ? ' drill' : '')} tabIndex={0} role={onClick ? 'button' : undefined} aria-label={resumen + (onClick ? '. Ver detalle' : '')} onMouseEnter={() => setTip(true)} onMouseLeave={() => setTip(false)}
+      onFocus={() => setTip(true)} onBlur={() => setTip(false)} onClick={() => (onClick ? onClick() : setTip((t) => !t))} onKeyDown={onClick ? activar(() => onClick()) : undefined}>
       <div className="llam-head"><span>Llamadas hechas</span><span>{fmtN(total)}</span></div>
       <StackedBar segs={[{ val: ok, cls: 'seg-comp' }, { val: no, cls: 'seg-warn' }]} total={total} max={total} />
       <div className="legend"><span><i className="lg-comp" aria-hidden="true" />Contestadas {fmtN(ok)}</span><span><i className="lg-warn" aria-hidden="true" />Sin contestar {fmtN(no)}</span></div>
@@ -70,8 +70,9 @@ export function LlamadasBar({ total, ok, no }: { total: number; ok: number; no: 
   )
 }
 
-export interface DetRow { label: string; val: number }
-/** Detalle de una barra de la tabla: aparece debajo del elemento clickeado. */
+export interface DetRow { label: string; val: number; onVer?: () => void }
+/** Detalle de una barra de la tabla: aparece debajo del elemento clickeado. Un renglón con
+ *  onVer es botón y abre la lista de registros. */
 export function BarDetailPopup({ anchor, title, total, rows, onClose }: { anchor: DOMRect; title: string; total: number; rows: DetRow[]; onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null)
   useOutside(ref, onClose)
@@ -83,7 +84,9 @@ export function BarDetailPopup({ anchor, title, total, rows, onClose }: { anchor
     <div className="popup" ref={ref} style={{ left, top, width: W }} role="dialog" aria-label={title}>
       <div className="ph"><span className="nm">{title}</span><button type="button" className="ib" aria-label="Cerrar" onClick={onClose}>×</button></div>
       <div className="pbody detail-rows">
-        {rows.map((r) => <div className="r" key={r.label}><span>{r.label}</span><b>{fmtN(r.val)}</b><span className="muted">{pct(r.val, total)}%</span></div>)}
+        {rows.map((r) => r.onVer
+          ? <button type="button" className="r rbtn" key={r.label} onClick={r.onVer} title="Ver registros"><span>{r.label}</span><b>{fmtN(r.val)}</b><span className="muted">{pct(r.val, total)}% ›</span></button>
+          : <div className="r" key={r.label}><span>{r.label}</span><b>{fmtN(r.val)}</b><span className="muted">{pct(r.val, total)}%</span></div>)}
         <div className="r t"><span>Total</span><b>{fmtN(total)}</b><span>100%</span></div>
       </div>
     </div>
@@ -166,18 +169,19 @@ const RAMPA = ['var(--f1)', 'var(--f2)', 'var(--f3)', 'var(--f4)', 'var(--f5)', 
  *  de cada etapa (piso 18 % para que el número quepa), rampa de un solo tono (claro → oscuro)
  *  y etiqueta a la derecha. La forma vive en una columna acotada: a pantalla completa un
  *  trapecio de 700 px de ancho y 38 de alto se leía como una lámina aplastada. */
-export function FunnelChart({ stages }: { stages: FunnelStage[] }) {
+export function FunnelChart({ stages, onStage }: { stages: FunnelStage[]; onStage?: (i: number) => void }) {
   const max = Math.max(1, ...stages.map((s) => s.n))
   const H = 46
   const w = (n: number) => Math.max(18, (n / max) * 100)
   return (
-    <div className="funnel" role="img" aria-label={'Embudo: ' + stages.map((s) => `${s.nombre} ${s.n}`).join(', ')}>
+    <div className="funnel" role={onStage ? 'group' : 'img'} aria-label={'Embudo: ' + stages.map((s) => `${s.nombre} ${s.n}`).join(', ')}>
       {stages.map((s, i) => {
         const a = w(s.n), b = i + 1 < stages.length ? w(stages[i + 1].n) : a * 0.8
         const pts = `${50 - a / 2},0 ${50 + a / 2},0 ${50 + b / 2},${H} ${50 - b / 2},${H}`
         const color = RAMPA[Math.min(i, RAMPA.length - 1)]
+        const ctrl = onStage ? { role: 'button', tabIndex: 0, onClick: () => onStage(i), onKeyDown: activar(() => onStage(i)), 'aria-label': `${s.nombre}: ${fmtN(s.n)}. Ver leads` } : {}
         return (
-          <div className="frow" key={s.nombre}>
+          <div className={'frow' + (onStage ? ' drill' : '')} key={s.nombre} {...ctrl}>
             <div className="fshape">
               <svg viewBox={`0 0 100 ${H}`} preserveAspectRatio="none" aria-hidden="true"><polygon points={pts} fill={color} stroke={color} strokeWidth="3" strokeLinejoin="round" vectorEffect="non-scaling-stroke" /></svg>
               <div className="fnum" style={{ color: i < 2 ? 'var(--ink)' : '#fff' }}>{fmtN(s.n)}</div>
