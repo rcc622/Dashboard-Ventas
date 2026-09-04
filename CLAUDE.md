@@ -555,9 +555,16 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   asignación); lo más viejo se muestra rayado y «ya no cuenta». Vive en
   `cotizado()` y sale en Venta (equipo), en la tabla de Asesores y en la ficha.
 - **Entrada de leads** (`entrada()`): solo Kommo, por fecha de CREACIÓN en el
-  rango y sin filtro de persona (los no asignados no tienen dueño). Tasa de
-  asignación = funnel ≥ 4 / llegaron: el KPI que Alejandro pidió resaltar. No
-  duplica el tablero de marketing: aquí es para el auditor de CRM.
+  rango. Tasa de asignación = funnel ≥ 4 / llegaron: el KPI que Alejandro pidió
+  resaltar. Con filtro de asesor o equipo cuenta por el RESPONSABLE ACTUAL del
+  lead (Randall lo pidió así el 4-sep); ojo: los leads que aún no se asignan
+  cuelgan de la cuenta admin («randall», 1,015 de 1,123 en funnel 2), así que
+  con filtro quedan fuera y la tasa sube; la nota bajo el bloque lo dice.
+- **Barra de filtros sticky** dentro de `.main` con `top: -18px` (Chrome la pega
+  al borde de contenido, no al del padding; con 0 se asomaba una franja). En
+  ≤ 960 px vuelve a ser estática porque ocupa tres renglones. Los selectores
+  tienen ancho fijo (160 / 250 px): un `select` se ensancha con la opción más
+  larga y movía los botones Kommo · HubSpot al filtrar.
 - **Primer contacto** (`primerContacto()`): mediana de horas asignación → primera
   llamada o tarea completada, con los eventos (que traen `asignacion`) en un
   solo recorrido. **Perfiles** (`perfiles()`): los 4 cuadrantes de Samuel con la
