@@ -40,6 +40,9 @@ VENTAS_DIST = os.path.join(HERE, "ventas", "dist")
 # Link «Ventas» de la barra flotante: en marketing apunta al servicio mkt-ventas.
 VENTAS_URL = os.environ.get("VENTAS_URL") or "/ventas/"
 VENTAS_JSON = os.path.join(DATA, "ventas.json")
+# VENTAS_PUBLICO=1 sirve /ventas (tablero, corte, config, histórico) SIN contraseña; pedido de
+# Randall 4-sep. Solo /ventas: /estado, /cola, /pausar y la portada de marketing siguen con auth.
+VENTAS_PUBLICO = (os.environ.get("VENTAS_PUBLICO") or "").strip().lower() in ("1", "true", "si", "sí")
 VENTAS_CONFIG = os.path.join(DATA, "ventas_config.json")   # metas en pesos desde la página (POST /ventas/config)
 VENTAS_HIST = os.path.join(DATA, "ventas_hist.jsonl")      # foto diaria del pipeline (la escribe ventas_corte.py)
 CTYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
@@ -743,6 +746,11 @@ class H(BaseHTTPRequestHandler):
         if ruta == "/salud":
             return self._send(200, json.dumps({"ok": True, "arranques": _estado["arranques"]}),
                               "application/json")
+        if VENTAS_PUBLICO:
+            if ruta == "/" and DASH_MODO == "ventas":
+                return self._send(302, "", extra={"Location": "/ventas/"})
+            if ruta == "/ventas" or ruta.startswith("/ventas/"):
+                return self._ventas(ruta)
         if not self._autorizado():
             return self._pide_auth()
         if ruta == "/cola":
@@ -789,6 +797,8 @@ class H(BaseHTTPRequestHandler):
         return self._send(200, doc + BARRA % {"msg": msg, "ventas_url": VENTAS_URL} + CHAT)
 
     def do_POST(self):
+        if VENTAS_PUBLICO and self.path.startswith("/ventas/config"):
+            return self._ventas_config()
         if not self._autorizado():
             return self._pide_auth()
         if self.path.startswith("/instruccion"):

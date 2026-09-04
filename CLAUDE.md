@@ -560,6 +560,13 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   lead (Randall lo pidió así el 4-sep); ojo: los leads que aún no se asignan
   cuelgan de la cuenta admin («randall», 1,015 de 1,123 en funnel 2), así que
   con filtro quedan fuera y la tasa sube; la nota bajo el bloque lo dice.
+- **Sin contraseña en `/ventas`** (`VENTAS_PUBLICO=1` en el servicio `mkt-ventas`,
+  pedido de Randall 4-sep): `do_GET` sirve `/ventas*` (y `/` → `/ventas/` en modo
+  ventas) antes del auth y `do_POST` deja pasar `/ventas/config`. Todo lo demás
+  (`/estado`, `/cola`, `/pausar`, `/refrescar`, la portada de marketing) sigue
+  con basic auth. Cualquiera con la URL ve nombres de clientes, montos y el
+  desempeño por asesor y puede cambiar las metas. Para volver a cerrar:
+  `railway variables delete VENTAS_PUBLICO --service mkt-ventas` y redeploy.
 - **Barra de filtros sticky** dentro de `.main` con `top: -18px` (Chrome la pega
   al borde de contenido, no al del padding; con 0 se asomaba una franja). En
   ≤ 960 px vuelve a ser estática porque ocupa tres renglones. Los selectores
