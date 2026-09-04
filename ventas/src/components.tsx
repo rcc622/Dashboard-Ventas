@@ -162,20 +162,24 @@ export function BubbleChart({ cols }: { cols: BubbleCol[] }) {
 
 export interface FunnelStage { nombre: string; n: number; sub?: string }
 const RAMPA = ['var(--f1)', 'var(--f2)', 'var(--f3)', 'var(--f4)', 'var(--f5)', 'var(--f6)', 'var(--f6)']
-/** Embudo real: trapecios apilados, ancho proporcional a los leads de cada etapa,
- *  rampa de un solo tono (claro → oscuro) y etiqueta a la derecha. */
+/** Embudo real: bandas trapezoidales con aire entre ellas, ancho proporcional a los leads
+ *  de cada etapa (piso 18 % para que el número quepa), rampa de un solo tono (claro → oscuro)
+ *  y etiqueta a la derecha. La forma vive en una columna acotada: a pantalla completa un
+ *  trapecio de 700 px de ancho y 38 de alto se leía como una lámina aplastada. */
 export function FunnelChart({ stages }: { stages: FunnelStage[] }) {
   const max = Math.max(1, ...stages.map((s) => s.n))
-  const w = (n: number) => Math.max(14, (n / max) * 100)
+  const H = 46
+  const w = (n: number) => Math.max(18, (n / max) * 100)
   return (
-    <div role="img" aria-label={'Embudo: ' + stages.map((s) => `${s.nombre} ${s.n}`).join(', ')}>
+    <div className="funnel" role="img" aria-label={'Embudo: ' + stages.map((s) => `${s.nombre} ${s.n}`).join(', ')}>
       {stages.map((s, i) => {
-        const a = w(s.n), b = i + 1 < stages.length ? w(stages[i + 1].n) : a * 0.75
-        const pts = `${50 - a / 2},0 ${50 + a / 2},0 ${50 + b / 2},38 ${50 - b / 2},38`
+        const a = w(s.n), b = i + 1 < stages.length ? w(stages[i + 1].n) : a * 0.8
+        const pts = `${50 - a / 2},0 ${50 + a / 2},0 ${50 + b / 2},${H} ${50 - b / 2},${H}`
+        const color = RAMPA[Math.min(i, RAMPA.length - 1)]
         return (
           <div className="frow" key={s.nombre}>
             <div className="fshape">
-              <svg viewBox="0 0 100 38" preserveAspectRatio="none" aria-hidden="true"><polygon points={pts} fill={RAMPA[Math.min(i, RAMPA.length - 1)]} stroke="var(--card)" strokeWidth="1" vectorEffect="non-scaling-stroke" /></svg>
+              <svg viewBox={`0 0 100 ${H}`} preserveAspectRatio="none" aria-hidden="true"><polygon points={pts} fill={color} stroke={color} strokeWidth="3" strokeLinejoin="round" vectorEffect="non-scaling-stroke" /></svg>
               <div className="fnum" style={{ color: i < 2 ? 'var(--ink)' : '#fff' }}>{fmtN(s.n)}</div>
             </div>
             <div className="flab"><div className="nm">{s.nombre}</div><div className="sub">{s.sub}</div></div>

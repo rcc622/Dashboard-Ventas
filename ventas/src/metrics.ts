@@ -140,13 +140,16 @@ export function cotizado(leads: Lead[], dias: number, ahora = Date.now() / 1000)
 
 // ---------------------------------------------------------------- entrada (tasa de asignación)
 export interface Entrada { llegaron: number; sinRespuesta: number; sinRecibo: number; conRecibo: number; asignados: number; perdidos: number; tasa: number | null }
-/** Marcador de entrada: leads de Kommo creados en el rango, sin filtro de persona (los no
- *  asignados no tienen dueño). conRecibo incluye a los ya asignados. null sin fuente Kommo. */
+/** Marcador de entrada: leads de Kommo creados en el rango. Con filtro de asesor o equipo se
+ *  cuentan por el RESPONSABLE ACTUAL del lead (Randall, 4-sep: «el dato solo del asesor»);
+ *  los que aún no se asignan cuelgan de la cuenta admin y quedan fuera de ese recorte.
+ *  conRecibo incluye a los ya asignados. null sin fuente Kommo o con Kommo apagado. */
 export function entrada(c: Corte, r: Rango, f?: Filtros): Entrada | null {
   if (!(c.fuentes || []).some((x) => x.crm === 'kommo') || (f && !pasaCrm('kommo', f))) return null
+  const users = mapaUsuarios(c)
   const e: Entrada = { llegaron: 0, sinRespuesta: 0, sinRecibo: 0, conRecibo: 0, asignados: 0, perdidos: 0, tasa: null }
   for (const l of c.leads) {
-    if (l.crm !== 'kommo' || !enRango(l.creado, r)) continue
+    if (l.crm !== 'kommo' || !enRango(l.creado, r) || (f && !pasaPersona(l.asesor_id, f, users))) continue
     e.llegaron++
     if (l.funnel === 0) e.perdidos++
     else if (l.funnel === 1) e.sinRespuesta++

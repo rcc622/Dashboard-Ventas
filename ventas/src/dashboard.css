@@ -62,7 +62,13 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 .stale { border-radius: 999px; background: var(--c2-soft); color: var(--c2-ink); padding: 3px 9px; font-size: 11px; font-weight: 700; white-space: nowrap; }
 
 /* ---------- toolbar ---------- */
-.toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+/* Fija al hacer scroll (pedido de Randall): .main es el contenedor que scrollea, así que
+   sticky top:0 la pega a su borde; el margen negativo la extiende sobre el padding de .main
+   y el fondo tapa lo que pasa por debajo. En pantallas angostas ocupa tres renglones: ahí no se fija. */
+.toolbar { position: sticky; top: -18px; z-index: 60; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 0 -22px 16px; padding: 12px 22px; background: var(--bg); border-bottom: 1px solid var(--line); }
+/* top:-18px y no 0: Chrome mide el sticky desde el borde de contenido de .main (18 px de padding);
+   con 0 quedaba una franja arriba por la que se asomaba lo que iba pasando. Medido con Playwright. */
+.toolbar:first-child { margin-top: -18px; padding-top: 16px; }
 .sel, .btn { border: 1px solid var(--line); border-radius: 8px; background: var(--card); padding: 7px 12px; font-weight: 600; cursor: pointer; box-shadow: 0 1px 2px rgba(20, 22, 25, .04); }
 .btn.on { background: var(--ink); color: var(--acc); border-color: var(--ink); }
 .btn.on:hover { background: var(--ink); }
@@ -144,12 +150,14 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 
 /* ---------- embudo ---------- */
 .embudo { display: grid; grid-template-columns: 1.1fr 1fr; gap: 14px; }
-.frow { display: grid; grid-template-columns: 1fr 150px; gap: 12px; align-items: center; margin-bottom: 2px; }
-.fshape { position: relative; height: 38px; }
-.fshape svg { display: block; width: 100%; height: 100%; }
-.fnum { position: absolute; inset: 0; display: grid; place-items: center; font-size: 12px; font-weight: 700; pointer-events: none; }
-.flab .nm { font-weight: 600; font-size: 12px; }
-.flab .sub { color: var(--g2); font-size: 11px; }
+.funnel { padding: 6px 0 2px; }
+/* La forma va acotada (máx. 380 px) y centrada; entre banda y banda hay aire. */
+.frow { display: grid; grid-template-columns: minmax(150px, 380px) minmax(150px, 210px); gap: 18px; align-items: center; margin-bottom: 7px; justify-content: center; }
+.fshape { position: relative; height: 46px; }
+.fshape svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.fnum { position: absolute; inset: 0; display: grid; place-items: center; font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; pointer-events: none; }
+.flab .nm { font-weight: 600; font-size: 13px; }
+.flab .sub { color: var(--g2); font-size: 11px; margin-top: 2px; }
 .ftable { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
 .ftable th { text-align: left; font-size: 11px; color: var(--g2); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--line); }
 .ftable td { padding: 7px 8px; border-bottom: 1px solid var(--line); font-size: 12px; }
@@ -392,6 +400,7 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
 
 /* ---------- responsive ---------- */
 @media (max-width: 960px) {
+  .toolbar, .toolbar:first-child { position: static; margin: 0 0 16px; padding: 0; border: 0; background: transparent; }
   .ent { grid-template-columns: 1fr; }
   .kpi-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .perfil-legend { grid-template-columns: 1fr; }
@@ -415,7 +424,7 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
   .drp-months { grid-template-columns: 1fr; }
   .kcard.hero .n { font-size: 40px; }
   .tile .n, .kpi4 .n { font-size: 24px; }
-  .frow { grid-template-columns: 1fr 120px; }
+  .frow { grid-template-columns: minmax(0, 1fr) 130px; gap: 12px; justify-content: stretch; }
   .logo { font-size: 14px; white-space: nowrap; gap: 6px; }
   .logo::before { width: 11px; height: 11px; }
   .hleft, .hright { gap: 6px; }
