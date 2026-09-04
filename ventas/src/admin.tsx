@@ -2,8 +2,9 @@ import { useLayoutEffect, useMemo, useRef, useState, type SyntheticEvent } from 
 import type { Corte, Lead, Usuario } from './types'
 import { CRM_LABEL } from './types'
 import { BUCKETS, PERFIL_LABEL, actividad, cotizado, dias, embudo, entrada, ep, etapaDe, eventosFiltrados, fechaCotizado, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, metaDe, metaEnRango, metaEsperada, pasaCrm, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, type Fila, type FilaAsesor, type Filtros, type Perfil } from './metrics'
-import { BarDetailPopup, BubbleChart, Bullet, CollapsibleSection, DonutChart, FunnelChart, Gauge, Info, LlamadasBar, MiniAreaChart, Scatter, SortTh, StackedBar, activar, useEscape, useOutside, type DetRow, type Sort } from './components'
+import { BarDetailPopup, BubbleChart, Bullet, DonutChart, FunnelChart, Gauge, Info, LlamadasBar, MiniAreaChart, Scatter, SortTh, StackedBar, activar, useEscape, useOutside, type DetRow, type Sort } from './components'
 import { DrillModal, type Drill } from './drill'
+import { WidgetGrid, type Widget } from './widgets'
 
 const mixto = (c: Corte) => (c.fuentes || []).length > 1
 const crmCorto = (l: { crm: Lead['crm'] }) => CRM_LABEL[l.crm]
@@ -120,182 +121,171 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
     { k: 'llegaron', cls: 'e1', l: 'Llegaron' }, { k: 'sinRespuesta', cls: 'e2', l: 'Sin respuesta' }, { k: 'sinRecibo', cls: 'e3', l: 'Respondieron sin recibo' },
     { k: 'conRecibo', cls: 'e4', l: 'Con recibo' }, { k: 'asignados', cls: 'e5', l: 'Asignados' }, { k: 'perdidos', cls: 'e6', l: 'Perdidos' },
   ]
+  // Cada gráfica es un widget que Randall (o quien mire) puede reordenar; el orden vive en el navegador.
+  const W = (id: string, titulo: string, nodo: React.ReactNode, opts: Partial<Widget> = {}): Widget => ({ id, titulo, nodo, ...opts })
+  const widgets: Widget[] = [
+    W('salud', 'Salud operativa', (
+      <>
+        <div className="salud-grid">
+          <DonutChart partes={[{ val: con, color: 'var(--c1)', label: 'Con presupuesto' }, { val: sin, color: 'var(--c2)', label: 'Sin presupuesto' }]} total={tot} label="leads asignados" />
+          <div className="legend-list">
+            {saludRow('Con presupuesto ($>0)', asignados.filter((l) => l.presupuesto > 0), con, 'c1', pct(con, tot) + '%', true)}
+            {saludRow('Ventas', asignados.filter((l) => l.presupuesto > 0 && l.embudo === 'ventas'), s.ventasCon)}
+            {hayHunting && saludRow('Hunting', asignados.filter((l) => l.presupuesto > 0 && l.embudo === 'hunting'), s.huntCon)}
+            {saludRow('Sin presupuesto', asignados.filter((l) => l.presupuesto <= 0), sin, 'c2', pct(sin, tot) + '%', true)}
+            {saludRow('Ventas', asignados.filter((l) => l.presupuesto <= 0 && l.embudo === 'ventas'), s.ventasSin)}
+            {hayHunting && saludRow('Hunting', asignados.filter((l) => l.presupuesto <= 0 && l.embudo === 'hunting'), s.huntSin)}
+          </div>
+        </div>
+        <div className="cmpbar" role="img" aria-label={`${pct(con, tot)}% con presupuesto, ${pct(sin, tot)}% sin presupuesto`}><i style={{ width: pct(con, tot) + '%' }} /></div>
+        <div className="cmp-legend"><span>Total registros: {fmtN(tot)}</span><span>asignados en Ventas{hayHunting ? '/Hunting' : ''} · última asignación en el rango{mixto(corte) ? ' · Kommo + HubSpot' : ''}{!hayHunting && pasaCrm('hubspot', filtros) ? ' · HubSpot no tiene Hunting' : ''}</span></div>
+      </>
+    ), { info: ['Salud operativa'] }),
+    W('cifras', 'Cifras del rango', (
+      <div className="tiles2">
+        <div className="tile"><Cifra label={`${fmtN(tot)} leads asignados`} onClick={() => ver('Leads asignados en el rango', fLeads(asignados), rango + ' · fecha = última asignación')}>{fmtN(tot)}</Cifra><div className="l">Leads asignados en el rango</div></div>
+        <div className="tile t2"><Cifra label={`${fmtN(ventas.length)} ventas cerradas`} onClick={() => ver('Ventas cerradas en el rango', fVentas(ventas), rango + ' · fecha = cierre')}>{fmtN(ventas.length)}</Cifra><div className="l">Ventas cerradas en el rango</div></div>
+        <div className="tile t3"><Cifra label={`${fmtMoney(monto)} vendido`} onClick={() => ver('Vendido en el rango', fVentas(ventas), rango + ' · fecha = cierre')}>{fmtMoney(monto)}</Cifra><div className="l">Vendido · meta {fmtMoney0(metaRango)}<Info termino="Meta" /></div></div>
+        <div className="tile t4"><Cifra label={`conversión ${leads.length ? pct(ventas.length, leads.length) + '%' : 'sin dato'}`} onClick={() => ver('Ventas que cuentan en la conversión', fVentas(ventas), `${fmtN(ventas.length)} ventas / ${fmtN(leads.length)} leads asignados · ${rango}`)}>{leads.length ? pct(ventas.length, leads.length) + '%' : '—'}</Cifra><div className="l">Conversión ventas / asignados<Info termino="Conversión" /></div></div>
+      </div>
+    ), { plain: true }),
+    W('ranking', 'Ranking de ventas', (
+      <>
+        {!ranking.length && <div className="muted">Sin ventas ni actividad en el rango.</div>}
+        {ranking.map((f, i) => (
+          <div className="lr drill" key={f.u.id} role="button" tabIndex={0} aria-label={`${f.u.nombre}: ${fmtMoney0(f.montoVentas)} en ${f.ventas} ventas. Ver ventas`}
+            onClick={() => ver(`Ventas de ${f.u.nombre}`, fVentas(ventas.filter((l) => l.asesor_id === f.u.id)), rango + ' · fecha = cierre')} onKeyDown={activar(() => ver(`Ventas de ${f.u.nombre}`, fVentas(ventas.filter((l) => l.asesor_id === f.u.id)), rango + ' · fecha = cierre'))}>
+            <span className={'pos' + (i < 3 ? ' top' : '')}>{i + 1}</span>
+            <span className="nm" title={subAsesor(corte, f.u)}>{f.u.nombre}</span>
+            <Bullet sm value={f.montoVentas} target={f.metaRango} expected={f.esperado} label={'Vendido de ' + f.u.nombre} fmt={fmtMoney0} />
+            <span className="v">{fmtMoney0(f.montoVentas)}<small>{f.ventas} venta{f.ventas === 1 ? '' : 's'} · {pct(f.montoVentas, f.metaRango)}% de la meta</small></span>
+          </div>
+        ))}
+        {filas.length > ranking.length && <div className="small muted" style={{ marginTop: 8 }}>Top {ranking.length} de {filas.length}; la tabla de Asesores trae a todos.</div>}
+      </>
+    ), { info: ['Ranking'], cls: 'rank' }),
+    W('pipeline', 'Cotizado vs vendido vs meta', (
+      <>
+        <div className="brow">
+          <span className="l">Vendido</span>
+          <Bullet value={monto} target={metaRango} expected={esperado} label="Vendido" fmt={fmtMoney0} />
+          <Cifra label={`Vendido ${fmtMoney0(monto)}`} onClick={() => ver('Vendido en el rango', fVentas(ventas), rango + ' · fecha = cierre')}><span className="v">{fmtMoney0(monto)}</span></Cifra>
+          <span className="sub">meta del rango {fmtMoney0(metaRango)} ({filas.length} asesor{filas.length === 1 ? '' : 'es'}) · esperado a hoy {fmtMoney0(esperado)}<Info termino="Esperado a hoy" /> · {monto >= metaRango ? 'meta cumplida' : `faltan ${fmtMoney0(metaRango - monto)}`}</span>
+        </div>
+        <div className="brow">
+          <span className="l">Cotizado vigente</span>
+          <Bullet value={cot.vigente} target={objetivoCot} label="Cotizado vigente" color="var(--c2)" fmt={fmtMoney0} />
+          <Cifra label={`Cotizado vigente ${fmtMoney0(cot.vigente)}`} onClick={() => ver('Cotizado vigente', fCotizado(vigentes), `≤ ${corte.cotizado_dias} días · ${rango}`)}><span className="v">{fmtMoney0(cot.vigente)}</span></Cifra>
+          <span className="sub">objetivo {fmtMoney0(objetivoCot)} = {corte.cotizado_x}× la meta mensual ({fmtMoney0(metaMes)}) · {fmtN(cot.n)} lead{cot.n === 1 ? '' : 's'} con monto<Info termino="Cotizado vigente" /></span>
+        </div>
+        <div style={{ marginTop: 10 }}>
+          <div className="small" style={{ fontWeight: 600 }}>Antigüedad del cotizado<Info termino="Antigüedad" /></div>
+          <Antiguedad c={cot} leads={leads} onVer={(t, f) => ver(t, f, rango)} />
+          {cot.viejo > 0 && <div className="small muted" style={{ marginTop: 6 }}>{fmtMoney(cot.viejo)} en {fmtN(cot.nViejo)} leads pasan de {corte.cotizado_dias} días: ya no cuentan como pipeline vivo.</div>}
+        </div>
+      </>
+    ), { info: ['Pipeline 10×'] }),
+    ...(ent ? [W('entrada', 'Entrada de leads · Kommo', (
+      <div className="ent">
+        <div className="hero">
+          <Gauge pct={ent.tasa} label="asignados" size={190} color="var(--c2)" />
+          <div className="l">Tasa de asignación<Info termino="Tasa de asignación" /></div>
+          <div className="small muted">{fmtN(ent.asignados)} asignados de {fmtN(ent.llegaron)} que llegaron</div>
+        </div>
+        <div>
+          <div className="kpi-row">
+            {ENT.map((x) => <button type="button" key={x.k} className={x.cls + ' tbtn'} onClick={() => ver(`${x.l} · entrada Kommo`, fEntrada(ent.listas[x.k]), rango + ' · fecha = creación')} aria-label={`${x.l}: ${fmtN(ent[x.k])}. Ver leads`}><div className="n">{fmtN(ent[x.k])}</div><div className="l">{x.l}</div></button>)}
+          </div>
+          <div className="sbar ent-bar" role="img" aria-label={`De ${fmtN(ent.llegaron)} leads: ${fmtN(ent.sinRespuesta)} sin respuesta, ${fmtN(ent.sinRecibo)} respondieron sin recibo, ${fmtN(ent.conRecibo)} con recibo, ${fmtN(ent.perdidos)} perdidos`}>
+            {ent.llegaron > 0 && <div style={{ width: '100%', display: 'flex', height: '100%' }}><i className="seg-neutral" style={{ width: pct(ent.sinRespuesta, ent.llegaron) + '%' }} /><i className="seg-warn" style={{ width: pct(ent.sinRecibo, ent.llegaron) + '%' }} /><i className="seg-ok" style={{ width: pct(ent.conRecibo, ent.llegaron) + '%' }} /><i className="seg-alert" style={{ width: pct(ent.perdidos, ent.llegaron) + '%' }} /></div>}
+          </div>
+          <div className="legend"><span><i style={{ background: 'var(--neutral)' }} aria-hidden="true" />Sin respuesta</span><span><i className="lg-warn" aria-hidden="true" />Respondieron sin recibo</span><span><i style={{ background: 'var(--c4)' }} aria-hidden="true" />Con recibo (incluye asignados)</span><span><i style={{ background: 'var(--warn)' }} aria-hidden="true" />Perdidos</span></div>
+          <div className="small muted" style={{ marginTop: 8 }}>
+            {filtros.asesor || filtros.equipo
+              ? 'Leads de Kommo creados en el rango cuyo responsable actual es el asesor o equipo elegido. Los que aún no se asignan cuelgan de la cuenta admin y quedan fuera: aquí la tasa dice cuántos de sus leads ya están en Ventas o Hunting. Quita el filtro para ver la entrada completa.'
+              : 'Leads de Kommo por fecha de creación en el rango, de todo el equipo. HubSpot no entra porque no registra recibo ni respuesta.'}
+          </div>
+        </div>
+      </div>
+    ), { span: 2 })] : []),
+    W('embudo', 'Embudo de ventas por etapa', (
+      <FunnelChart stages={et.map((e) => ({ nombre: e.nombre, n: e.n, sub: `${fmtMoney(e.monto)} · ${e.n ? e.dias.toFixed(1) + ' días en etapa' : 'sin leads'}` }))}
+        onStage={(i) => ver(`${et[i].nombre} · embudo Ventas`, et[i].id === -2 ? fVentas(et[i].leads) : fLeads(et[i].leads), rango)} />
+    )),
+    W('etapas', 'Monto cotizado y tiempo por etapa', (
+      <>
+        <table className="ftable">
+          <thead><tr><th>Etapa</th><th className="num">Leads</th><th className="num">Monto</th><th className="num">Días promedio</th><th className="num">Acumulado</th></tr></thead>
+          <tbody>
+            {et.map((e, i) => (
+              <tr key={e.id} className="drill" role="button" tabIndex={0} aria-label={`${e.nombre}: ${fmtN(e.n)} leads, ${fmtMoney(e.monto)}. Ver leads`}
+                onClick={() => ver(`${e.nombre} · embudo Ventas`, e.id === -2 ? fVentas(e.leads) : fLeads(e.leads), rango)} onKeyDown={activar(() => ver(`${e.nombre} · embudo Ventas`, e.id === -2 ? fVentas(e.leads) : fLeads(e.leads), rango))}>
+                <td><span className="sw" style={{ background: RAMPA[Math.min(i, RAMPA.length - 1)] }} aria-hidden="true" />{e.nombre}</td><td className="num">{fmtN(e.n)}</td><td className="num">{fmtMoney(e.monto)}</td><td className="num">{e.n ? e.dias.toFixed(1) : '—'}</td><td className="num muted">{e.acumulado.toFixed(1)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div className="muted small" style={{ marginTop: 10 }}>
+          Foto de hoy del embudo Ventas: leads en cada etapa, suma de sus presupuestos y días promedio que llevan ahí. Cierre = ganados del rango, días desde su asignación.
+          {mixto(corte) ? ' Las etapas de HubSpot (Ciclo de Venta KS) se traducen a las de Kommo: Lead entrante = Por contactar, Conversación iniciada y Precalificación hecha = Conversación iniciada; HubSpot no tiene Levantamiento agendado ni Hunting.' : ''}
+        </div>
+      </>
+    ), { info: ['Monto cotizado', 'Tiempo promedio'] }),
+    W('llamadas', 'Llamadas', (
+      <div className="llam-grid">
+        <LlamadasBar total={a.llamadas} ok={a.contestadas} no={a.sinContestar} onClick={() => verEv('Llamadas en el rango', 'llamada_ok', 'llamada_no')} />
+        <Gauge pct={a.llamadas ? pct(a.contestadas, a.llamadas) : null} label="contestadas" size={180} />
+      </div>
+    ), { info: ['Llamadas'] }),
+    W('actividad', 'Actividad del rango', (
+      <div className="kpi4">
+        <button type="button" className="tbtn" onClick={() => verEv('Tareas completadas', 'tarea')} aria-label={`${fmtN(a.tareas)} tareas completadas. Ver detalle`}><div className="n">{fmtN(a.tareas)}</div><div className="l">Tareas completadas</div></button>
+        <button type="button" className="tbtn" onClick={() => verEv('Cotizaciones entregadas', 'cotizacion')} aria-label={`${fmtN(a.cotizaciones)} cotizaciones. Ver detalle`}><div className="n">{fmtN(a.cotizaciones)}</div><div className="l">Cotizaciones entregadas</div></button>
+        <button type="button" className="tbtn" onClick={() => verEv('Descartados con razón registrada', 'descarte')} aria-label={`${fmtN(a.descartes)} descartados. Ver detalle`}><div className="n">{fmtN(a.descartes)}</div><div className="l">Descartados con razón registrada</div></button>
+        <button type="button" className="tbtn" onClick={() => verEv('Levantamientos solicitados', 'levantamiento')} aria-label={`${fmtN(a.levantamientos)} levantamientos. Ver detalle`}><div className="n">{fmtN(a.levantamientos)}</div><div className="l">Levantamientos solicitados</div></button>
+      </div>
+    ), { plain: true }),
+    W('contacto', 'Primer contacto y razones de descarte', (
+      <>
+        <div className="small" style={{ fontWeight: 600 }}>Primer contacto<Info termino="Primer contacto" /></div>
+        <div className="pc-hero"><span className="n">{horasPC}</span><span className="u">{unidadPC}</span></div>
+        <div className="small muted">
+          <button type="button" className="nbtn" onClick={() => ver('Leads con primer contacto registrado', filasDeLeads(pc.con.map((x) => x.lead), (l) => { const h = pc.con.find((x) => x.lead.id === l.id)?.horas || 0; return `${etapaDe(l)} · primer contacto a las ${h < 48 ? h.toFixed(1) + ' horas' : Math.round(h / 24) + ' días'}` }), rango)}>{fmtN(pc.n)} leads con contacto registrado</button>
+          {' · '}{fmtN(pc.en24)} en menos de 24 horas ({pct(pc.en24, pc.n)}%){' · '}
+          <button type="button" className="nbtn" onClick={() => ver('Leads sin contacto tras un día asignados', filasDeLeads(pc.sin, (l) => `${etapaDe(l)} · asignado hace ${dias(diasDesde(l.asignacion))}, sin llamada ni tarea`), rango)}>{fmtN(pc.sinContacto)} sin contacto tras un día asignados</button>
+          {mixto(corte) ? ' · solo Kommo' : ''}
+        </div>
+        <div className="small" style={{ fontWeight: 600, marginTop: 18 }}>Razón de descarte<Info termino="Razón de descarte" /></div>
+        {!rz.length && <div className="muted">Sin descartes en el rango.</div>}
+        <div className="rz">
+          {rz.slice(0, 8).map((r) => (
+            <div className="lr drill" key={r.razon} role="button" tabIndex={0} aria-label={`${r.razon}: ${fmtN(r.n)}. Ver leads`}
+              onClick={() => ver(`Descartados · ${r.razon}`, filasDeLeads(r.leads, (l) => `Perdido · ${l.razon || 'sin razón'}`, (l) => l.cerrado), rango + ' · fecha = descarte')} onKeyDown={activar(() => ver(`Descartados · ${r.razon}`, filasDeLeads(r.leads, (l) => `Perdido · ${l.razon || 'sin razón'}`, (l) => l.cerrado), rango + ' · fecha = descarte'))}>
+              <span>{r.razon}</span><span className="bar" aria-hidden="true"><i style={{ width: pct(r.n, rz[0].n) + '%' }} /></span><span><b>{fmtN(r.n)}</b> <span className="muted">{pct(r.n, rzTot)}%</span></span>
+            </div>
+          ))}
+        </div>
+        {rz.length > 8 && <div className="small muted" style={{ marginTop: 4 }}>+{rz.length - 8} razones más</div>}
+      </>
+    )),
+    W('perfiles', 'Perfiles de vendedores', (
+      filas.length < 2 ? <div className="muted">Se necesitan al menos dos asesores con actividad en el rango.</div> : (
+        <>
+          <Scatter
+            pts={perf.pts.map((p) => ({ x: p.actividad, y: p.vendido, label: iniciales(p.u.nombre), title: `${p.u.nombre}: ${fmtN(p.actividad)} actividades, ${fmtMoney0(p.vendido)} vendido (${PERFIL_LABEL[p.perfil]})`, cls: PERFIL_CLS[p.perfil] }))}
+            xMed={perf.medAct} yMed={perf.medVend} xLabel="actividad registrada" yLabel="vendido" quad={['Revisar', 'Mantener', 'Salida', 'Capacitar']} />
+          <div className="perfil-legend">
+            {PERFILES.map((p) => <div key={p}><div className="h"><i className={PERFIL_CLS[p]} aria-hidden="true" />{PERFIL_LABEL[p]} · {porPerfil(p).length}</div><div className="names">{porPerfil(p).length ? porPerfil(p).map((x, i) => <span key={x.u.id}>{i > 0 ? ', ' : ''}<button type="button" className="nbtn" onClick={() => onFicha(x.u.id)} title="Abrir ficha">{x.u.nombre}</button></span>) : '—'}</div></div>)}
+          </div>
+          <div className="small muted" style={{ marginTop: 8 }}>Actividad = llamadas + tareas completadas + cotizaciones + levantamientos en el rango. Medianas del grupo: {fmtN(perf.medAct)} actividades y {fmtMoney0(perf.medVend)} vendido. Clic en un nombre abre su ficha.</div>
+        </>
+      )
+    ), { info: ['Perfil'] }),
+  ]
   return (
     <>
-      <div className="hint" style={{ marginBottom: 6 }}>Clic en cualquier cifra, barra o renglón abre la lista de registros detrás, con liga a Kommo o HubSpot.</div>
-      <CollapsibleSection title="Venta" defaultOpen>
-        <div className="two">
-          <div className="panel">
-            <h3 className="ctitle">Salud operativa<Info termino="Salud operativa" /></h3>
-            <div className="salud-grid">
-              <DonutChart partes={[{ val: con, color: 'var(--c1)', label: 'Con presupuesto' }, { val: sin, color: 'var(--c2)', label: 'Sin presupuesto' }]} total={tot} label="leads asignados" />
-              <div className="legend-list">
-                {saludRow('Con presupuesto ($>0)', asignados.filter((l) => l.presupuesto > 0), con, 'c1', pct(con, tot) + '%', true)}
-                {saludRow('Ventas', asignados.filter((l) => l.presupuesto > 0 && l.embudo === 'ventas'), s.ventasCon)}
-                {hayHunting && saludRow('Hunting', asignados.filter((l) => l.presupuesto > 0 && l.embudo === 'hunting'), s.huntCon)}
-                {saludRow('Sin presupuesto', asignados.filter((l) => l.presupuesto <= 0), sin, 'c2', pct(sin, tot) + '%', true)}
-                {saludRow('Ventas', asignados.filter((l) => l.presupuesto <= 0 && l.embudo === 'ventas'), s.ventasSin)}
-                {hayHunting && saludRow('Hunting', asignados.filter((l) => l.presupuesto <= 0 && l.embudo === 'hunting'), s.huntSin)}
-              </div>
-            </div>
-            <div className="cmpbar" role="img" aria-label={`${pct(con, tot)}% con presupuesto, ${pct(sin, tot)}% sin presupuesto`}><i style={{ width: pct(con, tot) + '%' }} /></div>
-            <div className="cmp-legend"><span>Total registros: {fmtN(tot)}</span><span>asignados en Ventas{hayHunting ? '/Hunting' : ''} · última asignación en el rango{mixto(corte) ? ' · Kommo + HubSpot' : ''}{!hayHunting && pasaCrm('hubspot', filtros) ? ' · HubSpot no tiene Hunting' : ''}</span></div>
-          </div>
-          <div className="tiles2">
-            <div className="tile"><Cifra label={`${fmtN(tot)} leads asignados`} onClick={() => ver('Leads asignados en el rango', fLeads(asignados), rango + ' · fecha = última asignación')}>{fmtN(tot)}</Cifra><div className="l">Leads asignados en el rango</div></div>
-            <div className="tile t2"><Cifra label={`${fmtN(ventas.length)} ventas cerradas`} onClick={() => ver('Ventas cerradas en el rango', fVentas(ventas), rango + ' · fecha = cierre')}>{fmtN(ventas.length)}</Cifra><div className="l">Ventas cerradas en el rango</div></div>
-            <div className="tile t3"><Cifra label={`${fmtMoney(monto)} vendido`} onClick={() => ver('Vendido en el rango', fVentas(ventas), rango + ' · fecha = cierre')}>{fmtMoney(monto)}</Cifra><div className="l">Vendido · meta {fmtMoney0(metaRango)}<Info termino="Meta" /></div></div>
-            <div className="tile t4"><Cifra label={`conversión ${leads.length ? pct(ventas.length, leads.length) + '%' : 'sin dato'}`} onClick={() => ver('Ventas que cuentan en la conversión', fVentas(ventas), `${fmtN(ventas.length)} ventas / ${fmtN(leads.length)} leads asignados · ${rango}`)}>{leads.length ? pct(ventas.length, leads.length) + '%' : '—'}</Cifra><div className="l">Conversión ventas / asignados<Info termino="Conversión" /></div></div>
-          </div>
-        </div>
-        <div className="two" style={{ marginTop: 14 }}>
-          <div className="panel rank">
-            <h3>Ranking de ventas<Info termino="Ranking" /></h3>
-            {!ranking.length && <div className="muted">Sin ventas ni actividad en el rango.</div>}
-            {ranking.map((f, i) => (
-              <div className="lr drill" key={f.u.id} role="button" tabIndex={0} aria-label={`${f.u.nombre}: ${fmtMoney0(f.montoVentas)} en ${f.ventas} ventas. Ver ventas`}
-                onClick={() => ver(`Ventas de ${f.u.nombre}`, fVentas(ventas.filter((l) => l.asesor_id === f.u.id)), rango + ' · fecha = cierre')} onKeyDown={activar(() => ver(`Ventas de ${f.u.nombre}`, fVentas(ventas.filter((l) => l.asesor_id === f.u.id)), rango + ' · fecha = cierre'))}>
-                <span className={'pos' + (i < 3 ? ' top' : '')}>{i + 1}</span>
-                <span className="nm" title={subAsesor(corte, f.u)}>{f.u.nombre}</span>
-                <Bullet sm value={f.montoVentas} target={f.metaRango} expected={f.esperado} label={'Vendido de ' + f.u.nombre} fmt={fmtMoney0} />
-                <span className="v">{fmtMoney0(f.montoVentas)}<small>{f.ventas} venta{f.ventas === 1 ? '' : 's'} · {pct(f.montoVentas, f.metaRango)}% de la meta</small></span>
-              </div>
-            ))}
-            {filas.length > ranking.length && <div className="small muted" style={{ marginTop: 8 }}>Top {ranking.length} de {filas.length}; la tabla de Asesores trae a todos.</div>}
-          </div>
-          <div className="panel">
-            <h3>Cotizado vs vendido vs meta<Info termino="Pipeline 10×" /></h3>
-            <div className="brow">
-              <span className="l">Vendido</span>
-              <Bullet value={monto} target={metaRango} expected={esperado} label="Vendido" fmt={fmtMoney0} />
-              <Cifra label={`Vendido ${fmtMoney0(monto)}`} onClick={() => ver('Vendido en el rango', fVentas(ventas), rango + ' · fecha = cierre')}><span className="v">{fmtMoney0(monto)}</span></Cifra>
-              <span className="sub">meta del rango {fmtMoney0(metaRango)} ({filas.length} asesor{filas.length === 1 ? '' : 'es'}) · esperado a hoy {fmtMoney0(esperado)}<Info termino="Esperado a hoy" /> · {monto >= metaRango ? 'meta cumplida' : `faltan ${fmtMoney0(metaRango - monto)}`}</span>
-            </div>
-            <div className="brow">
-              <span className="l">Cotizado vigente</span>
-              <Bullet value={cot.vigente} target={objetivoCot} label="Cotizado vigente" color="var(--c2)" fmt={fmtMoney0} />
-              <Cifra label={`Cotizado vigente ${fmtMoney0(cot.vigente)}`} onClick={() => ver('Cotizado vigente', fCotizado(vigentes), `≤ ${corte.cotizado_dias} días · ${rango}`)}><span className="v">{fmtMoney0(cot.vigente)}</span></Cifra>
-              <span className="sub">objetivo {fmtMoney0(objetivoCot)} = {corte.cotizado_x}× la meta mensual ({fmtMoney0(metaMes)}) · {fmtN(cot.n)} lead{cot.n === 1 ? '' : 's'} con monto<Info termino="Cotizado vigente" /></span>
-            </div>
-            <div style={{ marginTop: 10 }}>
-              <div className="small" style={{ fontWeight: 600 }}>Antigüedad del cotizado<Info termino="Antigüedad" /></div>
-              <Antiguedad c={cot} leads={leads} onVer={(t, f) => ver(t, f, rango)} />
-              {cot.viejo > 0 && <div className="small muted" style={{ marginTop: 6 }}>{fmtMoney(cot.viejo)} en {fmtN(cot.nViejo)} leads pasan de {corte.cotizado_dias} días: ya no cuentan como pipeline vivo.</div>}
-            </div>
-          </div>
-        </div>
-      </CollapsibleSection>
-
-      {ent && (
-        <CollapsibleSection title="Entrada de leads · Kommo" defaultOpen>
-          <div className="panel">
-            <div className="ent">
-              <div className="hero">
-                <Gauge pct={ent.tasa} label="asignados" size={190} color="var(--c2)" />
-                <div className="l">Tasa de asignación<Info termino="Tasa de asignación" /></div>
-                <div className="small muted">{fmtN(ent.asignados)} asignados de {fmtN(ent.llegaron)} que llegaron</div>
-              </div>
-              <div>
-                <div className="kpi-row">
-                  {ENT.map((x) => <button type="button" key={x.k} className={x.cls + ' tbtn'} onClick={() => ver(`${x.l} · entrada Kommo`, fEntrada(ent.listas[x.k]), rango + ' · fecha = creación')} aria-label={`${x.l}: ${fmtN(ent[x.k])}. Ver leads`}><div className="n">{fmtN(ent[x.k])}</div><div className="l">{x.l}</div></button>)}
-                </div>
-                <div className="sbar ent-bar" role="img" aria-label={`De ${fmtN(ent.llegaron)} leads: ${fmtN(ent.sinRespuesta)} sin respuesta, ${fmtN(ent.sinRecibo)} respondieron sin recibo, ${fmtN(ent.conRecibo)} con recibo, ${fmtN(ent.perdidos)} perdidos`}>
-                  {ent.llegaron > 0 && <div style={{ width: '100%', display: 'flex', height: '100%' }}><i className="seg-neutral" style={{ width: pct(ent.sinRespuesta, ent.llegaron) + '%' }} /><i className="seg-warn" style={{ width: pct(ent.sinRecibo, ent.llegaron) + '%' }} /><i className="seg-ok" style={{ width: pct(ent.conRecibo, ent.llegaron) + '%' }} /><i className="seg-alert" style={{ width: pct(ent.perdidos, ent.llegaron) + '%' }} /></div>}
-                </div>
-                <div className="legend"><span><i style={{ background: 'var(--neutral)' }} aria-hidden="true" />Sin respuesta</span><span><i className="lg-warn" aria-hidden="true" />Respondieron sin recibo</span><span><i style={{ background: 'var(--c4)' }} aria-hidden="true" />Con recibo (incluye asignados)</span><span><i style={{ background: 'var(--warn)' }} aria-hidden="true" />Perdidos</span></div>
-                <div className="small muted" style={{ marginTop: 8 }}>
-                  {filtros.asesor || filtros.equipo
-                    ? 'Leads de Kommo creados en el rango cuyo responsable actual es el asesor o equipo elegido. Los que aún no se asignan cuelgan de la cuenta admin y quedan fuera: aquí la tasa dice cuántos de sus leads ya están en Ventas o Hunting. Quita el filtro para ver la entrada completa.'
-                    : 'Leads de Kommo por fecha de creación en el rango, de todo el equipo. HubSpot no entra porque no registra recibo ni respuesta.'}
-                </div>
-              </div>
-            </div>
-          </div>
-        </CollapsibleSection>
-      )}
-
-      <CollapsibleSection title="Embudo" defaultOpen>
-        <div className="embudo">
-          <div className="panel">
-            <h3 className="ctitle">Embudo de ventas por etapa</h3>
-            <FunnelChart stages={et.map((e) => ({ nombre: e.nombre, n: e.n, sub: `${fmtMoney(e.monto)} · ${e.n ? e.dias.toFixed(1) + ' días en etapa' : 'sin leads'}` }))}
-              onStage={(i) => ver(`${et[i].nombre} · embudo Ventas`, et[i].id === -2 ? fVentas(et[i].leads) : fLeads(et[i].leads), rango)} />
-          </div>
-          <div className="panel">
-            <h3 className="ctitle">Monto cotizado y tiempo por etapa<Info termino="Monto cotizado" /><Info termino="Tiempo promedio" /></h3>
-            <table className="ftable">
-              <thead><tr><th>Etapa</th><th className="num">Leads</th><th className="num">Monto</th><th className="num">Días promedio</th><th className="num">Acumulado</th></tr></thead>
-              <tbody>
-                {et.map((e, i) => (
-                  <tr key={e.id} className="drill" role="button" tabIndex={0} aria-label={`${e.nombre}: ${fmtN(e.n)} leads, ${fmtMoney(e.monto)}. Ver leads`}
-                    onClick={() => ver(`${e.nombre} · embudo Ventas`, e.id === -2 ? fVentas(e.leads) : fLeads(e.leads), rango)} onKeyDown={activar(() => ver(`${e.nombre} · embudo Ventas`, e.id === -2 ? fVentas(e.leads) : fLeads(e.leads), rango))}>
-                    <td><span className="sw" style={{ background: RAMPA[Math.min(i, RAMPA.length - 1)] }} aria-hidden="true" />{e.nombre}</td><td className="num">{fmtN(e.n)}</td><td className="num">{fmtMoney(e.monto)}</td><td className="num">{e.n ? e.dias.toFixed(1) : '—'}</td><td className="num muted">{e.acumulado.toFixed(1)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <div className="muted small" style={{ marginTop: 10 }}>
-              Foto de hoy del embudo Ventas: leads en cada etapa, suma de sus presupuestos y días promedio que llevan ahí. Cierre = ganados del rango, días desde su asignación.
-              {mixto(corte) ? ' Las etapas de HubSpot (Ciclo de Venta KS) se traducen a las de Kommo: Lead entrante = Por contactar, Conversación iniciada y Precalificación hecha = Conversación iniciada; HubSpot no tiene Levantamiento agendado ni Hunting.' : ''}
-            </div>
-          </div>
-        </div>
-      </CollapsibleSection>
-
-      <CollapsibleSection title="Actividad" defaultOpen>
-        <div className="two">
-          <div className="panel">
-            <h3 className="ctitle">Llamadas<Info termino="Llamadas" /></h3>
-            <div className="llam-grid">
-              <LlamadasBar total={a.llamadas} ok={a.contestadas} no={a.sinContestar} onClick={() => verEv('Llamadas en el rango', 'llamada_ok', 'llamada_no')} />
-              <Gauge pct={a.llamadas ? pct(a.contestadas, a.llamadas) : null} label="contestadas" size={180} />
-            </div>
-          </div>
-          <div className="kpi4">
-            <button type="button" className="tbtn" onClick={() => verEv('Tareas completadas', 'tarea')} aria-label={`${fmtN(a.tareas)} tareas completadas. Ver detalle`}><div className="n">{fmtN(a.tareas)}</div><div className="l">Tareas completadas</div></button>
-            <button type="button" className="tbtn" onClick={() => verEv('Cotizaciones entregadas', 'cotizacion')} aria-label={`${fmtN(a.cotizaciones)} cotizaciones. Ver detalle`}><div className="n">{fmtN(a.cotizaciones)}</div><div className="l">Cotizaciones entregadas</div></button>
-            <button type="button" className="tbtn" onClick={() => verEv('Descartados con razón registrada', 'descarte')} aria-label={`${fmtN(a.descartes)} descartados. Ver detalle`}><div className="n">{fmtN(a.descartes)}</div><div className="l">Descartados con razón registrada</div></button>
-            <button type="button" className="tbtn" onClick={() => verEv('Levantamientos solicitados', 'levantamiento')} aria-label={`${fmtN(a.levantamientos)} levantamientos. Ver detalle`}><div className="n">{fmtN(a.levantamientos)}</div><div className="l">Levantamientos solicitados</div></button>
-          </div>
-        </div>
-        <div className="two" style={{ marginTop: 14 }}>
-          <div className="panel">
-            <h3>Primer contacto<Info termino="Primer contacto" /></h3>
-            <div className="pc-hero"><span className="n">{horasPC}</span><span className="u">{unidadPC}</span></div>
-            <div className="small muted">
-              <button type="button" className="nbtn" onClick={() => ver('Leads con primer contacto registrado', filasDeLeads(pc.con.map((x) => x.lead), (l) => { const h = pc.con.find((x) => x.lead.id === l.id)?.horas || 0; return `${etapaDe(l)} · primer contacto a las ${h < 48 ? h.toFixed(1) + ' h' : Math.round(h / 24) + ' d'}` }), rango)}>{fmtN(pc.n)} leads con contacto registrado</button>
-              {' · '}{fmtN(pc.en24)} en menos de 24 h ({pct(pc.en24, pc.n)}%){' · '}
-              <button type="button" className="nbtn" onClick={() => ver('Leads sin contacto tras un día asignados', filasDeLeads(pc.sin, (l) => `${etapaDe(l)} · asignado hace ${dias(diasDesde(l.asignacion))}, sin llamada ni tarea`), rango)}>{fmtN(pc.sinContacto)} sin contacto tras un día asignados</button>
-              {mixto(corte) ? ' · solo Kommo' : ''}
-            </div>
-            <h3 style={{ marginTop: 18 }}>Razón de descarte<Info termino="Razón de descarte" /></h3>
-            {!rz.length && <div className="muted">Sin descartes en el rango.</div>}
-            <div className="rz">
-              {rz.slice(0, 8).map((r) => (
-                <div className="lr drill" key={r.razon} role="button" tabIndex={0} aria-label={`${r.razon}: ${fmtN(r.n)}. Ver leads`}
-                  onClick={() => ver(`Descartados · ${r.razon}`, filasDeLeads(r.leads, (l) => `Perdido · ${l.razon || 'sin razón'}`, (l) => l.cerrado), rango + ' · fecha = descarte')} onKeyDown={activar(() => ver(`Descartados · ${r.razon}`, filasDeLeads(r.leads, (l) => `Perdido · ${l.razon || 'sin razón'}`, (l) => l.cerrado), rango + ' · fecha = descarte'))}>
-                  <span>{r.razon}</span><span className="bar" aria-hidden="true"><i style={{ width: pct(r.n, rz[0].n) + '%' }} /></span><span><b>{fmtN(r.n)}</b> <span className="muted">{pct(r.n, rzTot)}%</span></span>
-                </div>
-              ))}
-            </div>
-            {rz.length > 8 && <div className="small muted" style={{ marginTop: 4 }}>+{rz.length - 8} razones más</div>}
-          </div>
-          <div className="panel">
-            <h3>Perfiles de vendedores<Info termino="Perfil" /></h3>
-            {filas.length < 2 ? <div className="muted">Se necesitan al menos dos asesores con actividad en el rango.</div> : (
-              <>
-                <Scatter
-                  pts={perf.pts.map((p) => ({ x: p.actividad, y: p.vendido, label: iniciales(p.u.nombre), title: `${p.u.nombre}: ${fmtN(p.actividad)} actividades, ${fmtMoney0(p.vendido)} vendido (${PERFIL_LABEL[p.perfil]})`, cls: PERFIL_CLS[p.perfil] }))}
-                  xMed={perf.medAct} yMed={perf.medVend} xLabel="actividad registrada" yLabel="vendido" quad={['Revisar', 'Mantener', 'Salida', 'Capacitar']} />
-                <div className="perfil-legend">
-                  {PERFILES.map((p) => <div key={p}><div className="h"><i className={PERFIL_CLS[p]} aria-hidden="true" />{PERFIL_LABEL[p]} · {porPerfil(p).length}</div><div className="names">{porPerfil(p).length ? porPerfil(p).map((x, i) => <span key={x.u.id}>{i > 0 ? ', ' : ''}<button type="button" className="nbtn" onClick={() => onFicha(x.u.id)} title="Abrir ficha">{x.u.nombre}</button></span>) : '—'}</div></div>)}
-                </div>
-                <div className="small muted" style={{ marginTop: 8 }}>Actividad = llamadas + tareas completadas + cotizaciones + levantamientos en el rango. Medianas del grupo: {fmtN(perf.medAct)} actividades y {fmtMoney0(perf.medVend)} vendido. Clic en un nombre abre su ficha.</div>
-              </>
-            )}
-          </div>
-        </div>
-      </CollapsibleSection>
+      <div className="hint" style={{ marginBottom: 8 }}>Clic en cualquier cifra, barra o renglón abre la lista de registros detrás, con liga a Kommo o HubSpot.</div>
+      <WidgetGrid clave="admin" widgets={widgets} />
       {drill && <DrillModal d={drill} onClose={() => setDrill(null)} />}
     </>
   )

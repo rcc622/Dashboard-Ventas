@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
-import type { Config, Corte, Usuario } from './types'
-import { guardarConfig } from './data'
+import { useEffect, useMemo, useState } from 'react'
+import type { Acceso, Config, Corte, Usuario } from './types'
+import { cargarAccesos, guardarAccesos, guardarConfig } from './data'
 import { fmtMoney0, fmtN, metaDe, zonaNombre } from './metrics'
 import { Info } from './components'
 
@@ -34,6 +34,22 @@ export function Configuracion({ corte, onSaved }: { corte: Corte; onSaved: (cfg:
   const [estado, setEstado] = useState<Estado | null>(null)
   const [guardando, setGuardando] = useState(false)
   const usuarios = useMemo(() => [...corte.usuarios].sort((a, b) => a.nombre.localeCompare(b.nombre)), [corte])
+  // Accesos (usuario/contraseña): se cargan del servidor; la contraseña solo viaja cuando se escribe.
+  const [accesos, setAccesos] = useState<Acceso[] | null>(null)
+  const [accesosDirty, setAccesosDirty] = useState(false)
+  useEffect(() => { let vivo = true; cargarAccesos().then((a) => { if (vivo) setAccesos(a) }); return () => { vivo = false } }, [])
+  const setAcceso = (i: number, cambio: Partial<Acceso>) => { setAccesos((a) => (a || []).map((x, j) => (j === i ? { ...x, ...cambio } : x))); setAccesosDirty(true) }
+  const quitarAcceso = (i: number) => { setAccesos((a) => (a || []).filter((_, j) => j !== i)); setAccesosDirty(true) }
+  const agregarAcceso = () => { setAccesos((a) => [...(a || []), { id: '', usuario: '', nombre: '', rol: 'asesor', password: '', nuevo: true }]); setAccesosDirty(true) }
+  const validarAccesos = (): string | null => {
+    for (const a of accesos || []) {
+      if (!/^[a-z0-9._-]{3,40}$/.test(a.usuario)) return `Usuario «${a.usuario || '(vacío)'}»: 3 a 40 letras minúsculas, números, punto o guion.`
+      if (a.rol === 'asesor' && !a.id) return `El acceso ${a.usuario} debe estar ligado a un asesor.`
+      if (a.password && a.password.length < 6) return `La contraseña de ${a.usuario} debe tener al menos 6 caracteres.`
+    }
+    const repetidos = (accesos || []).map((a) => a.usuario).filter((u, i, arr) => arr.indexOf(u) !== i)
+    return repetidos.length ? `Usuario repetido: ${repetidos[0]}` : null
+  }
 
   /** Config con lo escrito, o el mensaje del primer error. */
   const armar = (): Config | string => {
@@ -61,13 +77,19 @@ export function Configuracion({ corte, onSaved }: { corte: Corte; onSaved: (cfg:
 
   const guardar = async () => {
     if (!cfg) { setEstado({ tipo: 'err', msg: borrador as string }); return }
+    const errAcc = accesosDirty ? validarAccesos() : null
+    if (errAcc) { setEstado({ tipo: 'err', msg: errAcc }); return }
     setGuardando(true); setEstado(null)
     try {
       const saved = await guardarConfig(cfg)
       onSaved(saved)
-      setEstado({ tipo: 'ok', msg: 'Guardado. Metas, equipos y asesores activos ya aplican en todo el tablero.' })
+      if (accesosDirty && accesos) {
+        const nuevos = await guardarAccesos(accesos.map((a) => ({ id: a.id, usuario: a.usuario, rol: a.rol, nombre: a.nombre || corte.usuarios.find((u) => u.id === a.id)?.nombre || a.usuario, password: a.password || undefined })))
+        setAccesos(nuevos.map((a) => ({ ...a, password: '' }))); setAccesosDirty(false)
+      }
+      setEstado({ tipo: 'ok', msg: 'Guardado. Metas, equipos, asesores activos y accesos ya aplican.' })
     } catch (e) {
-      setEstado({ tipo: 'err', msg: 'No se pudo guardar: ' + String(e) })
+      setEstado({ tipo: 'err', msg: 'No se pudo guardar: ' + String(e instanceof Error ? e.message : e) })
     } finally { setGuardando(false) }
   }
 
@@ -103,6 +125,31 @@ export function Configuracion({ corte, onSaved }: { corte: Corte; onSaved: (cfg:
             </tbody>
           </table>
         </div>
+      </div>
+      <div className="panel" style={{ marginTop: 14 }}>
+        <h3>Accesos · usuario y contraseña{accesos ? ` · ${fmtN(accesos.length)}` : ''}</h3>
+        <div className="small muted" style={{ marginBottom: 10 }}>Cada asesor entra con su usuario y ve solo su tablero; un administrador ve todo y puede cambiar esta configuración. La contraseña no se muestra: escribe una nueva para cambiarla, deja el campo vacío para conservarla. Las credenciales del servicio (DASH_USER / DASH_PASS) siempre entran como administrador.</div>
+        {accesos == null ? <div className="muted">Cargando accesos…</div> : (
+          <div className="tblwrap" style={{ boxShadow: 'none' }}>
+            <table className="ftable">
+              <thead><tr><th>Usuario (para entrar)</th><th>Contraseña</th><th>Rol</th><th>Asesor ligado</th><th></th></tr></thead>
+              <tbody>
+                {accesos.map((a, i) => (
+                  <tr key={i}>
+                    <td><input className="inp" autoCapitalize="none" autoComplete="off" placeholder="ej. marco" aria-label={'Usuario del acceso ' + (i + 1)} value={a.usuario} onChange={(e) => setAcceso(i, { usuario: e.target.value.trim().toLowerCase() })} /></td>
+                    <td><input className="inp" type="password" autoComplete="new-password" placeholder={a.nuevo ? 'mínimo 6 caracteres' : 'sin cambio'} aria-label={'Contraseña del acceso ' + (i + 1)} value={a.password || ''} onChange={(e) => setAcceso(i, { password: e.target.value })} /></td>
+                    <td><select className="sel" aria-label={'Rol del acceso ' + (i + 1)} value={a.rol} onChange={(e) => setAcceso(i, { rol: e.target.value as Acceso['rol'], id: e.target.value === 'admin' ? '' : a.id })}><option value="asesor">Asesor</option><option value="admin">Administrador</option></select></td>
+                    <td>{a.rol === 'asesor'
+                      ? <select className="sel" aria-label={'Asesor ligado al acceso ' + (i + 1)} value={a.id} onChange={(e) => setAcceso(i, { id: e.target.value, nombre: corte.usuarios.find((u) => u.id === e.target.value)?.nombre || '' })}><option value="">— elige —</option>{usuarios.map((u) => <option key={u.id} value={u.id}>{u.nombre}</option>)}</select>
+                      : <input className="inp" placeholder="Nombre para mostrar" aria-label={'Nombre del administrador ' + (i + 1)} value={a.nombre} onChange={(e) => setAcceso(i, { nombre: e.target.value })} />}</td>
+                    <td><button type="button" className="ib" aria-label={'Quitar el acceso ' + (a.usuario || i + 1)} title="Quitar" onClick={() => quitarAcceso(i)}>×</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <button type="button" className="btn" style={{ marginTop: 10 }} onClick={agregarAcceso}>+ Agregar acceso</button>
+          </div>
+        )}
       </div>
       <div className="panel" style={{ marginTop: 14 }}>
         <h3>Asesores · {fmtN(activos)} activos de {fmtN(usuarios.length)}</h3>

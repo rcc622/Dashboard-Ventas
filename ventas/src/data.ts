@@ -1,7 +1,33 @@
-import type { Config, Corte } from './types'
+import type { Acceso, Config, Corte, Yo } from './types'
 import { mock } from './mock'
 
 export interface Carga { corte: Corte; origen: 'kommo' | 'ejemplo'; error?: string }
+
+// ---- sesión (cookie ks_sesion que pone app.py; el navegador la manda sola)
+const post = async (ruta: string, body: unknown) => {
+  const r = await fetch(ruta, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+  const j = (await r.json().catch(() => ({}))) as { ok?: boolean; error?: string } & Record<string, unknown>
+  if (!r.ok || !j.ok) throw new Error(j.error || `HTTP ${r.status}`)
+  return j
+}
+/** null = sin sesión (mostrar login). En dev sin servidor (vite) el endpoint no existe: se entra como admin de ejemplo. */
+export async function yo(): Promise<Yo | null> {
+  try {
+    const r = await fetch('yo', { cache: 'no-store' })
+    if (r.status === 401) return null
+    if (r.status === 404) return { uid: 'admin', rol: 'admin', nombre: 'Administrador (dev)' }
+    if (!r.ok) return null
+    return (await r.json()) as Yo
+  } catch { return null }
+}
+export async function login(usuario: string, password: string): Promise<Yo> { return (await post('login', { usuario, password })).yo as Yo }
+export async function logout(): Promise<void> { try { await post('logout', {}) } catch { /* la cookie ya no sirve */ } }
+export async function cargarAccesos(): Promise<Acceso[]> {
+  const r = await fetch('usuarios.json', { cache: 'no-store' })
+  if (!r.ok) return []
+  return ((await r.json()) as { usuarios?: Acceso[] }).usuarios || []
+}
+export async function guardarAccesos(usuarios: Acceso[]): Promise<Acceso[]> { return (await post('usuarios', { usuarios })).usuarios as Acceso[] }
 
 const DEF: Config = { meta_mxn: 800000, cotizado_x: 10, cotizado_dias: 90, metas_zona: {}, metas: {}, ocultos: [], equipos: {} }
 

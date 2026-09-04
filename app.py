@@ -22,7 +22,7 @@ Variables de entorno (en Railway, nunca en el repo):
     REFRESH_HOURS       opcional, default 6
     PORT                la pone Railway
 """
-import base64, gzip, hmac, json, os, re, subprocess, sys, threading, time, traceback
+import base64, gzip, hashlib, hmac, json, os, re, secrets, subprocess, sys, threading, time, traceback
 from datetime import datetime, timedelta, timezone
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
@@ -43,6 +43,8 @@ VENTAS_JSON = os.path.join(DATA, "ventas.json")
 # VENTAS_PUBLICO=1 sirve /ventas (tablero, corte, config, histórico) SIN contraseña; pedido de
 # Randall 4-sep. Solo /ventas: /estado, /cola, /pausar y la portada de marketing siguen con auth.
 VENTAS_PUBLICO = (os.environ.get("VENTAS_PUBLICO") or "").strip().lower() in ("1", "true", "si", "sí")
+VENTAS_USUARIOS = os.path.join(DATA, "ventas_usuarios.json")  # accesos por usuario/contraseña de /ventas (POST /ventas/usuarios)
+VENTAS_SECRET_FILE = os.path.join(DATA, "ventas_secret.txt")   # firma de la cookie de sesión si no hay VENTAS_SECRET
 VENTAS_CONFIG = os.path.join(DATA, "ventas_config.json")   # metas en pesos desde la página (POST /ventas/config)
 VENTAS_HIST = os.path.join(DATA, "ventas_hist.jsonl")      # foto diaria del pipeline (la escribe ventas_corte.py)
 CTYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
@@ -438,6 +440,153 @@ def validar_config(body):
             "ocultos": sorted(set(ocultos)), "equipos": dict(equipos)}
 
 
+# ---------------------------------------------------------------- accesos de /ventas
+# Pedido de Randall 4-sep: cada asesor y cada administrador entra con su usuario y contraseña.
+# Los accesos viven en data/ventas_usuarios.json (contraseña = PBKDF2-SHA256 con sal, nunca en
+# claro); la sesión es una cookie firmada con HMAC (VENTAS_SECRET o un secreto generado una vez
+# en el volumen). Un asesor solo recibe SU parte del corte (ver corte_para); el admin, todo.
+# DASH_USER/DASH_PASS siguen entrando como administrador: es la llave maestra si se pierde todo.
+_USUARIO = re.compile(r"^[a-z0-9._-]{3,40}$")
+_SESION_SEG = 30 * 86400
+_LOGIN_FALLOS = {}           # ip -> [intentos, bloqueado_hasta]
+_CORTE_CACHE = {"mtime": None, "corte": None}
+
+
+def _secreto():
+    s = os.environ.get("VENTAS_SECRET")
+    if s:
+        return s.encode("utf-8")
+    try:
+        with open(VENTAS_SECRET_FILE, "rb") as f:
+            v = f.read().strip()
+        if v:
+            return v
+    except FileNotFoundError:
+        pass
+    v = secrets.token_hex(32).encode("ascii")
+    os.makedirs(DATA, exist_ok=True)
+    with open(VENTAS_SECRET_FILE, "wb") as f:
+        f.write(v)
+    return v
+
+
+def leer_usuarios():
+    try:
+        with open(VENTAS_USUARIOS, encoding="utf-8") as f:
+            d = json.load(f)
+        return [u for u in (d.get("usuarios") or []) if isinstance(u, dict)]
+    except (FileNotFoundError, ValueError):
+        return []
+
+
+def hash_password(pwd, salt=None):
+    salt = salt or secrets.token_hex(16)
+    h = hashlib.pbkdf2_hmac("sha256", pwd.encode("utf-8"), bytes.fromhex(salt), 200_000).hex()
+    return salt, h
+
+
+def _b64(b):
+    return base64.urlsafe_b64encode(b).decode("ascii").rstrip("=")
+
+
+def _unb64(s):
+    return base64.urlsafe_b64decode(s + "=" * (-len(s) % 4))
+
+
+def firmar_sesion(uid, rol, nombre):
+    cuerpo = _b64(json.dumps({"uid": uid, "rol": rol, "nombre": nombre, "exp": int(time.time()) + _SESION_SEG},
+                             ensure_ascii=False).encode("utf-8"))
+    return cuerpo + "." + hmac.new(_secreto(), cuerpo.encode("ascii"), hashlib.sha256).hexdigest()
+
+
+def leer_sesion(token):
+    try:
+        cuerpo, firma = token.split(".", 1)
+        if not hmac.compare_digest(firma, hmac.new(_secreto(), cuerpo.encode("ascii"), hashlib.sha256).hexdigest()):
+            return None
+        d = json.loads(_unb64(cuerpo).decode("utf-8"))
+        if d.get("exp", 0) < time.time() or d.get("rol") not in ("admin", "asesor"):
+            return None
+        return d
+    except Exception:
+        return None
+
+
+def autenticar(usuario, pwd):
+    """Devuelve {uid, rol, nombre} o None. DASH_USER/DASH_PASS = administrador maestro."""
+    usuario = (usuario or "").strip().lower()
+    if USER and PASS and hmac.compare_digest(usuario, USER.lower()) and hmac.compare_digest(pwd or "", PASS):
+        return {"uid": "admin", "rol": "admin", "nombre": "Administrador"}
+    for u in leer_usuarios():
+        if u.get("usuario") == usuario and u.get("salt") and u.get("hash"):
+            if hmac.compare_digest(hash_password(pwd or "", u["salt"])[1], u["hash"]):
+                return {"uid": u.get("id") or usuario, "rol": u.get("rol") or "asesor", "nombre": u.get("nombre") or usuario}
+            return None
+    return None
+
+
+def validar_usuarios(body, actuales):
+    """Lista completa de accesos que manda la página. Contraseña opcional: sin ella se conserva la
+    que ya tenía ese usuario. Devuelve la lista lista para escribir (con salt/hash)."""
+    if not isinstance(body, dict) or not isinstance(body.get("usuarios"), list) or len(body["usuarios"]) > 300:
+        raise ValueError("usuarios debe ser una lista")
+    previos = {u.get("usuario"): u for u in actuales}
+    out, vistos = [], set()
+    for x in body["usuarios"]:
+        if not isinstance(x, dict):
+            raise ValueError("acceso inválido")
+        usuario = str(x.get("usuario") or "").strip().lower()
+        if not _USUARIO.match(usuario):
+            raise ValueError("usuario inválido: %r (3-40 letras, números, punto, guion)" % usuario)
+        if usuario in vistos or (USER and usuario == USER.lower()):
+            raise ValueError("usuario repetido: %s" % usuario)
+        vistos.add(usuario)
+        rol = x.get("rol") if x.get("rol") in ("admin", "asesor") else "asesor"
+        uid = str(x.get("id") or "").strip()
+        if rol == "asesor" and not _SLUG.match(uid):
+            raise ValueError("el acceso %s debe estar ligado a un asesor" % usuario)
+        if rol == "admin":
+            uid = "admin:" + usuario
+        nombre = str(x.get("nombre") or usuario).strip()[:80]
+        pwd = x.get("password")
+        if pwd:
+            if not isinstance(pwd, str) or len(pwd) < 6 or len(pwd) > 200:
+                raise ValueError("la contraseña de %s debe tener al menos 6 caracteres" % usuario)
+            salt, h = hash_password(pwd)
+        elif usuario in previos and previos[usuario].get("hash"):
+            salt, h = previos[usuario]["salt"], previos[usuario]["hash"]
+        else:
+            raise ValueError("falta la contraseña de %s" % usuario)
+        out.append({"id": uid, "usuario": usuario, "nombre": nombre, "rol": rol, "salt": salt, "hash": h})
+    return out
+
+
+def usuarios_publicos(lista):
+    return [{"id": u.get("id"), "usuario": u.get("usuario"), "nombre": u.get("nombre"), "rol": u.get("rol")} for u in lista]
+
+
+def corte_cargado():
+    st = os.stat(VENTAS_JSON)
+    if _CORTE_CACHE["mtime"] != st.st_mtime:
+        with open(VENTAS_JSON, encoding="utf-8") as f:
+            _CORTE_CACHE["corte"] = json.load(f)
+        _CORTE_CACHE["mtime"] = st.st_mtime
+    return _CORTE_CACHE["corte"]
+
+
+def corte_para(uid):
+    """El corte reducido a UN asesor: sus leads, actividades y tareas, y él solo en usuarios.
+    Así un asesor con sesión no puede bajar la data de los demás aunque pida data.json a mano."""
+    c = corte_cargado()
+    f = dict(c)
+    f["usuarios"] = [u for u in c.get("usuarios", []) if u.get("id") == uid]
+    f["leads"] = [l for l in c.get("leads", []) if l.get("asesor_id") == uid]
+    f["eventos"] = [e for e in c.get("eventos", []) if e.get("asesor_id") == uid]
+    f["tareas_abiertas"] = [t for t in c.get("tareas_abiertas", []) if t.get("asesor_id") == uid]
+    f["metas"] = {k: v for k, v in (c.get("metas") or {}).items() if k == uid}
+    return json.dumps(f, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+
+
 class H(BaseHTTPRequestHandler):
     server_version = "kenet-dash"
 
@@ -466,10 +615,20 @@ class H(BaseHTTPRequestHandler):
         if ruta == "/ventas":
             return self._send(302, "", extra={"Location": "/ventas/"})
         rel = ruta[len("/ventas/"):] or "index.html"
+        if rel == "yo":
+            ses = self._sesion()
+            return self._send(200 if ses else 401, json.dumps(ses or {"error": "sin sesión"}, ensure_ascii=False), "application/json")
+        if rel in ("data.json", "config.json", "hist.json"):
+            ses = self._sesion()
+            if not ses:
+                return self._send(401, json.dumps({"error": "inicia sesión"}), "application/json")
         if rel == "data.json":
             try:
-                with open(VENTAS_JSON, "rb") as f:
-                    cuerpo = f.read()
+                if ses["rol"] == "asesor":
+                    cuerpo = corte_para(ses["uid"])
+                else:
+                    with open(VENTAS_JSON, "rb") as f:
+                        cuerpo = f.read()
             except FileNotFoundError:
                 cuerpo = None
             if cuerpo is not None:
@@ -487,6 +646,11 @@ class H(BaseHTTPRequestHandler):
                     return self._send(200, f.read(), "application/json")
             except FileNotFoundError:
                 return self._send(200, "{}", "application/json")
+        if rel == "usuarios.json":
+            ses = self._sesion()
+            if not ses or ses["rol"] != "admin":
+                return self._send(403 if ses else 401, json.dumps({"error": "solo administradores"}), "application/json")
+            return self._send(200, json.dumps({"usuarios": usuarios_publicos(leer_usuarios())}, ensure_ascii=False), "application/json")
         if rel == "hist.json":
             filas = []
             if os.path.exists(VENTAS_HIST):
@@ -506,25 +670,77 @@ class H(BaseHTTPRequestHandler):
             return self._send(200, f.read(), CTYPES.get(os.path.splitext(p)[1].lower(),
                                                         "application/octet-stream"))
 
-    def _ventas_config(self):
-        """Metas en pesos desde la página de Configuración de /ventas. Valida, escribe
-        atómico en el volumen y devuelve lo guardado. Nada de esto toca a los CRM."""
+    # ---- sesiones de /ventas
+    def _sesion(self):
+        for parte in (self.headers.get("Cookie") or "").split(";"):
+            k, _, v = parte.strip().partition("=")
+            if k == "ks_sesion" and v:
+                return leer_sesion(v)
+        return None
+
+    def _ip(self):
+        xff = self.headers.get("X-Forwarded-For") or ""
+        return (xff.split(",")[0].strip() if xff else self.client_address[0]) or "?"
+
+    def _cookie(self, valor, max_age):
+        seguro = "; Secure" if (self.headers.get("X-Forwarded-Proto") or "").lower() == "https" else ""
+        return "ks_sesion=%s; Path=/ventas; Max-Age=%d; HttpOnly; SameSite=Lax%s" % (valor, max_age, seguro)
+
+    def _json_body(self, tope=60000):
+        n = int(self.headers.get("Content-Length") or 0)
+        return json.loads(self.rfile.read(min(n, tope)).decode("utf-8") or "{}")
+
+    def _ventas_post(self, ruta):
+        """POST bajo /ventas: login, logout, config (admin) y usuarios (admin)."""
         if DASH_MODO == "marketing":
-            return self._send(404, json.dumps({"ok": False, "error": "este servicio no sirve ventas"}),
-                              "application/json")
-        try:
-            n = int(self.headers.get("Content-Length") or 0)
-            body = json.loads(self.rfile.read(min(n, 60000)).decode("utf-8") or "{}")
-            cfg = validar_config(body)
-        except (ValueError, TypeError) as e:
-            return self._send(400, json.dumps({"ok": False, "error": str(e)}, ensure_ascii=False),
-                              "application/json")
+            return self._send(404, json.dumps({"ok": False, "error": "este servicio no sirve ventas"}), "application/json")
+        err = lambda code, msg: self._send(code, json.dumps({"ok": False, "error": msg}, ensure_ascii=False), "application/json")
+        if ruta == "/ventas/login":
+            ip = self._ip()
+            intentos, hasta = _LOGIN_FALLOS.get(ip, [0, 0])
+            if hasta > time.time():
+                return err(429, "demasiados intentos; espera un minuto")
+            try:
+                body = self._json_body(4000)
+            except ValueError:
+                return err(400, "cuerpo inválido")
+            ses = autenticar(str(body.get("usuario") or ""), str(body.get("password") or ""))
+            if not ses:
+                intentos += 1
+                _LOGIN_FALLOS[ip] = [intentos, time.time() + 60 if intentos >= 5 else 0]
+                return err(401, "usuario o contraseña incorrectos")
+            _LOGIN_FALLOS.pop(ip, None)
+            return self._send(200, json.dumps({"ok": True, "yo": ses}, ensure_ascii=False), "application/json",
+                              extra={"Set-Cookie": self._cookie(firmar_sesion(ses["uid"], ses["rol"], ses["nombre"]), _SESION_SEG)})
+        if ruta == "/ventas/logout":
+            return self._send(200, json.dumps({"ok": True}), "application/json", extra={"Set-Cookie": self._cookie("x", 0)})
+        ses = self._sesion()
+        if not ses:
+            return err(401, "inicia sesión")
+        if ses["rol"] != "admin":
+            return err(403, "solo administradores")
+        if ruta == "/ventas/config":
+            try:
+                cfg = validar_config(self._json_body())
+            except (ValueError, TypeError) as e:
+                return err(400, str(e))
+            self._escribir(VENTAS_CONFIG, cfg)
+            return self._send(200, json.dumps({"ok": True, "config": cfg}, ensure_ascii=False), "application/json")
+        if ruta == "/ventas/usuarios":
+            try:
+                lista = validar_usuarios(self._json_body(), leer_usuarios())
+            except (ValueError, TypeError) as e:
+                return err(400, str(e))
+            self._escribir(VENTAS_USUARIOS, {"usuarios": lista})
+            return self._send(200, json.dumps({"ok": True, "usuarios": usuarios_publicos(lista)}, ensure_ascii=False), "application/json")
+        return err(404, "no")
+
+    def _escribir(self, ruta, obj):
         os.makedirs(DATA, exist_ok=True)
-        tmp = VENTAS_CONFIG + ".tmp"
+        tmp = ruta + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(cfg, f, ensure_ascii=False, indent=1)
-        os.replace(tmp, VENTAS_CONFIG)
-        return self._send(200, json.dumps({"ok": True, "config": cfg}, ensure_ascii=False), "application/json")
+            json.dump(obj, f, ensure_ascii=False, indent=1)
+        os.replace(tmp, ruta)
 
     def _autorizado(self):
         if not (USER and PASS):
@@ -807,8 +1023,12 @@ class H(BaseHTTPRequestHandler):
         return self._send(200, doc + BARRA % {"msg": msg, "ventas_url": VENTAS_URL} + CHAT)
 
     def do_POST(self):
-        if VENTAS_PUBLICO and self.path.startswith("/ventas/config"):
-            return self._ventas_config()
+        ruta = self.path.split("?")[0]
+        if ruta.startswith("/ventas/"):
+            # Con VENTAS_PUBLICO la puerta es la sesión de /ventas; si no, primero el basic auth.
+            if not VENTAS_PUBLICO and not self._autorizado():
+                return self._pide_auth()
+            return self._ventas_post(ruta)
         if not self._autorizado():
             return self._pide_auth()
         if self.path.startswith("/instruccion"):
@@ -819,8 +1039,6 @@ class H(BaseHTTPRequestHandler):
             return self._armar_pausa()
         if self.path.startswith("/copiloto"):
             return self._copiloto()
-        if self.path.startswith("/ventas/config"):
-            return self._ventas_config()
         if self.path.startswith("/cola/hecho"):
             return self._cerrar()
         if not self.path.startswith("/refrescar"):

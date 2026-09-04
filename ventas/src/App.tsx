@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { Config, Corte, Crm, Rango } from './types'
+import type { Config, Corte, Crm, Rango, Yo } from './types'
 import { CRM_LABEL } from './types'
-import { aplicarConfig, cargar, type Carga } from './data'
+import { aplicarConfig, cargar, logout, yo as pedirYo, type Carga } from './data'
+import { Login } from './login'
 import { PRESETS, fmtCorta, fmtHora, iniciales, preset, rangoManual, usuariosVisibles, vivo, type Filtros, type Preset } from './metrics'
 
 const CRMS: Crm[] = ['kommo', 'hubspot']
@@ -34,19 +35,32 @@ function rangoDeHash(r: string | undefined): { rango: Rango; preset: Preset | nu
 }
 
 export default function App() {
+  // Primero la sesión (cookie de app.py); sin ella, la pantalla de entrada. Con ella, el corte.
+  const [sesion, setSesion] = useState<Yo | null | undefined>(undefined)
   const [carga, setCarga] = useState<Carga | null>(null)
   const [intento, setIntento] = useState(0)
-  useEffect(() => { setCarga(null); cargar().then(setCarga) }, [intento])
+  useEffect(() => { pedirYo().then(setSesion) }, [])
+  useEffect(() => { if (sesion) { setCarga(null); cargar().then(setCarga) } }, [sesion, intento])
+  const salir = async () => { await logout(); setCarga(null); setSesion(null) }
+  if (sesion === undefined) return <div style={{ padding: 24 }} role="status">Comprobando sesión…</div>
+  if (sesion === null) return <Login onOk={setSesion} />
   if (!carga) return <div style={{ padding: 24 }} role="status">Cargando el corte…</div>
-  return <Shell key={intento} corte={carga.corte} origen={carga.origen} error={carga.error} onRetry={() => setIntento((i) => i + 1)}
+  return <Shell key={intento + ':' + sesion.uid} yo={sesion} corte={carga.corte} origen={carga.origen} error={carga.error} onRetry={() => setIntento((i) => i + 1)} onLogout={salir}
     onConfig={(cfg) => setCarga((c) => (c ? { ...c, corte: aplicarConfig(c.corte, cfg) } : c))} />
 }
 
-function Shell({ corte, origen, error, onRetry, onConfig }: { corte: Corte; origen: 'kommo' | 'ejemplo'; error?: string; onRetry: () => void; onConfig: (cfg: Config) => void }) {
+function Shell({ yo, corte, origen, error, onRetry, onConfig, onLogout }: { yo: Yo; corte: Corte; origen: 'kommo' | 'ejemplo'; error?: string; onRetry: () => void; onConfig: (cfg: Config) => void; onLogout: () => void }) {
   const h0 = useMemo(leerHash, [])
   const r0 = useMemo(() => rangoDeHash(h0.r), [h0])
-  const [perfil, setPerfil] = useState<Perfil>(h0.perfil === 'asesor' ? 'asesor' : 'admin')
-  const [pagina, setPagina] = useState<Pagina>(PAGINAS.includes(h0.p as Pagina) ? (h0.p as Pagina) : h0.perfil === 'asesor' ? 'midia' : 'dashboard')
+  // Un asesor solo ve su perfil; el administrador puede alternar y mirar a cualquiera.
+  const esAdmin = yo.rol === 'admin'
+  const [perfil, setPerfil] = useState<Perfil>(!esAdmin || h0.perfil === 'asesor' ? 'asesor' : 'admin')
+  const [pagina, setPagina] = useState<Pagina>(() => {
+    const p = PAGINAS.includes(h0.p as Pagina) ? (h0.p as Pagina) : null
+    const deAsesor = p && NAV.asesor.some((n) => n.id === p)
+    if (!esAdmin) return deAsesor ? (p as Pagina) : 'midia'
+    return p ?? (h0.perfil === 'asesor' ? 'midia' : 'dashboard')
+  })
   const [menu, setMenu] = useState(false)
   const [drp, setDrp] = useState(false)
   const [presetActivo, setPresetActivo] = useState<Preset | null>(r0.preset)
@@ -56,6 +70,7 @@ function Shell({ corte, origen, error, onRetry, onConfig }: { corte: Corte; orig
   // Perfil asesor: sin login por persona, se elige a quién ver. Arranca en el de la
   // URL o en el asesor con equipo que más leads activos carga.
   const [asesorActual, setAsesorActual] = useState<string>(() => {
+    if (!esAdmin) return yo.uid
     if (h0.u && corte.usuarios.some((u) => u.id === h0.u)) return h0.u
     const n = new Map<string, number>()
     for (const l of corte.leads) if (l.asesor_id != null && vivo(l)) n.set(l.asesor_id, (n.get(l.asesor_id) || 0) + 1)
@@ -117,16 +132,19 @@ function Shell({ corte, origen, error, onRetry, onConfig }: { corte: Corte; orig
           <h1 className="logo"><img className="logo-full" src="./logo.png" alt="Kenet Solar" width="202" height="31" /><img className="logo-icon" src="./favicon.png" alt="Kenet Solar" width="28" height="28" /></h1>
         </div>
         <div className="hright">
-          {perfil === 'asesor' && (
+          {esAdmin && perfil === 'asesor' && (
             <select className="sel" aria-label="Asesor" value={asesorActual} onChange={(e) => setAsesorActual(e.target.value)}>
               {usuariosOrden.map((u) => <option key={u.id} value={u.id}>{u.nombre}</option>)}
             </select>
           )}
-          <div className="usericon" title={perfil === 'admin' ? 'Administrador' : actual?.nombre} aria-hidden="true">{perfil === 'admin' ? 'KS' : iniciales(actual?.nombre || '')}</div>
-          <div className="pill" role="group" aria-label="Perfil">
-            <button type="button" className={perfil === 'admin' ? 'on' : ''} aria-pressed={perfil === 'admin'} onClick={() => cambiaPerfil('admin')}>Admin</button>
-            <button type="button" className={perfil === 'asesor' ? 'on' : ''} aria-pressed={perfil === 'asesor'} onClick={() => cambiaPerfil('asesor')}>Asesor</button>
-          </div>
+          <div className="usericon" title={yo.nombre} aria-hidden="true">{iniciales(yo.nombre || (perfil === 'admin' ? 'KS' : actual?.nombre || ''))}</div>
+          {esAdmin ? (
+            <div className="pill" role="group" aria-label="Perfil">
+              <button type="button" className={perfil === 'admin' ? 'on' : ''} aria-pressed={perfil === 'admin'} onClick={() => cambiaPerfil('admin')}>Admin</button>
+              <button type="button" className={perfil === 'asesor' ? 'on' : ''} aria-pressed={perfil === 'asesor'} onClick={() => cambiaPerfil('asesor')}>Asesor</button>
+            </div>
+          ) : <span className="small muted quien">{yo.nombre}</span>}
+          <button type="button" className="btn salir" onClick={onLogout} title={'Cerrar la sesión de ' + yo.nombre}>Salir</button>
         </div>
       </header>
       <nav id="sidebar" className={'sidebar' + (menu ? ' open' : '')} aria-label="Secciones">

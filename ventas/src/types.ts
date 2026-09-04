@@ -46,6 +46,11 @@ export interface Corte {
  *  equipos: zona por asesor que manda sobre la del CRM ('-' = sin equipo). */
 export interface Config { meta_mxn: number; cotizado_x: number; cotizado_dias: number; metas_zona: Record<string, number>; metas: Record<string, number>; ocultos: string[]; equipos: Record<string, string> }
 
+/** Sesión de /ventas (cookie firmada por app.py). uid de un asesor = su slug en el corte. */
+export interface Yo { uid: string; rol: 'admin' | 'asesor'; nombre: string }
+/** Un acceso por usuario/contraseña (data/ventas_usuarios.json). password solo viaja al guardar. */
+export interface Acceso { id: string; usuario: string; nombre: string; rol: 'admin' | 'asesor'; password?: string; nuevo?: boolean }
+
 /** Rango [ini, fin) en epoch segundos. */
 export interface Rango { ini: number; fin: number; label: string }
 

@@ -3,6 +3,7 @@ import type { Corte } from './types'
 import { CRM_LABEL } from './types'
 import { dias, enRango, fechaDe, fmtCorta, fmtFecha, fmtHora, fmtMoney, fmtMoney0, fmtN, hoyIni, leaderboardHoy, metaDeId, miDia, pct, preset, tipoLead, vivo } from './metrics'
 import { Bullet, Info } from './components'
+import { WidgetGrid, type Widget } from './widgets'
 
 // Estado de checklist, tareas propias y notas viven en el navegador del asesor
 // (localStorage): nada de esto se escribe al CRM.
@@ -55,62 +56,61 @@ export function MiDia({ corte, uid }: { corte: Corte; uid: string }) {
   const maxB = Math.max(1, ...barras.map((b) => b[1]))
   const faltan = Math.max(0, d.metaMes - d.vendidoMes)
 
-  return (
-    <>
-      <div className="two" style={{ marginBottom: 14 }}>
-        <div className="kpi4">
-          <div><div className="n">{hechas}/{total}</div><div className="l">Tareas hoy · completadas<Info termino="Tareas hoy" /></div></div>
-          <div><div className="n">{d.ventasHoy}</div><div className="l">Ventas del día</div>
-            <Bullet sm value={d.vendidoMes} target={d.metaMes} expected={d.esperadoMes} label="Vendido este mes" fmt={fmtMoney0} />
-            <div className="small muted" style={{ marginTop: 4 }}>Mes: {fmtMoney0(d.vendidoMes)} de {fmtMoney0(d.metaMes)} · {faltan ? `faltan ${fmtMoney0(faltan)}` : 'meta cumplida'}<Info termino="Meta" /></div></div>
-          <div><div className="n">{d.llamadasHoy}</div><div className="l">Llamadas realizadas</div></div>
-          <div><div className="n">{d.prospectosHoy}</div><div className="l">Prospectos nuevos</div></div>
-        </div>
-        <div className="panel chart">
-          <div className="ch"><h3 style={{ margin: 0 }}>Actividad</h3>
-            <span className="pill sm" role="group" aria-label="Periodo">
-              <button type="button" className={tab === 'dia' ? 'on' : ''} aria-pressed={tab === 'dia'} onClick={() => setTab('dia')}>Día</button>
-              <button type="button" className={tab === 'semana' ? 'on' : ''} aria-pressed={tab === 'semana'} onClick={() => setTab('semana')}>Semana</button>
-            </span></div>
-          <div className="bars" role="img" aria-label={barras.map(([n, v]) => `${n}: ${v}`).join(', ')}>{barras.map(([n, v]) => <div className="bar" key={n}><span className="v">{v}</span><i className={v ? '' : 'hollow'} style={{ height: Math.max(2, (v / maxB) * 100) + '%' }} /></div>)}</div>
-          <div className="blabels" aria-hidden="true">{barras.map(([n]) => <span key={n}>{n}</span>)}</div>
-        </div>
+  const W = (id: string, titulo: string, nodo: React.ReactNode, opts: Partial<Widget> = {}): Widget => ({ id, titulo, nodo, ...opts })
+  const widgets: Widget[] = [
+    W('kpis', 'Mi día en números', (
+      <div className="kpi4">
+        <div><div className="n">{hechas}/{total}</div><div className="l">Tareas hoy · completadas<Info termino="Tareas hoy" /></div></div>
+        <div><div className="n">{d.ventasHoy}</div><div className="l">Ventas del día</div>
+          <Bullet sm value={d.vendidoMes} target={d.metaMes} expected={d.esperadoMes} label="Vendido este mes" fmt={fmtMoney0} />
+          <div className="small muted" style={{ marginTop: 4 }}>Mes: {fmtMoney0(d.vendidoMes)} de {fmtMoney0(d.metaMes)} · {faltan ? `faltan ${fmtMoney0(faltan)}` : 'meta cumplida'}<Info termino="Meta" /></div></div>
+        <div><div className="n">{d.llamadasHoy}</div><div className="l">Llamadas realizadas</div></div>
+        <div><div className="n">{d.prospectosHoy}</div><div className="l">Prospectos nuevos</div></div>
       </div>
-      <div className="two">
-        <div className="panel tasks">
-          <h3>Tareas del día</h3>
-          {!items.length && <div className="muted">Sin tareas para hoy en el CRM. Agrega las tuyas abajo.</div>}
-          {items.slice(0, MAX_LISTA).map((t) => { const e = estados[t.id] || 'pend'; return (
-            <button type="button" className="task" key={t.id} onClick={() => ciclo(t.id)} aria-label={`${t.texto}, ${t.sub}, ${st[e]}. Cambiar estado`}>
-              <span className={'chk ' + (e === 'done' ? 'done' : e === 'prog' ? 'half' : '')} aria-hidden="true">{e === 'done' ? '✓' : ''}</span>
-              <span className={'tx' + (e === 'done' ? ' done' : '')} title={t.texto}>{t.texto} <span className="muted">· {t.sub}</span></span>
-              <span className="hr">{t.vencida ? 'vencida' : t.hora}</span>
-              <span className={'st ' + (e === 'prog' ? 'prog' : e === 'done' ? 'done' : '')}>{st[e]}</span>
-            </button>) })}
-          {items.length > MAX_LISTA && <div className="small muted" style={{ marginTop: 8 }}>Se muestran {MAX_LISTA} de {items.length}; el resto está en Calendario.</div>}
-          {d.vencidasViejas > 0 && <div className="small muted" style={{ marginTop: 8 }}>+{fmtN(d.vencidasViejas)} vencidas de hace más de 14 días, fuera de esta lista (ver Calendario).</div>}
-          {nueva == null
-            ? <button type="button" className="add-task" onClick={() => setNueva('')}>+ Agregar tarea</button>
-            : <div className="add-task"><input autoFocus aria-label="Nueva tarea" placeholder="Escribe la tarea y presiona Enter…" value={nueva} onChange={(e) => setNueva(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') agregar(nueva); if (e.key === 'Escape') setNueva(null) }} onBlur={() => agregar(nueva)} /></div>}
-        </div>
-        <div>
-          <div className="panel leader" style={{ marginBottom: 14 }}>
-            <h3>Leaderboard · Hoy</h3>
-            {ranking.map((r, i) => (
-              <div className={'lr' + (r.u.id === uid ? ' me' : '')} key={r.u.id} aria-current={r.u.id === uid ? 'true' : undefined}>
-                <span className={'pos' + (i < 3 ? ' top' : '')}>{i + 1}</span><span>{r.u.nombre}</span><span>{r.ventas} ventas</span><span className="muted">{r.puntos} actividades</span>
-              </div>))}
-            <div className="small muted" style={{ marginTop: 6 }}>Actividades = llamadas, tareas, cotizaciones y levantamientos registrados hoy<Info termino="Actividades" /></div>
-          </div>
-          <div className="panel notes">
-            <h3>Notas del día</h3>
-            <textarea aria-label="Notas del día" value={notas} onChange={(e) => guardarNotas(e.target.value)} placeholder="Escribe aquí. Se guarda en este navegador…" />
-          </div>
-        </div>
+    ), { plain: true }),
+    W('actividad', 'Actividad', (
+      <div className="chart">
+        <div className="ch" style={{ justifyContent: 'flex-end' }}>
+          <span className="pill sm" role="group" aria-label="Periodo">
+            <button type="button" className={tab === 'dia' ? 'on' : ''} aria-pressed={tab === 'dia'} onClick={() => setTab('dia')}>Día</button>
+            <button type="button" className={tab === 'semana' ? 'on' : ''} aria-pressed={tab === 'semana'} onClick={() => setTab('semana')}>Semana</button>
+          </span></div>
+        <div className="bars" role="img" aria-label={barras.map(([n, v]) => `${n}: ${v}`).join(', ')}>{barras.map(([n, v]) => <div className="bar" key={n}><span className="v">{v}</span><i className={v ? '' : 'hollow'} style={{ height: Math.max(2, (v / maxB) * 100) + '%' }} /></div>)}</div>
+        <div className="blabels" aria-hidden="true">{barras.map(([n]) => <span key={n}>{n}</span>)}</div>
       </div>
-    </>
-  )
+    )),
+    W('tareas', 'Tareas del día', (
+      <>
+        {!items.length && <div className="muted">Sin tareas para hoy en el CRM. Agrega las tuyas abajo.</div>}
+        {items.slice(0, MAX_LISTA).map((t) => { const e = estados[t.id] || 'pend'; return (
+          <button type="button" className="task" key={t.id} onClick={() => ciclo(t.id)} aria-label={`${t.texto}, ${t.sub}, ${st[e]}. Cambiar estado`}>
+            <span className={'chk ' + (e === 'done' ? 'done' : e === 'prog' ? 'half' : '')} aria-hidden="true">{e === 'done' ? '✓' : ''}</span>
+            <span className={'tx' + (e === 'done' ? ' done' : '')} title={t.texto}>{t.texto} <span className="muted">· {t.sub}</span></span>
+            <span className="hr">{t.vencida ? 'vencida' : t.hora}</span>
+            <span className={'st ' + (e === 'prog' ? 'prog' : e === 'done' ? 'done' : '')}>{st[e]}</span>
+          </button>) })}
+        {items.length > MAX_LISTA && <div className="small muted" style={{ marginTop: 8 }}>Se muestran {MAX_LISTA} de {items.length}; el resto está en Calendario.</div>}
+        {d.vencidasViejas > 0 && <div className="small muted" style={{ marginTop: 8 }}>+{fmtN(d.vencidasViejas)} vencidas de hace más de 14 días, fuera de esta lista (ver Calendario).</div>}
+        {nueva == null
+          ? <button type="button" className="add-task" onClick={() => setNueva('')}>+ Agregar tarea</button>
+          : <div className="add-task"><input autoFocus aria-label="Nueva tarea" placeholder="Escribe la tarea y presiona Enter…" value={nueva} onChange={(e) => setNueva(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') agregar(nueva); if (e.key === 'Escape') setNueva(null) }} onBlur={() => agregar(nueva)} /></div>}
+      </>
+    ), { cls: 'tasks' }),
+    W('leader', 'Leaderboard · Hoy', (
+      <>
+        {ranking.map((r, i) => (
+          <div className={'lr' + (r.u.id === uid ? ' me' : '')} key={r.u.id} aria-current={r.u.id === uid ? 'true' : undefined}>
+            <span className={'pos' + (i < 3 ? ' top' : '')}>{i + 1}</span><span>{r.u.nombre}</span><span>{r.ventas} ventas</span><span className="muted">{r.puntos} actividades</span>
+          </div>))}
+        <div className="small muted" style={{ marginTop: 6 }}>Actividades = llamadas, tareas, cotizaciones y levantamientos registrados hoy<Info termino="Actividades" /></div>
+      </>
+    ), { cls: 'leader' }),
+    W('notas', 'Notas del día', (
+      <textarea aria-label="Notas del día" value={notas} onChange={(e) => guardarNotas(e.target.value)} placeholder="Escribe aquí. Se guarda en este navegador…" />
+    ), { cls: 'notes' }),
+  ]
+  return <WidgetGrid clave={'midia-' + uid} widgets={widgets} />
 }
 
 export function MisVentas({ corte, uid }: { corte: Corte; uid: string }) {
