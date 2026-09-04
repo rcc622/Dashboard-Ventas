@@ -579,11 +579,7 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
   .toolbar, .toolbar:first-child { position: static; margin: 0 0 16px; padding: 0; border: 0; background: transparent; }
   .cfg-top { position: static; margin: 0 0 14px; padding: 0; border: 0; background: transparent; }
   .ent { grid-template-columns: 1fr; }
-  .wgrid { grid-template-columns: 1fr; }
-  .wgrid { grid-template-columns: 1fr; }
-  .widget { grid-column: auto !important; height: auto !important; }
   .widget.hset .wbody { overflow: visible; }
-  .wresize { display: none; }
   .perfil-legend { grid-template-columns: 1fr; }
   .shell { grid-template-columns: 1fr; }
   .burger { display: inline-block; }
@@ -593,6 +589,12 @@ h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; tex
   .salud-grid { grid-template-columns: 1fr; justify-items: center; }
   .drp { grid-template-columns: 1fr; right: 12px; }
   .drp-presets { border-right: 0; border-bottom: 1px solid var(--line); flex-direction: row; flex-wrap: wrap; }
+}
+/* Una sola columna solo en teléfono; entre 700 y 999 px manda el bloque de 2 columnas. */
+@media (max-width: 699px) {
+  .wgrid { grid-template-columns: 1fr; }
+  .wgrid .widget, .wgrid .widget.wtile, .wgrid .widget.wcard { grid-column: auto !important; height: auto !important; }
+  .wresize { display: none; }
 }
 @media (max-width: 640px) {
   .modal-bg { padding: 0; align-items: end; }
