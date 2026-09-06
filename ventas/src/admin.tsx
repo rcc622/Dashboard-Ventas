@@ -145,7 +145,7 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
           <Bullet value={monto} target={metaRango} expected={rit.esperado} label="Vendido" fmt={fmtMoney0} />
           <div className={'rt ' + rit.estado}>{rit.texto}</div>
         </button>
-    ), { plain: true, span: 1, cls: 'wtile', info: ['Ritmo'], desde: 'cifras' }),
+    ), { plain: true, span: 1, alto: 4, cls: 'wtile', info: ['Ritmo'], desde: 'cifras' }),   // 4 filas: trae medidor y frase del ritmo
     W('t-conversion', 'Conversión ventas / asignados', (
         <button type="button" className="tile tbtn t4" onClick={() => ver('Ventas que cuentan en la conversión', fVentas(ventas), `${fmtN(ventas.length)} ventas / ${fmtN(leads.length)} leads asignados · ${rango}`)} aria-label={`Conversión ${leads.length ? pct(ventas.length, leads.length) + '%' : 'sin dato'}. Ver detalle`}><div className="n">{leads.length ? pct(ventas.length, leads.length) + '%' : '—'}</div><div className="l">Ventas cerradas entre leads asignados</div></button>
     ), { plain: true, span: 1, cls: 'wtile', info: ['Conversión'], desde: 'cifras' }),

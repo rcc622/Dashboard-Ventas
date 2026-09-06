@@ -658,47 +658,26 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   `login.tsx`, botón Salir, y en Configuración el panel «Accesos» (usuario, rol,
   asesor ligado, contraseña opcional al editar). `VENTAS_PUBLICO=1` sigue
   significando «sin basic auth»; sin él, basic auth y luego sesión.
-- **Widgets reordenables y redimensionables** (`widgets.tsx`, pedidos de Randall
-  4-sep, calcados de los tableros de HubSpot): el Dashboard del Admin y «Mi día»
-  son `WidgetGrid` sobre una rejilla de **6 columnas**. Cada gráfica lleva asa ⋮⋮
-  (drag & drop HTML5, `setDragImage` del widget completo) y ▲▼ por teclado para
-  el orden, y un **asa en la esquina inferior derecha** (`.wresize`, `role=slider`)
-  que se arrastra con pointer events y ajusta el **ancho** por cuadrantes, de 2 a 6
-  columnas (`Widget.span` = ancho por defecto en columnas; 3 = media pantalla,
-  6 = todo; teclado ← → Home End), y el **alto** en filas de 40 px (`FILA`, de 4 a
-  30 filas; teclado ↑ ↓; Supr regresa al alto automático). El ancho de una columna
-  sale del ancho real de la rejilla (`clientWidth` − 5 gaps) / 6 y el span se
-  redondea al más cercano; el alto solo se fija cuando el arrastre se mueve en
-  vertical más de media fila, para que estirar solo a lo ancho no congele el alto.
-  Con alto fijo (`.hset`) la tarjeta es columna flex: el cuerpo (`.wbody`) toma el
-  resto y se desplaza adentro, y el embudo (bandas `preserveAspectRatio=none`) y la
-  dispersión (SVG con viewBox) crecen con la tarjeta; lo demás conserva su tamaño.
-  Orden, anchos y altos viven juntos en `localStorage` (`kv_orden_admin`,
-  `kv_orden_midia-<uid>`, forma `{orden, spans, altos}`; el formato viejo de solo
-  lista se migra al leer): preferencia de quien mira, no dato. En ≤ 960 px todo va
-  a una columna con alto automático y el asa se esconde. Los contenidos deben ser
-  fluidos (la fila de KPIs de Entrada es `auto-fit`; la tabla de etapas va en
-  `.scrollx`). Gotcha E2E: tras un drag & drop HTML5, Chromium se traga el
-  siguiente `pointerdown` de Playwright: probar el resize en una página recién
-  cargada. **Quitar y agregar** (primer paso del «inventario de gráficas» que pidió
-  Randall): el × del encabezado saca el widget del tablero (`ocultos[]` en el mismo
-  layout) y «Agregar gráfica» lista los quitados para regresarlos a su lugar; el
-  inventario de hoy son los 18 widgets del Admin y los 5 de Mi día, no hay
-  catálogo de métricas extra todavía. **Cada cifra es un widget propio** (pedido de
-  Randall 4-sep: «verlos por separado para ampliarlos al tamaño que yo desee»): los
-  9 tiles (`t-leads`, `t-ventas`, `t-vendido`, `t-conversion`, `t-perdida`,
-  `t-tareas`, `t-cotizaciones`, `t-descartes`, `t-levantamientos`) llevan
-  `plain`, `span: 1`, `cls: 'wtile'` (el tile llena la tarjeta y el número crece con
-  el ancho por container query) y `desde: 'cifras' | 'actividad'`: un orden
-  guardado con el id del grupo viejo coloca los nuevos en ese mismo lugar
-  (`ordenar`). El ancho mínimo bajó a 1 columna. Toda la tarjeta de cifra es el
-  botón (`.tile.tbtn`, hover en todo el widget, video de Randall 4-sep) y la «i»
-  del glosario va en el encabezado del widget (`info`), nunca dentro del botón.
-  **Separadores** (video de Randall = «Image or text» de HubSpot): «Agregar
-  separador» mete una banda de título de ancho completo (`sep:<n>` en `orden`,
-  título en `seps{}`), editable en el lugar, se arrastra o mueve con ▲▼ y se
-  borra con ×; Restablecer tablero los quita. Las secciones plegables desaparecieron; los
-  widgets `plain` (tiles) no llevan tarjeta.
+- **Rejilla LIBRE de widgets** (`widgets.tsx`, Randall 6-sep: «colocar libremente las gráficas
+  donde yo quiera, con un sistema de grids», como los editores de Kommo y HubSpot; sustituye a la
+  rejilla que fluía en orden): seis columnas por filas de **40 px** (`FILA`, hueco 14 px); cada widget
+  tiene posición y tamaño en celdas (`Pos {x, y, w, h}`), pintadas con `grid-column` / `grid-row` en
+  línea sobre `grid-auto-rows: 40px`. El asa ⋮⋮ es un botón: se arrastra con pointer events a
+  cualquier celda (fantasma `.wghost` + puntos de la cuadrícula `.wgrid.editing`) o se mueve con
+  ← → ↑ ↓ / Home / End; la esquina `.wresize` (role slider) estira ancho y alto en vivo, o con las
+  flechas, y Supr regresa al tamaño por defecto (`span` / `alto` del widget; sin `alto`: cifras 3
+  filas, `wcard` 5, el resto 9). **Nada se encima**: `acomodar` empuja hacia abajo lo que choca (y lo
+  que choque con lo empujado) y **no hay gravedad**: los huecos se respetan. Todo alto es fijo
+  (`.hset` siempre a ≥ 1000 px) y el contenido se desplaza adentro; el embudo y la dispersión crecen con
+  la tarjeta. × quita un widget (`ocultos`) y «Agregar gráfica» lo regresa al primer hueco libre
+  (`colocar`); «Agregar separador» mete una banda `sep:<n>` de 6 × 1 celdas al fondo, con título
+  editable. Se guarda en `localStorage` `kv_orden_<clave>` como `{v: 2, pos, ocultos, seps}`; los
+  formatos viejos (lista de orden, `{orden, spans, altos}`) se migran colocándolos como fluían
+  (`inicial`, `ordenar` respeta `desde`). En < 1000 px se ignoran las posiciones: los widgets se
+  apilan en orden de lectura (fila, columna) con alto automático, 2 columnas entre 700 y 999 y una
+  en móvil. Pruebas: `e2e_grid.py` en el scratchpad (30 comprobaciones: teclado, puntero, estirar,
+  quitar/agregar, separador, migración, reset, 900/390 px). Gotcha E2E: el arrastre es por pointer
+  events, no HTML5: en Playwright va con `mouse.down/move/up` sobre `.grip`.
 - **Ventas reales desde la app de comisiones** (pedido de Randall 4-sep): `ventas_comisiones.py`
   lee `profiles` y `sales` de Supabase (solo GET, `SUPABASE_URL` + `SUPABASE_SERVICE_KEY`, la
   misma llave del respaldo diario) y `ventas_corte.agregar_comisiones` lo mete al corte como

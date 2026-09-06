@@ -499,7 +499,11 @@ h3 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: 0; t
 
 /* ---------- widgets reordenables (asa ⋮⋮ + ▲▼) ---------- */
 /* 6 columnas como HubSpot: cada widget ocupa de 2 a 6 (gridColumn: span N desde widgets.tsx). */
-.wgrid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px; align-items: start; }
+/* Rejilla libre (Randall 6-sep): cada widget ocupa celdas explícitas (grid-column / grid-row en línea) sobre filas de 40 px. */
+.wgrid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px; align-items: stretch; }
+/* Mientras se arrastra o estira, se ven los puntos de la cuadrícula (celda = columna + 14 px de aire por 54 px) y hay aire abajo para soltar más abajo. */
+.wgrid.editing { background-image: radial-gradient(circle, var(--g3) 1.3px, transparent 1.8px); background-size: calc((100% + 14px) / 6) 54px; background-position: -1px -1px; padding-bottom: 324px; }
+.wghost { border: 2px dashed var(--c1); background: var(--c1-soft); border-radius: var(--r); opacity: .8; pointer-events: none; }
 .widget { min-width: 0; position: relative; }
 .wresize { position: absolute; right: 2px; bottom: 2px; width: 24px; height: 24px; cursor: nwse-resize; color: var(--g2); touch-action: none; border-radius: 6px; }
 .wresize::before { content: ''; position: absolute; right: 5px; bottom: 5px; width: 10px; height: 10px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; border-radius: 0 0 3px 0; }
@@ -538,18 +542,17 @@ h3 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: 0; t
   .widget:hover .wresize, .widget:focus-within .wresize, .widget.resizing .wresize { opacity: 1; }
 }
 .whead h3 { margin: 0; flex: 1; min-width: 0; text-wrap: balance; }
-.grip { cursor: grab; color: var(--g2); font-size: 16px; line-height: 1; letter-spacing: -3px; display: inline-grid; place-items: center; width: 24px; height: 24px; padding: 0; border-radius: 6px; user-select: none; touch-action: none; }
+.grip { cursor: grab; border: 0; background: transparent; font-family: inherit; color: var(--g2); font-size: 16px; line-height: 1; letter-spacing: -3px; display: inline-grid; place-items: center; width: 24px; height: 24px; padding: 0; border-radius: 6px; user-select: none; touch-action: none; }
 .grip:hover { color: var(--ink); background: var(--hover); }
 .grip:active { cursor: grabbing; }
 .wbtn { appearance: none; border: 1px solid var(--edge); background: var(--card); border-radius: 6px; width: 26px; height: 24px; font-size: 9.5px; cursor: pointer; color: var(--g2); padding: 0; }
 .wbtn:hover:not(:disabled) { background: var(--hover); color: var(--ink); }
 .wbtn:disabled { opacity: .3; cursor: default; }
-.widget.dragging { opacity: .45; }
-.widget.over { outline: 2px dashed var(--c1); outline-offset: 4px; border-radius: var(--r); }
+.widget.dragging { opacity: .92; z-index: 5; box-shadow: 0 14px 34px rgba(20, 22, 25, .22); pointer-events: none; transition: none; }
 .wreset { font-size: 11.5px; color: var(--g2); margin-top: 10px; }
 /* Separador: banda de título de ancho completo, editable en el lugar (tipo «Image or text» de HubSpot). */
-.widget.sep { padding: 10px 0 4px; margin-top: 6px; border-bottom: 2px solid var(--ink); }
-.widget.sep .whead { margin-bottom: 0; }
+.widget.sep { padding: 0; margin: 0; border-bottom: 2px solid var(--ink); display: flex; align-items: center; min-height: 40px; }
+.widget.sep .whead { margin-bottom: 0; width: 100%; }
 .sep-in { flex: 1; min-width: 0; font: inherit; font-weight: 800; font-size: 15px; text-transform: uppercase; letter-spacing: .04em; color: var(--ink); border: 0; background: transparent; padding: 4px 8px; border-radius: 6px; }
 .sep-in:hover { background: var(--hover); }
 .sep-in:focus { background: var(--card); }
