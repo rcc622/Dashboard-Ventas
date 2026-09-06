@@ -97,6 +97,11 @@ cotizador la escriba solo. Eso no lo arregla el tablero.
 
 ## Estado
 
+**Implementado el 5-sep (tarde)** con las decisiones de Randall: (1) una por lead, recotizaciones aparte; (2) cuenta aunque el bot o la IA lo regresen de etapa; (3) se atribuye al responsable actual, sin responsable = «Sin asesor»; (4) HubSpot con la misma regla desde el 4-ago-2026 (`hs_v2_date_entered_1409289353`), antes la foto actual. Código: `entradas_propuesta` en `ventas_kommo.py`, `ET_PROPUESTA_HS` en `ventas_hubspot.py`, evento `recotizacion`.
+
+### Lo que había antes
+
+
 Diagnóstico y medición **terminados**. Quedó corriendo un panel de cuatro definiciones con
 refutación adversarial que se detuvo a media ejecución; se puede reanudar con el identificador
 `wf_8964daba-968` y los agentes ya terminados vuelven de caché. **No se ha cambiado ni una línea de

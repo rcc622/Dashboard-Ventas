@@ -35,7 +35,8 @@ ST_ENTRANTES = 109293108     # CADENCIA · Entrantes (aún no confirma interés)
 FIELD_RECIBO = 1833111       # checkbox "Recibo CFE recibido"
 FIELD_LLAMADAS = 1833303     # numeric "Intentos llamada" (lo mantiene el server)
 FIELD_ASIGNADO = 1833389     # date "Última asignación" — vive en el CONTACTO
-FIELD_COTIZACION = 1833423   # date_time "Cotización entregada"
+FIELD_COTIZACION = 1833423   # date_time "Cotización entregada" (a mano; cubre el 25 %: solo respaldo)
+ET_PROPUESTA = 109436768     # etapa «Propuesta entregada» del embudo Ventas: entrar aquí ES la cotización
 FIELD_LEVANTAMIENTO = 1833425  # date_time "Levantamiento solicitado"
 TIPO_PRIMER_CONTACTO = 3953735
 ST_GANADO, ST_PERDIDO = 142, 143
@@ -130,6 +131,32 @@ def eventos_(tipo, desde, **extra):
             yield e
     except SystemExit as e:
         aviso("eventos %s: %s" % (tipo, str(e)[:120]))
+
+
+def entrada_propuesta(e):
+    """(lead_id, ts) si el evento es una entrada a «Propuesta entregada» del embudo Ventas; si no, None."""
+    if e.get("entity_type") != "lead":
+        return None
+    va = e.get("value_after") or []
+    st = ((va[0] or {}).get("lead_status") or {}) if isinstance(va, list) and va else {}
+    if st.get("id") == ET_PROPUESTA and st.get("pipeline_id") == PIPE_VENTAS and e.get("entity_id"):
+        return e["entity_id"], e.get("created_at") or 0
+    return None
+
+
+def entradas_propuesta(desde):
+    """{lead_id: [ts, …]} entradas a «Propuesta entregada», en orden. Es la señal real de «cotización
+    entregada» (decisión de Randall 5-sep tras el diagnóstico): el campo de fecha lo llena una persona a
+    mano y cubre el 25 %. La primera entrada es la cotización; las siguientes son recotizaciones. El
+    endpoint de eventos da máximo 100 por página: ~120 llamadas y ~80 s a 90 días."""
+    out = {}
+    for e in eventos_("lead_status_changed", desde, limit=100):
+        r = entrada_propuesta(e)
+        if r:
+            out.setdefault(r[0], []).append(r[1])
+    for v in out.values():
+        v.sort()
+    return out
 
 
 def msgs_entrantes(desde):
@@ -276,6 +303,9 @@ def build():
     ASIG_EV = asignaciones_por_evento(desde)
     LLAM = dedup_llamadas(notas_llamada(desde))
     print("llamadas (dedup): %d · cambios de responsable: %d leads" % (len(LLAM), len(ASIG_EV)))
+    PROP = entradas_propuesta(desde)
+    print("entradas a Propuesta entregada (historial): %d leads, %d recotizaciones"
+          % (len(PROP), sum(len(v) - 1 for v in PROP.values())))
 
     llam_por_lead = {}
     for c in LLAM:
@@ -285,7 +315,8 @@ def build():
             llam_por_lead[lead] = c["ts"]
 
     filas, LINFO = [], {}
-    ev_cot, ev_lev, ev_desc = [], [], []
+    ev_cot, ev_recot, ev_lev, ev_desc = [], [], [], []
+    n_cf_solo = 0
     grupo_por_user = {}
     for l in leads:
         pid = l.get("pipeline_id")
@@ -298,7 +329,11 @@ def build():
         T = tareas.get(l["id"], {"abiertas": 0, "vencidas": 0, "pc": False})
         H2 = hechas.get(l["id"], {"n": 0, "ult": 0})
         ts_llam = llam_por_lead.get(l["id"], 0)
-        ts_cot = fecha_cf(cfv.get(FIELD_COTIZACION))
+        # Cotización = primera entrada a Propuesta entregada (historial); el campo de fecha solo si no hay historial.
+        ents = PROP.get(l["id"]) or []
+        ts_cot = ents[0] if ents else fecha_cf(cfv.get(FIELD_COTIZACION))
+        if ts_cot and not ents:
+            n_cf_solo += 1
         ts_lev = fecha_cf(cfv.get(FIELD_LEVANTAMIENTO))
         cs = (l.get("_embedded") or {}).get("contacts") or []
         ts_asig = max(ASIG.get(cs[0]["id"], 0) if cs else 0, ASIG_EV.get(l["id"], 0)) or l.get("created_at") or 0
@@ -310,6 +345,8 @@ def build():
         LINFO[l["id"]] = {"asig": ts_asig, "asesor_id": uid, "pipe": EMBUDO.get(pid, "cadencia"), "nombre": l.get("name") or "", "id": lid}
         if ts_cot:
             ev_cot.append({"ts": ts_cot, "lead": l["id"]})
+        for t in ents[1:]:
+            ev_recot.append({"ts": t, "lead": l["id"]})
         if ts_lev:
             ev_lev.append({"ts": ts_lev, "lead": l["id"]})
         if l.get("loss_reason_id") and l.get("closed_at"):
@@ -332,7 +369,7 @@ def build():
             "razon": razones.get(l.get("loss_reason_id"), ""),
             "asignacion": ts_asig,
             "tareas_completadas": H2["n"], "ult_tarea": H2["ult"], "ult_llamada": ts_llam,
-            "cotizacion": ts_cot, "levantamiento": ts_lev,
+            "cotizacion": ts_cot, "recotizaciones": max(0, len(ents) - 1), "levantamiento": ts_lev,
             "ult_actividad": max(H2["ult"], ts_llam, ts_cot, ts_lev),
             "cerrado": l.get("closed_at") or 0,
         })
@@ -357,6 +394,9 @@ def build():
             ev_row(c["ts"], "llamada_ok" if c["dur"] > 0 else "llamada_no", c["lead"])
     for e in ev_cot:
         ev_row(e["ts"], "cotizacion", e["lead"])
+    for e in ev_recot:
+        ev_row(e["ts"], "recotizacion", e["lead"])
+    print("cotizaciones: %d (de ellas %d solo por el campo de fecha) · recotizaciones: %d" % (len(ev_cot), n_cf_solo, len(ev_recot)))
     for e in ev_lev:
         ev_row(e["ts"], "levantamiento", e["lead"])
     for e in ev_desc:
@@ -408,6 +448,12 @@ def selftest():
     iso = int(datetime(2026, 9, 1, 10, tzinfo=timezone.utc).timestamp())
     assert fecha_cf("2026-09-01T10:00:00+00:00") == iso and fecha_cf("") == 0
     assert zona_grupo("KS-MTY") == "MTY" and zona_grupo("Sales Office") == "" and zona_grupo(None) == ""
+    # historial de etapas: solo cuenta la entrada a Propuesta entregada del embudo Ventas, de un lead
+    ev = {"entity_type": "lead", "entity_id": 7, "created_at": 55, "value_after": [{"lead_status": {"id": ET_PROPUESTA, "pipeline_id": PIPE_VENTAS}}]}
+    assert entrada_propuesta(ev) == (7, 55)
+    assert entrada_propuesta(dict(ev, value_after=[{"lead_status": {"id": 109436772, "pipeline_id": PIPE_VENTAS}}])) is None
+    assert entrada_propuesta(dict(ev, value_after=[{"lead_status": {"id": ET_PROPUESTA, "pipeline_id": PIPE_HUNTING}}])) is None
+    assert entrada_propuesta(dict(ev, entity_type="contact")) is None and entrada_propuesta(dict(ev, value_after=[])) is None
     print("selftest OK")
 
 

@@ -19,10 +19,10 @@ export interface Lead {
   tags: string[]; dias_sin_cambio: number; link: string
   msjs: number; llamadas_cf: number; tel: string; sin_tarea: boolean; razon: string
   asignacion: number; tareas_completadas: number; ult_tarea: number; ult_llamada: number
-  cotizacion: number; levantamiento: number; ult_actividad: number; cerrado: number
+  cotizacion: number; recotizaciones?: number; levantamiento: number; ult_actividad: number; cerrado: number
 }
 
-export type TipoEvento = 'tarea' | 'llamada_ok' | 'llamada_no' | 'cotizacion' | 'levantamiento' | 'descarte'
+export type TipoEvento = 'tarea' | 'llamada_ok' | 'llamada_no' | 'cotizacion' | 'recotizacion' | 'levantamiento' | 'descarte'
 export interface Evento { ts: number; tipo: TipoEvento; asesor_id: string | null; lead: string; asignacion: number; embudo: string; crm: Crm }
 
 export interface Tarea { id: string; crm: Crm; lead: string; lead_nombre: string; asesor_id: string | null; texto: string; tipo: string; vence: number; vencida: boolean; link: string }

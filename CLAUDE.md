@@ -598,6 +598,17 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   se intenta por separado y lo que falla va en `avisos`. Nada de esto borra ni reasigna leads.
   `Kommo Salesbot/sanciones_sheet.gs` ya respeta `por` (quién quitó); hay que volver a implementar el
   Apps Script para que se vea en la columna «Modificado por».
+- **Cotizaciones entregadas = historial de etapas** (diagnóstico y decisiones de Randall 5-sep,
+  `Knowledge/cotizaciones-entregadas-diagnostico.md`): el campo de fecha `1833423` lo llena una
+  persona y cubre el 25 % (Carlos Campillo salía con 0 de 148). Ahora **Kommo** trae los eventos
+  `lead_status_changed` de los 90 días (`entradas_propuesta`, ~120 llamadas / 80 s) y la cotización
+  es la **primera entrada** del lead a «Propuesta entregada» (`ET_PROPUESTA`); las entradas
+  siguientes son `recotizacion` (evento y `Lead.recotizaciones`), que se muestran aparte y no suman
+  al total. Cuenta aunque el bot o la IA regresen el lead de etapa; se atribuye al responsable actual
+  del lead (sin responsable → «Sin asesor»). El campo de fecha queda solo de respaldo cuando no hay
+  historial. **HubSpot**: `hs_v2_date_entered_1409289353` (existe desde el 4-ago-2026, 634 deals);
+  para deals anteriores queda la foto actual. La misma extracción de historial es la base para el
+  pipeline histórico y la tasa de cierre de levantamientos (David), todavía sin UI.
 - **Pipeline sano = cotizado vigente ≥ 10× la meta MENSUAL** (regla de Alejandro;
   `VENTAS_COTIZADO_X`). Vigente = leads activos con monto cuya cotización tiene
   ≤ 90 días (`VENTAS_COTIZADO_DIAS`; sin fecha de cotización cuenta desde la

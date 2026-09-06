@@ -336,15 +336,16 @@ export function embudo(leads: Lead[], etapas: Etapa[]): EtapaEmbudo[] {
 }
 
 // ---------------------------------------------------------------- Actividad
-export interface Actividad { llamadas: number; contestadas: number; sinContestar: number; descartes: number; tareas: number; cotizaciones: number; levantamientos: number }
+export interface Actividad { llamadas: number; contestadas: number; sinContestar: number; descartes: number; tareas: number; cotizaciones: number; recotizaciones: number; levantamientos: number }
 export function actividad(ev: Evento[]): Actividad {
-  const a: Actividad = { llamadas: 0, contestadas: 0, sinContestar: 0, descartes: 0, tareas: 0, cotizaciones: 0, levantamientos: 0 }
+  const a: Actividad = { llamadas: 0, contestadas: 0, sinContestar: 0, descartes: 0, tareas: 0, cotizaciones: 0, recotizaciones: 0, levantamientos: 0 }
   for (const e of ev) {
     if (e.tipo === 'llamada_ok') { a.llamadas++; a.contestadas++ }
     else if (e.tipo === 'llamada_no') { a.llamadas++; a.sinContestar++ }
     else if (e.tipo === 'descarte') a.descartes++
     else if (e.tipo === 'tarea') a.tareas++
     else if (e.tipo === 'cotizacion') a.cotizaciones++
+    else if (e.tipo === 'recotizacion') a.recotizaciones++
     else if (e.tipo === 'levantamiento') a.levantamientos++
   }
   return a
@@ -459,7 +460,7 @@ export function leaderboardHoy(c: Corte): Ranking[] {
 
 export const TIPO_LABEL: Record<string, string> = {
   tarea: 'Tareas', llamada_ok: 'Llamadas contestadas', llamada_no: 'Llamadas sin contestar',
-  cotizacion: 'Cotizaciones', levantamiento: 'Levantamientos', descarte: 'Descartes',
+  cotizacion: 'Cotizaciones', recotizacion: 'Recotizaciones', levantamiento: 'Levantamientos', descarte: 'Descartes',
 }
 
 // ---------------------------------------------------------------- Ventas reales (app de comisiones)

@@ -15,8 +15,10 @@ Qué es cada cosa en HubSpot:
                no a deals, así que por lead solo se sabe si hay «próxima actividad»
                (`notes_next_activity_date`): 1 abierta, vencida si ya pasó.
   · llamadas = objeto calls: contestada = COMPLETED o duración > 0.
-  · cotización / levantamiento = deal que HOY está en «Propuesta entregada» /
-               «Levantamiento hecho», con la fecha en que entró a esa etapa. Los que
+  · cotización = fecha de entrada a «Propuesta entregada» (hs_v2_date_entered_1409289353,
+               la propiedad calculada de etapa existe desde el 4-ago-2026; antes, el deal que
+               HOY está en esa etapa). levantamiento = deal que HOY está en «Levantamiento
+               hecho», con la fecha en que entró a esa etapa. Los que
                ya avanzaron no se pueden fechar (el portal no tiene hs_date_entered_*).
   · descarte = deal perdido, fecha = closedate, razón = closed_lost_reason /
                razon_de_descarte / nombre de la etapa de pérdida.
@@ -44,6 +46,7 @@ TZ = timezone(timedelta(hours=-6))
 #   (ya hubo contacto) · Cierre Cercano=Levantamiento hecho · Pdte Papeleria / Detalle para cierre=Contrato.
 #   ⚠ Toda etapa nueva de «Ventas» va AQUÍ por id: sin entrada, `canon()` adivina por palabra y
 #   «Levantamiento agendado» caería en 4 (hecho) y contaría como levantamiento realizado.
+ET_PROPUESTA_HS = "1409289353"   # «Propuesta entregada» del pipeline Ventas
 CANON_HS = {
     "1409289350": 0, "1409289351": 1, "1409289352": 1, "1409289353": 2, "1432144491": 3, "1409289354": 4, "1409289355": 5,
     "1265092762": 0, "1265092763": 1, "1265092764": 1, "1265092765": 4, "1299026548": 5, "1265092766": 5,
@@ -129,6 +132,7 @@ def build():
     props_d = ["dealname", "dealstage", "pipeline", "amount", "closedate", "createdate", "hubspot_owner_id",
                "hubspot_owner_assigneddate", "hs_lastmodifieddate", "hs_is_closed", "hs_is_closed_won",
                "closed_lost_reason", "razon_de_descarte", "hs_v2_date_entered_current_stage",
+               "hs_v2_date_entered_" + ET_PROPUESTA_HS,
                "notes_next_activity_date", "notes_last_contacted", "origen"]
     deals = {}
     for d in buscar("deals", "createdate", desde, hoy + 86400, props_d):
@@ -160,7 +164,9 @@ def build():
         entro = seg(p.get("hs_v2_date_entered_current_stage"))
         cerrado = seg(p.get("closedate")) if (ganado or perdido) else 0
         razon = (p.get("closed_lost_reason") or p.get("razon_de_descarte") or (lbl if perdido else "") or "").strip()
-        cot = entro if c == 2 else 0
+        # Regla 5-sep: la fecha de entrada a Propuesta cuenta aunque el deal ya avanzó, se regresó o cerró;
+        # si el deal es de antes de que existiera la propiedad (4-ago), queda la foto de hoy.
+        cot = seg(p.get("hs_v2_date_entered_" + ET_PROPUESTA_HS)) or (entro if c == 2 else 0)
         lev = entro if c == 4 else 0
         lid = "h:" + did
         leads.append({
@@ -174,7 +180,7 @@ def build():
             "link": "https://app.hubspot.com/contacts/%s/record/0-3/%s" % (PORTAL, did),
             "msjs": 0, "llamadas_cf": 0, "tel": "", "sin_tarea": funnel == 4 and not nad, "razon": razon,
             "asignacion": asig, "tareas_completadas": 0, "ult_tarea": 0, "ult_llamada": 0,
-            "cotizacion": cot, "levantamiento": lev, "ult_actividad": seg(p.get("notes_last_contacted")), "cerrado": cerrado,
+            "cotizacion": cot, "recotizaciones": 0, "levantamiento": lev, "ult_actividad": seg(p.get("notes_last_contacted")), "cerrado": cerrado,
         })
         if perdido and cerrado:
             eventos.append({"ts": cerrado, "tipo": "descarte", "asesor_id": uid, "lead": lid, "asignacion": asig, "embudo": "ventas", "crm": "hubspot"})

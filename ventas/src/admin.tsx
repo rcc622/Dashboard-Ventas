@@ -156,8 +156,8 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
         <button type="button" className="tile tbtn" onClick={() => verEv('Tareas completadas', 'tarea')} aria-label={`${fmtN(a.tareas)} tareas completadas. Ver detalle`}><div className="n">{fmtN(a.tareas)}</div><div className="l">Tareas completadas</div></button>
     ), { plain: true, span: 1, cls: 'wtile', desde: 'actividad' }),
     W('t-cotizaciones', 'Cotizaciones entregadas', (
-        <button type="button" className="tile tbtn" onClick={() => verEv('Cotizaciones entregadas', 'cotizacion')} aria-label={`${fmtN(a.cotizaciones)} cotizaciones. Ver detalle`}><div className="n">{fmtN(a.cotizaciones)}</div><div className="l">Cotizaciones entregadas</div></button>
-    ), { plain: true, span: 1, cls: 'wtile', desde: 'actividad' }),
+        <button type="button" className="tile tbtn" onClick={() => verEv('Cotizaciones entregadas', 'cotizacion')} aria-label={`${fmtN(a.cotizaciones)} cotizaciones entregadas${a.recotizaciones ? `, ${fmtN(a.recotizaciones)} recotizaciones aparte` : ''}. Ver detalle`}><div className="n">{fmtN(a.cotizaciones)}</div><div className="l">Cotizaciones entregadas{a.recotizaciones ? ` · ${fmtN(a.recotizaciones)} recotizaciones aparte` : ''}</div></button>
+    ), { plain: true, span: 1, cls: 'wtile', info: ['Cotizaciones'], desde: 'actividad' }),
     W('t-descartes', 'Descartados con razón registrada', (
         <button type="button" className="tile tbtn" onClick={() => verEv('Descartados con razón registrada', 'descarte')} aria-label={`${fmtN(a.descartes)} descartados. Ver detalle`}><div className="n">{fmtN(a.descartes)}</div><div className="l">Descartados con razón registrada</div></button>
     ), { plain: true, span: 1, cls: 'wtile', desde: 'actividad' }),
