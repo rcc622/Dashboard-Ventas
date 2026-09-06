@@ -471,3 +471,24 @@ PIEZA HERMANA en la misma explicación (seg. 799-892, no es el calendario pero v
 - ¿La junta con Guillermo del lunes es la misma que David menciona a 15 días («la junta que va a haber en 15 días, una junta que nos pidió este jaque», seg. 716)? Si son dos juntas distintas, el esquema de comisiones y el tema de gobierno se resuelven en fechas distintas.
 - En la migración, ¿quién aprueba el corte y qué pasa con lo descartado? Randall lanzó el tope («máximo 100, 80 leads», seg. 929) y David pidió el borrado, pero no se definió criterio, aprobador ni si se archiva o se elimina de verdad. El borrado es irreversible.
 - ¿David quiere ver la tasa levantamiento→cierre SUYA o la del equipo? En seg. 510 habla en abstracto. Si es la suya va a «Mi día» (vendedor); si es la del equipo va al perfil administrador. Cambia dónde se construye.
+
+## Medido el 5-sep: ¿qué concordancia actividad → cierre se puede probar HOY?
+
+Contra la API de Kommo (historial `lead_status_changed`, 180 días, 205 llamadas, 2 min) y el corte
+del 3-sep. Solo Kommo: HubSpot no liga llamadas ni tareas al deal.
+
+| Señal | Qué dice el dato |
+|---|---|
+| Campo «Levantamiento solicitado» (CF 1833425) | **1 lead de 2,135** lo trae. Recién creado: inservible por meses. |
+| Etapas «Levantamiento agendado / hecho» (historial) | En 180 días **24 leads** pasaron por ahí; 4 cerrados, **2 ganados**. «50 % con visita vs 10 % sin visita» son dos leads: no prueba nada todavía. |
+| Cierres en Kommo | 802 leads creados en 180 días → **13 ganados**, 172 perdidos, **617 abiertos**. La app de comisiones registró 1,012 ventas en el mismo lapso: los cierres no se están marcando en Kommo. |
+| Actividad ligada al lead (corte) | Ganados (n=19): mediana **4 llamadas**, 21 mensajes, 58 % con ≥1 intento. Perdidos (n=326): mediana **0 llamadas**, 3 mensajes, 33 % con intento. Sí hay concordancia, con n chico y sin poder decir causa. |
+| «Contrato solicitado» | 8 de 8 ganados: es la antesala del cierre, no una señal predictiva. |
+
+**Conclusión:** la relación visita → cierre no se puede demostrar hoy por falta de muestra, no por
+falta de código. El mismo extractor de historial de etapas que arregla las cotizaciones entregadas
+(`Knowledge/cotizaciones-entregadas-diagnostico.md`) da de una vez: tasa de cierre de levantamientos
+(por cohorte de mes), cierre «con visita / solo llamada», y el pipeline histórico. La probabilidad
+ponderada se calcula de esa historia cuando haya muestra; no se inventa a dedo. Precondición
+operativa: que los cierres y las visitas se muevan por etapa en Kommo (hoy 617 de 802 siguen
+abiertos). Script: `dbg_concordancia.py` en el scratchpad de la sesión del 5-sep.
