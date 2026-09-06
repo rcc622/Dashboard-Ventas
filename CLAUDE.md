@@ -565,11 +565,15 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   «Clientes cerrados» porque así lo preguntó él. Chequeo con fechas fijas: `check_ritmo.mjs` en el
   scratchpad de la sesión (transpila `metrics.ts` y afirma 15 casos).
 - **Calendario calcado de Meta Ads** (Randall 5-sep, `DateRangePicker.tsx`): periodos a la izquierda
-  como radios en el orden de Meta (Hoy, Ayer, Hoy y ayer, Últimos 7/14/28/30 días, Esta semana, La
-  semana pasada, Este mes, El mes pasado, Máximo, Personalizado; sin «Usados recientemente» ni
+  como radios en el orden de Meta (Hoy, Ayer, Hoy y ayer, Últimos 7/14/28/30/60/90 días, Esta semana,
+  La semana pasada, Este mes, El mes pasado, Máximo, Personalizado; sin «Usados recientemente» ni
   «Comparar»), dos meses con selector de mes y año, y abajo el periodo con las dos fechas escribibles
-  (`<input type=date>`, sin días futuros). «Máximo» = los 90 días del corte (`MAXIMO_DIAS`).
-  `trimestre` y `d90` siguen valiendo en ligas viejas (`esPreset`) pero no se ofrecen. La etiqueta del
+  (`<input type=date>`, sin días futuros). **«Máximo» va del dato más antiguo del corte a hoy**
+  (`corte.desde` = generado − `VENTAS_DIAS`; `preset(p, ahora, desde)` lo recibe desde `App` y el
+  calendario; sin corte cae a `MAXIMO_DIAS` = 90). Randall 6-sep: «al ponerle max debería ser el date
+  más antiguo hasta hoy»; ojo, los leads traen creación desde 2023 pero la actividad solo 90 días, por
+  eso el mínimo es el del corte y no el del lead más viejo. `trimestre` sigue valiendo en ligas viejas
+  (`esPreset`) pero no se ofrece. La etiqueta del
   rango lleva el nombre y las fechas («El mes pasado: 1 ago 2026 – 31 ago 2026», `etiquetaRango`) y
   se usa tal cual en subtítulos y drills.
 - **Primer contacto y Razones de descarte son dos widgets** (Randall 5-sep: «no encuentro relación»):
@@ -719,9 +723,31 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   y con el alto fijo (`.hset`) se estiran a la tarjeta. Los puntos de la
   dispersión son botones (`onPunto`): un asesor abre su ficha; una burbuja «×n»
   pinta una lista inline (`.grupo-sel`) para elegir a quién abrir, que se limpia
-  al cambiar filtros. El widget Perfiles (`cls: 'wperf'`, container query) pone la
-  matriz a la izquierda y una tabla de asesores (perfil, actividad, vendido; el
-  nombre abre la ficha) a la derecha cuando mide ≥ 760 px; angosto, apilados.
+  al cambiar filtros. **Perfiles son dos widgets** (Randall 6-sep, «como Embudo y
+  Monto por etapa»): `perfiles` = la matriz con la nota de las medianas y
+  `perfiles-tabla` = la tabla de asesores (perfil, actividad, vendido; el nombre
+  abre la ficha), `desde: 'perfiles'` para que en un layout guardado el nuevo parta
+  al viejo en dos si cabe a su derecha (`sanear` en `widgets.tsx`); por defecto van
+  lado a lado, 3 + 3 columnas.
+- **Hover estándar** (Randall 6-sep, img 9): todo lo clicable pasa a fondo gris
+  suave `var(--hover)` al pasar el mouse (`.drill`, `.nbtn` con halo `box-shadow`,
+  `.tile.tbtn`, leyendas, días del calendario, `.eye`, tramos de Primer contacto);
+  **ningún `:hover` lleva `outline`** (el contorno azul es solo `:focus-visible`,
+  teclado). El menú de propietarios usa `appearance: base-select` (Chrome 135+) para
+  que sus opciones también lleven ese hover; en otros navegadores es el menú nativo.
+  El botón «i» mide 18 px (área de clic 28 px por el `::before`). En el ranking la
+  columna del monto crece a 300 px si el widget pasa de 720 px (container query) y
+  la línea chica se parte si no cabe: nunca scroll horizontal (img 6).
+- **Barra de filtros con equipos como botones** (Randall 6-sep, img 11): `.pill.equipos`
+  = Todos + `corte.equipos` (Monterrey, Saltillo, Torreón, Monclova y cualquier
+  KS-<zona> nuevo), junto a Kommo/HubSpot; sustituye al select y sigue en el hash `eq=`.
+- **Ficha › Actividad en una sola fila** (Randall 6-sep, img 10 «se ve doble»):
+  `.bubbles` es `grid-auto-flow: column` (N columnas, nunca dos filas), la bolita
+  mide `--s` con `max-width: 100%` para achicarse en rangos largos, y cotizaciones
+  (`.bubble.e`, c3) y levantamientos (`.bubble.l`, c4) son series separadas.
+- **Glosario en lenguaje llano** (`glosario.ts`, Randall 6-sep): cada «i» dice qué
+  muestra el widget y cómo se cuenta, sin mediana/prorrateo/cohorte/CF; todos los
+  widgets (cifras, embudo, ficha, Mi día) llevan `info`.
 - **Sin contraseña en `/ventas`** (`VENTAS_PUBLICO=1` en el servicio `mkt-ventas`,
   pedido de Randall 4-sep): `do_GET` sirve `/ventas*` (y `/` → `/ventas/` en modo
   ventas) antes del auth y `do_POST` deja pasar `/ventas/config`. Todo lo demás
