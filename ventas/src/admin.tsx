@@ -209,7 +209,7 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
     ...(corte.comisiones ? [W('reales', 'Ventas reales · Comisiones', (
       <>
         {vr.filas.length > 0 && (
-          <div className="scrollx"><table className="ftable">
+          <div className="scrollx crece"><table className="ftable">
             <thead><tr><th scope="col">Asesor</th><th scope="col" className="num">Ventas reales</th><th scope="col" className="num">Monto real</th><th scope="col" className="num">Ventas CRM</th><th scope="col" className="num">Monto CRM</th></tr></thead>
             <tbody>
               {vr.filas.map((r) => { const cr = r.u ? filas.find((x) => x.u.id === r.u!.id) : undefined; return (

@@ -383,7 +383,7 @@ h3 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: 0; t
 .ag4, .legend .lg-ag4 { background: repeating-linear-gradient(45deg, var(--neutral) 0 2px, var(--card) 2px 5px); }
 
 /* ---------- ranking de ventas ---------- */
-.rank .lr { display: grid; grid-template-columns: 22px minmax(0, 1fr) 130px auto; gap: 10px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.rank .lr { display: grid; grid-template-columns: 22px minmax(0, 1fr) minmax(110px, 1.1fr) 168px; gap: 10px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
 .rank .pos { font-weight: 700; color: var(--g2); }
 .rank .pos.top { color: var(--c1-ink); }
 .rank .nm { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -697,3 +697,5 @@ h3 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: 0; t
 .vacio { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 8px; padding: 12px; color: var(--g2); min-height: 80px; }
 .vacio b { color: var(--ink); font-size: 14px; }
 .widget.hset .wbody > .vacio { flex: 1 1 auto; }
+/* (e) tabla que se desplaza adentro de la tarjeta dejando la nota al pie siempre visible */
+.widget.hset .wbody > .scrollx.crece { flex: 1 1 auto; min-height: 0; overflow: auto; }

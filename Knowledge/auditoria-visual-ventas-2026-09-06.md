@@ -13,7 +13,7 @@ scroll interno, textos SVG escalados, fuentes menores de 11 px y tablas con scro
 |---|---|---|
 | Desbordes horizontales de página | 0 | 0 |
 | Textos recortados (fuera de los títulos solo para lector de pantalla) | 0 | 0 |
-| Widgets con más del 40 % de alto vacío en el layout por defecto | 9 (Primer contacto 74 %, Llamadas 75 %, Ventas reales 82 %, Entrada 52 %, Salud 43 %, Cotizado vs vendido 42 %, Mi día en números 48 %, Actividad de Mi día 49 %, Notas 78 %) | 1 (Ventas reales en un mes sin ventas registradas: estado vacío real, ver H-05) |
+| Widgets con más del 40 % de alto vacío en el layout por defecto | 9 (Primer contacto 74 %, Llamadas 75 %, Ventas reales 82 %, Entrada 52 %, Salud 43 %, Cotizado vs vendido 42 %, Mi día en números 48 %, Actividad de Mi día 49 %, Notas 78 %) | 0 (el estado vacío de Ventas reales llena su tarjeta) |
 | Textos SVG de la dispersión mayores de 20 px | 1 (eje «vendido →» a 46 px, cuadrantes a 24 px) | 0 (ahora 11–11.5 px fijos) |
 | Elementos de texto menores de 11 px | 8 (etiquetas 10 px, iniciales 9.5 px, burbujas 10 px, × de 9.5 px) | 0 |
 | Scroll interno en widgets con contenido corto | Ranking, Entrada | 0 (solo quedan listas largas: Leads activos, Tareas, Leaderboard) |
@@ -31,9 +31,9 @@ Severidad: **alta** = se ve roto o impide leer; **media** = se ve descuidado; **
 | H-02 | Primer contacto: 26 % de uso; la mediana sola no dice cómo se reparte la atención | Dashboard | media | **Corregido.** Distribución por tramos (menos de 1 h, 1–4 h, 4–24 h, más de un día) con barra, conteo, porcentaje y drill a los leads de cada tramo (`PC_TRAMOS`, `.pc-dist`). |
 | H-03 | Dispersión de Perfiles: el SVG escalaba con el widget y a pantalla completa las letras medían 46 px, las burbujas 30 px | Dashboard | alta | **Corregido.** `Scatter` mide su caja con `ResizeObserver` (`useSize`) y dibuja 1 unidad = 1 px: crece con el widget, las letras (11–11.5 px), burbujas (11–13 px) y ejes no. |
 | H-04 | Embudo con bandas no monótonas: «Por contactar» 421 < «Conversación iniciada» 542 se dibujaba como embudo invertido con punta rara | Dashboard | alta | **Corregido.** Cada etapa es una barra centrada con el ancho de su propio conteo (`rect`), sin trapecios: son fotos por etapa, no un flujo que solo baja (regla del catálogo de gráficas: embudo solo si decrece monótono). |
-| H-05 | Ventas reales: scroll interno con la nota al pie recortada; y en un mes sin ventas, un renglón gris perdido en una tarjeta vacía | Dashboard | media | **Corregido en parte.** Alto de 10 filas (cabe la tabla completa de agosto) y estado vacío centrado con explicación (`.vacio`). Cuando el mes no tiene ventas en la app el widget sigue mayormente vacío por dato, no por diseño; se documenta como deliberado. |
+| H-05 | Ventas reales: scroll interno con la nota al pie recortada; y en un mes sin ventas, un renglón gris perdido en una tarjeta vacía | Dashboard | media | **Corregido.** Alto de 10 filas; la tabla se desplaza adentro de la tarjeta (`.scrollx.crece`) y la nota al pie queda siempre visible (medido: 12 filas, nota visible = true); el mes sin ventas muestra un estado vacío centrado que llena la tarjeta (`.vacio`, 0 % vacío medido). |
 | H-06 | Dos botones «i» pegados en el encabezado (Monto por etapa; Cumplimiento en la ficha) | Dashboard, ficha | media | **Corregido.** `Info` acepta varios términos y pinta UN botón con las definiciones separadas. |
-| H-07 | Anillo de foco a todo lo ancho del renglón (ranking) y deforme alrededor de banda + etiqueta del embudo | Dashboard | media | **Corregido.** En renglones clicables (`.lr.drill`, `.frow.drill`, `.row`) el anillo va 2 px adentro, con esquinas redondeadas. |
+| H-07 | Anillo de foco a todo lo ancho del renglón (ranking) y deforme alrededor de banda + etiqueta del embudo; barras del ranking desalineadas (la columna del monto era `auto` y cada renglón medía distinto: 3 posiciones de barra distintas) | Dashboard | media | **Corregido.** En renglones clicables (`.lr.drill`, `.frow.drill`, `.row`) el anillo va 2 px adentro con esquinas de 8 px (medido en foco: outline 2 px, offset −2 px, radio 8 px); columna del monto fija a 168 px → las 8 barras arrancan en la misma x (medido: 1 posición, 1 ancho). |
 | H-08 | Tabla de Perfiles apretada: columna «Perfil» en cuatro líneas, scroll horizontal, y apilada bajo la dispersión a media pantalla | Dashboard | media | **Corregido.** Perfiles ocupa las 6 columnas por defecto (dispersión a la izquierda, tabla a la derecha), la columna Perfil dice el cuadrante (Mantener / Capacitar / Revisar / Salida, descripción larga en el tooltip) y la tabla tiene de 360 a 440 px. En móvil (390 px) la tabla conserva scroll horizontal propio: es la regla de tablas en pantallas angostas. |
 | H-09 | Fuentes de 10 px o menos: etiquetas `.tag`, estados `.st`, «N ventas · %» del ranking, iniciales de Perfiles (9.5), burbujas de Actividad, × de los widgets (9.5) | todo | media | **Corregido.** Todo texto ≥ 11 px; el × sube a 13 px. |
 | H-10 | Medidores y donas crecen hasta 250 px y se comen la tarjeta a pantalla completa | Dashboard | baja | **Corregido.** Tope a 210 px. |
@@ -45,7 +45,6 @@ Severidad: **alta** = se ve roto o impide leer; **media** = se ve descuidado; **
 
 - **Scroll interno** en Leads activos, Tareas abiertas, Tareas del día y Leaderboard: son listas largas; el
   alto fijo es el modelo de la rejilla (como Kommo y HubSpot).
-- **Ventas reales vacío en un mes sin ventas** (H-05): el dato es el dato; el estado vacío lo dice.
 - **Tabla de Perfiles con scroll horizontal en móvil** (H-08): regla «tables on mobile: horizontal scroll
   or card layout»; el tablero de administración no está pensado para 390 px.
 
