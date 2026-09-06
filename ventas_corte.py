@@ -100,14 +100,16 @@ def fuentes():
 
 def mezclar(partes):
     usuarios, mapa = {}, {}          # slug -> usuario ; (crm, raw_id) -> slug
-    siempre = set()                  # usuarios activos de un grupo KS-* de Kommo: entran aunque no tengan leads
+    siempre = set()                  # usuarios activos con rol o grupo KS-* en Kommo: entran aunque no tengan leads
     for crm, p in partes:
         for raw, u in p["usuarios"].items():
             s = slug(u["nombre"])
             mapa[(crm, str(raw))] = s
-            if crm == "kommo" and u.get("zona") and u.get("activo", True):
+            if crm == "kommo" and (u.get("zona") or str(u.get("rol") or "").upper().startswith("KS-")) and u.get("activo", True):
                 siempre.add(s)
-            U = usuarios.setdefault(s, {"id": s, "nombre": u["nombre"], "zona": "", "crm": [], "ids": {}})
+            U = usuarios.setdefault(s, {"id": s, "nombre": u["nombre"], "zona": "", "crm": [], "ids": {}, "rol": ""})
+            if crm == "kommo" and u.get("rol"):
+                U["rol"] = u["rol"]
             if crm not in U["crm"]:
                 U["crm"].append(crm)
             U["ids"][crm] = raw
@@ -232,15 +234,16 @@ def selftest():
     assert slug("Gamaliel Alvarez - IOPS Saltillo") == "gamaliel-alvarez"
     assert slug("Monserrat de León") == "monserrat-leon" and slug("Jose Luis Villarreal") == "jose-luis"
     assert slug("cambaceo1@kenetsolar.com") == "cambaceo1" and slug("") == "sin-nombre"
-    partes = [("kommo", {"usuarios": {1: {"nombre": "Mara Gálvez", "zona": "SLT"}, 2: {"nombre": "Nuevo Trainee", "zona": "TRAINING", "activo": True},
+    partes = [("kommo", {"usuarios": {1: {"nombre": "Mara Gálvez", "zona": "SLT", "rol": "KS-TRAINING"}, 2: {"nombre": "Nuevo Trainee", "zona": "", "rol": "KS-SEGUIMIENTO", "activo": True},
                                       3: {"nombre": "Ex Vendedor", "zona": "TRAINING", "activo": False}}, "etapas": None,
                          "leads": [{"id": "k:1", "asesor_id": 1}], "eventos": [], "tareas_abiertas": []}),
               ("hubspot", {"usuarios": {"9": {"nombre": "Mara Galvez", "zona": ""}, "8": {"nombre": "Nadie", "zona": "MTY"}}, "etapas": None,
                            "leads": [{"id": "h:1", "asesor_id": "9"}], "eventos": [{"ts": 1, "asesor_id": "9"}], "tareas_abiertas": []})]
     c = mezclar(partes)
-    # Mara tiene leads; el trainee entra por estar en un grupo KS-* aunque no tenga; el inactivo y «Nadie» (HubSpot sin uso) no.
+    # Mara tiene leads; el de Seguimiento entra por su rol KS-* aunque no tenga leads; el inactivo y «Nadie» (HubSpot sin uso) no.
     assert [u["id"] for u in c["usuarios"]] == ["mara-galvez", "nuevo-trainee"], c["usuarios"]
-    assert c["equipos"][-1] == {"id": "TRAINING", "nombre": "Training"} and len(c["equipos"]) == 5, c["equipos"]
+    assert c["usuarios"][0]["rol"] == "KS-TRAINING" and c["usuarios"][1]["rol"] == "KS-SEGUIMIENTO"
+    assert len(c["equipos"]) == 4, c["equipos"]
     u = c["usuarios"][0]
     assert u["crm"] == ["kommo", "hubspot"] and u["zona"] == "SLT" and u["ids"] == {"kommo": 1, "hubspot": "9"}
     assert all(l["asesor_id"] == "mara-galvez" for l in c["leads"]) and len(c["etapas"]) == 6

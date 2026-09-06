@@ -609,14 +609,15 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   historial. **HubSpot**: `hs_v2_date_entered_1409289353` (existe desde el 4-ago-2026, 634 deals);
   para deals anteriores queda la foto actual. La misma extracción de historial es la base para el
   pipeline histórico y la tasa de cierre de levantamientos (David), todavía sin UI.
-- **Equipos = grupos KS-\* de Kommo** (Randall 6-sep: «quiero ver a los de KS-SEGUIMIENTO y
-  KS-TRAINING»): además de las zonas MTY/SLT/TRC/MVA, cualquier grupo `KS-<X>` de Kommo es un
-  equipo del tablero (`zona_grupo` → `X`, `equipos` del corte lo agrega con el nombre capitalizado,
-  `_ZONA` en app.py acepta hasta 15 letras). El grupo sale de `/users` (`rights.group_id`, sí viene con
-  este token) y no de la moda de sus leads. Un usuario activo de un grupo KS-\* entra al corte
-  aunque todavía no tenga leads (`siempre` en `mezclar`); los de Sales Office solo si tienen algo.
-  Al 6-sep esos dos grupos aún no existían en Kommo: en cuanto se creen y se muevan usuarios, el
-  siguiente corte los trae solo.
+- **Rol de Kommo por vendedor** (Randall 6-sep: «quiero ver a los que están como KS-TRAINING y
+  KS-SEGUIMIENTO»): es la columna «Leads» de Ajustes › Usuarios de Kommo = el **rol** (`/roles`:
+  KS-VENTAS, KS-TRAINING, KS-SEGUIMIENTO; los administradores no tienen). Viaja en `Usuario.rol`;
+  en Asesores sale como etiqueta junto al nombre solo cuando no es Ventas (`rolDestacado`), en
+  Configuración › Vendedores como columna, y en el tooltip del avatar. Un usuario activo con rol
+  KS-\* entra al corte aunque no tenga leads (`siempre` en `mezclar`). **No confundir con los
+  grupos** KS-MTY/SLT/TRC/MVA, que son el equipo (zona): también cualquier grupo `KS-<X>` nuevo
+  se vuelve equipo (`zona_grupo`, `equipos` del corte, `_ZONA` hasta 15 letras), y el grupo del
+  usuario sale de `/users` (`rights.group_id`).
 - **Pipeline sano = cotizado vigente ≥ 10× la meta MENSUAL** (regla de Alejandro;
   `VENTAS_COTIZADO_X`). Vigente = leads activos con monto cuya cotización tiene
   ≤ 90 días (`VENTAS_COTIZADO_DIAS`; sin fecha de cotización cuenta desde la

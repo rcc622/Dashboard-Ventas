@@ -242,11 +242,16 @@ def build():
     hoy = int(time.time())
     desde = hoy - DIAS_HISTORIA * 86400
 
-    users, user_group, user_activo = {}, {}, {}
+    # Rol de Kommo (la columna «Leads» de Ajustes › Usuarios): KS-VENTAS, KS-TRAINING, KS-SEGUIMIENTO;
+    # los administradores no tienen rol. Randall (6-sep) quiere ver a los de Training y Seguimiento.
+    roles = {r["id"]: r.get("name") or "" for r in embebido_("roles", "roles")}
+    users, user_group, user_activo, user_rol = {}, {}, {}, {}
     for u in k.paged("users", "users"):
+        rg = u.get("rights") or {}
         users[u["id"]] = (u.get("name") or u.get("email") or str(u["id"])).strip()
-        user_group[u["id"]] = (u.get("rights") or {}).get("group_id")      # sí viene con este token (verificado 6-sep)
-        user_activo[u["id"]] = bool((u.get("rights") or {}).get("is_active", True))
+        user_group[u["id"]] = rg.get("group_id")      # sí viene con este token (verificado 6-sep)
+        user_activo[u["id"]] = bool(rg.get("is_active", True))
+        user_rol[u["id"]] = "Administrador" if rg.get("is_admin") else (roles.get(rg.get("role_id")) or "")
     grupos = {g["id"]: g["name"] for g in embebido_("account", "users_groups", **{"with": "users_groups"})}
     tipos_tarea = {t["id"]: t["name"] for t in embebido_("account", "task_types", **{"with": "task_types"})}
     razones = {r["id"]: r["name"] for r in embebido_("leads/loss_reasons", "loss_reasons")}
@@ -424,7 +429,7 @@ def build():
     for uid, nombre in users.items():
         g = grupo_por_user.get(uid)
         gid = user_group.get(uid) or (g.most_common(1)[0][0] if g else None)
-        usuarios[uid] = {"nombre": nombre, "zona": zona_grupo(grupos.get(gid, "")) if gid else "", "activo": user_activo.get(uid, True)}
+        usuarios[uid] = {"nombre": nombre, "zona": zona_grupo(grupos.get(gid, "")) if gid else "", "activo": user_activo.get(uid, True), "rol": user_rol.get(uid, "")}
 
     print("kommo: resumen %d leads · %d actividades · %d tareas abiertas · %.0f s"
           % (len(filas), len(eventos), len(abiertas), time.time() - t0))

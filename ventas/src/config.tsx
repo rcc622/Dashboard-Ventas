@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Acceso, Config, Corte, Usuario } from './types'
 import { cargarAccesos, guardarAccesos, guardarConfig } from './data'
-import { fmtMoney0, fmtN, metaDe, zonaNombre } from './metrics'
+import { fmtMoney0, fmtN, metaDe, rolNombre, zonaNombre } from './metrics'
 import { Info } from './components'
 
 // Página de Configuración. Son DOS cosas distintas y por eso van en dos secciones con un
@@ -163,7 +163,7 @@ export function Configuracion({ corte, onSaved }: { corte: Corte; onSaved: (cfg:
             <div className="small muted" style={{ marginBottom: 10 }}>Estos son los vendedores que traen Kommo y HubSpot. Ojo cerrado = desactivado: no sale en el menú de propietarios, en la tabla, en el ranking ni en los perfiles, y sus leads y actividades no cuentan en las cifras del equipo. La entrada de leads de Kommo no cambia. El equipo manda sobre el que trae el CRM. Para que un vendedor pueda ENTRAR al tablero hay que crearle una cuenta en «Usuarios de la plataforma».</div>
             <div className="tblwrap" style={{ boxShadow: 'none' }}>
               <table className="ftable" aria-label="Vendedores del CRM">
-                <thead><tr><th scope="col">Activo</th><th scope="col">Vendedor</th><th scope="col">Equipo de ventas</th><th scope="col">Meta propia (MXN)</th><th scope="col" className="num">Meta efectiva</th><th scope="col">Cuenta</th></tr></thead>
+                <thead><tr><th scope="col">Activo</th><th scope="col">Vendedor</th><th scope="col">Rol en Kommo</th><th scope="col">Equipo de ventas</th><th scope="col">Meta propia (MXN)</th><th scope="col" className="num">Meta efectiva</th><th scope="col">Cuenta</th></tr></thead>
                 <tbody>
                   {usuarios.map((u) => {
                     const oculto = ocultos.has(u.id), zcrm = u.zona_crm ?? u.zona
@@ -171,6 +171,7 @@ export function Configuracion({ corte, onSaved }: { corte: Corte; onSaved: (cfg:
                       <tr key={u.id} className={oculto ? 'oculto' : ''}>
                         <td><button type="button" className="eye" aria-pressed={!oculto} aria-label={(oculto ? 'Mostrar a ' : 'Ocultar a ') + u.nombre + ' en el tablero'} title={oculto ? 'Desactivado: clic para mostrarlo' : 'Activo: clic para ocultarlo'} onClick={() => toggleOjo(u.id)}><Ojo abierto={!oculto} /></button></td>
                         <td><span className="nm">{u.nombre}</span><div className="small muted">{u.crm.map((c) => (c === 'hubspot' ? 'HubSpot' : 'Kommo')).join(' + ')}{oculto ? ' · desactivado' : ''}</div></td>
+                        <td>{u.rol ? rolNombre(u.rol) : <span className="muted">—</span>}</td>
                         <td>
                           <select className="sel" aria-label={'Equipo de ' + u.nombre} value={equipos[u.id] || ''} onChange={(ev) => setEquipos({ ...equipos, [u.id]: ev.target.value })}>
                             <option value="">Como en el CRM ({zcrm ? zonaNombre(corte, zcrm) : 'sin equipo'})</option>

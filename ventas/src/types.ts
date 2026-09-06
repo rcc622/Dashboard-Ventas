@@ -4,7 +4,8 @@
 
 export type Crm = 'kommo' | 'hubspot'
 /** zona = la efectiva (la de Configuración manda); zona_crm = la que trae el CRM, para poder volver a ella. */
-export interface Usuario { id: string; nombre: string; zona: string; zona_crm?: string; crm: Crm[]; ids: Partial<Record<Crm, number | string>> }
+/** `rol`: el rol de Kommo (KS-VENTAS, KS-TRAINING, KS-SEGUIMIENTO, Administrador); vacío en HubSpot. */
+export interface Usuario { id: string; nombre: string; zona: string; zona_crm?: string; crm: Crm[]; ids: Partial<Record<Crm, number | string>>; rol?: string }
 export interface Equipo { id: string; nombre: string }          // zonas MTY / SLT / TRC / MVA
 export interface Etapa { id: number; nombre: string }           // etapas canónicas del embudo Ventas, en orden
 export type Embudo = 'ventas' | 'hunting' | 'cadencia' | 'nuevo'

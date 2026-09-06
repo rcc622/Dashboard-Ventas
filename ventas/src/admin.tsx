@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState, type SyntheticEvent, useEffect } from 'react'
 import type { Corte, Evento, Lead, Sanciones, Usuario } from './types'
 import { CRM_LABEL } from './types'
-import { BUCKETS, PERFIL_LABEL, actividad, cotizado, dias, embudo, entrada, ep, etapaDe, eventosFiltrados, fechaCotizado, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, metaDe, metaEnRango, pasaCrm, periodoTexto, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, type Fila, type FilaAsesor, type Filtros, type Perfil , type PuntoPerfil, ventasReales, filasDeVentasReales, comparativaVentas } from './metrics'
+import { BUCKETS, PERFIL_LABEL, actividad, cotizado, dias, embudo, entrada, ep, etapaDe, eventosFiltrados, fechaCotizado, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, metaDe, metaEnRango, pasaCrm, periodoTexto, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, type Fila, type FilaAsesor, type Filtros, type Perfil , type PuntoPerfil, ventasReales, filasDeVentasReales, comparativaVentas, rolDestacado, rolNombre } from './metrics'
 import { BarDetailPopup, BubbleChart, Bullet, DonutChart, FunnelChart, Gauge, Info, LlamadasBar, MiniAreaChart, Scatter, SortTh, StackedBar, activar, useEscape, useOutside, type DetRow, type Sort, type BubbleCol, useFocoDialogo } from './components'
 import { DrillModal, type Drill } from './drill'
 import { aplicarSancion, cargarSanciones } from './data'
@@ -9,7 +9,7 @@ import { WidgetGrid, type Widget } from './widgets'
 
 const mixto = (c: Corte) => (c.fuentes || []).length > 1
 const crmCorto = (l: { crm: Lead['crm'] }) => CRM_LABEL[l.crm]
-const subAsesor = (c: Corte, u: Usuario) => zonaNombre(c, u.zona) + ' · ' + u.crm.map((x) => CRM_LABEL[x]).join(' + ')
+const subAsesor = (c: Corte, u: Usuario) => zonaNombre(c, u.zona) + ' · ' + u.crm.map((x) => CRM_LABEL[x]).join(' + ') + (u.rol ? ' · ' + rolNombre(u.rol) : '')
 const avatarCls = (u: Usuario) => 'avatar' + (u.zona ? ' z-' + u.zona : '')
 const RAMPA = ['var(--f1)', 'var(--f2)', 'var(--f3)', 'var(--f4)', 'var(--f5)', 'var(--f6)', 'var(--f6)']
 // HubSpot no trae llamadas ni mensajes por deal: mejor decirlo que pintar «0 llam».
@@ -452,7 +452,7 @@ export function Asesores({ corte, filtros, onFicha }: { corte: Corte; filtros: F
               const evDe = (...tipos: string[]) => f.actividad.filter((e) => tipos.includes(e.tipo))
               return (
                 <tr key={f.u.id} className="row" onClick={(e) => abrir(f, e.clientX, e.clientY)}>
-                  <td><div className="who"><div className={avatarCls(f.u)} title={subAsesor(corte, f.u)} aria-hidden="true">{iniciales(f.u.nombre)}</div><div><div className="nm"><button type="button" className="nbtn" aria-haspopup="dialog" aria-label={`Ver resumen de ${f.u.nombre}`} onClick={(e) => { e.stopPropagation(); const r = e.currentTarget.getBoundingClientRect(); abrir(f, r.right, r.bottom) }}>{f.u.nombre}</button></div><div className="sub">{f.ventas} venta{f.ventas === 1 ? '' : 's'} · meta {fmtMoney0(f.metaMes)}/mes</div></div></div></td>
+                  <td><div className="who"><div className={avatarCls(f.u)} title={subAsesor(corte, f.u)} aria-hidden="true">{iniciales(f.u.nombre)}</div><div><div className="nm"><button type="button" className="nbtn" aria-haspopup="dialog" aria-label={`Ver resumen de ${f.u.nombre}`} onClick={(e) => { e.stopPropagation(); const r = e.currentTarget.getBoundingClientRect(); abrir(f, r.right, r.bottom) }}>{f.u.nombre}</button>{rolDestacado(f.u.rol) && <span className="tag rol" title="Rol en Kommo">{rolNombre(f.u.rol)}</span>}</div><div className="sub">{f.ventas} venta{f.ventas === 1 ? '' : 's'} · meta {fmtMoney0(f.metaMes)}/mes</div></div></div></td>
                   <td className="cellbar">
                     <div className="num">{fmtMoney0(f.montoVentas)}</div>
                     <Bullet sm value={f.montoVentas} target={f.metaRango} expected={f.esperado} label={'Vendido de ' + f.u.nombre} fmt={fmtMoney0} />

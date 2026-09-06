@@ -280,6 +280,9 @@ export function razones(c: Corte, ev: Evento[]): { razon: string; n: number; lea
 /** `estado`/`alerta`: columna extra del detalle para las comparativas (p. ej. «Falta en el CRM»). */
 export interface Fila { id: string; nombre: string; link?: string; crm: Origen; asesor: string; detalle: string; monto?: number; cuando?: number; estado?: string; alerta?: boolean }
 export function mapaLeads(c: Corte): Map<string, Lead> { return new Map(c.leads.map((l) => [l.id, l])) }
+/** «KS-TRAINING» → «Training». Ventas es el rol normal y no se etiqueta; Training y Seguimiento sí (Randall 6-sep). */
+export const rolNombre = (r?: string) => (!r ? '' : /^admin/i.test(r) ? 'Administrador' : r.replace(/^KS-/i, '').toLowerCase().replace(/^\w/, (c) => c.toUpperCase()))
+export const rolDestacado = (r?: string) => !!r && /^KS-/i.test(r) && !/^KS-VENTAS$/i.test(r)
 export const nombreAsesor = (c: Corte, id: string | null) => (id == null ? 'Sin asesor' : c.usuarios.find((u) => u.id === id)?.nombre || id)
 export function filasDeLeads(leads: Lead[], detalle: (l: Lead) => string, cuando: (l: Lead) => number = (l) => l.asignacion): Fila[] {
   return leads.map((l) => ({ id: l.id, nombre: l.nombre || l.id, link: l.link || undefined, crm: l.crm, asesor: l.asesor || 'Sin asesor', detalle: detalle(l), monto: l.presupuesto || undefined, cuando: cuando(l) || undefined }))
