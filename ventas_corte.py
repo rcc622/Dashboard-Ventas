@@ -9,7 +9,8 @@ Corte del dashboard de ventas (/ventas): junta Kommo y HubSpot en UN solo
     normalizado (sin acentos, primer nombre + primer apellido, ver `slug`),
     porque ningún CRM sabe el id del otro. Alias explícitos en `ALIAS` para los
     nombres que no coinciden solos ("Randall Cruz" vs "Randall").
-  · Equipos = zonas MTY / SLT / TRC / MVA. Kommo las trae en el grupo KS-<zona>,
+  · Equipos = zonas MTY / SLT / TRC / MVA + cualquier otro grupo KS-<X> de Kommo
+    (KS-SEGUIMIENTO, KS-TRAINING…). Kommo las trae en el grupo KS-<zona>,
     HubSpot en el equipo del owner (Monterrey/Saltillo/Torreón/Monclova).
   · Etapas del embudo = las de Ventas en Kommo (CANON como respaldo); HubSpot
     mapea las suyas a ese índice (ver ventas_hubspot.CANON_HS).
@@ -99,10 +100,13 @@ def fuentes():
 
 def mezclar(partes):
     usuarios, mapa = {}, {}          # slug -> usuario ; (crm, raw_id) -> slug
+    siempre = set()                  # usuarios activos de un grupo KS-* de Kommo: entran aunque no tengan leads
     for crm, p in partes:
         for raw, u in p["usuarios"].items():
             s = slug(u["nombre"])
             mapa[(crm, str(raw))] = s
+            if crm == "kommo" and u.get("zona") and u.get("activo", True):
+                siempre.add(s)
             U = usuarios.setdefault(s, {"id": s, "nombre": u["nombre"], "zona": "", "crm": [], "ids": {}})
             if crm not in U["crm"]:
                 U["crm"].append(crm)
@@ -142,14 +146,18 @@ def mezclar(partes):
     except (ValueError, TypeError, AttributeError):
         aviso("VENTAS_METAS no es JSON válido; sin metas")
 
+    # Solo asesores con algo que mostrar (HubSpot trae 30 owners, la mitad inactivos), más los que
+    # estén en un grupo KS-* de Kommo aunque todavía no tengan leads (Randall 6-sep).
+    lista = sorted([u for s, u in usuarios.items() if s in usados or s in siempre], key=lambda u: u["nombre"])
+    conocidas = {a for a, _ in ZONAS}
+    extras = sorted({u["zona"] for u in lista if u["zona"] and u["zona"] not in conocidas})
     return {
         "generado": datetime.now(TZ).isoformat(timespec="seconds"),
         "dias_historia": DIAS_HISTORIA, "desde": int(time.time()) - DIAS_HISTORIA * 86400,
         "fuentes": [{"crm": crm, "generado": p.get("generado"), "leads": len(p["leads"]),
                      "eventos": len(p["eventos"]), "tareas": len(p["tareas_abiertas"])} for crm, p in partes],
-        # Solo asesores con algo que mostrar: HubSpot trae 30 owners, la mitad inactivos.
-        "usuarios": sorted([u for s, u in usuarios.items() if s in usados], key=lambda u: u["nombre"]),
-        "equipos": [{"id": a, "nombre": b} for a, b in ZONAS],
+        "usuarios": lista,
+        "equipos": [{"id": a, "nombre": b} for a, b in ZONAS] + [{"id": z, "nombre": z.capitalize()} for z in extras],
         "etapas": etapas, "metas": metas, "meta_mxn": META_MXN,
         "cotizado_x": COTIZADO_X, "cotizado_dias": COTIZADO_DIAS,
         "leads": leads, "eventos": eventos, "tareas_abiertas": tareas,
@@ -224,12 +232,15 @@ def selftest():
     assert slug("Gamaliel Alvarez - IOPS Saltillo") == "gamaliel-alvarez"
     assert slug("Monserrat de León") == "monserrat-leon" and slug("Jose Luis Villarreal") == "jose-luis"
     assert slug("cambaceo1@kenetsolar.com") == "cambaceo1" and slug("") == "sin-nombre"
-    partes = [("kommo", {"usuarios": {1: {"nombre": "Mara Gálvez", "zona": "SLT"}}, "etapas": None,
+    partes = [("kommo", {"usuarios": {1: {"nombre": "Mara Gálvez", "zona": "SLT"}, 2: {"nombre": "Nuevo Trainee", "zona": "TRAINING", "activo": True},
+                                      3: {"nombre": "Ex Vendedor", "zona": "TRAINING", "activo": False}}, "etapas": None,
                          "leads": [{"id": "k:1", "asesor_id": 1}], "eventos": [], "tareas_abiertas": []}),
               ("hubspot", {"usuarios": {"9": {"nombre": "Mara Galvez", "zona": ""}, "8": {"nombre": "Nadie", "zona": "MTY"}}, "etapas": None,
                            "leads": [{"id": "h:1", "asesor_id": "9"}], "eventos": [{"ts": 1, "asesor_id": "9"}], "tareas_abiertas": []})]
     c = mezclar(partes)
-    assert [u["id"] for u in c["usuarios"]] == ["mara-galvez"], c["usuarios"]
+    # Mara tiene leads; el trainee entra por estar en un grupo KS-* aunque no tenga; el inactivo y «Nadie» (HubSpot sin uso) no.
+    assert [u["id"] for u in c["usuarios"]] == ["mara-galvez", "nuevo-trainee"], c["usuarios"]
+    assert c["equipos"][-1] == {"id": "TRAINING", "nombre": "Training"} and len(c["equipos"]) == 5, c["equipos"]
     u = c["usuarios"][0]
     assert u["crm"] == ["kommo", "hubspot"] and u["zona"] == "SLT" and u["ids"] == {"kommo": 1, "hubspot": "9"}
     assert all(l["asesor_id"] == "mara-galvez" for l in c["leads"]) and len(c["etapas"]) == 6

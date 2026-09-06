@@ -394,7 +394,7 @@ CHAT = """
 
 
 _SLUG = re.compile(r"^[a-z0-9][a-z0-9-]{0,60}$")
-_ZONA = re.compile(r"^[A-Z]{2,5}$")
+_ZONA = re.compile(r"^[A-Z]{2,15}$")   # MTY… y también SEGUIMIENTO / TRAINING (grupos KS-* de Kommo)
 
 
 def validar_config(body):

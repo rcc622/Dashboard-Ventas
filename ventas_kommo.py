@@ -73,9 +73,13 @@ def fecha_cf(v):
 
 
 def zona_grupo(nombre):
-    """'KS-MTY' -> 'MTY'; cualquier otro grupo (Sales Office) -> ''."""
-    z = (nombre or "").upper().replace("KS-", "").strip()
-    return z if z in ZONAS else ""
+    """'KS-MTY' -> 'MTY', 'KS-TRAINING' -> 'TRAINING': todo grupo KS-<X> es un equipo del tablero
+    (Randall 6-sep: también KS-SEGUIMIENTO y KS-TRAINING). Cualquier otro grupo (Sales Office) -> ''."""
+    n = (nombre or "").strip().upper()
+    if not n.startswith("KS-"):
+        return ""
+    z = re.sub(r"[^A-Z]", "", n[3:])
+    return z[:15] if len(z) >= 2 else ""
 
 
 # ---------------------------------------------------------------- puras
@@ -238,8 +242,11 @@ def build():
     hoy = int(time.time())
     desde = hoy - DIAS_HISTORIA * 86400
 
-    users = {u["id"]: (u.get("name") or u.get("email") or str(u["id"])).strip()
-             for u in k.paged("users", "users")}
+    users, user_group, user_activo = {}, {}, {}
+    for u in k.paged("users", "users"):
+        users[u["id"]] = (u.get("name") or u.get("email") or str(u["id"])).strip()
+        user_group[u["id"]] = (u.get("rights") or {}).get("group_id")      # sí viene con este token (verificado 6-sep)
+        user_activo[u["id"]] = bool((u.get("rights") or {}).get("is_active", True))
     grupos = {g["id"]: g["name"] for g in embebido_("account", "users_groups", **{"with": "users_groups"})}
     tipos_tarea = {t["id"]: t["name"] for t in embebido_("account", "task_types", **{"with": "task_types"})}
     razones = {r["id"]: r["name"] for r in embebido_("leads/loss_reasons", "loss_reasons")}
@@ -410,13 +417,14 @@ def build():
         if t["asesor_id"] and g:
             grupo_por_user.setdefault(t["asesor_id"], Counter())[g] += 1
 
-    # Equipo del asesor: Kommo no lo expone en /users con este token, pero cada
-    # lead y tarea trae el group_id de su responsable → moda por usuario.
+    # Equipo del asesor: su grupo en /users (rights.group_id); si no viniera, la moda del group_id
+    # de sus leads y tareas. `activo` deja que el corte incluya a los de un grupo KS-* aunque no
+    # tengan leads todavía (Randall 6-sep: ver a los de KS-SEGUIMIENTO y KS-TRAINING).
     usuarios = {}
     for uid, nombre in users.items():
         g = grupo_por_user.get(uid)
-        gid = g.most_common(1)[0][0] if g else None
-        usuarios[uid] = {"nombre": nombre, "zona": zona_grupo(grupos.get(gid, "")) if gid else ""}
+        gid = user_group.get(uid) or (g.most_common(1)[0][0] if g else None)
+        usuarios[uid] = {"nombre": nombre, "zona": zona_grupo(grupos.get(gid, "")) if gid else "", "activo": user_activo.get(uid, True)}
 
     print("kommo: resumen %d leads · %d actividades · %d tareas abiertas · %.0f s"
           % (len(filas), len(eventos), len(abiertas), time.time() - t0))
@@ -448,6 +456,7 @@ def selftest():
     iso = int(datetime(2026, 9, 1, 10, tzinfo=timezone.utc).timestamp())
     assert fecha_cf("2026-09-01T10:00:00+00:00") == iso and fecha_cf("") == 0
     assert zona_grupo("KS-MTY") == "MTY" and zona_grupo("Sales Office") == "" and zona_grupo(None) == ""
+    assert zona_grupo("KS-TRAINING") == "TRAINING" and zona_grupo("ks-Seguimiento ") == "SEGUIMIENTO" and zona_grupo("KS-") == ""
     # historial de etapas: solo cuenta la entrada a Propuesta entregada del embudo Ventas, de un lead
     ev = {"entity_type": "lead", "entity_id": 7, "created_at": 55, "value_after": [{"lead_status": {"id": ET_PROPUESTA, "pipeline_id": PIPE_VENTAS}}]}
     assert entrada_propuesta(ev) == (7, 55)
