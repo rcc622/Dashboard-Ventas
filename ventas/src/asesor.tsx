@@ -63,7 +63,7 @@ export function MiDia({ corte, uid }: { corte: Corte; uid: string }) {
         <div><div className="n">{hechas}/{total}</div><div className="l">Tareas hoy · completadas<Info termino="Tareas hoy" /></div></div>
         <div><div className="n">{d.ventasHoy}</div><div className="l">Ventas del día</div>
           <Bullet sm value={d.vendidoMes} target={d.metaMes} expected={d.esperadoMes} label="Vendido este mes" fmt={fmtMoney0} />
-          <div className="small muted" style={{ marginTop: 4 }}>Mes: {fmtMoney0(d.vendidoMes)} de {fmtMoney0(d.metaMes)} · {faltan ? `faltan ${fmtMoney0(faltan)}` : 'meta cumplida'}<Info termino="Meta" /></div></div>
+          <div className="small muted" style={{ marginTop: 4 }}>Mes: {fmtMoney0(d.vendidoMes)} de {fmtMoney0(d.metaMes)} · <span className={'rt ' + d.ritmoMes.estado}>{d.ritmoMes.corto}</span>{faltan ? ` · faltan ${fmtMoney0(faltan)}` : ''}<Info termino="Ritmo" /></div></div>
         <div><div className="n">{d.llamadasHoy}</div><div className="l">Llamadas realizadas</div></div>
         <div><div className="n">{d.prospectosHoy}</div><div className="l">Prospectos nuevos</div></div>
       </div>

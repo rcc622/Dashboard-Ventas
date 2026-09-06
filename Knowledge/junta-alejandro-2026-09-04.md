@@ -14,9 +14,9 @@ Randall le dio a Alejandro y Samuel un recorrido en vivo del tablero de ventas (
 
 | # | Qué | Esfuerzo | Estado |
 |---|-----|----------|--------|
-| 1 | Avance vs meta con ritmo del mes y tratamiento visual de alto impacto | chico | por hacer |
+| 1 | Avance vs meta con ritmo del mes y tratamiento visual de alto impacto | chico | hecho 5-sep |
 | 2 | Dar acceso al tablero a Alejandro | chico | por hacer |
-| 3 | Etiquetas autoexplicativas en las tarjetas grandes del encabezado | chico | por hacer |
+| 3 | Etiquetas autoexplicativas en las tarjetas grandes del encabezado | chico | hecho 5-sep |
 | 4 | Widget de cotizado vs vendido vs meta: que la antigüedad se lea sola | chico | por hacer |
 | 5 | Corregir la métrica de cotizaciones entregadas | chico | por hacer |
 | 6 | Campo de fecha de cierre en Kommo y que el tablero la use | medio | por hacer |
@@ -187,7 +187,7 @@ Permitir que el usuario arme una gráfica nueva por sí mismo, sobre la data que
 
 ## Qué hay que definir antes de construir
 
-- El prorrateo de la meta al día del mes, ¿va por días naturales o por días hábiles? No se definió en la junta.
+- El prorrateo de la meta al día del mes, ¿va por días naturales o por días hábiles? No se definió en la junta. **Se implementó por días naturales** (5-sep) con hoy contado completo; cambiar a hábiles es una sola función (`diasRango`).
 - ¿Cómo se ve "más motivador o más doloroso"? Alejandro pidió el efecto emocional pero no el diseño ("tienes que pensar cómo lo hacemos"). Hay que enseñarle dos variantes y que él elija antes de construir.
 - Cotizaciones entregadas: ¿cuenta el lead que ESTÁ hoy en la etapa "Cotización entregada", o el que PASÓ por ella alguna vez? La segunda depende del historial de etapas, que hoy no existe. Definir con Samuel.
 - Antigüedad del cotizado: ¿cuáles son los cortes dentro de los 90 días y qué se considera rescatable vs muerto? Sin eso el rediseño del widget se hace a ciegas.

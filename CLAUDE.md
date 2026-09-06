@@ -549,6 +549,18 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   guarda. La UI la prorratea al rango (`metaEnRango`: meses completos si el
   rango va de día 1 a día 1, si no por días) y calcula «esperado a hoy» por
   regla de tres (`metaEsperada`). Cumplimiento = monto vendido / meta del rango.
+- **Ritmo del mes** (Alejandro 4-sep, «el número más importante»; hecho 5-sep): la meta del
+  rango se reparte por **días naturales** con hoy contado completo (`diasRango`: día N de M;
+  `metaEsperada` = meta × N/M) y `ritmo()` dice si lo vendido va arriba o abajo de esa parte, en
+  palabras («▼ $1.4M abajo del ritmo · a día 5 de 30 el ritmo pide $2.8M») y con estado para el
+  color (`.rt.atras` tinta `--warn-ink`, `.rt.adelante` / `.cumplida` `--c4-ink`; el tile «Avance
+  contra la meta» se tiñe entero con `--warn-soft` / `--c4-soft`). Sale en ese tile, en Cotizado vs
+  vendido vs meta, en el ranking, en la tabla de Asesores, en Cumplimiento de la ficha y en Mi día.
+  Nunca es solo color: lleva ▼ ▲ y la cifra. Días hábiles no se definió; si se pide, cambia solo
+  `diasRango`. Las etiquetas grandes dicen el periodo en palabras (`periodoTexto`: «del 1 al 5 de
+  septiembre») en vez de «en el rango», que Alejandro no entendió; «Ventas cerradas» pasó a
+  «Clientes cerrados» porque así lo preguntó él. Chequeo con fechas fijas: `check_ritmo.mjs` en el
+  scratchpad de la sesión (transpila `metrics.ts` y afirma 15 casos).
 - **Pipeline sano = cotizado vigente ≥ 10× la meta MENSUAL** (regla de Alejandro;
   `VENTAS_COTIZADO_X`). Vigente = leads activos con monto cuya cotización tiene
   ≤ 90 días (`VENTAS_COTIZADO_DIAS`; sin fecha de cotización cuenta desde la

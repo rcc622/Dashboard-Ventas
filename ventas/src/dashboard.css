@@ -12,7 +12,7 @@
   --c2: #A65F00; --c2-soft: #FFF1D6; --c2-ink: #8A5300;
   --c3: #6E4BD8; --c3-soft: #ECE7FB; --c3-ink: #4F32B0;
   --c4: #0C7A70; --c4-soft: #E1F4F2; --c4-ink: #0B6B62;
-  --warn: #D9482B; --neutral: #6B7484; --neutral-soft: #EEF1F5; --neutral-ink: #4A5361;
+  --warn: #D9482B; --warn-soft: #FBE9E4; --warn-ink: #B23A20; --neutral: #6B7484; --neutral-soft: #EEF1F5; --neutral-ink: #4A5361;
   --f1: #6E97E9; --f2: #4E80E2; --f3: #3A72DC; --f4: #2358BF; --f5: #1B479C; --f6: #143577;
   /* --line separa (decorativo); --edge dibuja el contorno de un control y por eso llega a 3:1
      (WCAG 1.4.11). Con --line los botones y campos no tenían límite visible: 1.23:1. */
@@ -146,6 +146,17 @@ h3 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: 0; t
 .tile .l { color: var(--g2); font-size: 12.5px; margin-top: 4px; }
 .tile .l::before, .kpi4 .l::before, .kcard .l::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--dot, var(--c1)); margin-right: 6px; vertical-align: 1px; }
 .tiles2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+/* Ritmo del mes (Alejandro 4-sep): la meta se reparte por días naturales y el color grita si vas atrás o adelante.
+   Nunca es solo color: el texto lleva ▼ ▲ y la cifra. Tintas medidas: --warn-ink 5.1:1 y --c4-ink 5.6:1 sobre su fondo suave. */
+.rt { font-weight: 600; }
+.rt.atras { color: var(--warn-ink); }
+.rt.adelante, .rt.cumplida { color: var(--c4-ink); }
+.tile .rt, .kcard .rt { font-size: 12.5px; margin-top: 6px; }
+.tile .bullet { margin-top: 8px; }
+.tile.ritmo-atras { --dot: var(--warn); background: var(--warn-soft); border-color: var(--warn); }
+.tile.ritmo-adelante, .tile.ritmo-cumplida { --dot: var(--c4); background: var(--c4-soft); border-color: var(--c4); }
+.kcard.ritmo-atras .n { color: var(--warn-ink); }
+.kcard.ritmo-adelante .n, .kcard.ritmo-cumplida .n { color: var(--c4-ink); }
 /* Cifra como widget propio: el tile llena la tarjeta y el número crece con el ancho (container query). */
 .widget.wtile { container-type: inline-size; }
 .widget.wtile .wbody > .tile { height: 100%; display: flex; flex-direction: column; justify-content: center; }
@@ -159,7 +170,7 @@ h3 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: 0; t
 .widget.wtile .whead h3 { flex: none; }
 .widget.wtile .ibtn { margin-left: 0; }
 .widget.wtile .whead h3 .wt { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.widget.wtile .wbody > .tile { min-height: 96px; }
+.widget.wtile .wbody > .tile { min-height: 96px; padding-top: 26px; } /* la «i» y los controles viven en la esquina: sin este aire pisan la cifra */
 
 /* ---------- salud operativa (dona + desglose) ---------- */
 /* Columnas proporcionales: la dona, los medidores y el embudo crecen con el ancho del widget (pedido de Randall 4-sep). */

@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState, type SyntheticEvent, useEffect } from 'react'
 import type { Corte, Evento, Lead, Usuario } from './types'
 import { CRM_LABEL } from './types'
-import { BUCKETS, PERFIL_LABEL, actividad, cotizado, dias, embudo, entrada, ep, etapaDe, eventosFiltrados, fechaCotizado, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, metaDe, metaEnRango, metaEsperada, pasaCrm, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, type Fila, type FilaAsesor, type Filtros, type Perfil , type PuntoPerfil, ventasReales, filasDeVentasReales } from './metrics'
+import { BUCKETS, PERFIL_LABEL, actividad, cotizado, dias, embudo, entrada, ep, etapaDe, eventosFiltrados, fechaCotizado, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, metaDe, metaEnRango, pasaCrm, periodoTexto, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, type Fila, type FilaAsesor, type Filtros, type Perfil , type PuntoPerfil, ventasReales, filasDeVentasReales } from './metrics'
 import { BarDetailPopup, BubbleChart, Bullet, DonutChart, FunnelChart, Gauge, Info, LlamadasBar, MiniAreaChart, Scatter, SortTh, StackedBar, activar, useEscape, useOutside, type DetRow, type Sort, type BubbleCol, useFocoDialogo } from './components'
 import { DrillModal, type Drill } from './drill'
 import { WidgetGrid, type Widget } from './widgets'
@@ -105,7 +105,6 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
   const a = actividad(ev)
   const monto = ventas.reduce((x, l) => x + l.presupuesto, 0)
   const metaRango = filas.reduce((x, f) => x + f.metaRango, 0)
-  const esperado = filas.reduce((x, f) => x + f.esperado, 0)
   const metaMes = filas.reduce((x, f) => x + f.metaMes, 0)
   const cot = cotizado(leads, corte.cotizado_dias)
   const vigentes = leads.filter((l) => vivo(l) && l.presupuesto > 0 && diasDesde(fechaCotizado(l)) <= corte.cotizado_dias)
@@ -114,7 +113,8 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
   const rzTot = rz.reduce((x, r) => x + r.n, 0)
   const horasPC = pc.mediana == null ? '—' : pc.mediana < 48 ? pc.mediana.toFixed(1) : String(Math.round(pc.mediana / 24))
   const unidadPC = pc.mediana == null ? 'sin dato' : pc.mediana < 48 ? 'horas (mediana)' : 'días (mediana)'
-  const rango = filtros.rango.label
+  const rango = filtros.rango.label, periodo = periodoTexto(filtros.rango)
+  const rit = ritmo(monto, metaRango, filtros.rango)
   const evDe = (...tipos: string[]) => ev.filter((e) => tipos.includes(e.tipo))
   const verEv = (titulo: string, ...tipos: string[]) => ver(titulo, filasDeEventos(corte, evDe(...tipos)), rango)
   const saludRow = (label: string, ls: Lead[], n: number, cls?: string, pctTxt?: string, h = false) => (
@@ -130,15 +130,21 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
   const W = (id: string, titulo: string, nodo: React.ReactNode, opts: Partial<Widget> = {}): Widget => ({ id, titulo, nodo, ...opts })
   const widgets: Widget[] = [
     // Primero las 9 cifras (6 + 3 columnas) y Salud cierra la segunda fila: así la rejilla de 6 queda sin huecos por defecto.
-    W('t-leads', 'Leads asignados en el rango', (
-        <button type="button" className="tile tbtn" onClick={() => ver('Leads asignados en el rango', fLeads(asignados), rango + ' · fecha = última asignación')} aria-label={`${fmtN(tot)} leads asignados en el rango. Ver detalle`}><div className="n">{fmtN(tot)}</div><div className="l">Leads asignados en el rango</div></button>
+    W('t-leads', 'Leads asignados', (
+        <button type="button" className="tile tbtn" onClick={() => ver('Leads asignados ' + periodo, fLeads(asignados), rango + ' · fecha = última asignación')} aria-label={`${fmtN(tot)} leads asignados ${periodo}. Ver detalle`}><div className="n">{fmtN(tot)}</div><div className="l">Leads asignados {periodo}</div></button>
     ), { plain: true, span: 1, cls: 'wtile', desde: 'cifras' }),
-    W('t-ventas', 'Ventas cerradas en el rango', (
-        <button type="button" className="tile tbtn t2" onClick={() => ver('Ventas cerradas en el rango', fVentas(ventas), rango + ' · fecha = cierre')} aria-label={`${fmtN(ventas.length)} ventas cerradas en el rango. Ver detalle`}><div className="n">{fmtN(ventas.length)}</div><div className="l">Ventas cerradas en el rango</div></button>
+    W('t-ventas', 'Clientes cerrados', (
+        <button type="button" className="tile tbtn t2" onClick={() => ver('Clientes cerrados ' + periodo, fVentas(ventas), rango + ' · fecha = cierre')} aria-label={`${fmtN(ventas.length)} clientes cerrados ${periodo}. Ver detalle`}><div className="n">{fmtN(ventas.length)}</div><div className="l">Clientes cerrados {periodo}</div></button>
     ), { plain: true, span: 1, cls: 'wtile', desde: 'cifras' }),
-    W('t-vendido', 'Vendido en el rango', (
-        <button type="button" className="tile tbtn t3" onClick={() => ver('Vendido en el rango', fVentas(ventas), rango + ' · fecha = cierre')} aria-label={`${fmtMoney(monto)} vendido en el rango, meta ${fmtMoney0(metaRango)}. Ver detalle`}><div className="n">{fmtMoney(monto)}</div><div className="l">Vendido · meta {fmtMoney0(metaRango)}</div></button>
-    ), { plain: true, span: 1, cls: 'wtile', info: ['Meta'], desde: 'cifras' }),
+    // El número que Alejandro llamó «el más importante» (4-sep): vendido contra la meta con el ritmo del mes y color que grite.
+    W('t-vendido', 'Avance contra la meta', (
+        <button type="button" className={'tile tbtn t3 ritmo-' + rit.estado} onClick={() => ver('Vendido ' + periodo, fVentas(ventas), rango + ' · fecha = cierre')} aria-label={`Vendido ${fmtMoney0(monto)} ${periodo}: ${pct(monto, metaRango)}% de la meta de ${fmtMoney0(metaRango)}. ${rit.texto}. Ver detalle`}>
+          <div className="n">{fmtMoney0(monto)}</div>
+          <div className="l">{pct(monto, metaRango)}% de la meta de {fmtMoney0(metaRango)} · vendido {periodo}</div>
+          <Bullet value={monto} target={metaRango} expected={rit.esperado} label="Vendido" fmt={fmtMoney0} />
+          <div className={'rt ' + rit.estado}>{rit.texto}</div>
+        </button>
+    ), { plain: true, span: 1, cls: 'wtile', info: ['Ritmo'], desde: 'cifras' }),
     W('t-conversion', 'Conversión ventas / asignados', (
         <button type="button" className="tile tbtn t4" onClick={() => ver('Ventas que cuentan en la conversión', fVentas(ventas), `${fmtN(ventas.length)} ventas / ${fmtN(leads.length)} leads asignados · ${rango}`)} aria-label={`Conversión ${leads.length ? pct(ventas.length, leads.length) + '%' : 'sin dato'}. Ver detalle`}><div className="n">{leads.length ? pct(ventas.length, leads.length) + '%' : '—'}</div><div className="l">Ventas cerradas entre leads asignados</div></button>
     ), { plain: true, span: 1, cls: 'wtile', info: ['Conversión'], desde: 'cifras' }),
@@ -184,7 +190,7 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
             <span className={'pos' + (i < 3 ? ' top' : '')}>{i + 1}</span>
             <span className="nm" title={subAsesor(corte, f.u)}>{f.u.nombre}</span>
             <Bullet sm value={f.montoVentas} target={f.metaRango} expected={f.esperado} label={'Vendido de ' + f.u.nombre} fmt={fmtMoney0} />
-            <span className="v">{fmtMoney0(f.montoVentas)}<small>{f.ventas} venta{f.ventas === 1 ? '' : 's'} · {pct(f.montoVentas, f.metaRango)}% de la meta</small></span>
+            <span className="v">{fmtMoney0(f.montoVentas)}<small>{f.ventas} venta{f.ventas === 1 ? '' : 's'} · {pct(f.montoVentas, f.metaRango)}% de la meta · <span className={'rt ' + f.ritmo.estado}>{f.ritmo.corto}</span></small></span>
           </div>
         ))}
         {filas.length > ranking.length && <div className="small muted" style={{ marginTop: 8 }}>Top {ranking.length} de {filas.length}; la tabla de Asesores trae a todos.</div>}
@@ -214,9 +220,9 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
       <>
         <div className="brow">
           <span className="l">Vendido</span>
-          <Bullet value={monto} target={metaRango} expected={esperado} label="Vendido" fmt={fmtMoney0} />
+          <Bullet value={monto} target={metaRango} expected={rit.esperado} label="Vendido" fmt={fmtMoney0} />
           <Cifra label={`Vendido ${fmtMoney0(monto)}`} onClick={() => ver('Vendido en el rango', fVentas(ventas), rango + ' · fecha = cierre')}><span className="v">{fmtMoney0(monto)}</span></Cifra>
-          <span className="sub">meta del rango {fmtMoney0(metaRango)} ({filas.length} asesor{filas.length === 1 ? '' : 'es'}) · esperado a hoy {fmtMoney0(esperado)}<Info termino="Esperado a hoy" /> · {monto >= metaRango ? 'meta cumplida' : `faltan ${fmtMoney0(metaRango - monto)}`}</span>
+          <span className="sub">meta {periodo} {fmtMoney0(metaRango)} ({filas.length} asesor{filas.length === 1 ? '' : 'es'}) · <span className={'rt ' + rit.estado}>{rit.texto}</span><Info termino="Ritmo" />{monto < metaRango && ` · faltan ${fmtMoney0(metaRango - monto)}`}</span>
         </div>
         <div className="brow">
           <span className="l">Cotizado vigente</span>
@@ -425,6 +431,7 @@ export function Asesores({ corte, filtros, onFicha }: { corte: Corte; filtros: F
                     <div className="num">{fmtMoney0(f.montoVentas)}</div>
                     <Bullet sm value={f.montoVentas} target={f.metaRango} expected={f.esperado} label={'Vendido de ' + f.u.nombre} fmt={fmtMoney0} />
                     <div className="tot">{pct(f.montoVentas, f.metaRango)}% de {fmtMoney0(f.metaRango)}</div>
+                    <div className={'tot rt ' + f.ritmo.estado}>{f.ritmo.corto}</div>
                   </td>
                   <td className="num">{fmtMoney0(f.cotizado.vigente)}{f.cotizado.viejo > 0 && <div className="small muted" style={{ fontWeight: 500 }}>+{fmtMoney(f.cotizado.viejo)} viejo</div>}</td>
                   <td><div className="num">{f.leadsActivos.length}</div><div className="minibar" aria-hidden="true"><i style={{ width: pct(f.leadsActivos.length, maxLeads) + '%' }} /></div>{f.estancados > 0 && <div className="small muted">{f.estancados} estancado{f.estancados === 1 ? '' : 's'}</div>}</td>
@@ -531,9 +538,10 @@ export function Ficha({ corte, filtros, uid, onBack }: { corte: Corte; filtros: 
   const [drill, setDrill] = useState<Drill | null>(null)
   useEffect(() => setSem(null), [filtros.rango.ini, filtros.rango.fin, uid])
   if (!u) return <div className="panel">Asesor no encontrado. <button type="button" className="btn" onClick={onBack}>← Volver</button></div>
-  const rango = filtros.rango.label
-  const metaMes = metaDe(corte, u), metaRango = metaEnRango(metaMes, filtros.rango), esperado = metaEsperada(metaRango, filtros.rango)
+  const rango = filtros.rango.label, periodo = periodoTexto(filtros.rango)
+  const metaMes = metaDe(corte, u), metaRango = metaEnRango(metaMes, filtros.rango)
   const monto = ventas.reduce((s, l) => s + l.presupuesto, 0)
+  const rit = ritmo(monto, metaRango, filtros.rango)
   const activos = leads.filter(vivo)
   const cot = cotizado(activos, corte.cotizado_dias)
   const vigentes = activos.filter((l) => l.presupuesto > 0 && diasDesde(fechaCotizado(l)) <= corte.cotizado_dias)
@@ -577,9 +585,10 @@ export function Ficha({ corte, filtros, uid, onBack }: { corte: Corte; filtros: 
       <div className="kcard hero"><div className="l">Ventas · {rango}</div><div className="n"><Cifra label={`${ventas.length} ventas, ${fmtMoney0(monto)}`} onClick={() => setDrill({ titulo: `Ventas de ${u.nombre}`, filas: fVentas(ventas), sub: rango + ' · fecha = cierre' })}><b>{ventas.length}</b> <span style={{ fontSize: 22 }}>{fmtMoney0(monto)}</span></Cifra></div><MiniAreaChart values={serie} height={56} /><div className="small muted">Conversión {leads.length ? pct(ventas.length, leads.length) + '%' : '—'}: {ventas.length} ventas / {leads.length} leads asignados en el rango<Info termino="Conversión" /></div></div>
     ), { plain: true, span: 2, cls: 'wcard' }),
     wg('cumplimiento', 'Cumplimiento', (
-      <div className="kcard k2"><div className="l">Cumplimiento<Info termino="Cumplimiento" /></div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', gap: 8 }}><div className="n">{pct(monto, metaRango)}%</div><Gauge pct={pct(monto, metaRango)} label="meta" size={120} color="var(--c2)" /></div>
-        <div className="small muted">meta del rango {fmtMoney0(metaRango)} ({fmtMoney0(metaMes)}/mes) · esperado a hoy {fmtMoney0(esperado)} · {monto >= metaRango ? 'meta cumplida' : `faltan ${fmtMoney0(metaRango - monto)}`}</div></div>
+      <div className={'kcard k2 ritmo-' + rit.estado}><div className="l">Cumplimiento<Info termino="Cumplimiento" /><Info termino="Ritmo" /></div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', gap: 8 }}><div className="n">{pct(monto, metaRango)}%</div><Gauge pct={pct(monto, metaRango)} label="meta" size={120} color={rit.estado === 'atras' ? 'var(--warn)' : 'var(--c4)'} /></div>
+        <div className={'rt ' + rit.estado}>{rit.texto}</div>
+        <div className="small muted">meta {periodo} {fmtMoney0(metaRango)} ({fmtMoney0(metaMes)} al mes){monto < metaRango && ` · faltan ${fmtMoney0(metaRango - monto)}`}</div></div>
     ), { plain: true, span: 2, cls: 'wcard' }),
     wg('cotizado', 'Cotizado vigente y antigüedad', (
       <div className="kcard k3"><div className="cot-grid">

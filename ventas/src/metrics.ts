@@ -24,6 +24,7 @@ export const sumar = (d: Date, dias: number) => { const x = new Date(d); x.setDa
 export const fechaDe = (ts: number) => new Date(ts * 1000)
 
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
+const MESES_LARGO = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
 export const fmtFecha = (d: Date) => `${d.getDate()} ${MESES[d.getMonth()]} ${d.getFullYear()}`
 export const fmtCorta = (d: Date) => `${d.getDate()} ${MESES[d.getMonth()]}`
 export const fmtHora = (ts: number) => { const d = fechaDe(ts); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` }
@@ -120,10 +121,40 @@ export function metaEnRango(metaMes: number, r: Rango): number {
   }
   return metaMes * ((r.fin - r.ini) / DIA) / 30.4375
 }
-/** Lo que ya debería estar vendido a esta hora del rango (regla de tres por tiempo transcurrido). */
+/** Día N de M del rango, en días NATURALES y con hoy contado completo (regla de Alejandro 4-sep:
+ *  meta × días transcurridos / días del mes). Un rango ya cerrado da M de M; uno futuro, 0 de M. */
+export function diasRango(r: Rango, ahora = Date.now() / 1000): { dia: number; dias: number } {
+  const dias = Math.max(1, Math.round((r.fin - r.ini) / DIA))
+  const dia = Math.max(0, Math.min(dias, Math.ceil((ahora - r.ini) / DIA)))
+  return { dia, dias }
+}
+/** Lo que ya debería estar vendido a día N de M del rango. */
 export function metaEsperada(metaRango: number, r: Rango, ahora = Date.now() / 1000): number {
-  const f = Math.max(0, Math.min(1, (ahora - r.ini) / Math.max(1, r.fin - r.ini)))
-  return metaRango * f
+  const { dia, dias } = diasRango(r, ahora)
+  return (metaRango * dia) / dias
+}
+/** Vendido contra el ritmo del rango: arriba o abajo de lo esperado a día N de M, en palabras y con estado para el color. */
+export interface Ritmo { esperado: number; dif: number; estado: 'cumplida' | 'adelante' | 'atras' | 'sin_meta'; dia: number; dias: number; corto: string; texto: string }
+export function ritmo(monto: number, metaRango: number, r: Rango, ahora = Date.now() / 1000): Ritmo {
+  const { dia, dias } = diasRango(r, ahora)
+  const esperado = metaEsperada(metaRango, r, ahora), dif = monto - esperado
+  const estado: Ritmo['estado'] = metaRango <= 0 ? 'sin_meta' : monto >= metaRango ? 'cumplida' : dif >= 0 ? 'adelante' : 'atras'
+  const cuando = dia >= dias ? 'al cierre del periodo' : `a día ${dia} de ${dias}`
+  const corto = estado === 'sin_meta' ? 'Sin meta' : estado === 'cumplida' ? 'Meta cumplida'
+    : estado === 'adelante' ? `▲ ${fmtMoney0(dif)} arriba del ritmo` : `▼ ${fmtMoney0(-dif)} abajo del ritmo`
+  const texto = estado === 'sin_meta' ? 'Sin meta configurada' : estado === 'cumplida' ? `Meta cumplida ${cuando}`
+    : `${corto} · ${cuando} el ritmo pide ${fmtMoney0(esperado)}`
+  return { esperado, dif, estado, dia, dias, corto, texto }
+}
+/** El rango en palabras para las etiquetas grandes (Alejandro no entendió «en el rango»):
+ *  «del 1 al 5 de septiembre», «del 28 de agosto al 5 de septiembre», «el 5 de septiembre». Año solo si no es el actual. */
+export function periodoTexto(r: Rango): string {
+  const a = fechaDe(r.ini), b = fechaDe(r.fin - 1), hoy = new Date().getFullYear()
+  const distintoAnio = a.getFullYear() !== b.getFullYear(), conAnio = distintoAnio || b.getFullYear() !== hoy
+  const f = (d: Date, mes: boolean, anio: boolean) => `${d.getDate()}${mes ? ' de ' + MESES_LARGO[d.getMonth()] : ''}${anio ? ' de ' + d.getFullYear() : ''}`
+  if (inicioDia(a).getTime() === inicioDia(b).getTime()) return `el ${f(a, true, conAnio)}`
+  const mismoMes = !distintoAnio && a.getMonth() === b.getMonth()
+  return `del ${f(a, !mismoMes, distintoAnio)} al ${f(b, true, conAnio)}`
 }
 
 // ---------------------------------------------------------------- cotizado (salud del pipeline)
@@ -290,7 +321,7 @@ export function actividad(ev: Evento[]): Actividad {
 // ---------------------------------------------------------------- Asesores
 export interface FilaAsesor {
   u: Usuario; ventas: number; montoVentas: number
-  metaMes: number; metaRango: number; esperado: number
+  metaMes: number; metaRango: number; esperado: number; ritmo: Ritmo
   leadsActivos: Lead[]; presupuesto: number; cotizado: Cotizado; estancados: number
   llamadas: number; contestadas: number; sinContestar: number
   tareasCompletadas: number; tareasVencidas: number; sinTarea: number; pcVencidas: number
@@ -307,10 +338,10 @@ export function porAsesor(c: Corte, f: Filtros): FilaAsesor[] {
     if (!mios.length && !act.length && !vt.length) continue
     const a = actividad(act)
     const activos = mios.filter(vivo)
-    const metaMes = metaDe(c, u), metaRango = metaEnRango(metaMes, f.rango)
+    const metaMes = metaDe(c, u), metaRango = metaEnRango(metaMes, f.rango), montoVentas = vt.reduce((s, l) => s + l.presupuesto, 0)
     filas.push({
-      u, ventas: vt.length, montoVentas: vt.reduce((s, l) => s + l.presupuesto, 0),
-      metaMes, metaRango, esperado: metaEsperada(metaRango, f.rango),
+      u, ventas: vt.length, montoVentas,
+      metaMes, metaRango, esperado: metaEsperada(metaRango, f.rango), ritmo: ritmo(montoVentas, metaRango, f.rango),
       leadsActivos: activos, presupuesto: activos.reduce((s, l) => s + l.presupuesto, 0),
       cotizado: cotizado(activos, c.cotizado_dias), estancados: activos.filter((l) => l.dias_sin_cambio > 7).length,
       llamadas: a.llamadas, contestadas: a.contestadas, sinContestar: a.sinContestar,
@@ -356,7 +387,7 @@ export interface MiDia {
    *  en HubSpot un asesor puede cargar cientos de tareas vencidas de meses atrás. */
   tareasHoy: Tarea[]; vencidasViejas: number; hoyN: number
   tareasHechasHoy: number; ventasHoy: number
-  vendidoMes: number; metaMes: number; esperadoMes: number
+  vendidoMes: number; metaMes: number; esperadoMes: number; ritmoMes: Ritmo
   llamadasHoy: number; prospectosHoy: number; eventosHoy: Evento[]; eventosSemana: Evento[]
 }
 export function miDia(c: Corte, uid: string): MiDia {
@@ -369,14 +400,14 @@ export function miDia(c: Corte, uid: string): MiDia {
   const cerrados = new Set(c.leads.filter((l) => !vivo(l)).map((l) => l.id))
   const mias = c.tareas_abiertas.filter((t) => t.asesor_id === uid && !cerrados.has(t.lead))
   const metaMes = metaDeId(c, uid)
+  const vendidoMes = c.leads.filter((l) => l.asesor_id === uid && l.funnel === 5 && enRango(l.cerrado, mes)).reduce((s, l) => s + l.presupuesto, 0)
   return {
     tareasHoy: mias.filter((t) => t.vence >= h - 14 * DIA && t.vence < h + DIA).sort((a, b) => a.vence - b.vence),
     vencidasViejas: mias.filter((t) => t.vence < h - 14 * DIA).length,
     hoyN: mias.filter((t) => t.vence >= h && t.vence < h + DIA).length,
     tareasHechasHoy: evHoy.filter((e) => e.tipo === 'tarea').length,
     ventasHoy: c.leads.filter((l) => l.asesor_id === uid && l.funnel === 5 && esHoy(l.cerrado)).length,
-    vendidoMes: c.leads.filter((l) => l.asesor_id === uid && l.funnel === 5 && enRango(l.cerrado, mes)).reduce((s, l) => s + l.presupuesto, 0),
-    metaMes, esperadoMes: metaEsperada(metaMes, mes),
+    vendidoMes, metaMes, esperadoMes: metaEsperada(metaMes, mes), ritmoMes: ritmo(vendidoMes, metaMes, mes),
     llamadasHoy: evHoy.filter((e) => e.tipo === 'llamada_ok' || e.tipo === 'llamada_no').length,
     prospectosHoy: c.leads.filter((l) => l.asesor_id === uid && esHoy(l.asignacion)).length,
     eventosHoy: evHoy, eventosSemana: ev.filter((e) => enRango(e.ts, sem)),
