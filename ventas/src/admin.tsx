@@ -279,7 +279,7 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
         </table></div>
         <div className="muted small" style={{ marginTop: 10 }}>
           Foto de hoy del embudo Ventas: leads en cada etapa, suma de sus presupuestos y días promedio que llevan ahí. Cierre = ganados del rango, días desde su asignación.
-          {mixto(corte) ? ' Las etapas de HubSpot (Ciclo de Venta KS) se traducen a las de Kommo: Lead entrante = Por contactar, Conversación iniciada y Precalificación hecha = Conversación iniciada; HubSpot no tiene Levantamiento agendado ni Hunting.' : ''}
+          {mixto(corte) ? ' El embudo Ventas de HubSpot ya es espejo del de Kommo (mismas etapas desde el 5 de septiembre); la única traducción: Lead entrante = Por contactar y Precalificación hecha = Conversación iniciada. HubSpot no tiene Hunting.' : ''}
         </div>
       </>
     ), { info: ['Monto cotizado', 'Tiempo promedio'] }),

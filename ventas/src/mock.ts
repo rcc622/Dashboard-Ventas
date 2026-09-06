@@ -44,7 +44,7 @@ export function mock(): Corte {
     const id = (crm === 'kommo' ? 'k:' : 'h:') + (24000000 + i)
     const nombre = pick(nombres) + ' ' + (i % 97)
     leads.push({
-      id, crm, nombre, creado, embudo, pipeline: crm === 'hubspot' ? 'Ciclo de Venta KS' : embudo === 'ventas' ? 'Ventas' : embudo === 'hunting' ? 'HUNTING' : 'CADENCIA RECIBO CFE',
+      id, crm, nombre, creado, embudo, pipeline: crm === 'hubspot' ? 'Ventas' : embudo === 'ventas' ? 'Ventas' : embudo === 'hunting' ? 'HUNTING' : 'CADENCIA RECIBO CFE',
       etapa, etapa_id: etapaId, asesor_id: u.id, asesor: u.nombre,
       presupuesto, recibo: funnel >= 3, respondio: funnel >= 2, funnel,
       funnel_label: ['0·Perdido', '1·No contestó (sin recibo)', '2·Respondió SIN recibo', '3·Con recibo (pre-Ventas)', '4·Asignado (en Ventas/Hunting)', '5·Ganado'][funnel],

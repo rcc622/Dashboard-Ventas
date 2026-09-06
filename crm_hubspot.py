@@ -250,7 +250,7 @@ def build(dias=7):
 
     ETAPAS, ETAPAS_PIPE = etiquetas_etapas()
     # El pipeline que manda para el mapa de etapas: el que más deals recibió en
-    # los 90 días. Hoy es «Ciclo de Venta KS»; si el equipo migra de pipeline,
+    # los 90 días. Hoy es «Ventas» (922784339, antes «Ciclo de Venta KS»); si el equipo migra de pipeline,
     # esto lo sigue solo.
     _pp = {}
     for d_ in dc90:

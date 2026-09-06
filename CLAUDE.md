@@ -228,7 +228,7 @@ picklist dice «Redes Sociales»).
 Sin ese rescate `won_meta` salía en una fracción de lo real. Con él, el corte del
 21-ago da **109 ventas en 30 días ($10.1M), 46 con origen Meta ($3.16M)** y 104
 ventas Meta en 90 días. Los ganados viven en dos pipelines — `849155502` («2026»,
-etapa 1265092771) y `922784339` («Ciclo de Venta KS», etapa 1409289356) — y
+etapa 1265092771) y `922784339` («Ventas», antes «Ciclo de Venta KS», etapa 1409289356) — y
 `hs_is_closed_won` los cubre a los dos, así que no hay que filtrar por pipeline.
 
 ### La tabla de anuncios agrupa por CREATIVO, no por id
@@ -526,8 +526,11 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
 - Ids de texto: `k:<id>` / `h:<id>`; cada lead/evento/tarea trae `crm`.
   Equipos = zonas MTY/SLT/TRC/MVA (Kommo: grupo KS-<zona>; HubSpot: equipo del
   owner). Etapas del embudo = las de Ventas en Kommo; HubSpot traduce las suyas
-  (`CANON_HS`: Lead entrante→Por contactar, Precalificación→Conversación
-  iniciada, Levantamiento hecho, Contrato solicitado).
+  (`CANON_HS`, por id de etapa: Lead entrante→Por contactar, Precalificación→Conversación
+  iniciada, el resto 1:1). Desde el 5-sep el pipeline de HubSpot se llama «Ventas» y es espejo
+  del de Kommo, con «Levantamiento agendado» (1432144491 → índice 3). **Toda etapa nueva va a
+  `CANON_HS` por id**: sin entrada, `canon()` adivina por palabra y «agendado» caería en
+  «hecho».
 - **Lo que HubSpot NO sabe igual que Kommo** (aproximaciones, documentadas en
   el docstring de `ventas_hubspot.py`): tareas por lead solo como «hay próxima
   actividad» (`notes_next_activity_date`: 1 abierta, vencida si ya pasó);
