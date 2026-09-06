@@ -9,13 +9,13 @@ const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart
 const deIso = (s: string) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s); return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null }
 const mesDe = (d: Date) => new Date(d.getFullYear(), d.getMonth(), 1)
 
-interface Props { rango: Rango; presetActivo: Preset | null; onApply: (r: Rango, p: Preset | null) => void; onClose: () => void }
+interface Props { rango: Rango; presetActivo: Preset | null; desde?: number; onApply: (r: Rango, p: Preset | null) => void; onClose: () => void }
 
 /** Calcado del selector de fechas de Meta Ads Manager (pedido de Randall 5-sep), sin «Usados
  *  recientemente»: periodos a la izquierda como radios, dos meses con selector de mes y año, y
  *  abajo el periodo con las dos fechas escribibles. Primer clic = inicio, segundo = fin; los días
  *  futuros están apagados. Escape cancela. */
-export function DateRangePicker({ rango, presetActivo, onApply, onClose }: Props) {
+export function DateRangePicker({ rango, presetActivo, desde, onApply, onClose }: Props) {
   const ref = useRef<HTMLDivElement>(null)
   useOutside(ref, onClose)
   useEscape(onClose)
@@ -31,7 +31,7 @@ export function DateRangePicker({ rango, presetActivo, onApply, onClose }: Props
     if (!a || (a && b)) { setA(d); setB(null) } else { setB(d) }
   }
   const clickPreset = (p: Preset) => {
-    const r = preset(p)
+    const r = preset(p, new Date(), desde)
     setPre(p); setA(new Date(r.ini * 1000)); setB(sumar(new Date(r.fin * 1000), -1)); setVista(mesDe(new Date(r.ini * 1000)))
   }
   // Fechas escritas a mano (o con el calendario nativo del campo): no se aceptan futuras.
@@ -44,7 +44,7 @@ export function DateRangePicker({ rango, presetActivo, onApply, onClose }: Props
   }
   const aplicar = () => {
     if (!a) return
-    onApply(pre ? preset(pre) : rangoManual(a, b || a), pre)
+    onApply(pre ? preset(pre, new Date(), desde) : rangoManual(a, b || a), pre)
   }
   const lo = a && b ? (a <= b ? a : b) : a, hi = a && b ? (a <= b ? b : a) : null
   const previa = lo ? etiquetaRango(pre ? PRESETS.find((p) => p.id === pre)?.label ?? null : null, Math.floor(lo.getTime() / 1000), Math.floor(sumar(hi || lo, 1).getTime() / 1000)) : '—'
@@ -96,7 +96,7 @@ function Mes({ ini, lo, hi, hoy, onDia, onVista }: { ini: Date; lo: Date | null;
     if (lo && hi && x > t(lo) && x < t(hi)) return 'd in'
     return 'd'
   }
-  const anios = Array.from({ length: hoy.getFullYear() - 2024 + 1 }, (_, i) => 2024 + i)
+  const anios = Array.from({ length: hoy.getFullYear() - 2023 + 1 }, (_, i) => 2023 + i)
   return (
     <div className="mon">
       <div className="msel">

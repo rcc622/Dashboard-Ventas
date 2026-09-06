@@ -30,19 +30,20 @@ export const fmtCorta = (d: Date) => `${d.getDate()} ${MESES[d.getMonth()]}`
 export const fmtHora = (ts: number) => { const d = fechaDe(ts); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` }
 export const mesNombre = (d: Date) => MESES[d.getMonth()]
 
-export type Preset = 'hoy' | 'ayer' | 'hoy_ayer' | 'd7' | 'd14' | 'd28' | 'd30' | 'semana' | 'semana_pasada' | 'mes' | 'mes_pasado' | 'maximo' | 'trimestre' | 'd90'
+export type Preset = 'hoy' | 'ayer' | 'hoy_ayer' | 'd7' | 'd14' | 'd28' | 'd30' | 'd60' | 'd90' | 'semana' | 'semana_pasada' | 'mes' | 'mes_pasado' | 'maximo' | 'trimestre'
 /** Los periodos del calendario, en el orden del selector de Meta Ads (pedido de Randall 5-sep).
- *  `trimestre` y `d90` siguen valiendo en ligas viejas (#r=…) pero ya no se ofrecen. */
+ *  `trimestre` sigue valiendo en ligas viejas (#r=…) pero ya no se ofrece. 60 y 90 días: pedido de Randall 6-sep. */
 export const PRESETS: { id: Preset; label: string }[] = [
   { id: 'hoy', label: 'Hoy' }, { id: 'ayer', label: 'Ayer' }, { id: 'hoy_ayer', label: 'Hoy y ayer' },
-  { id: 'd7', label: 'Últimos 7 días' }, { id: 'd14', label: 'Últimos 14 días' }, { id: 'd28', label: 'Últimos 28 días' }, { id: 'd30', label: 'Últimos 30 días' },
+  { id: 'd7', label: 'Últimos 7 días' }, { id: 'd14', label: 'Últimos 14 días' }, { id: 'd28', label: 'Últimos 28 días' }, { id: 'd30', label: 'Últimos 30 días' }, { id: 'd60', label: 'Últimos 60 días' }, { id: 'd90', label: 'Últimos 90 días' },
   { id: 'semana', label: 'Esta semana' }, { id: 'semana_pasada', label: 'La semana pasada' }, { id: 'mes', label: 'Este mes' }, { id: 'mes_pasado', label: 'El mes pasado' },
   { id: 'maximo', label: 'Máximo' },
 ]
-const PRESETS_VIEJOS: Record<string, string> = { trimestre: 'Este trimestre', d90: 'Últimos 90 días' }
+const PRESETS_VIEJOS: Record<string, string> = { trimestre: 'Este trimestre' }
 export const esPreset = (x: string | undefined): x is Preset => !!x && (PRESETS.some((p) => p.id === x) || x in PRESETS_VIEJOS)
 export const nombrePreset = (p: Preset) => PRESETS.find((x) => x.id === p)?.label ?? PRESETS_VIEJOS[p]
-/** «Máximo» = todo lo que trae el corte (VENTAS_DIAS en ventas_kommo.py). */
+/** «Máximo» sin corte a la mano: los días de historia que trae el extractor (VENTAS_DIAS). Con corte, va de
+ *  `corte.desde` (el dato más antiguo que tiene) a hoy (pedido de Randall 6-sep). */
 export const MAXIMO_DIAS = 90
 
 /** «Últimos 7 días: 29 ago 2026 – 4 sep 2026», como el botón de Meta Ads; sin nombre, solo las fechas. */
@@ -52,7 +53,7 @@ export function etiquetaRango(nombre: string | null, ini: number, fin: number): 
   return nombre ? `${nombre}: ${fechas}` : fechas
 }
 
-export function preset(p: Preset, ahora = new Date()): Rango {
+export function preset(p: Preset, ahora = new Date(), desde?: number): Rango {
   const h = inicioDia(ahora), man = ep(h) + DIA
   const ult = (n: number) => ({ ini: ep(sumar(h, -(n - 1))), fin: man })   // n días contando hoy
   const lun = sumar(h, -((h.getDay() + 6) % 7))
@@ -65,12 +66,14 @@ export function preset(p: Preset, ahora = new Date()): Rango {
       case 'd14': return ult(14)
       case 'd28': return ult(28)
       case 'd30': return ult(30)
+      case 'd60': return ult(60)
+      case 'd90': return ult(90)
       case 'semana': return { ini: ep(lun), fin: ep(sumar(lun, 7)) }
       case 'semana_pasada': return { ini: ep(sumar(lun, -7)), fin: ep(lun) }
       case 'mes': return { ini: ep(new Date(h.getFullYear(), h.getMonth(), 1)), fin: ep(new Date(h.getFullYear(), h.getMonth() + 1, 1)) }
       case 'mes_pasado': return { ini: ep(new Date(h.getFullYear(), h.getMonth() - 1, 1)), fin: ep(new Date(h.getFullYear(), h.getMonth(), 1)) }
       case 'trimestre': { const q = Math.floor(h.getMonth() / 3) * 3; return { ini: ep(new Date(h.getFullYear(), q, 1)), fin: ep(new Date(h.getFullYear(), q + 3, 1)) } }
-      case 'maximo': case 'd90': return ult(MAXIMO_DIAS)
+      case 'maximo': return desde ? { ini: ep(inicioDia(fechaDe(desde))), fin: man } : ult(MAXIMO_DIAS)
     }
   })()
   return { ...r, label: etiquetaRango(nombrePreset(p), r.ini, r.fin) }

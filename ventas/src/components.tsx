@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject, type SyntheticEvent , type SVGProps } from 'react'
+import { useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode, type RefObject, type SyntheticEvent, type SVGProps } from 'react'
 import { fmtN, pct } from './metrics'
 import { GLOSARIO, type Termino } from './glosario'
 
@@ -167,7 +167,8 @@ export function BubbleChart({ cols, onCol }: { cols: BubbleCol[]; onCol?: (i: nu
       <div className="bubbles">
         {cols.map((c, i) => (
           <div className={'bcol' + (onCol ? ' drill' : '')} key={c.label + i} title={c.title} {...(onCol ? { role: 'button', tabIndex: 0, onClick: () => onCol(i), onKeyDown: activar(() => onCol(i)), 'aria-label': (c.title || c.label) + ': ' + (c.bubbles.map((b) => `${b.title} ${b.n}`).join(', ') || 'sin actividad') } : {})}>
-            {c.bubbles.map((b, i) => { const s = Math.min(46, 18 + b.n * 3); return <div key={i} className={'bubble ' + (b.cls || '')} style={{ width: s, height: s }} title={b.title} aria-label={`${b.title}: ${b.n}`}>{b.n}</div> })}
+            {/* Tamaño por variable CSS: la bolita se achica si la columna es más angosta que ella (rangos largos). */}
+            {c.bubbles.map((b, i) => { const s = Math.min(46, 18 + b.n * 3); return <div key={i} className={'bubble ' + (b.cls || '')} style={{ '--s': s + 'px' } as CSSProperties} title={b.title} aria-label={`${b.title}: ${b.n}`}>{b.n}</div> })}
           </div>
         ))}
       </div>

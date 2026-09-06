@@ -94,6 +94,9 @@ function sanear(l: Layout, widgets: Widget[]): Layout {
   const pos: Record<string, Pos> = {}
   for (const [id, p] of Object.entries(l.pos)) if (por.has(id) || (esSep(id) && id in l.seps)) pos[id] = { x: clamp(p.x, 1, COLS), y: clamp(p.y, 1, 5000), w: clamp(p.w, 1, COLS), h: clamp(p.h, esSep(id) ? SEP_H : MIN_FILAS, MAX_FILAS) }
   const ocultos = l.ocultos.filter((id) => por.has(id))
+  // Un widget nuevo que nace de otro (`desde`) y cabe a su derecha parte al viejo en dos en vez de caer
+  // al primer hueco (Perfiles → matriz + tabla, 6-sep); si no cabe, va al primer hueco como los demás.
+  for (const w of widgets) { const o = w.desde ? pos[w.desde] : undefined; if (o && !(w.id in pos) && !ocultos.includes(w.id) && o.w >= 2 * anchoDe(w)) { o.w -= anchoDe(w); pos[w.id] = { x: o.x + o.w, y: o.y, w: anchoDe(w), h: o.h } } }
   for (const w of widgets) if (!(w.id in pos) && !ocultos.includes(w.id)) pos[w.id] = colocar(pos, anchoDe(w), altoDe(w))
   return { v: 2, pos, ocultos, seps: l.seps }
 }

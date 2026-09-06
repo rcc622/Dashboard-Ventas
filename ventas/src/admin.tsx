@@ -28,7 +28,7 @@ const PC_TRAMOS = [
   { l: 'de 4 a 24 horas', ok: (h: number) => h > 4 && h <= 24 }, { l: 'más de un día', ok: (h: number) => h > 24 },
 ]
 /** Orden de colocación por defecto del Dashboard: pares de igual alto (bandas) para que la rejilla libre no deje huecos. */
-const ORDEN_ADMIN = ['t-leads', 't-ventas', 't-vendido', 't-conversion', 't-perdida', 't-tareas', 't-cotizaciones', 't-descartes', 't-levantamientos', 'llamadas', 'salud', 'pipeline', 'ranking', 'reales', 'entrada', 'embudo', 'etapas', 'contacto', 'razones', 'perfiles']
+const ORDEN_ADMIN = ['t-leads', 't-ventas', 't-vendido', 't-conversion', 't-perdida', 't-tareas', 't-cotizaciones', 't-descartes', 't-levantamientos', 'llamadas', 'salud', 'pipeline', 'ranking', 'reales', 'entrada', 'embudo', 'etapas', 'contacto', 'razones', 'perfiles', 'perfiles-tabla']
 const fLeads = (ls: Lead[]) => filasDeLeads(ls, (l) => `${etapaDe(l)} · ${dias(l.dias_sin_cambio)} sin cambio`)
 const fVentas = (ls: Lead[]) => filasDeLeads(ls, (l) => `Ganado · ${etapaDe(l)}`, (l) => l.cerrado)
 const fCotizado = (ls: Lead[]) => filasDeLeads(ls, (l) => `${etapaDe(l)} · cotizado hace ${dias(diasDesde(fechaCotizado(l)))}`, (l) => fechaCotizado(l))
@@ -142,10 +142,10 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
     // Primero las 9 cifras (6 + 3 columnas) y Salud cierra la segunda fila: así la rejilla de 6 queda sin huecos por defecto.
     W('t-leads', 'Leads asignados', (
         <button type="button" className="tile tbtn" onClick={() => ver('Leads asignados ' + periodo, fLeads(asignados), rango + ' · fecha = última asignación')} aria-label={`${fmtN(tot)} leads asignados ${periodo}. Ver detalle`}><div className="n">{fmtN(tot)}</div><div className="l">Leads asignados {periodo}</div></button>
-    ), { plain: true, span: 1, alto: 4, cls: 'wtile', desde: 'cifras' }),
+    ), { plain: true, span: 1, alto: 4, cls: 'wtile', info: ['Leads asignados'], desde: 'cifras' }),
     W('t-ventas', 'Clientes cerrados', (
         <button type="button" className="tile tbtn t2" onClick={() => ver('Clientes cerrados ' + periodo, fVentas(ventas), rango + ' · fecha = cierre')} aria-label={`${fmtN(ventas.length)} clientes cerrados ${periodo}. Ver detalle`}><div className="n">{fmtN(ventas.length)}</div><div className="l">Clientes cerrados {periodo}</div></button>
-    ), { plain: true, span: 1, alto: 4, cls: 'wtile', desde: 'cifras' }),
+    ), { plain: true, span: 1, alto: 4, cls: 'wtile', info: ['Clientes cerrados'], desde: 'cifras' }),
     // El número que Alejandro llamó «el más importante» (4-sep): vendido contra la meta con el ritmo del mes y color que grite.
     W('t-vendido', 'Avance contra la meta', (
         <button type="button" className={'tile tbtn t3 ritmo-' + rit.estado} onClick={() => ver('Vendido ' + periodo, fVentas(ventas), rango + ' · fecha = cierre')} aria-label={`Vendido ${fmtMoney0(monto)} ${periodo}: ${pct(monto, metaRango)}% de la meta de ${fmtMoney0(metaRango)}. ${rit.texto}. Ver detalle`}>
@@ -163,16 +163,16 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
     ), { plain: true, span: 1, alto: 4, cls: 'wtile', info: ['Tasa de pérdida'], desde: 'cifras' }),
     W('t-tareas', 'Tareas completadas', (
         <button type="button" className="tile tbtn" onClick={() => verEv('Tareas completadas', 'tarea')} aria-label={`${fmtN(a.tareas)} tareas completadas. Ver detalle`}><div className="n">{fmtN(a.tareas)}</div><div className="l">Tareas completadas</div></button>
-    ), { plain: true, span: 1, alto: 4, cls: 'wtile', desde: 'actividad' }),
+    ), { plain: true, span: 1, alto: 4, cls: 'wtile', info: ['Tareas completadas'], desde: 'actividad' }),
     W('t-cotizaciones', 'Cotizaciones entregadas', (
         <button type="button" className="tile tbtn" onClick={() => verEv('Cotizaciones entregadas', 'cotizacion')} aria-label={`${fmtN(a.cotizaciones)} cotizaciones entregadas${a.recotizaciones ? `, ${fmtN(a.recotizaciones)} recotizaciones aparte` : ''}. Ver detalle`}><div className="n">{fmtN(a.cotizaciones)}</div><div className="l">Cotizaciones entregadas{a.recotizaciones ? ` · ${fmtN(a.recotizaciones)} recotizaciones aparte` : ''}</div></button>
     ), { plain: true, span: 1, alto: 4, cls: 'wtile', info: ['Cotizaciones'], desde: 'actividad' }),
     W('t-descartes', 'Descartados con razón registrada', (
         <button type="button" className="tile tbtn" onClick={() => verEv('Descartados con razón registrada', 'descarte')} aria-label={`${fmtN(a.descartes)} descartados. Ver detalle`}><div className="n">{fmtN(a.descartes)}</div><div className="l">Descartados con razón registrada</div></button>
-    ), { plain: true, span: 1, alto: 4, cls: 'wtile', desde: 'actividad' }),
+    ), { plain: true, span: 1, alto: 4, cls: 'wtile', info: ['Razón de descarte'], desde: 'actividad' }),
     W('t-levantamientos', 'Levantamientos solicitados', (
         <button type="button" className="tile tbtn" onClick={() => verEv('Levantamientos solicitados', 'levantamiento')} aria-label={`${fmtN(a.levantamientos)} levantamientos. Ver detalle`}><div className="n">{fmtN(a.levantamientos)}</div><div className="l">Levantamientos solicitados</div></button>
-    ), { plain: true, span: 1, alto: 4, cls: 'wtile', desde: 'actividad' }),
+    ), { plain: true, span: 1, alto: 4, cls: 'wtile', info: ['Levantamientos'], desde: 'actividad' }),
     W('salud', 'Salud operativa', (
       <>
         <div className="salud-grid">
@@ -205,7 +205,7 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
         ))}
         {filas.length > ranking.length && <div className="small muted" style={{ marginTop: 8 }}>Top {ranking.length} de {filas.length}; la tabla de Asesores trae a todos.</div>}
       </>
-    ), { info: ['Ranking'], cls: 'rank', alto: 10 }),
+    ), { info: ['Ranking'], cls: 'rank', alto: 12 }),   // 12 filas: a 3 columnas la línea chica de cada renglón va en dos renglones (8 × 62 px + nota)
     ...(corte.comisiones ? [W('reales', 'Ventas reales · Comisiones', (
       <>
         {vr.filas.length > 0 && (
@@ -275,7 +275,7 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
     W('embudo', 'Embudo de ventas por etapa', (
       <FunnelChart stages={et.map((e) => ({ nombre: e.nombre, n: e.n, sub: `${fmtMoney(e.monto)} · ${e.n ? e.dias.toFixed(1) + ' días en etapa' : 'sin leads'}` }))}
         onStage={(i) => ver(`${et[i].nombre} · embudo Ventas`, et[i].id === -2 ? fVentas(et[i].leads) : fLeads(et[i].leads), rango)} />
-    ), { alto: 9 }),
+    ), { alto: 9, info: ['Embudo'] }),
     W('etapas', 'Monto cotizado y tiempo por etapa', (
       <>
         <div className="scrollx"><table className="ftable" aria-label="Monto cotizado y tiempo por etapa">
@@ -338,44 +338,46 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
         {rz.length > 8 && <div className="small muted" style={{ marginTop: 4 }}>+{rz.length - 8} razones más</div>}
       </>
     ), { info: ['Razón de descarte'], desde: 'contacto', alto: 7 }),
+    // La matriz y la tabla son dos widgets (Randall 6-sep): cada uno se mueve y se estira por su lado, como Embudo y Monto por etapa.
     W('perfiles', 'Perfiles de vendedores', (
       filas.length < 2 ? <div className="muted">Se necesitan al menos dos asesores con actividad en el rango.</div> : (
         <>
-          {/* Ancho (≥ 760 px de widget, container query): matriz a la izquierda y tabla de asesores a la derecha; angosto: apilados. */}
-          <div className="perfil-wrap">
-            <div className="perfil-chart">
-              <Scatter
-                pts={perf.pts.map((p) => ({ x: p.actividad, y: p.vendido, label: iniciales(p.u.nombre), title: `${p.u.nombre}: ${fmtN(p.actividad)} actividades, ${fmtMoney0(p.vendido)} vendido (${PERFIL_LABEL[p.perfil]})`, cls: PERFIL_CLS[p.perfil] }))}
-                xMed={perf.medAct} yMed={perf.medVend} xLabel="actividad registrada" yLabel="vendido" quad={['Revisar', 'Mantener', 'Salida', 'Capacitar']}
-                onPunto={(idx) => { if (idx.length === 1) onFicha(perf.pts[idx[0]].u.id); else setGrupo(idx.map((i) => perf.pts[i])) }} />
-              {grupo && (
-                <div className="grupo-sel" role="group" aria-label="Asesores en el mismo punto">
-                  <span className="muted">{grupo.length} asesores en el mismo punto. Abrir ficha de:</span>
-                  {grupo.map((p) => <button type="button" key={p.u.id} className="nbtn" onClick={() => { setGrupo(null); onFicha(p.u.id) }}>{p.u.nombre}</button>)}
-                  <button type="button" className="wbtn" aria-label="Cerrar la lista" title="Cerrar" onClick={() => setGrupo(null)}>×</button>
-                </div>
-              )}
-            </div>
-            <div className="scrollx perfil-tabla">
-              <table className="ftable" aria-label="Asesores por perfil">
-                <thead><tr><th scope="col">Asesor</th><th scope="col">Perfil</th><th scope="col" className="num">Actividad</th><th scope="col" className="num">Vendido</th></tr></thead>
-                <tbody>
-                  {[...perf.pts].sort((a, b) => PERFILES.indexOf(a.perfil) - PERFILES.indexOf(b.perfil) || b.vendido - a.vendido).map((x) => (
-                    <tr key={x.u.id}>
-                      <td><span className={'ini ' + PERFIL_CLS[x.perfil]} aria-hidden="true">{iniciales(x.u.nombre)}</span><button type="button" className="nbtn" onClick={() => onFicha(x.u.id)} aria-label={`Abrir ficha de ${x.u.nombre}`}>{x.u.nombre}</button></td>
-                      <td><i className={'pdot ' + PERFIL_CLS[x.perfil]} aria-hidden="true" /><span title={PERFIL_LABEL[x.perfil]}>{PERFIL_CORTO[x.perfil]}</span></td>
-                      <td className="num">{fmtN(x.actividad)}</td>
-                      <td className="num">{fmtMoney0(x.vendido)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <div className="perfil-chart">
+            <Scatter
+              pts={perf.pts.map((p) => ({ x: p.actividad, y: p.vendido, label: iniciales(p.u.nombre), title: `${p.u.nombre}: ${fmtN(p.actividad)} actividades, ${fmtMoney0(p.vendido)} vendido (${PERFIL_LABEL[p.perfil]})`, cls: PERFIL_CLS[p.perfil] }))}
+              xMed={perf.medAct} yMed={perf.medVend} xLabel="actividad registrada" yLabel="vendido" quad={['Revisar', 'Mantener', 'Salida', 'Capacitar']}
+              onPunto={(idx) => { if (idx.length === 1) onFicha(perf.pts[idx[0]].u.id); else setGrupo(idx.map((i) => perf.pts[i])) }} />
+            {grupo && (
+              <div className="grupo-sel" role="group" aria-label="Asesores en el mismo punto">
+                <span className="muted">{grupo.length} asesores en el mismo punto. Abrir ficha de:</span>
+                {grupo.map((p) => <button type="button" key={p.u.id} className="nbtn" onClick={() => { setGrupo(null); onFicha(p.u.id) }}>{p.u.nombre}</button>)}
+                <button type="button" className="wbtn" aria-label="Cerrar la lista" title="Cerrar" onClick={() => setGrupo(null)}>×</button>
+              </div>
+            )}
           </div>
-          <div className="small muted" style={{ marginTop: 8 }}>Actividad = llamadas + tareas completadas + cotizaciones + levantamientos en el rango. Medianas del grupo: {fmtN(perf.medAct)} actividades y {fmtMoney0(perf.medVend)} vendido. Clic en un nombre abre su ficha.</div>
+          <div className="small muted" style={{ marginTop: 8 }}>La mitad del grupo pasa de {fmtN(perf.medAct)} actividades y de {fmtMoney0(perf.medVend)} vendido: esas dos líneas parten la matriz. Clic en una bolita abre la ficha del asesor.</div>
         </>
       )
-    ), { info: ['Perfil'], cls: 'wperf', span: 6, alto: 9 }),
+    ), { info: ['Perfil'], cls: 'wperf', span: 3, alto: 9 }),
+    W('perfiles-tabla', 'Tabla de perfiles', (
+      filas.length < 2 ? <div className="muted">Se necesitan al menos dos asesores con actividad en el rango.</div> : (
+        <div className="perfil-tabla">
+          <table className="ftable" aria-label="Asesores por perfil">
+            <thead><tr><th scope="col">Asesor</th><th scope="col">Perfil</th><th scope="col" className="num">Actividad</th><th scope="col" className="num">Vendido</th></tr></thead>
+            <tbody>
+              {[...perf.pts].sort((a, b) => PERFILES.indexOf(a.perfil) - PERFILES.indexOf(b.perfil) || b.vendido - a.vendido).map((x) => (
+                <tr key={x.u.id}>
+                  <td><span className={'ini ' + PERFIL_CLS[x.perfil]} aria-hidden="true">{iniciales(x.u.nombre)}</span><button type="button" className="nbtn" onClick={() => onFicha(x.u.id)} aria-label={`Abrir ficha de ${x.u.nombre}`}>{x.u.nombre}</button></td>
+                  <td><i className={'pdot ' + PERFIL_CLS[x.perfil]} aria-hidden="true" /><span title={PERFIL_LABEL[x.perfil]}>{PERFIL_CORTO[x.perfil]}</span></td>
+                  <td className="num">{fmtN(x.actividad)}</td>
+                  <td className="num">{fmtMoney0(x.vendido)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )
+    ), { info: ['Perfil'], cls: 'wperf', span: 3, alto: 9, desde: 'perfiles' }),
   ]
   return (
     <>
@@ -602,7 +604,8 @@ export function Ficha({ corte, filtros, uid, onBack }: { corte: Corte; filtros: 
   const burbujas = (ev: Evento[]) => [
     { n: ev.filter((e) => e.tipo === 'llamada_ok' || e.tipo === 'llamada_no').length, title: 'Llamadas' },
     { n: ev.filter((e) => e.tipo === 'tarea').length, cls: 'w', title: 'Tareas completadas' },
-    { n: ev.filter((e) => e.tipo === 'cotizacion' || e.tipo === 'levantamiento').length, cls: 'e', title: 'Cotizaciones y levantamientos' },
+    { n: ev.filter((e) => e.tipo === 'cotizacion').length, cls: 'e', title: 'Cotizaciones entregadas' },
+    { n: ev.filter((e) => e.tipo === 'levantamiento').length, cls: 'l', title: 'Levantamientos solicitados' },
   ].filter((b) => b.n > 0)
   const entre = (a: number, b: number) => evRango.filter((e) => e.ts >= a && e.ts < b)
   const diasRango = Math.round((fin - ini) / 86400)
@@ -631,7 +634,7 @@ export function Ficha({ corte, filtros, uid, onBack }: { corte: Corte; filtros: 
   const widgets: Widget[] = [
     wg('ventas', 'Ventas · ' + rango, (
       <div className="kcard hero"><div className="l">Ventas · {rango}</div><div className="n"><Cifra label={`${ventas.length} ventas, ${fmtMoney0(monto)}`} onClick={() => setDrill({ titulo: `Ventas de ${u.nombre}`, filas: fVentas(ventas), sub: rango + ' · fecha = cierre' })}><b>{ventas.length}</b> <span style={{ fontSize: 22 }}>{fmtMoney0(monto)}</span></Cifra></div><MiniAreaChart values={serie} height={56} /><div className="small muted">Conversión {leads.length ? pct(ventas.length, leads.length) + '%' : '—'}: {ventas.length} ventas / {leads.length} leads asignados en el rango<Info termino="Conversión" /></div></div>
-    ), { plain: true, span: 2, cls: 'wcard' }),
+    ), { plain: true, span: 2, cls: 'wcard', info: ['Vendido'] }),
     wg('cumplimiento', 'Cumplimiento', (
       <div className={'kcard k2 ritmo-' + rit.estado}><div className="l">Cumplimiento<Info termino={['Cumplimiento', 'Ritmo']} /></div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', gap: 8 }}><div className="n">{pct(monto, metaRango)}%</div><Gauge pct={pct(monto, metaRango)} label="meta" size={120} color={rit.estado === 'atras' ? 'var(--warn)' : 'var(--c4)'} /></div>
@@ -663,11 +666,12 @@ export function Ficha({ corte, filtros, uid, onBack }: { corte: Corte; filtros: 
           {sem && <button type="button" className="nbtn" onClick={() => setSem(null)}>‹ Volver a las semanas</button>}
         </div>
         <BubbleChart cols={cols} onCol={onCol} />
-        <div className="legend"><span><i className="lg-comp" aria-hidden="true" />Llamadas</span><span><i className="lg-warn" aria-hidden="true" />Tareas completadas</span><span><i className="lg-e" aria-hidden="true" />Cotizaciones · levantamientos</span>
+        <div className="small muted" style={{ marginTop: 8 }}>Cada columna es {sem || diasRango <= 21 ? 'un día' : 'una semana'} y cada bolita cuenta lo que el asesor registró de cada tipo: entre más grande, más actividad.</div>
+        <div className="legend"><span><i className="lg-comp" aria-hidden="true" />Llamadas</span><span><i className="lg-warn" aria-hidden="true" />Tareas completadas</span><span><i className="lg-e" aria-hidden="true" />Cotizaciones entregadas</span><span><i className="lg-l" aria-hidden="true" />Levantamientos solicitados</span>
           <button type="button" onClick={() => setDrill({ titulo: `Actividad de ${u.nombre} · ${sem ? 'semana del ' + fmtCorta(sem) : rango}`, filas: filasDeEventos(corte, evVista) })}>Ver las {fmtN(evVista.length)} actividades ›</button></div>
       </>
-    ), { span: 6, alto: 6 }),
-    wg('leads', `Leads activos · ${fmtN(activos.length)}`, <LeadsTabla corte={corte} leads={activos} />, { span: 6, info: ['Estancados'] }),
+    ), { span: 6, alto: 7, info: ['Actividad'] }),
+    wg('leads', `Leads activos · ${fmtN(activos.length)}`, <LeadsTabla corte={corte} leads={activos} />, { span: 6, info: ['Leads activos', 'Estancados'] }),
     wg('tareas', 'Tareas abiertas', (
       <>
         {!tareas.length && <div className="muted">Sin tareas abiertas en el CRM para este asesor.</div>}
@@ -681,7 +685,7 @@ export function Ficha({ corte, filtros, uid, onBack }: { corte: Corte; filtros: 
             </div>) })}
         </div>
       </>
-    ), { span: 6 }),
+    ), { span: 6, info: ['Tareas'] }),
   ]
   return (
     <>

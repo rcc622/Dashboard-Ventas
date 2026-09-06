@@ -26,8 +26,8 @@ function leerHash(): Record<string, string> {
   for (const kv of location.hash.replace(/^#/, '').split('&')) { const i = kv.indexOf('='); if (i > 0) out[kv.slice(0, i)] = decodeURIComponent(kv.slice(i + 1)) }
   return out
 }
-function rangoDeHash(r: string | undefined): { rango: Rango; preset: Preset | null } {
-  if (esPreset(r)) return { rango: preset(r), preset: r }
+function rangoDeHash(r: string | undefined, desde?: number): { rango: Rango; preset: Preset | null } {
+  if (esPreset(r)) return { rango: preset(r, new Date(), desde), preset: r }
   const m = /^(\d+),(\d+)$/.exec(r || '')
   if (m) return { rango: rangoManual(new Date(Number(m[1]) * 1000), new Date((Number(m[2]) - 1) * 1000)), preset: null }
   return { rango: preset('mes'), preset: 'mes' }
@@ -50,7 +50,7 @@ export default function App() {
 
 function Shell({ yo, corte, origen, error, onRetry, onConfig, onLogout }: { yo: Yo; corte: Corte; origen: 'kommo' | 'ejemplo'; error?: string; onRetry: () => void; onConfig: (cfg: Config) => void; onLogout: () => void }) {
   const h0 = useMemo(leerHash, [])
-  const r0 = useMemo(() => rangoDeHash(h0.r), [h0])
+  const r0 = useMemo(() => rangoDeHash(h0.r, corte.desde), [h0, corte.desde])
   // Un asesor solo ve su perfil; el administrador puede alternar y mirar a cualquiera.
   const esAdmin = yo.rol === 'admin'
   const [perfil, setPerfil] = useState<Perfil>(!esAdmin || h0.perfil === 'asesor' ? 'asesor' : 'admin')
@@ -155,14 +155,16 @@ function Shell({ yo, corte, origen, error, onRetry, onConfig, onLogout }: { yo: 
         {origen === 'ejemplo' && <div className="aviso" role="status">Datos de ejemplo: no se pudo cargar el corte real{error ? ` (${error})` : ''}. Revisa que el refresh del servicio haya generado data/ventas.json. Las cifras no son reales. <button type="button" className="btn" style={{ marginLeft: 8 }} onClick={onRetry}>Reintentar</button></div>}
         {perfil === 'admin' && pagina !== 'config' && (
           <div className="toolbar">
-            <select className="sel sel-eq" aria-label="Equipo" value={filtros.equipo ?? ''} onChange={(e) => setFiltros({ ...filtros, equipo: e.target.value || null, asesor: null })}>
-              <option value="">Todos los equipos</option>
-              {corte.equipos.map((q) => <option key={q.id} value={q.id}>{q.nombre}</option>)}
-            </select>
             <select className="sel sel-as" aria-label="Propietario" value={filtros.asesor ?? ''} onChange={(e) => setFiltros({ ...filtros, asesor: e.target.value || null })}>
               <option value="">Todos los propietarios</option>
               {usuariosOrden.filter((u) => (filtros.equipo == null || u.zona === filtros.equipo) && u.crm.some((x) => filtros.crm[x])).map((u) => <option key={u.id} value={u.id}>{u.nombre}</option>)}
             </select>
+            {/* Equipos de venta como botones a la vista (Randall 6-sep, img 11), junto a Kommo/HubSpot: un clic filtra todo el tablero. */}
+            <span className="pill sm equipos" role="group" aria-label="Equipo de ventas">
+              <button type="button" className={filtros.equipo == null ? 'on' : ''} aria-pressed={filtros.equipo == null} onClick={() => setFiltros({ ...filtros, equipo: null, asesor: null })}>Todos</button>
+              {corte.equipos.map((q) => <button type="button" key={q.id} className={filtros.equipo === q.id ? 'on' : ''} aria-pressed={filtros.equipo === q.id} title={`Solo los vendedores de ${q.nombre}`}
+                onClick={() => setFiltros({ ...filtros, equipo: filtros.equipo === q.id ? null : q.id, asesor: null })}>{q.nombre}</button>)}
+            </span>
             {mixto && (
               <span className="crms" role="group" aria-label="CRM incluidos en el tablero">
                 {CRMS.map((k) => { const on = filtros.crm[k]; const ultimo = on && soloUno; return (
@@ -182,7 +184,7 @@ function Shell({ yo, corte, origen, error, onRetry, onConfig, onLogout }: { yo: 
             <button type="button" className="btn btn-date" aria-haspopup="dialog" aria-expanded={drp} onClick={() => setDrp(!drp)}><span className="ico" aria-hidden="true" />{filtros.rango.label}</button>
           </div>
         )}
-        {drp && <DateRangePicker rango={filtros.rango} presetActivo={presetActivo} onClose={() => setDrp(false)}
+        {drp && <DateRangePicker rango={filtros.rango} presetActivo={presetActivo} desde={corte.desde} onClose={() => setDrp(false)}
           onApply={(r, p) => { setFiltros({ ...filtros, rango: r }); setPresetActivo(p); setDrp(false) }} />}
         {contenido}
       </main>
