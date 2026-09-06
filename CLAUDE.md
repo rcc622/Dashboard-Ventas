@@ -564,6 +564,40 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   septiembre») en vez de «en el rango», que Alejandro no entendió; «Ventas cerradas» pasó a
   «Clientes cerrados» porque así lo preguntó él. Chequeo con fechas fijas: `check_ritmo.mjs` en el
   scratchpad de la sesión (transpila `metrics.ts` y afirma 15 casos).
+- **Calendario calcado de Meta Ads** (Randall 5-sep, `DateRangePicker.tsx`): periodos a la izquierda
+  como radios en el orden de Meta (Hoy, Ayer, Hoy y ayer, Últimos 7/14/28/30 días, Esta semana, La
+  semana pasada, Este mes, El mes pasado, Máximo, Personalizado; sin «Usados recientemente» ni
+  «Comparar»), dos meses con selector de mes y año, y abajo el periodo con las dos fechas escribibles
+  (`<input type=date>`, sin días futuros). «Máximo» = los 90 días del corte (`MAXIMO_DIAS`).
+  `trimestre` y `d90` siguen valiendo en ligas viejas (`esPreset`) pero no se ofrecen. La etiqueta del
+  rango lleva el nombre y las fechas («El mes pasado: 1 ago 2026 – 31 ago 2026», `etiquetaRango`) y
+  se usa tal cual en subtítulos y drills.
+- **Primer contacto y Razones de descarte son dos widgets** (Randall 5-sep: «no encuentro relación»):
+  cada uno abre con una línea que dice qué mide. Las razones son texto libre y se juntan por su forma
+  sin acentos ni mayúsculas (`claveRazon`), mostrando la grafía más usada.
+- **Medidores con tope** (`.widget .gauge-svg` 250 px, `.donut-svg` 230 px): siguen creciendo con el
+  widget, pero a pantalla completa un medidor de 400 px se comía la tarjeta y la hacía desplazarse.
+- **Comparativa app de comisiones vs CRM** (Randall 5-sep, «ver cuáles faltan»): clic en el asesor de
+  «Ventas reales» abre `comparativaVentas`: cada venta de la app busca pareja entre los ganados del
+  CRM del mismo asesor (palabras del nombre en común, igual o por prefijo; sufijos de origen del deal
+  y artículos no cuentan; cierre a ≤ 62 días del mes de venta; un ganado se empareja una sola vez).
+  Lo que queda sin pareja sale marcado en rojo: «Falta en el CRM» o «Falta en la app» (`Fila.estado`
+  + `alerta`, columna Estado del drill). Los deals de HubSpot sin nombre («Lead #…») siempre quedan
+  sin pareja: es dato sucio, no un bug.
+- **Quitar de la asignación desde el tablero** (Randall 5-sep, la función «Sanciones» del Sheet):
+  columna «Asignación» en la tabla de Asesores (`Asignacion` en admin.tsx; `GET /ventas/sanciones.json`,
+  `POST /ventas/sancion {uid, accion: quitar|reactivar, motivo}`, solo admin). **Kommo**: se escribe la
+  pestaña «Sanciones 24h» del Sheet «Dashboard Leads Kenet» por su Apps Script, con la MISMA
+  `SANCIONES_SHEET_URL` / `SANCIONES_SHEET_TOKEN` del servicio Kommo-ia (`aplicar_sancion` lee las
+  filas, cambia UNA y manda todas, porque el script reemplaza la hoja); el server de turnos la lee cada
+  60 s y el corte de las 10:00 reevalúa y reescribe (sanción = 24 h; el estado de los que no están en
+  el padrón KS-* desaparece a las 10:00). **HubSpot**: el reparto va por equipo, así que se saca al
+  usuario de su equipo (`PUT /settings/v3/users/{id}`, owner → userId) y el equipo previo se guarda en
+  `data/ventas_sanciones.json` para poder reactivar; necesita `settings.users.read/write` y
+  `settings.users.teams.read` en la app privada (hoy faltan: el tablero lo dice en el aviso). Cada CRM
+  se intenta por separado y lo que falla va en `avisos`. Nada de esto borra ni reasigna leads.
+  `Kommo Salesbot/sanciones_sheet.gs` ya respeta `por` (quién quitó); hay que volver a implementar el
+  Apps Script para que se vea en la columna «Modificado por».
 - **Pipeline sano = cotizado vigente ≥ 10× la meta MENSUAL** (regla de Alejandro;
   `VENTAS_COTIZADO_X`). Vigente = leads activos con monto cuya cotización tiene
   ≤ 90 días (`VENTAS_COTIZADO_DIAS`; sin fecha de cotización cuenta desde la

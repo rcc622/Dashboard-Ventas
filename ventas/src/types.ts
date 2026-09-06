@@ -65,3 +65,11 @@ export interface Rango { ini: number; fin: number; label: string }
 
 export type Origen = Crm | 'comisiones'
 export const CRM_LABEL: Record<Origen, string> = { kommo: 'Kommo', hubspot: 'HubSpot', comisiones: 'Comisiones' }
+
+/** Estado de «quitar de la asignación» (GET sanciones.json): Kommo = filas de la pestaña «Sanciones 24h»
+ *  (por user_id numérico de Kommo); HubSpot = a quién sacó el tablero de su equipo, por asesor. */
+export interface FilaSancion { user_id: number; nombre: string; estado: string; motivo: string; hasta: string; por: string }
+export interface Sanciones {
+  kommo: { configurado: boolean; filas: FilaSancion[]; error: string | null; proximo_corte: string }
+  hubspot: { quitados: Record<string, { desde: number; por: string; motivo?: string; primaryTeamId?: string | null }> }
+}

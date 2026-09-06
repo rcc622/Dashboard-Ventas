@@ -23,6 +23,7 @@ Variables de entorno (en Railway, nunca en el repo):
     PORT                la pone Railway
 """
 import base64, gzip, hashlib, hmac, json, os, re, secrets, subprocess, sys, threading, time, traceback
+import urllib.error, urllib.parse, urllib.request
 from datetime import datetime, timedelta, timezone
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
@@ -589,6 +590,183 @@ def corte_cargado():
     return _CORTE_CACHE["corte"]
 
 
+# ---------------------------------------------------------------- Quitar de la asignación (pedido de Randall 5-sep)
+# Es la función «Sanciones 24h» del Sheet «Dashboard Leads Kenet», ahora desde el tablero.
+# Kommo: el server de turnos (Kommo Salesbot/fase1-webhook/sanciones.py) lee esa pestaña cada 60 s
+#   por su Apps Script; SANCIONADO = sin leads nuevos hasta el corte de las 10:00 del día siguiente,
+#   que reevalúa y reescribe TODAS las filas. Aquí se escribe la misma pestaña con la misma URL y
+#   token que el servicio Kommo-ia (SANCIONES_SHEET_URL / SANCIONES_SHEET_TOKEN). El Apps Script
+#   reemplaza la hoja completa con lo que se manda: se lee, se cambia UNA fila y se manda todo.
+# HubSpot: el reparto de leads va por equipo, así que quitar = sacar al usuario de su equipo por la
+#   API de usuarios (necesita los permisos settings.users.read/write y settings.users.teams.read en la
+#   app privada) y guardar el equipo previo en el volumen para poder regresarlo. Nada de esto borra
+#   ni reasigna leads ya asignados.
+SANCIONES_URL = os.environ.get("SANCIONES_SHEET_URL", "").strip()
+SANCIONES_TOKEN = os.environ.get("SANCIONES_SHEET_TOKEN", "kenet-sanciones-2026").strip()
+VENTAS_SANCIONES = os.path.join(DATA, "ventas_sanciones.json")
+_MTY = timezone(timedelta(hours=-6))   # Monterrey no tiene horario de verano desde 2022
+
+
+def proximo_corte_10():
+    ahora = datetime.now(_MTY)
+    c = ahora.replace(hour=10, minute=0, second=0, microsecond=0)
+    return c + timedelta(days=1) if ahora >= c else c
+
+
+def sheet_sanciones(rows=None):
+    """GET (rows=None) o POST (rows) al Apps Script de la pestaña. Apps Script contesta con una
+    redirección 302 al resultado; urllib la sigue sola. Devuelve el JSON del script."""
+    if not SANCIONES_URL:
+        raise RuntimeError("falta SANCIONES_SHEET_URL en el servicio (la misma del servicio Kommo-ia)")
+    if rows is None:
+        req = urllib.request.Request(SANCIONES_URL + ("&" if "?" in SANCIONES_URL else "?") + urllib.parse.urlencode({"token": SANCIONES_TOKEN}))
+    else:
+        req = urllib.request.Request(SANCIONES_URL, data=json.dumps({"token": SANCIONES_TOKEN, "rows": rows}, ensure_ascii=False).encode("utf-8"),
+                                     headers={"Content-Type": "application/json"}, method="POST")
+    with urllib.request.urlopen(req, timeout=40) as r:
+        d = json.loads(r.read().decode("utf-8") or "{}")
+    if d.get("error"):
+        raise RuntimeError("el Sheet contestó: %s" % d["error"])
+    return d
+
+
+def filas_sheet():
+    out = []
+    for r in sheet_sanciones().get("rows") or []:
+        try:
+            uid = int(str(r.get("user_id")).strip())
+        except (TypeError, ValueError):
+            continue
+        out.append({"user_id": uid, "nombre": r.get("nombre") or "", "estado": str(r.get("estado") or "").strip().upper(),
+                    "motivo": r.get("motivo") or "", "hasta": r.get("hasta") or "", "por": r.get("por") or ""})
+    return out
+
+
+def leer_sanciones_local():
+    try:
+        with open(VENTAS_SANCIONES, encoding="utf-8") as f:
+            d = json.load(f)
+        d.setdefault("hubspot", {}); d.setdefault("bitacora", [])
+        return d
+    except (OSError, ValueError):
+        return {"hubspot": {}, "bitacora": []}
+
+
+def escribir_json(ruta, obj):
+    os.makedirs(DATA, exist_ok=True)
+    tmp = ruta + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(obj, f, ensure_ascii=False, indent=1)
+    os.replace(tmp, ruta)
+
+
+def hs_req(method, path, body=None):
+    """Llamada a HubSpot con el token del servicio -> (status, json). Nunca imprime el token."""
+    tok = os.environ.get("HUBSPOT_TOKEN", "")
+    if not tok:
+        raise RuntimeError("falta HUBSPOT_TOKEN")
+    req = urllib.request.Request("https://api.hubapi.com" + path, data=json.dumps(body).encode() if body is not None else None, method=method,
+                                 headers={"Authorization": "Bearer " + tok, "Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=40) as r:
+            raw = r.read().decode("utf-8")
+            return r.status, (json.loads(raw) if raw.strip() else {})
+    except urllib.error.HTTPError as e:
+        raw = e.read().decode("utf-8", "replace")
+        try:
+            return e.code, json.loads(raw)
+        except ValueError:
+            return e.code, {"message": raw[:300]}
+
+
+def hs_usuario(owner_id):
+    """Owner de HubSpot (lo que guarda el corte) -> usuario con sus equipos."""
+    st, o = hs_req("GET", "/crm/v3/owners/%s" % owner_id)
+    if st != 200 or not o.get("userId"):
+        raise RuntimeError("el owner %s no tiene usuario (HTTP %s)" % (owner_id, st))
+    st, u = hs_req("GET", "/settings/v3/users/%s" % o["userId"])
+    if st == 403:
+        raise RuntimeError("la app privada no tiene el permiso settings.users.read")
+    if st != 200:
+        raise RuntimeError("usuario %s: HTTP %s %s" % (o["userId"], st, str(u.get("message", ""))[:160]))
+    return u
+
+
+def hs_poner_equipos(user_id, primario, secundarios):
+    st, r = hs_req("PUT", "/settings/v3/users/%s" % user_id, {"primaryTeamId": primario, "secondaryTeamIds": list(secundarios or [])})
+    if st == 403:
+        raise RuntimeError("la app privada no tiene el permiso settings.users.write (Ajustes › Integraciones › Apps privadas › Ámbitos)")
+    if st >= 400:
+        raise RuntimeError("no aceptó el cambio de equipo: HTTP %s %s" % (st, str(r.get("message", ""))[:200]))
+    return r
+
+
+def aplicar_sancion(uid, accion, motivo, por):
+    """accion = quitar | reactivar. Cada CRM del asesor se intenta por separado: uno que falle no
+    detiene al otro, y lo que falló va en `avisos` con la causa."""
+    if accion not in ("quitar", "reactivar"):
+        raise ValueError("acción desconocida")
+    u = next((x for x in (corte_cargado().get("usuarios") or []) if x.get("id") == uid), None)
+    if not u:
+        raise ValueError("asesor desconocido")
+    ids = u.get("ids") or {}
+    firma = "Tablero · %s · %s" % (por, datetime.now(_MTY).strftime("%d/%m %H:%M"))
+    res = {"uid": uid, "nombre": u["nombre"], "accion": accion, "kommo": None, "hubspot": None, "avisos": []}
+    if ids.get("kommo") is not None:
+        try:
+            filas = filas_sheet()
+            fila = {"user_id": int(ids["kommo"]), "nombre": u["nombre"], "estado": "SANCIONADO" if accion == "quitar" else "ACTIVO",
+                    "motivo": ((motivo.strip() + " · ") if motivo.strip() else "") + firma if accion == "quitar" else "reactivado · " + firma,
+                    "hasta": proximo_corte_10().strftime("%d/%m/%Y 10:00") if accion == "quitar" else "", "por": firma}
+            i = next((k for k, f in enumerate(filas) if f["user_id"] == fila["user_id"]), None)
+            if i is None:
+                filas.append(fila)
+            else:
+                filas[i] = fila
+            sheet_sanciones(filas)
+            res["kommo"] = fila
+        except Exception as e:  # noqa: BLE001
+            res["avisos"].append("Kommo: %s" % e)
+    if ids.get("hubspot") is not None:
+        try:
+            loc = leer_sanciones_local()
+            if accion == "quitar":
+                usr = hs_usuario(ids["hubspot"])
+                prev = {"user_id": usr.get("id"), "primaryTeamId": usr.get("primaryTeamId"), "secondaryTeamIds": usr.get("secondaryTeamIds") or [],
+                        "desde": time.time(), "por": firma, "motivo": motivo.strip()}
+                if not prev["primaryTeamId"] and not prev["secondaryTeamIds"]:
+                    res["avisos"].append("HubSpot: el usuario ya no estaba en ningún equipo")
+                else:
+                    hs_poner_equipos(usr["id"], None, [])
+                    _, chk = hs_req("GET", "/settings/v3/users/%s" % usr["id"])
+                    if chk.get("primaryTeamId") or chk.get("secondaryTeamIds"):
+                        raise RuntimeError("no quitó el equipo por API; hay que hacerlo en Ajustes › Usuarios y equipos")
+                loc["hubspot"][uid] = prev
+                res["hubspot"] = prev
+            else:
+                prev = loc["hubspot"].pop(uid, None)
+                if prev and (prev.get("primaryTeamId") or prev.get("secondaryTeamIds")):
+                    hs_poner_equipos(prev["user_id"], prev.get("primaryTeamId"), prev.get("secondaryTeamIds"))
+                elif not prev:
+                    res["avisos"].append("HubSpot: no había registro del equipo previo; revisa Ajustes › Usuarios y equipos")
+                res["hubspot"] = {"reactivado": True, "primaryTeamId": (prev or {}).get("primaryTeamId")}
+            loc["bitacora"] = (loc["bitacora"] + [{"ts": time.time(), "uid": uid, "accion": accion, "por": por, "motivo": motivo.strip()}])[-500:]
+            escribir_json(VENTAS_SANCIONES, loc)
+        except Exception as e:  # noqa: BLE001
+            res["avisos"].append("HubSpot: %s" % e)
+    return res
+
+
+def estado_sanciones():
+    k = {"configurado": bool(SANCIONES_URL), "filas": [], "error": None, "proximo_corte": proximo_corte_10().strftime("%d/%m/%Y 10:00")}
+    if SANCIONES_URL:
+        try:
+            k["filas"] = filas_sheet()
+        except Exception as e:  # noqa: BLE001
+            k["error"] = str(e)[:200]
+    return {"kommo": k, "hubspot": {"quitados": leer_sanciones_local()["hubspot"]}}
+
+
 def corte_para(uid):
     """El corte reducido a UN asesor: sus leads, actividades y tareas, y él solo en usuarios.
     Así un asesor con sesión no puede bajar la data de los demás aunque pida data.json a mano."""
@@ -670,6 +848,11 @@ class H(BaseHTTPRequestHandler):
             if not ses or ses["rol"] != "admin":
                 return self._send(403 if ses else 401, json.dumps({"error": "solo administradores"}), "application/json")
             return self._send(200, json.dumps({"usuarios": usuarios_publicos(leer_usuarios())}, ensure_ascii=False), "application/json")
+        if rel == "sanciones.json":
+            ses = self._sesion()
+            if not ses or ses["rol"] != "admin":
+                return self._send(403 if ses else 401, json.dumps({"error": "solo administradores"}), "application/json")
+            return self._send(200, json.dumps(estado_sanciones(), ensure_ascii=False), "application/json")
         if rel == "hist.json":
             filas = []
             if os.path.exists(VENTAS_HIST):
@@ -752,6 +935,15 @@ class H(BaseHTTPRequestHandler):
                 return err(400, str(e))
             self._escribir(VENTAS_USUARIOS, {"usuarios": lista})
             return self._send(200, json.dumps({"ok": True, "usuarios": usuarios_publicos(lista)}, ensure_ascii=False), "application/json")
+        if ruta == "/ventas/sancion":
+            b = self._json_body()
+            if not isinstance(b, dict) or not isinstance(b.get("uid"), str):
+                return err(400, "falta uid")
+            try:
+                res = aplicar_sancion(b["uid"], str(b.get("accion") or ""), str(b.get("motivo") or "")[:200], ses["nombre"] or ses["uid"])
+            except ValueError as e:
+                return err(400, str(e))
+            return self._send(200, json.dumps({"ok": True, "resultado": res, "estado": estado_sanciones()}, ensure_ascii=False), "application/json")
         return err(404, "no")
 
     def _escribir(self, ruta, obj):

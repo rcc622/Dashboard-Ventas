@@ -19,7 +19,9 @@ export function DrillModal({ d, onClose }: { d: Drill; onClose: () => void }) {
   useEffect(() => { const prev = document.activeElement as HTMLElement | null; inp.current?.focus(); return () => prev?.focus?.() }, [])
   useEffect(() => { setMax(PASO) }, [q, d])
   const nq = norm(q.trim())
-  const filas = useMemo(() => (nq ? d.filas.filter((f) => norm(f.nombre + ' ' + f.asesor + ' ' + f.detalle).includes(nq)) : d.filas), [d, nq])
+  const filas = useMemo(() => (nq ? d.filas.filter((f) => norm(f.nombre + ' ' + f.asesor + ' ' + f.detalle + ' ' + (f.estado || '')).includes(nq)) : d.filas), [d, nq])
+  const conEstado = d.filas.some((f) => f.estado)
+  const alertas = d.filas.filter((f) => f.alerta).length
   const total = filas.reduce((s, f) => s + (f.monto || 0), 0)
   const crms = [...new Set(d.filas.map((f) => f.crm))]
   const sinLiga = d.filas.filter((f) => !f.link).length
@@ -31,7 +33,7 @@ export function DrillModal({ d, onClose }: { d: Drill; onClose: () => void }) {
           <div className="mt">
             <h2>{d.titulo}</h2>
             <div className="small muted">
-              {fmtN(filas.length)}{nq ? ` de ${fmtN(d.filas.length)}` : ''} registro{filas.length === 1 ? '' : 's'}{total ? ` · ${fmtMoney(total)}` : ''}{crms.length ? ' · ' + crms.map((c) => CRM_LABEL[c]).join(' + ') : ''}{d.sub ? ' · ' + d.sub : ''}
+              {fmtN(filas.length)}{nq ? ` de ${fmtN(d.filas.length)}` : ''} registro{filas.length === 1 ? '' : 's'}{total ? ` · ${fmtMoney(total)}` : ''}{conEstado ? ` · ${fmtN(alertas)} sin pareja` : ''}{crms.length ? ' · ' + crms.map((c) => CRM_LABEL[c]).join(' + ') : ''}{d.sub ? ' · ' + d.sub : ''}
             </div>
           </div>
           <input ref={inp} className="sel" type="search" placeholder="Buscar nombre, asesor o detalle…" aria-label="Buscar en el detalle" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -41,10 +43,11 @@ export function DrillModal({ d, onClose }: { d: Drill; onClose: () => void }) {
           {!filas.length && <div className="muted" style={{ padding: 16 }}>Nada que mostrar{nq ? ` para «${q}»` : ''}.</div>}
           {filas.length > 0 && (
             <table className="ftable dtable">
-              <thead><tr><th scope="col">Registro</th><th scope="col">CRM</th><th scope="col">Asesor</th><th scope="col">Detalle</th><th scope="col" className="num">Monto</th><th scope="col">Cuándo</th></tr></thead>
+              <thead><tr>{conEstado && <th scope="col">Estado</th>}<th scope="col">Registro</th><th scope="col">CRM</th><th scope="col">Asesor</th><th scope="col">Detalle</th><th scope="col" className="num">Monto</th><th scope="col">Cuándo</th></tr></thead>
               <tbody>
                 {filas.slice(0, max).map((f) => (
                   <tr key={f.id}>
+                    {conEstado && <td><span className={'tag' + (f.alerta ? ' alerta' : '')}>{f.estado || '—'}</span></td>}
                     <td>{f.link ? <a href={f.link} target="_blank" rel="noreferrer" title={'Abrir en ' + CRM_LABEL[f.crm]}>{f.nombre}</a> : <span className="muted">{f.nombre}</span>}</td>
                     <td><span className="tag">{CRM_LABEL[f.crm]}</span></td>
                     <td>{f.asesor}</td>

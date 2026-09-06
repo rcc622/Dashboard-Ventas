@@ -1,4 +1,4 @@
-import type { Acceso, Config, Corte, Yo } from './types'
+import type { Sanciones, Acceso, Config, Corte, Yo } from './types'
 import { mock } from './mock'
 
 export interface Carga { corte: Corte; origen: 'kommo' | 'ejemplo'; error?: string }
@@ -86,4 +86,15 @@ export async function guardarConfig(cfg: Config): Promise<Config> {
   const j = (await r.json().catch(() => ({}))) as { ok?: boolean; config?: Config; error?: string }
   if (!r.ok || !j.ok || !j.config) throw new Error(j.error || `HTTP ${r.status}`)
   return j.config
+}
+
+export async function cargarSanciones(): Promise<Sanciones> {
+  const r = await fetch('sanciones.json', { cache: 'no-store' })
+  if (!r.ok) throw new Error(`HTTP ${r.status}`)
+  return (await r.json()) as Sanciones
+}
+/** Quitar o reactivar en la asignación de leads. El servidor contesta el estado nuevo y los avisos por CRM. */
+export async function aplicarSancion(uid: string, accion: 'quitar' | 'reactivar', motivo: string): Promise<{ resultado: { avisos: string[] }; estado: Sanciones }> {
+  const r = await post('sancion', { uid, accion, motivo })
+  return r as { resultado: { avisos: string[] }; estado: Sanciones }
 }

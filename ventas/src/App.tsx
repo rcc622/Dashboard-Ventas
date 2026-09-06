@@ -3,7 +3,7 @@ import type { Config, Corte, Crm, Rango, Yo } from './types'
 import { CRM_LABEL } from './types'
 import { aplicarConfig, cargar, logout, yo as pedirYo, type Carga } from './data'
 import { Login } from './login'
-import { PRESETS, fmtCorta, fmtHora, iniciales, preset, rangoManual, usuariosVisibles, vivo, zonaNombre, type Filtros, type Preset } from './metrics'
+import { esPreset, fmtCorta, fmtHora, iniciales, preset, rangoManual, usuariosVisibles, vivo, zonaNombre, type Filtros, type Preset } from './metrics'
 
 const CRMS: Crm[] = ['kommo', 'hubspot']
 import { DateRangePicker } from './DateRangePicker'
@@ -27,8 +27,7 @@ function leerHash(): Record<string, string> {
   return out
 }
 function rangoDeHash(r: string | undefined): { rango: Rango; preset: Preset | null } {
-  const p = PRESETS.find((x) => x.id === r)
-  if (p) return { rango: preset(p.id), preset: p.id }
+  if (esPreset(r)) return { rango: preset(r), preset: r }
   const m = /^(\d+),(\d+)$/.exec(r || '')
   if (m) return { rango: rangoManual(new Date(Number(m[1]) * 1000), new Date((Number(m[2]) - 1) * 1000)), preset: null }
   return { rango: preset('mes'), preset: 'mes' }

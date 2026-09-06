@@ -104,26 +104,34 @@ h3 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: 0; t
 .spacer { flex: 1; }
 
 /* ---------- date range picker ---------- */
-.drp { position: fixed; top: 84px; right: 24px; z-index: 201; background: var(--card); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); display: grid; grid-template-columns: 150px 1fr; max-width: calc(100vw - 32px); overflow: hidden; }
-.drp-presets { border-right: 1px solid var(--line); padding: 12px; display: flex; flex-direction: column; gap: 4px; background: var(--hover); }
-.drp-presets .t { font-size: 11.5px; color: var(--g2); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; }
-.drp-presets button { border: 0; border-radius: 8px; background: transparent; text-align: left; padding: 6px 8px; cursor: pointer; font-weight: 600; }
-.drp-presets button.on { background: var(--ink); color: var(--acc); }
+/* Calendario calcado del selector de Meta Ads (Randall 5-sep): periodos con radio, dos meses con mes/año, fechas escribibles. */
+.drp { position: fixed; top: 84px; right: 24px; z-index: 201; background: var(--card); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); display: grid; grid-template-columns: 172px 1fr; max-width: calc(100vw - 48px); }
+.drp-presets { border-right: 1px solid var(--line); padding: 10px 8px; display: flex; flex-direction: column; gap: 2px; background: var(--hover); overflow-y: auto; max-height: 460px; }
+.drp-presets button { border: 0; border-radius: 8px; background: transparent; text-align: left; padding: 6px 8px; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 8px; color: var(--ink); }
+.drp-presets button::before { content: ''; flex: none; width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid var(--edge); background: var(--card); box-sizing: border-box; }
+.drp-presets button:hover { background: var(--c1-soft); }
+.drp-presets button.on { font-weight: 700; }
+.drp-presets button.on::before { border: 4.5px solid var(--c1); }
 .drp-cal { padding: 12px; }
-.drp-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-.drp-nav button { border: 1px solid var(--edge); border-radius: 8px; background: var(--card); width: 32px; height: 30px; cursor: pointer; font-weight: 700; }
-.drp-months { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.drp-months { display: grid; grid-template-columns: auto 1fr 1fr auto; gap: 8px; align-items: start; }
+.drp-arrow { border: 0; background: transparent; width: 28px; height: 30px; cursor: pointer; font-size: 20px; line-height: 1; border-radius: 8px; color: var(--ink); }
+.drp-arrow:hover { background: var(--hover); }
 .mon { width: max-content; margin: 0 auto; }
-.mon .mt { text-align: center; font-weight: 700; margin-bottom: 6px; }
+.mon .msel { display: flex; justify-content: center; gap: 4px; margin-bottom: 6px; }
+.mon .msel select { border: 1px solid var(--edge); border-radius: 6px; padding: 2px 4px; font: inherit; font-weight: 600; background: var(--card); color: var(--ink); }
 .mon .grid { display: grid; grid-template-columns: repeat(7, 32px); gap: 2px; }
 .mon .dow { font-size: 10px; color: var(--g2); text-align: center; }
-.mon .d { width: 32px; height: 30px; border: 0; border-radius: 6px; background: var(--card); cursor: pointer; font-size: 12.5px; }
+.mon .d { width: 32px; height: 30px; border: 0; border-radius: 6px; background: var(--card); cursor: pointer; font-size: 12.5px; color: var(--ink); }
 .mon .d:hover { outline: 2px solid var(--c1); outline-offset: -2px; }
 .mon .d.in { background: var(--c1-soft); }
 .mon .d.edge { background: var(--c1); color: #fff; }
-.mon .d.off { color: var(--g3); }
+.mon .d.off, .mon .d:disabled { color: var(--g3); cursor: default; }
+.mon .d:disabled:hover { outline: 0; }
+.drp-manual { display: flex; gap: 8px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
+.drp-manual .sel { width: auto; min-width: 150px; }
+.drp-manual .inp { width: 150px; padding: 5px 8px; }
 .drp-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; gap: 10px; border-top: 1px solid var(--line); padding-top: 10px; }
-.drp-foot .prev { font-weight: 600; }
+.drp-foot .prev { font-weight: 600; font-size: 12.5px; }
 
 /* ---------- secciones y tarjetas ---------- */
 .section { margin-bottom: 8px; }
@@ -176,6 +184,9 @@ h3 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: 0; t
 /* Columnas proporcionales: la dona, los medidores y el embudo crecen con el ancho del widget (pedido de Randall 4-sep). */
 .salud-grid { display: grid; grid-template-columns: minmax(150px, 1fr) 2fr; gap: 18px; align-items: center; }
 .widget .donut-svg, .widget .gauge-svg { width: 100%; height: auto; max-width: 100%; }
+/* Tope (Randall 5-sep, «mejora las proporciones»): a pantalla completa un medidor de 400 px se comía el widget y lo hacía desplazarse. */
+.widget .gauge-svg { max-width: 250px; }
+.widget .donut-svg { max-width: 230px; }
 .donutbox { display: grid; place-items: center; }
 .donut-svg { display: block; }
 .dcenter { text-anchor: middle; font-weight: 700; fill: var(--ink); }
@@ -656,3 +667,10 @@ h3 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: 0; t
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }
+/* Comparativa app vs CRM: la fila sin pareja se marca en rojo. */
+.tag.alerta { background: var(--warn-soft); color: var(--warn-ink); }
+/* Columna «Asignación» de la tabla de Asesores (quitar de la asignación, Randall 5-sep). */
+.tbl td.asig { min-width: 190px; cursor: default; }
+.asig .st { font-size: 11.5px; color: var(--g2); }
+.asig .st.off { color: var(--warn-ink); font-weight: 600; }
+.asig .btn { margin-top: 4px; padding: 3px 8px; font-size: 12px; min-height: 24px; }

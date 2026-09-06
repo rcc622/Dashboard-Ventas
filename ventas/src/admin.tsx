@@ -1,9 +1,10 @@
 import { useLayoutEffect, useMemo, useRef, useState, type SyntheticEvent, useEffect } from 'react'
-import type { Corte, Evento, Lead, Usuario } from './types'
+import type { Corte, Evento, Lead, Sanciones, Usuario } from './types'
 import { CRM_LABEL } from './types'
-import { BUCKETS, PERFIL_LABEL, actividad, cotizado, dias, embudo, entrada, ep, etapaDe, eventosFiltrados, fechaCotizado, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, metaDe, metaEnRango, pasaCrm, periodoTexto, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, type Fila, type FilaAsesor, type Filtros, type Perfil , type PuntoPerfil, ventasReales, filasDeVentasReales } from './metrics'
+import { BUCKETS, PERFIL_LABEL, actividad, cotizado, dias, embudo, entrada, ep, etapaDe, eventosFiltrados, fechaCotizado, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, metaDe, metaEnRango, pasaCrm, periodoTexto, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, type Fila, type FilaAsesor, type Filtros, type Perfil , type PuntoPerfil, ventasReales, filasDeVentasReales, comparativaVentas } from './metrics'
 import { BarDetailPopup, BubbleChart, Bullet, DonutChart, FunnelChart, Gauge, Info, LlamadasBar, MiniAreaChart, Scatter, SortTh, StackedBar, activar, useEscape, useOutside, type DetRow, type Sort, type BubbleCol, useFocoDialogo } from './components'
 import { DrillModal, type Drill } from './drill'
+import { aplicarSancion, cargarSanciones } from './data'
 import { WidgetGrid, type Widget } from './widgets'
 
 const mixto = (c: Corte) => (c.fuentes || []).length > 1
@@ -204,8 +205,10 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
             <tbody>
               {vr.filas.map((r) => { const cr = r.u ? filas.find((x) => x.u.id === r.u!.id) : undefined; return (
                 <tr key={r.nombre}>
-                  <td><button type="button" className="nbtn" aria-label={`${r.nombre}: ${fmtN(r.n)} ventas reales, ${fmtMoney0(r.monto)}. Ver detalle`}
-                    onClick={() => ver(`Ventas reales · ${r.nombre}`, filasDeVentasReales(r.ventas), rango + ' · mes de venta en la app de comisiones')}>{r.nombre}</button>{!r.u && <span className="muted"> · sin asesor en el CRM</span>}</td>
+                  <td><button type="button" className="nbtn" aria-label={`${r.nombre}: ${fmtN(r.n)} ventas reales, ${fmtMoney0(r.monto)}. Ver la comparativa contra el CRM`}
+                    onClick={() => (r.u
+                      ? ver(`Ventas reales contra el CRM · ${r.nombre}`, comparativaVentas(ventas.filter((l) => l.asesor_id === r.u!.id), r.ventas), rango + ' · pareja = mismo cliente y cierre cerca del mes de venta')
+                      : ver(`Ventas reales · ${r.nombre}`, filasDeVentasReales(r.ventas), rango + ' · vendedor sin asesor en el CRM: solo la lista de la app'))}>{r.nombre}</button>{!r.u && <span className="muted"> · sin asesor en el CRM</span>}</td>
                   <td className="num">{fmtN(r.n)}</td><td className="num">{fmtMoney0(r.monto)}</td>
                   <td className="num">{cr ? fmtN(cr.ventas) : '—'}</td><td className="num">{cr ? fmtMoney0(cr.montoVentas) : '—'}</td>
                 </tr>) })}
@@ -213,7 +216,7 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
           </table></div>
         )}
         {!vr.filas.length && <div className="muted">Sin ventas en la app de comisiones para este rango{filtros.asesor || filtros.equipo ? ' y este filtro' : ''}.</div>}
-        <div className="small muted" style={{ marginTop: 8 }}>Fuente: app de comisiones, por mes de venta y sin canceladas · corte {(corte.comisiones.generado || '').slice(0, 16).replace('T', ' ')}.{vr.sinAsesor.length ? ` Vendedores sin asesor en el CRM: ${vr.sinAsesor.join(', ')}.` : ''}{corte.comisiones.error ? ` Error al leer la app: ${corte.comisiones.error}` : ''}</div>
+        <div className="small muted" style={{ marginTop: 8 }}>Clic en el asesor abre la comparativa venta por venta: cuáles faltan en el CRM y cuáles en la app. Fuente: app de comisiones, por mes de venta y sin canceladas · corte {(corte.comisiones.generado || '').slice(0, 16).replace('T', ' ')}.{vr.sinAsesor.length ? ` Vendedores sin asesor en el CRM: ${vr.sinAsesor.join(', ')}.` : ''}{corte.comisiones.error ? ` Error al leer la app: ${corte.comisiones.error}` : ''}</div>
       </>
     ), { info: ['Ventas reales'] })] : []),
     W('pipeline', 'Cotizado vs vendido vs meta', (
@@ -289,17 +292,21 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
         <Gauge pct={a.llamadas ? pct(a.contestadas, a.llamadas) : null} label="contestadas" size={180} />
       </div>
     ), { info: ['Llamadas'] }),
-    W('contacto', 'Primer contacto y razones de descarte', (
+    // Eran un solo widget y Randall (5-sep) no veía la relación entre los dos: no la hay. Cada uno dice qué mide.
+    W('contacto', 'Primer contacto', (
       <>
-        <div className="small" style={{ fontWeight: 600 }}>Primer contacto<Info termino="Primer contacto" /></div>
-        <div className="pc-hero"><span className="n">{horasPC}</span><span className="u">{unidadPC}</span></div>
+        <div className="small muted">Qué tan rápido se atiende un lead nuevo: horas entre la asignación y la primera llamada o tarea registrada (mediana).{mixto(corte) ? ' Solo Kommo.' : ''}</div>
+        <div className="pc-hero" style={{ marginTop: 8 }}><span className="n">{horasPC}</span><span className="u">{unidadPC}</span></div>
         <div className="small muted">
           <button type="button" className="nbtn" onClick={() => ver('Leads con primer contacto registrado', filasDeLeads(pc.con.map((x) => x.lead), (l) => { const h = pc.con.find((x) => x.lead.id === l.id)?.horas || 0; return `${etapaDe(l)} · primer contacto a las ${h < 48 ? h.toFixed(1) + ' horas' : Math.round(h / 24) + ' días'}` }), rango)}>{fmtN(pc.n)} leads con contacto registrado</button>
           {' · '}{fmtN(pc.en24)} en menos de 24 horas ({pct(pc.en24, pc.n)}%){' · '}
           <button type="button" className="nbtn" onClick={() => ver('Leads sin contacto tras un día asignados', filasDeLeads(pc.sin, (l) => `${etapaDe(l)} · asignado hace ${dias(diasDesde(l.asignacion))}, sin llamada ni tarea`), rango)}>{fmtN(pc.sinContacto)} sin contacto tras un día asignados</button>
-          {mixto(corte) ? ' · solo Kommo' : ''}
         </div>
-        <div className="small" style={{ fontWeight: 600, marginTop: 18 }}>Razón de descarte<Info termino="Razón de descarte" /></div>
+      </>
+    ), { info: ['Primer contacto'] }),
+    W('razones', 'Razones de descarte', (
+      <>
+        <div className="small muted" style={{ marginBottom: 6 }}>Por qué se pierden los leads: la razón registrada al descartar, de los descartes del rango. Mayúsculas y acentos distintos cuentan como la misma razón.</div>
         {!rz.length && <div className="muted">Sin descartes en el rango.</div>}
         <div className="rz">
           {rz.slice(0, 8).map((r) => (
@@ -311,7 +318,7 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
         </div>
         {rz.length > 8 && <div className="small muted" style={{ marginTop: 4 }}>+{rz.length - 8} razones más</div>}
       </>
-    )),
+    ), { info: ['Razón de descarte'], desde: 'contacto' }),
     W('perfiles', 'Perfiles de vendedores', (
       filas.length < 2 ? <div className="muted">Se necesitan al menos dos asesores con actividad en el rango.</div> : (
         <>
@@ -386,6 +393,24 @@ export function Asesores({ corte, filtros, onFicha }: { corte: Corte; filtros: F
   const [pop, setPop] = useState<Pop | null>(null)
   const [det, setDet] = useState<Det | null>(null)
   const [drill, setDrill] = useState<Drill | null>(null)
+  // Quitar de la asignación (Randall 5-sep): estado desde el servidor; undefined = cargando, null = no se pudo leer.
+  const [sanc, setSanc] = useState<Sanciones | null | undefined>(undefined)
+  const [ocupado, setOcupado] = useState<string | null>(null)
+  const [msg, setMsg] = useState<Record<string, string>>({})
+  useEffect(() => { cargarSanciones().then(setSanc).catch(() => setSanc(null)) }, [])
+  const accionar = async (u: Usuario, accion: 'quitar' | 'reactivar') => {
+    const quePasa = [u.ids.kommo != null ? 'Kommo: sin leads nuevos hasta las 10:00 del día siguiente (el corte automático reevalúa).' : '', u.ids.hubspot != null ? 'HubSpot: sale de su equipo de ventas hasta que lo reactives.' : ''].filter(Boolean).join('\n')
+    const motivo = accion === 'quitar' ? window.prompt(`¿Quitar a ${u.nombre} de la asignación de leads?\n${quePasa}\n\nMotivo (opcional):`, '') : (window.confirm(`¿Reactivar a ${u.nombre} en la asignación de leads?`) ? '' : null)
+    if (motivo === null) return
+    setOcupado(u.id)
+    try {
+      const r = await aplicarSancion(u.id, accion, motivo)
+      setSanc(r.estado)
+      setMsg((m) => ({ ...m, [u.id]: r.resultado.avisos.length ? r.resultado.avisos.join(' · ') : (accion === 'quitar' ? 'Quitado de la asignación.' : 'Reactivado.') }))
+    } catch (e) {
+      setMsg((m) => ({ ...m, [u.id]: 'No se pudo: ' + (e instanceof Error ? e.message : String(e)) }))
+    } finally { setOcupado(null) }
+  }
   const ver = (titulo: string, filas: Fila[], sub?: string) => { setDet(null); setDrill({ titulo, filas, sub }) }
   const rango = filtros.rango.label
 
@@ -419,6 +444,7 @@ export function Asesores({ corte, filtros, onFicha }: { corte: Corte; filtros: F
             <SortTh k="cotiz" label="Cotizaciones" {...th} />
             <SortTh k="desc" label="Descartes" {...th} />
             <SortTh k="lev" label="Levantamientos" {...th} />
+            <th scope="col">Asignación<Info termino="Asignación" /></th>
           </tr></thead>
           <tbody>
             {filas.map((f) => {
@@ -456,6 +482,9 @@ export function Asesores({ corte, filtros, onFicha }: { corte: Corte; filtros: F
                   <td className="num">{f.cotizaciones}</td>
                   <td className="num">{f.descartes}</td>
                   <td className="num">{f.levantamientos}</td>
+                  <td className="asig" onClick={(e) => e.stopPropagation()}>
+                    <Asignacion u={f.u} sanc={sanc} ocupado={ocupado === f.u.id} msg={msg[f.u.id]} onAccion={(a) => accionar(f.u, a)} />
+                  </td>
                 </tr>
               )
             })}
@@ -645,5 +674,32 @@ export function Ficha({ corte, filtros, uid, onBack }: { corte: Corte; filtros: 
       <WidgetGrid clave="ficha" widgets={widgets} />
       {drill && <DrillModal d={drill} onClose={() => setDrill(null)} />}
     </>
+  )
+}
+
+/** Celda «Asignación» de la tabla de Asesores: qué CRM lo tiene fuera y el botón para quitar o reactivar. */
+function Asignacion({ u, sanc, ocupado, msg, onAccion }: { u: Usuario; sanc: Sanciones | null | undefined; ocupado: boolean; msg?: string; onAccion: (a: 'quitar' | 'reactivar') => void }) {
+  if (sanc === undefined) return <span className="small muted">…</span>
+  if (sanc === null) return <span className="small muted">Sin acceso al estado de asignación.</span>
+  const lineas: { txt: string; fuera: boolean }[] = []
+  if (u.ids.kommo != null) {
+    const fila = sanc.kommo.filas.find((r) => r.user_id === Number(u.ids.kommo))
+    if (!sanc.kommo.configurado) lineas.push({ txt: 'Kommo: el tablero no está conectado al Sheet de sanciones.', fuera: false })
+    else if (sanc.kommo.error) lineas.push({ txt: 'Kommo: no se pudo leer el Sheet (' + sanc.kommo.error + ')', fuera: false })
+    else if (fila?.estado === 'SANCIONADO') lineas.push({ txt: `Kommo: sin leads hasta ${fila.hasta || sanc.kommo.proximo_corte}`, fuera: true })
+    else lineas.push({ txt: 'Kommo: recibe leads', fuera: false })
+  }
+  if (u.ids.hubspot != null) {
+    const q = sanc.hubspot.quitados[u.id]
+    lineas.push(q ? { txt: `HubSpot: fuera del equipo desde ${fmtCorta(new Date(q.desde * 1000))}`, fuera: true } : { txt: 'HubSpot: en su equipo', fuera: false })
+  }
+  const fuera = lineas.some((l) => l.fuera)
+  const puede = (u.ids.kommo != null && sanc.kommo.configurado && !sanc.kommo.error) || u.ids.hubspot != null
+  return (
+    <div>
+      {lineas.map((l) => <div key={l.txt} className={'st' + (l.fuera ? ' off' : '')}>{l.txt}</div>)}
+      {puede && <button type="button" className="btn" disabled={ocupado} onClick={() => onAccion(fuera ? 'reactivar' : 'quitar')}>{ocupado ? 'Aplicando…' : fuera ? 'Reactivar' : 'Quitar de la asignación'}</button>}
+      {msg && <div className="small muted" role="status">{msg}</div>}
+    </div>
   )
 }

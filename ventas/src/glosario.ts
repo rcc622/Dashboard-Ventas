@@ -18,6 +18,7 @@ export const GLOSARIO = {
   'Esperado a hoy': 'Parte de la meta del rango que ya debería estar vendida a día N de M del rango, por días naturales y con hoy contado completo.',
   'Ritmo': 'La meta del periodo repartida por días naturales: a día N de M ya debería estar vendido N/M de la meta. «Arriba del ritmo» es vendido por encima de esa parte; «abajo del ritmo», por debajo. La marca gris del medidor es esa parte; la negra, la meta completa.',
   'Vendido': 'Suma del presupuesto de las ventas cerradas en el rango, por fecha de cierre.',
+  'Asignación': 'Si el asesor recibe leads nuevos. Quitar = en Kommo entra a la lista «Sanciones 24h» del Sheet (sin leads nuevos hasta las 10:00 del día siguiente, cuando el corte automático reevalúa); en HubSpot sale de su equipo de ventas hasta que se reactive. No borra ni reasigna los leads que ya tiene.',
   'Cotizado vigente': 'Presupuesto de los leads activos con monto (asignados en el rango) cuya cotización tiene 90 días o menos. Sin fecha de cotización, cuenta desde la asignación.',
   'Antigüedad': 'Días desde la fecha de cotización del lead (o desde su asignación si no la tiene). Lo de más de 90 días ya no cuenta como pipeline vivo: debería ir a perdido.',
   'Pipeline 10×': 'Regla acordada con Alejandro: para vender la meta hay que traer cotizado vigente por 10 veces la meta mensual.',

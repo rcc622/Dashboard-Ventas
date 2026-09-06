@@ -30,28 +30,56 @@ export const fmtCorta = (d: Date) => `${d.getDate()} ${MESES[d.getMonth()]}`
 export const fmtHora = (ts: number) => { const d = fechaDe(ts); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` }
 export const mesNombre = (d: Date) => MESES[d.getMonth()]
 
-export type Preset = 'hoy' | 'semana' | 'mes' | 'mes_pasado' | 'trimestre' | 'd90'
+export type Preset = 'hoy' | 'ayer' | 'hoy_ayer' | 'd7' | 'd14' | 'd28' | 'd30' | 'semana' | 'semana_pasada' | 'mes' | 'mes_pasado' | 'maximo' | 'trimestre' | 'd90'
+/** Los periodos del calendario, en el orden del selector de Meta Ads (pedido de Randall 5-sep).
+ *  `trimestre` y `d90` siguen valiendo en ligas viejas (#r=…) pero ya no se ofrecen. */
 export const PRESETS: { id: Preset; label: string }[] = [
-  { id: 'hoy', label: 'Hoy' }, { id: 'semana', label: 'Esta semana' }, { id: 'mes', label: 'Este mes' },
-  { id: 'mes_pasado', label: 'Mes pasado' }, { id: 'trimestre', label: 'Este trimestre' }, { id: 'd90', label: 'Últimos 90 días' },
+  { id: 'hoy', label: 'Hoy' }, { id: 'ayer', label: 'Ayer' }, { id: 'hoy_ayer', label: 'Hoy y ayer' },
+  { id: 'd7', label: 'Últimos 7 días' }, { id: 'd14', label: 'Últimos 14 días' }, { id: 'd28', label: 'Últimos 28 días' }, { id: 'd30', label: 'Últimos 30 días' },
+  { id: 'semana', label: 'Esta semana' }, { id: 'semana_pasada', label: 'La semana pasada' }, { id: 'mes', label: 'Este mes' }, { id: 'mes_pasado', label: 'El mes pasado' },
+  { id: 'maximo', label: 'Máximo' },
 ]
+const PRESETS_VIEJOS: Record<string, string> = { trimestre: 'Este trimestre', d90: 'Últimos 90 días' }
+export const esPreset = (x: string | undefined): x is Preset => !!x && (PRESETS.some((p) => p.id === x) || x in PRESETS_VIEJOS)
+export const nombrePreset = (p: Preset) => PRESETS.find((x) => x.id === p)?.label ?? PRESETS_VIEJOS[p]
+/** «Máximo» = todo lo que trae el corte (VENTAS_DIAS en ventas_kommo.py). */
+export const MAXIMO_DIAS = 90
+
+/** «Últimos 7 días: 29 ago 2026 – 4 sep 2026», como el botón de Meta Ads; sin nombre, solo las fechas. */
+export function etiquetaRango(nombre: string | null, ini: number, fin: number): string {
+  const a = fechaDe(ini), b = fechaDe(fin - 1)
+  const fechas = inicioDia(a).getTime() === inicioDia(b).getTime() ? fmtFecha(a) : `${fmtFecha(a)} – ${fmtFecha(b)}`
+  return nombre ? `${nombre}: ${fechas}` : fechas
+}
 
 export function preset(p: Preset, ahora = new Date()): Rango {
-  const h = inicioDia(ahora)
-  const label = PRESETS.find((x) => x.id === p)!.label
-  switch (p) {
-    case 'hoy': return { ini: ep(h), fin: ep(h) + DIA, label }
-    case 'semana': { const lun = sumar(h, -((h.getDay() + 6) % 7)); return { ini: ep(lun), fin: ep(sumar(lun, 7)), label } }
-    case 'mes': { const a = new Date(h.getFullYear(), h.getMonth(), 1); return { ini: ep(a), fin: ep(new Date(h.getFullYear(), h.getMonth() + 1, 1)), label } }
-    case 'mes_pasado': { const a = new Date(h.getFullYear(), h.getMonth() - 1, 1); return { ini: ep(a), fin: ep(new Date(h.getFullYear(), h.getMonth(), 1)), label } }
-    case 'trimestre': { const q = Math.floor(h.getMonth() / 3) * 3; return { ini: ep(new Date(h.getFullYear(), q, 1)), fin: ep(new Date(h.getFullYear(), q + 3, 1)), label } }
-    case 'd90': return { ini: ep(sumar(h, -89)), fin: ep(h) + DIA, label }
-  }
+  const h = inicioDia(ahora), man = ep(h) + DIA
+  const ult = (n: number) => ({ ini: ep(sumar(h, -(n - 1))), fin: man })   // n días contando hoy
+  const lun = sumar(h, -((h.getDay() + 6) % 7))
+  const r = (() => {
+    switch (p) {
+      case 'hoy': return { ini: ep(h), fin: man }
+      case 'ayer': return { ini: ep(sumar(h, -1)), fin: ep(h) }
+      case 'hoy_ayer': return { ini: ep(sumar(h, -1)), fin: man }
+      case 'd7': return ult(7)
+      case 'd14': return ult(14)
+      case 'd28': return ult(28)
+      case 'd30': return ult(30)
+      case 'semana': return { ini: ep(lun), fin: ep(sumar(lun, 7)) }
+      case 'semana_pasada': return { ini: ep(sumar(lun, -7)), fin: ep(lun) }
+      case 'mes': return { ini: ep(new Date(h.getFullYear(), h.getMonth(), 1)), fin: ep(new Date(h.getFullYear(), h.getMonth() + 1, 1)) }
+      case 'mes_pasado': return { ini: ep(new Date(h.getFullYear(), h.getMonth() - 1, 1)), fin: ep(new Date(h.getFullYear(), h.getMonth(), 1)) }
+      case 'trimestre': { const q = Math.floor(h.getMonth() / 3) * 3; return { ini: ep(new Date(h.getFullYear(), q, 1)), fin: ep(new Date(h.getFullYear(), q + 3, 1)) } }
+      case 'maximo': case 'd90': return ult(MAXIMO_DIAS)
+    }
+  })()
+  return { ...r, label: etiquetaRango(nombrePreset(p), r.ini, r.fin) }
 }
 
 export function rangoManual(a: Date, b: Date): Rango {
   const [x, y] = a <= b ? [a, b] : [b, a]
-  return { ini: ep(inicioDia(x)), fin: ep(sumar(inicioDia(y), 1)), label: `${fmtCorta(x)} → ${fmtCorta(y)}` }
+  const ini = ep(inicioDia(x)), fin = ep(sumar(inicioDia(y), 1))
+  return { ini, fin, label: etiquetaRango(null, ini, fin) }
 }
 
 // ---------------------------------------------------------------- formato
@@ -227,9 +255,12 @@ export function primerContacto(c: Corte, leads: Lead[], ahora = Date.now() / 100
 }
 
 // ---------------------------------------------------------------- razones de descarte
+/** Las razones son texto libre: «no contesta», «NO CONTESTA» y «No contestá» son la misma. Se juntan por
+ *  su forma sin acentos ni mayúsculas y se muestra la grafía más usada (Randall 5-sep). */
+const claveRazon = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9ñ]+/g, ' ').trim()
 export function razones(c: Corte, ev: Evento[]): { razon: string; n: number; leads: Lead[] }[] {
   const porId = mapaLeads(c)
-  const grupos = new Map<string, Lead[]>()
+  const grupos = new Map<string, { textos: Map<string, number>; leads: Lead[] }>()
   for (const e of ev) {
     if (e.tipo !== 'descarte') continue
     const l = porId.get(e.lead)
@@ -237,16 +268,17 @@ export function razones(c: Corte, ev: Evento[]): { razon: string; n: number; lea
     // HubSpot trae texto libre: «.» o una letra no es una razón.
     const t = (l.razon || '').trim()
     const r = t.length > 1 ? t : 'Sin razón registrada'
-    const g = grupos.get(r) || []
-    g.push(l); grupos.set(r, g)
+    const g = grupos.get(claveRazon(r)) || { textos: new Map<string, number>(), leads: [] as Lead[] }
+    g.textos.set(r, (g.textos.get(r) || 0) + 1); g.leads.push(l); grupos.set(claveRazon(r), g)
   }
-  return [...grupos].map(([razon, leads]) => ({ razon, n: leads.length, leads })).sort((a, b) => b.n - a.n)
+  return [...grupos.values()].map((g) => ({ razon: [...g.textos].sort((a, b) => b[1] - a[1])[0][0], n: g.leads.length, leads: g.leads })).sort((a, b) => b.n - a.n)
 }
 
 // ---------------------------------------------------------------- detalle (drill-down)
 // Cada cifra del tablero abre una ventana con los registros que la componen (Randall, 4-sep,
 // como el drill-down de los reportes de HubSpot). Una Fila = un renglón de esa ventana.
-export interface Fila { id: string; nombre: string; link?: string; crm: Origen; asesor: string; detalle: string; monto?: number; cuando?: number }
+/** `estado`/`alerta`: columna extra del detalle para las comparativas (p. ej. «Falta en el CRM»). */
+export interface Fila { id: string; nombre: string; link?: string; crm: Origen; asesor: string; detalle: string; monto?: number; cuando?: number; estado?: string; alerta?: boolean }
 export function mapaLeads(c: Corte): Map<string, Lead> { return new Map(c.leads.map((l) => [l.id, l])) }
 export const nombreAsesor = (c: Corte, id: string | null) => (id == null ? 'Sin asesor' : c.usuarios.find((u) => u.id === id)?.nombre || id)
 export function filasDeLeads(leads: Lead[], detalle: (l: Lead) => string, cuando: (l: Lead) => number = (l) => l.asignacion): Fila[] {
@@ -459,3 +491,41 @@ export const filasDeVentasReales = (vs: VentaReal[]): Fila[] => vs.map((v) => ({
   detalle: [v.mes_texto, v.origen, v.compartida_con ? 'compartida con ' + v.compartida_con : ''].filter(Boolean).join(' · '),
   monto: v.monto, cuando: v.fecha ?? undefined,
 }))
+
+// ---------------------------------------------------------------- comparativa: app de comisiones contra el CRM
+// Palabras que no identifican al cliente: artículos, títulos y los sufijos de origen que HubSpot pega al nombre del deal («Hugo Vega - Referido»).
+const STOP = new Set(['de', 'del', 'la', 'las', 'los', 'el', 'y', 'e', 'sr', 'sra', 'srta', 'ing', 'lic', 'dr', 'dra', 'don', 'dona', 'san', 'sta', 'arq', 'referido', 'directo', 'form', 'lead', 'fb', 'mejoravit', 'wapp', 'whatsapp', 'web', 'google', 'meta', 'facebook', 'ctwa'])
+const palabras = (s: string) => new Set(s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9ñ ]+/g, ' ').split(/\s+/).filter((t) => t.length >= 3 && !STOP.has(t)))
+/** Venta por venta: lo que registró la app de comisiones contra los ganados del CRM del mismo asesor
+ *  (pedido de Randall 5-sep: «ver cuáles faltan»). Pareja = mismo cliente (dos palabras del nombre en
+ *  común, o una si el nombre es de una sola) con cierre a menos de 62 días del mes de la venta; cada
+ *  ganado se empareja una sola vez. Lo que queda sin pareja sale marcado en rojo: «Falta en el CRM»
+ *  (la app la tiene, el CRM no) o «Falta en la app» (ganado en el CRM que nadie registró). */
+export function comparativaVentas(crm: Lead[], app: VentaReal[]): Fila[] {
+  const libres = new Map(crm.map((l) => [l, palabras(l.nombre || '')]))
+  const out: Fila[] = []
+  for (const v of [...app].sort((a, b) => (a.fecha ?? 0) - (b.fecha ?? 0))) {
+    const A = palabras(v.cliente || '')
+    let mejor: Lead | null = null, mejorP = 0
+    for (const [l, B] of libres) {
+      // Igual o prefijo («vic» ~ «victor», «michelle» ~ «michel»): los nombres del CRM suelen venir recortados.
+      const comunes = [...A].filter((t) => B.has(t) || [...B].some((b) => b.length >= 3 && t.length >= 3 && (t.startsWith(b) || b.startsWith(t)))).length
+      if (!comunes || comunes < Math.min(2, A.size, B.size)) continue
+      if (v.fecha != null && l.cerrado && Math.abs(l.cerrado - v.fecha) > 62 * DIA) continue
+      const p = comunes / Math.min(A.size, B.size)
+      if (p > mejorP) { mejor = l; mejorP = p }
+    }
+    // Sin `cuando`: la app solo guarda el mes y una hora inventada («1 ago 00:00») confunde; el mes va en el detalle.
+    const base = { id: 'c:' + v.id, nombre: v.cliente || 'Sin nombre', link: v.liga || undefined, crm: 'comisiones' as Origen, asesor: v.vendedor, monto: v.monto }
+    if (mejor) {
+      libres.delete(mejor)
+      out.push({ ...base, detalle: `${v.mes_texto} · en el CRM: ${mejor.nombre} (${fmtCorta(fechaDe(mejor.cerrado))}, ${fmtMoney0(mejor.presupuesto)})`, estado: 'En ambos' })
+    } else {
+      out.push({ ...base, detalle: `${v.mes_texto} · sin venta ganada que coincida en el CRM`, estado: 'Falta en el CRM', alerta: true })
+    }
+  }
+  for (const l of libres.keys()) {
+    out.push({ id: l.id, nombre: l.nombre || l.id, link: l.link || undefined, crm: l.crm, asesor: l.asesor || 'Sin asesor', detalle: `Ganado en el CRM el ${fmtCorta(fechaDe(l.cerrado))} · sin venta que coincida en la app`, monto: l.presupuesto || undefined, cuando: l.cerrado || undefined, estado: 'Falta en la app', alerta: true })
+  }
+  return out.sort((a, b) => Number(!!b.alerta) - Number(!!a.alerta) || (a.estado || '').localeCompare(b.estado || '') || a.nombre.localeCompare(b.nombre))
+}
