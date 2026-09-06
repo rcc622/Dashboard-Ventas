@@ -461,6 +461,38 @@ def build(dias=7):
             a = wz.setdefault(z_, {"count": 0, "mxn": 0.0})
             a["count"] += 1
             a["mxn"] += float(d_["properties"].get("amount") or 0)
+        # Ventas por ORIGEN: todas las cerradas en la ventana, por su canal de
+        # entrada — con el rescate del sufijo del dealname, porque el picklist
+        # `origen` viene vacio en mas de la mitad de los ganados. El retorno por
+        # origen mide el ingreso de cada canal contra el gasto de SU plataforma.
+        wc = {}
+        for d_ in wall:
+            pr_ = d_["properties"]
+            k_ = canal_de(pr_, pr_.get("dealname"))
+            a = wc.setdefault(k_, {"count": 0, "mxn": 0.0})
+            a["count"] += 1
+            a["mxn"] += float(pr_.get("amount") or 0)
+        # El mismo corte abierto por zona (la del asesor que cerro, igual que
+        # won_meta_por_zona) y por asesor: alimentan el filtro de Origen de la
+        # seccion de retorno.
+        wzc, rep_vc = {}, {}
+        for d_ in wall:
+            pr_ = d_["properties"]
+            info_ = own.get(str(pr_.get("hubspot_owner_id") or ""), {})
+            k_ = canal_de(pr_, pr_.get("dealname"))
+            monto_ = float(pr_.get("amount") or 0)
+            if info_.get("nombre"):
+                a = rep_vc.setdefault(info_["nombre"], {}).setdefault(k_, [0, 0.0])
+                a[0] += 1
+                a[1] += monto_
+            z_ = zona_rep.get(info_.get("nombre", ""), "")
+            if not z_:
+                continue
+            a = wzc.setdefault(k_, {}).setdefault(z_, {"count": 0, "mxn": 0.0})
+            a["count"] += 1
+            a["mxn"] += monto_
+        for a_ in asesores:
+            a_["por_canal"] = rep_vc.get(a_["rep"], {})
         por_ventana[str(v)] = {
             # Ciclo de la COHORTE: cuánto tardaron en cerrar los negocios de
             # esta ventana que ya ganaron. None si todavía no gana ninguno.
@@ -494,6 +526,8 @@ def build(dias=7):
                                             key=lambda kv: -kv[1])[:15]),
             "por_asesor": asesores,
             "won_meta": suma(wv),
+            "won_por_canal": wc,
+            "won_zona_por_canal": wzc,
         }
 
     return {
