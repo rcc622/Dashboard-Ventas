@@ -67,7 +67,7 @@ export function MiDia({ corte, uid }: { corte: Corte; uid: string }) {
         <div><div className="n">{d.llamadasHoy}</div><div className="l">Llamadas realizadas</div></div>
         <div><div className="n">{d.prospectosHoy}</div><div className="l">Prospectos nuevos</div></div>
       </div>
-    ), { plain: true }),
+    ), { plain: true, alto: 6 }),
     W('actividad', 'Actividad', (
       <div className="chart">
         <div className="ch" style={{ justifyContent: 'flex-end' }}>
@@ -78,7 +78,7 @@ export function MiDia({ corte, uid }: { corte: Corte; uid: string }) {
         <div className="bars" role="img" aria-label={barras.map(([n, v]) => `${n}: ${v}`).join(', ')}>{barras.map(([n, v]) => <div className="bar" key={n}><span className="v">{v}</span><i className={v ? '' : 'hollow'} style={{ height: Math.max(2, (v / maxB) * 100) + '%' }} /></div>)}</div>
         <div className="blabels" aria-hidden="true">{barras.map(([n]) => <span key={n}>{n}</span>)}</div>
       </div>
-    )),
+    ), { alto: 6 }),
     W('tareas', 'Tareas del día', (
       <>
         {!items.length && <div className="muted">Sin tareas para hoy en el CRM. Agrega las tuyas abajo.</div>}
@@ -96,7 +96,7 @@ export function MiDia({ corte, uid }: { corte: Corte; uid: string }) {
           : <div className="add-task"><input autoFocus aria-label="Nueva tarea" placeholder="Escribe la tarea y presiona Enter…" value={nueva} onChange={(e) => setNueva(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') agregar(nueva); if (e.key === 'Escape') setNueva(null) }} onBlur={() => agregar(nueva)} /></div>}
       </>
-    ), { cls: 'tasks' }),
+    ), { cls: 'tasks', alto: 9 }),
     W('leader', 'Leaderboard · Hoy', (
       <>
         {ranking.map((r, i) => (
@@ -105,10 +105,10 @@ export function MiDia({ corte, uid }: { corte: Corte; uid: string }) {
           </div>))}
         <div className="small muted" style={{ marginTop: 6 }}>Actividades = llamadas, tareas, cotizaciones y levantamientos registrados hoy<Info termino="Actividades" /></div>
       </>
-    ), { cls: 'leader' }),
+    ), { cls: 'leader', alto: 9 }),
     W('notas', 'Notas del día', (
       <textarea aria-label="Notas del día" value={notas} onChange={(e) => guardarNotas(e.target.value)} placeholder="Escribe aquí. Se guarda en este navegador…" />
-    ), { cls: 'notes' }),
+    ), { cls: 'notes', alto: 5 }),
   ]
   return <WidgetGrid clave={'midia-' + uid} widgets={widgets} />
 }

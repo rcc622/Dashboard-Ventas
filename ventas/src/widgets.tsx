@@ -264,7 +264,7 @@ export function WidgetGrid({ clave, widgets }: { clave: string; widgets: Widget[
               className={'widget' + (w.plain ? ' plain' : ' panel') + (w.cls ? ' ' + w.cls : '') + (libre ? ' hset' : '') + (arrastrando ? ' dragging' : '') + (estiro?.id === id ? ' resizing' : '')}>
               <div className="whead">
                 <button type="button" className="grip" title="Arrastra para mover (o usa las flechas)" aria-label={`Mover «${w.titulo}»: flechas mueven una celda, Home y End a los bordes. Ahora en columna ${p.x}, fila ${p.y}`} onPointerDown={onGrip(id)} onKeyDown={onGripKey(id)}>⋮⋮</button>
-                <h3><span className="wt">{w.titulo}</span>{(w.info || []).map((t) => <Info key={t} termino={t} />)}</h3>
+                <h3><span className="wt">{w.titulo}</span>{w.info?.length ? <Info termino={w.info} /> : null}</h3>
                 <span className="wctl">
                   <button type="button" className="wbtn" aria-label={`Quitar «${w.titulo}» del tablero`} title="Quitar del tablero" onClick={() => quitar(id)}>×</button>
                 </span>

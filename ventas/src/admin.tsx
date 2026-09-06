@@ -16,10 +16,19 @@ const RAMPA = ['var(--f1)', 'var(--f2)', 'var(--f3)', 'var(--f4)', 'var(--f5)', 
 const intentos = (l: Lead) => (l.crm === 'hubspot' ? 'sin dato en HubSpot' : `${fmtN(l.llamadas_cf)} llamadas · ${fmtN(l.msjs)} mensajes`)
 const hace = (ts: number, hoy: number) => { if (!ts) return '—'; const d = Math.floor((hoy - ts) / 86400); return d <= 0 ? 'hoy' : `hace ${dias(d)}` }
 const PERFIL_CLS: Record<Perfil, string> = { mantener: 'p-mantener', capacitar: 'p-capacitar', revisar: 'p-revisar', salida: 'p-salida' }
+// En la tabla de Perfiles cabe el nombre del cuadrante (el mismo que dice la dispersión); la descripción larga va en el title.
+const PERFIL_CORTO: Record<Perfil, string> = { mantener: 'Mantener', capacitar: 'Capacitar', revisar: 'Revisar', salida: 'Salida' }
 const PERFILES: Perfil[] = ['mantener', 'capacitar', 'revisar', 'salida']
 const AHORA = () => Date.now() / 1000
 const diasDesde = (ts: number) => Math.max(0, Math.floor((AHORA() - ts) / 86400))
 // Filas para la ventana de detalle según de qué cifra vienen.
+/** Tramos del primer contacto (Primer contacto, auditoría 6-sep): qué tan rápido se atiende, no solo la mediana. */
+const PC_TRAMOS = [
+  { l: 'en menos de 1 hora', ok: (h: number) => h <= 1 }, { l: 'de 1 a 4 horas', ok: (h: number) => h > 1 && h <= 4 },
+  { l: 'de 4 a 24 horas', ok: (h: number) => h > 4 && h <= 24 }, { l: 'más de un día', ok: (h: number) => h > 24 },
+]
+/** Orden de colocación por defecto del Dashboard: pares de igual alto (bandas) para que la rejilla libre no deje huecos. */
+const ORDEN_ADMIN = ['t-leads', 't-ventas', 't-vendido', 't-conversion', 't-perdida', 't-tareas', 't-cotizaciones', 't-descartes', 't-levantamientos', 'llamadas', 'salud', 'pipeline', 'ranking', 'reales', 'entrada', 'embudo', 'etapas', 'contacto', 'razones', 'perfiles']
 const fLeads = (ls: Lead[]) => filasDeLeads(ls, (l) => `${etapaDe(l)} · ${dias(l.dias_sin_cambio)} sin cambio`)
 const fVentas = (ls: Lead[]) => filasDeLeads(ls, (l) => `Ganado · ${etapaDe(l)}`, (l) => l.cerrado)
 const fCotizado = (ls: Lead[]) => filasDeLeads(ls, (l) => `${etapaDe(l)} · cotizado hace ${dias(diasDesde(fechaCotizado(l)))}`, (l) => fechaCotizado(l))
@@ -133,10 +142,10 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
     // Primero las 9 cifras (6 + 3 columnas) y Salud cierra la segunda fila: así la rejilla de 6 queda sin huecos por defecto.
     W('t-leads', 'Leads asignados', (
         <button type="button" className="tile tbtn" onClick={() => ver('Leads asignados ' + periodo, fLeads(asignados), rango + ' · fecha = última asignación')} aria-label={`${fmtN(tot)} leads asignados ${periodo}. Ver detalle`}><div className="n">{fmtN(tot)}</div><div className="l">Leads asignados {periodo}</div></button>
-    ), { plain: true, span: 1, cls: 'wtile', desde: 'cifras' }),
+    ), { plain: true, span: 1, alto: 4, cls: 'wtile', desde: 'cifras' }),
     W('t-ventas', 'Clientes cerrados', (
         <button type="button" className="tile tbtn t2" onClick={() => ver('Clientes cerrados ' + periodo, fVentas(ventas), rango + ' · fecha = cierre')} aria-label={`${fmtN(ventas.length)} clientes cerrados ${periodo}. Ver detalle`}><div className="n">{fmtN(ventas.length)}</div><div className="l">Clientes cerrados {periodo}</div></button>
-    ), { plain: true, span: 1, cls: 'wtile', desde: 'cifras' }),
+    ), { plain: true, span: 1, alto: 4, cls: 'wtile', desde: 'cifras' }),
     // El número que Alejandro llamó «el más importante» (4-sep): vendido contra la meta con el ritmo del mes y color que grite.
     W('t-vendido', 'Avance contra la meta', (
         <button type="button" className={'tile tbtn t3 ritmo-' + rit.estado} onClick={() => ver('Vendido ' + periodo, fVentas(ventas), rango + ' · fecha = cierre')} aria-label={`Vendido ${fmtMoney0(monto)} ${periodo}: ${pct(monto, metaRango)}% de la meta de ${fmtMoney0(metaRango)}. ${rit.texto}. Ver detalle`}>
@@ -148,22 +157,22 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
     ), { plain: true, span: 1, alto: 4, cls: 'wtile', info: ['Ritmo'], desde: 'cifras' }),   // 4 filas: trae medidor y frase del ritmo
     W('t-conversion', 'Conversión ventas / asignados', (
         <button type="button" className="tile tbtn t4" onClick={() => ver('Ventas que cuentan en la conversión', fVentas(ventas), `${fmtN(ventas.length)} ventas / ${fmtN(leads.length)} leads asignados · ${rango}`)} aria-label={`Conversión ${leads.length ? pct(ventas.length, leads.length) + '%' : 'sin dato'}. Ver detalle`}><div className="n">{leads.length ? pct(ventas.length, leads.length) + '%' : '—'}</div><div className="l">Ventas cerradas entre leads asignados</div></button>
-    ), { plain: true, span: 1, cls: 'wtile', info: ['Conversión'], desde: 'cifras' }),
+    ), { plain: true, span: 1, alto: 4, cls: 'wtile', info: ['Conversión'], desde: 'cifras' }),
     W('t-perdida', 'Tasa de pérdida', (
         <button type="button" className="tile tbtn t5" onClick={() => ver('Leads perdidos · asignados en el rango', filasDeLeads(perdidos, (l) => `Perdido · ${l.razon || 'sin razón'}`, (l) => l.cerrado), rango + ' · fecha = descarte')} aria-label={`Tasa de pérdida ${pct(perdidos.length, baseAsignados)}%: ${fmtN(perdidos.length)} perdidos de ${fmtN(baseAsignados)} asignados. Ver detalle`}><div className="n">{pct(perdidos.length, baseAsignados)}%</div><div className="l">{fmtN(perdidos.length)} perdidos de {fmtN(baseAsignados)} asignados</div></button>
-    ), { plain: true, span: 1, cls: 'wtile', info: ['Tasa de pérdida'], desde: 'cifras' }),
+    ), { plain: true, span: 1, alto: 4, cls: 'wtile', info: ['Tasa de pérdida'], desde: 'cifras' }),
     W('t-tareas', 'Tareas completadas', (
         <button type="button" className="tile tbtn" onClick={() => verEv('Tareas completadas', 'tarea')} aria-label={`${fmtN(a.tareas)} tareas completadas. Ver detalle`}><div className="n">{fmtN(a.tareas)}</div><div className="l">Tareas completadas</div></button>
-    ), { plain: true, span: 1, cls: 'wtile', desde: 'actividad' }),
+    ), { plain: true, span: 1, alto: 4, cls: 'wtile', desde: 'actividad' }),
     W('t-cotizaciones', 'Cotizaciones entregadas', (
         <button type="button" className="tile tbtn" onClick={() => verEv('Cotizaciones entregadas', 'cotizacion')} aria-label={`${fmtN(a.cotizaciones)} cotizaciones entregadas${a.recotizaciones ? `, ${fmtN(a.recotizaciones)} recotizaciones aparte` : ''}. Ver detalle`}><div className="n">{fmtN(a.cotizaciones)}</div><div className="l">Cotizaciones entregadas{a.recotizaciones ? ` · ${fmtN(a.recotizaciones)} recotizaciones aparte` : ''}</div></button>
-    ), { plain: true, span: 1, cls: 'wtile', info: ['Cotizaciones'], desde: 'actividad' }),
+    ), { plain: true, span: 1, alto: 4, cls: 'wtile', info: ['Cotizaciones'], desde: 'actividad' }),
     W('t-descartes', 'Descartados con razón registrada', (
         <button type="button" className="tile tbtn" onClick={() => verEv('Descartados con razón registrada', 'descarte')} aria-label={`${fmtN(a.descartes)} descartados. Ver detalle`}><div className="n">{fmtN(a.descartes)}</div><div className="l">Descartados con razón registrada</div></button>
-    ), { plain: true, span: 1, cls: 'wtile', desde: 'actividad' }),
+    ), { plain: true, span: 1, alto: 4, cls: 'wtile', desde: 'actividad' }),
     W('t-levantamientos', 'Levantamientos solicitados', (
         <button type="button" className="tile tbtn" onClick={() => verEv('Levantamientos solicitados', 'levantamiento')} aria-label={`${fmtN(a.levantamientos)} levantamientos. Ver detalle`}><div className="n">{fmtN(a.levantamientos)}</div><div className="l">Levantamientos solicitados</div></button>
-    ), { plain: true, span: 1, cls: 'wtile', desde: 'actividad' }),
+    ), { plain: true, span: 1, alto: 4, cls: 'wtile', desde: 'actividad' }),
     W('salud', 'Salud operativa', (
       <>
         <div className="salud-grid">
@@ -180,7 +189,7 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
         <div className="cmpbar" role="img" aria-label={`${pct(con, tot)}% con presupuesto, ${pct(sin, tot)}% sin presupuesto`}><i style={{ width: pct(con, tot) + '%' }} /></div>
         <div className="cmp-legend"><span>Total registros: {fmtN(tot)}</span><span>asignados en Ventas{hayHunting ? '/Hunting' : ''} · última asignación en el rango{mixto(corte) ? ' · Kommo + HubSpot' : ''}{!hayHunting && pasaCrm('hubspot', filtros) ? ' · HubSpot no tiene Hunting' : ''}</span></div>
       </>
-    ), { info: ['Salud operativa'] }),
+    ), { info: ['Salud operativa'], alto: 7 }),
     // Cada cifra es un widget propio (pedido de Randall 4-sep): se mueve y se estira por separado. `desde` migra el orden guardado del grupo viejo.
     W('ranking', 'Ranking de ventas', (
       <>
@@ -196,7 +205,7 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
         ))}
         {filas.length > ranking.length && <div className="small muted" style={{ marginTop: 8 }}>Top {ranking.length} de {filas.length}; la tabla de Asesores trae a todos.</div>}
       </>
-    ), { info: ['Ranking'], cls: 'rank' }),
+    ), { info: ['Ranking'], cls: 'rank', alto: 10 }),
     ...(corte.comisiones ? [W('reales', 'Ventas reales · Comisiones', (
       <>
         {vr.filas.length > 0 && (
@@ -215,10 +224,10 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
             </tbody>
           </table></div>
         )}
-        {!vr.filas.length && <div className="muted">Sin ventas en la app de comisiones para este rango{filtros.asesor || filtros.equipo ? ' y este filtro' : ''}.</div>}
+        {!vr.filas.length && <div className="vacio"><b>Sin ventas en la app de comisiones</b><span>Nadie ha registrado ventas de este periodo{filtros.asesor || filtros.equipo ? ' con este filtro' : ''}. La app guarda el mes de venta, no el día.</span></div>}
         <div className="small muted" style={{ marginTop: 8 }}>Clic en el asesor abre la comparativa venta por venta: cuáles faltan en el CRM y cuáles en la app. Fuente: app de comisiones, por mes de venta y sin canceladas · corte {(corte.comisiones.generado || '').slice(0, 16).replace('T', ' ')}.{vr.sinAsesor.length ? ` Vendedores sin asesor en el CRM: ${vr.sinAsesor.join(', ')}.` : ''}{corte.comisiones.error ? ` Error al leer la app: ${corte.comisiones.error}` : ''}</div>
       </>
-    ), { info: ['Ventas reales'] })] : []),
+    ), { info: ['Ventas reales'], alto: 10 })] : []),
     W('pipeline', 'Cotizado vs vendido vs meta', (
       <>
         <div className="brow">
@@ -239,7 +248,7 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
           {cot.viejo > 0 && <div className="small muted" style={{ marginTop: 6 }}>{fmtMoney(cot.viejo)} en {fmtN(cot.nViejo)} leads pasan de {corte.cotizado_dias} días: ya no cuentan como pipeline vivo.</div>}
         </div>
       </>
-    ), { info: ['Pipeline 10×'] }),
+    ), { info: ['Pipeline 10×'], alto: 7 }),
     ...(ent ? [W('entrada', 'Entrada de leads · Kommo', (
       <div className="ent">
         <div className="hero">
@@ -262,11 +271,11 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
           </div>
         </div>
       </div>
-    ), { span: 6 })] : []),
+    ), { span: 6, alto: 7 })] : []),
     W('embudo', 'Embudo de ventas por etapa', (
       <FunnelChart stages={et.map((e) => ({ nombre: e.nombre, n: e.n, sub: `${fmtMoney(e.monto)} · ${e.n ? e.dias.toFixed(1) + ' días en etapa' : 'sin leads'}` }))}
         onStage={(i) => ver(`${et[i].nombre} · embudo Ventas`, et[i].id === -2 ? fVentas(et[i].leads) : fLeads(et[i].leads), rango)} />
-    )),
+    ), { alto: 9 }),
     W('etapas', 'Monto cotizado y tiempo por etapa', (
       <>
         <div className="scrollx"><table className="ftable" aria-label="Monto cotizado y tiempo por etapa">
@@ -285,13 +294,13 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
           {mixto(corte) ? ' El embudo Ventas de HubSpot ya es espejo del de Kommo (mismas etapas desde el 5 de septiembre); la única traducción: Lead entrante = Por contactar y Precalificación hecha = Conversación iniciada. HubSpot no tiene Hunting.' : ''}
         </div>
       </>
-    ), { info: ['Monto cotizado', 'Tiempo promedio'] }),
+    ), { info: ['Monto cotizado', 'Tiempo promedio'], alto: 9 }),
     W('llamadas', 'Llamadas', (
       <div className="llam-grid">
         <LlamadasBar total={a.llamadas} ok={a.contestadas} no={a.sinContestar} onClick={() => verEv('Llamadas en el rango', 'llamada_ok', 'llamada_no')} />
         <Gauge pct={a.llamadas ? pct(a.contestadas, a.llamadas) : null} label="contestadas" size={180} />
       </div>
-    ), { info: ['Llamadas'] }),
+    ), { info: ['Llamadas'], alto: 4 }),
     // Eran un solo widget y Randall (5-sep) no veía la relación entre los dos: no la hay. Cada uno dice qué mide.
     W('contacto', 'Primer contacto', (
       <>
@@ -302,8 +311,18 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
           {' · '}{fmtN(pc.en24)} en menos de 24 horas ({pct(pc.en24, pc.n)}%){' · '}
           <button type="button" className="nbtn" onClick={() => ver('Leads sin contacto tras un día asignados', filasDeLeads(pc.sin, (l) => `${etapaDe(l)} · asignado hace ${dias(diasDesde(l.asignacion))}, sin llamada ni tarea`), rango)}>{fmtN(pc.sinContacto)} sin contacto tras un día asignados</button>
         </div>
+        {pc.n > 0 && (
+          <div className="pc-dist" role="group" aria-label="Leads por tiempo al primer contacto">
+            <div className="small" style={{ fontWeight: 600, marginBottom: 4 }}>¿Cuánto tardó el primer contacto?</div>
+            {PC_TRAMOS.map((t) => { const xs = pc.con.filter((x) => t.ok(x.horas)); const mx = Math.max(1, ...PC_TRAMOS.map((u) => pc.con.filter((x) => u.ok(x.horas)).length)); return (
+              <button type="button" className="pcd" key={t.l} aria-label={`${t.l}: ${fmtN(xs.length)} leads (${pct(xs.length, pc.n)}%). Ver leads`} disabled={!xs.length}
+                onClick={() => ver(`Primer contacto ${t.l}`, filasDeLeads(xs.map((x) => x.lead), (l) => { const h = xs.find((x) => x.lead.id === l.id)?.horas || 0; return `${etapaDe(l)} · primer contacto a las ${h < 48 ? h.toFixed(1) + ' horas' : Math.round(h / 24) + ' días'}` }), rango)}>
+                <span className="l">{t.l}</span><span className="bar" aria-hidden="true"><i style={{ width: pct(xs.length, mx) + '%' }} /></span><span className="n">{fmtN(xs.length)} <span className="muted">{pct(xs.length, pc.n)}%</span></span>
+              </button>) })}
+          </div>
+        )}
       </>
-    ), { info: ['Primer contacto'] }),
+    ), { info: ['Primer contacto'], alto: 7 }),
     W('razones', 'Razones de descarte', (
       <>
         <div className="small muted" style={{ marginBottom: 6 }}>Por qué se pierden los leads: la razón registrada al descartar, de los descartes del rango. Mayúsculas y acentos distintos cuentan como la misma razón.</div>
@@ -318,7 +337,7 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
         </div>
         {rz.length > 8 && <div className="small muted" style={{ marginTop: 4 }}>+{rz.length - 8} razones más</div>}
       </>
-    ), { info: ['Razón de descarte'], desde: 'contacto' }),
+    ), { info: ['Razón de descarte'], desde: 'contacto', alto: 7 }),
     W('perfiles', 'Perfiles de vendedores', (
       filas.length < 2 ? <div className="muted">Se necesitan al menos dos asesores con actividad en el rango.</div> : (
         <>
@@ -344,7 +363,7 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
                   {[...perf.pts].sort((a, b) => PERFILES.indexOf(a.perfil) - PERFILES.indexOf(b.perfil) || b.vendido - a.vendido).map((x) => (
                     <tr key={x.u.id}>
                       <td><span className={'ini ' + PERFIL_CLS[x.perfil]} aria-hidden="true">{iniciales(x.u.nombre)}</span><button type="button" className="nbtn" onClick={() => onFicha(x.u.id)} aria-label={`Abrir ficha de ${x.u.nombre}`}>{x.u.nombre}</button></td>
-                      <td><i className={'pdot ' + PERFIL_CLS[x.perfil]} aria-hidden="true" />{PERFIL_LABEL[x.perfil]}</td>
+                      <td><i className={'pdot ' + PERFIL_CLS[x.perfil]} aria-hidden="true" /><span title={PERFIL_LABEL[x.perfil]}>{PERFIL_CORTO[x.perfil]}</span></td>
                       <td className="num">{fmtN(x.actividad)}</td>
                       <td className="num">{fmtMoney0(x.vendido)}</td>
                     </tr>
@@ -356,12 +375,12 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
           <div className="small muted" style={{ marginTop: 8 }}>Actividad = llamadas + tareas completadas + cotizaciones + levantamientos en el rango. Medianas del grupo: {fmtN(perf.medAct)} actividades y {fmtMoney0(perf.medVend)} vendido. Clic en un nombre abre su ficha.</div>
         </>
       )
-    ), { info: ['Perfil'], cls: 'wperf' }),
+    ), { info: ['Perfil'], cls: 'wperf', span: 6, alto: 9 }),
   ]
   return (
     <>
       <div className="hint" style={{ marginBottom: 8 }}>Clic en cualquier cifra, barra o renglón abre la lista de registros detrás, con liga a Kommo o HubSpot.</div>
-      <WidgetGrid clave="admin" widgets={widgets} />
+      <WidgetGrid clave="admin" widgets={ORDEN_ADMIN.map((id) => widgets.find((w) => w.id === id)).filter((w): w is Widget => !!w).concat(widgets.filter((w) => !ORDEN_ADMIN.includes(w.id)))} />
       {drill && <DrillModal d={drill} onClose={() => setDrill(null)} />}
     </>
   )
@@ -614,7 +633,7 @@ export function Ficha({ corte, filtros, uid, onBack }: { corte: Corte; filtros: 
       <div className="kcard hero"><div className="l">Ventas · {rango}</div><div className="n"><Cifra label={`${ventas.length} ventas, ${fmtMoney0(monto)}`} onClick={() => setDrill({ titulo: `Ventas de ${u.nombre}`, filas: fVentas(ventas), sub: rango + ' · fecha = cierre' })}><b>{ventas.length}</b> <span style={{ fontSize: 22 }}>{fmtMoney0(monto)}</span></Cifra></div><MiniAreaChart values={serie} height={56} /><div className="small muted">Conversión {leads.length ? pct(ventas.length, leads.length) + '%' : '—'}: {ventas.length} ventas / {leads.length} leads asignados en el rango<Info termino="Conversión" /></div></div>
     ), { plain: true, span: 2, cls: 'wcard' }),
     wg('cumplimiento', 'Cumplimiento', (
-      <div className={'kcard k2 ritmo-' + rit.estado}><div className="l">Cumplimiento<Info termino="Cumplimiento" /><Info termino="Ritmo" /></div>
+      <div className={'kcard k2 ritmo-' + rit.estado}><div className="l">Cumplimiento<Info termino={['Cumplimiento', 'Ritmo']} /></div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', gap: 8 }}><div className="n">{pct(monto, metaRango)}%</div><Gauge pct={pct(monto, metaRango)} label="meta" size={120} color={rit.estado === 'atras' ? 'var(--warn)' : 'var(--c4)'} /></div>
         <div className={'rt ' + rit.estado}>{rit.texto}</div>
         <div className="small muted">meta {periodo} {fmtMoney0(metaRango)} ({fmtMoney0(metaMes)} al mes){monto < metaRango && ` · faltan ${fmtMoney0(metaRango - monto)}`}</div></div>
@@ -628,7 +647,7 @@ export function Ficha({ corte, filtros, uid, onBack }: { corte: Corte; filtros: 
           <Antiguedad c={cot} leads={activos} onVer={(t, filas) => setDrill({ titulo: `${t} · ${u.nombre}`, filas, sub: rango })} />
           <div className="small muted" style={{ marginTop: 6 }}>{cot.viejo > 0 ? `${fmtMoney(cot.viejo)} en ${fmtN(cot.nViejo)} leads pasan de ${corte.cotizado_dias} días: ya no cuentan.` : 'Nada pasa de ' + corte.cotizado_dias + ' días.'}</div></div>
       </div></div>
-    ), { plain: true, span: 2, cls: 'wcard' }),
+    ), { plain: true, span: 2, cls: 'wcard', alto: 6 }),
     ...(corte.comisiones ? [wg('reales', 'Ventas reales · Comisiones', (
       <div className="kcard k4"><div className="l">Ventas reales · Comisiones<Info termino="Ventas reales" /></div>
         <div className="n"><Cifra label={`${vr.n} ventas reales, ${fmtMoney0(vr.total)}`} onClick={() => setDrill({ titulo: `Ventas reales de ${u.nombre}`, filas: filasDeVentasReales(vr.ventas), sub: rango + ' · mes de venta en la app de comisiones' })}><b>{vr.n}</b> <span style={{ fontSize: 22 }}>{fmtMoney0(vr.total)}</span></Cifra></div>
@@ -647,7 +666,7 @@ export function Ficha({ corte, filtros, uid, onBack }: { corte: Corte; filtros: 
         <div className="legend"><span><i className="lg-comp" aria-hidden="true" />Llamadas</span><span><i className="lg-warn" aria-hidden="true" />Tareas completadas</span><span><i className="lg-e" aria-hidden="true" />Cotizaciones · levantamientos</span>
           <button type="button" onClick={() => setDrill({ titulo: `Actividad de ${u.nombre} · ${sem ? 'semana del ' + fmtCorta(sem) : rango}`, filas: filasDeEventos(corte, evVista) })}>Ver las {fmtN(evVista.length)} actividades ›</button></div>
       </>
-    ), { span: 6 }),
+    ), { span: 6, alto: 6 }),
     wg('leads', `Leads activos · ${fmtN(activos.length)}`, <LeadsTabla corte={corte} leads={activos} />, { span: 6, info: ['Estancados'] }),
     wg('tareas', 'Tareas abiertas', (
       <>

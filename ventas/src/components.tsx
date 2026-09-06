@@ -189,14 +189,15 @@ export function FunnelChart({ stages, onStage }: { stages: FunnelStage[]; onStag
   return (
     <div className="funnel" role={onStage ? 'group' : 'img'} aria-label={'Embudo: ' + stages.map((s) => `${s.nombre} ${s.n}`).join(', ')}>
       {stages.map((s, i) => {
-        const a = w(s.n), b = i + 1 < stages.length ? w(stages[i + 1].n) : a * 0.8
-        const pts = `${50 - a / 2},0 ${50 + a / 2},0 ${50 + b / 2},${H} ${50 - b / 2},${H}`
+        // Barra centrada con el ancho de SU etapa. Son fotos de hoy por etapa, no un flujo que solo baja:
+        // con trapecios, una etapa con más leads que la anterior se dibujaba como embudo invertido.
+        const a = w(s.n)
         const color = RAMPA[Math.min(i, RAMPA.length - 1)]
         const ctrl = onStage ? { role: 'button', tabIndex: 0, onClick: () => onStage(i), onKeyDown: activar(() => onStage(i)), 'aria-label': `${s.nombre}: ${fmtN(s.n)}. Ver leads` } : {}
         return (
           <div className={'frow' + (onStage ? ' drill' : '')} key={s.nombre} {...ctrl}>
             <div className="fshape">
-              <svg viewBox={`0 0 100 ${H}`} preserveAspectRatio="none" aria-hidden="true"><polygon points={pts} fill={color} stroke={color} strokeWidth="3" strokeLinejoin="round" vectorEffect="non-scaling-stroke" /></svg>
+              <svg viewBox={`0 0 100 ${H}`} preserveAspectRatio="none" aria-hidden="true"><rect x={50 - a / 2} y="0" width={a} height={H} fill={color} /></svg>
               <div className="fnum" style={{ color: i < 2 ? 'var(--ink)' : '#fff' }}>{fmtN(s.n)}</div>
             </div>
             <div className="flab"><div className="nm">{s.nombre}</div><div className="sub">{s.sub}</div></div>
@@ -213,10 +214,12 @@ export function Metric({ n, l, cls = '' }: { n: number; l: string; cls?: string 
 
 /** Botón «i» con la definición del término: tooltip en hover y en foco, texto
  *  completo en aria-label para lectores de pantalla. */
-export function Info({ termino }: { termino: Termino }) {
-  const txt = GLOSARIO[termino]
+export function Info({ termino }: { termino: Termino | Termino[] }) {
+  // Varios términos en un widget = UN solo botón (dos «i» pegadas se veían como un error, Randall 6-sep).
+  const ts = Array.isArray(termino) ? termino : [termino]
+  const txt = ts.map((t) => (ts.length > 1 ? `${t}: ` : '') + GLOSARIO[t]).join('  ·  ')
   // Escape cierra el tooltip sin mover el puntero (WCAG 1.4.13).
-  return <button type="button" className="ibtn" aria-label={`${termino}: ${txt}`} data-tip={txt} onClick={(e) => e.stopPropagation()}
+  return <button type="button" className="ibtn" aria-label={`${ts.join(' y ')}: ${txt}`} data-tip={txt} onClick={(e) => e.stopPropagation()}
     onKeyDown={(e) => { if (e.key === 'Escape') e.currentTarget.blur() }}>i</button>
 }
 
@@ -240,10 +243,27 @@ export function Bullet({ value, target, expected, label, color = 'var(--c1)', fm
 export interface PuntoXY { x: number; y: number; label: string; title: string; cls: string }
 /** Dispersión con las dos medianas como ejes de cuadrante. Cada punto lleva sus
  *  iniciales y un title; la identidad completa va en la leyenda de al lado, nunca solo en el color. */
+/** Tamaño real en píxeles de una caja (ResizeObserver): para que un SVG crezca con el widget sin escalar sus letras. */
+export function useSize<T extends HTMLElement>(): [RefObject<T | null>, { w: number; h: number }] {
+  const ref = useRef<T>(null)
+  const [size, setSize] = useState({ w: 0, h: 0 })
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const medir = () => setSize((s) => { const w = Math.round(el.clientWidth), h = Math.round(el.clientHeight); return s.w === w && s.h === h ? s : { w, h } })
+    medir()
+    const ro = new ResizeObserver(medir); ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  return [ref, size]
+}
+
 export function Scatter({ pts, xMed, yMed, xLabel, yLabel, quad, onPunto }: { pts: PuntoXY[]; xMed: number; yMed: number; xLabel: string; yLabel: string; quad: [string, string, string, string]; onPunto?: (idx: number[]) => void }) {
-  // 400 × 250: el SVG llena el ancho del widget (sin tope) y crece con él; a media pantalla queda
-  // como antes, a pantalla completa los puntos y las letras se ven al doble.
-  const W = 400, H = 250, L = 34, B = 26, T = 16, R = 10
+  // El SVG mide lo que mide su caja (1 unidad = 1 px): la gráfica crece con el widget pero las letras,
+  // las burbujas y los ejes se quedan a su tamaño (auditoría 6-sep: a pantalla completa «vendido →» medía 46 px).
+  const [caja, size] = useSize<HTMLDivElement>()
+  const W = Math.max(280, size.w || 400), H = size.h >= 160 ? size.h : Math.max(250, Math.round(W * 0.55))
+  const L = 34, B = 26, T = 16, R = 10
   const maxX = Math.max(1, xMed, ...pts.map((p) => p.x)) * 1.1, maxY = Math.max(1, yMed, ...pts.map((p) => p.y)) * 1.1
   // El cero de «vendido» va 24 px arriba del eje: los puntos no se sientan sobre la línea ni sobre las etiquetas.
   const sx = (x: number) => L + (x / maxX) * (W - L - R), sy = (y: number) => H - B - 24 - (y / maxY) * (H - B - T - 24)
@@ -252,16 +272,17 @@ export function Scatter({ pts, xMed, yMed, xLabel, yLabel, quad, onPunto }: { pt
   const grupos: { x: number; y: number; m: PuntoXY[]; idx: number[] }[] = []
   pts.forEach((p, i) => {
     const x = sx(p.x), y = sy(p.y)
-    const g = grupos.find((q) => Math.hypot(q.x - x, q.y - y) < 14)
+    const g = grupos.find((q) => Math.hypot(q.x - x, q.y - y) < 18)
     if (g) { g.m.push(p); g.idx.push(i) } else grupos.push({ x, y, m: [p], idx: [i] })
   })
   const clsMayoria = (m: PuntoXY[]) => [...m].sort((a, b) => m.filter((z) => z.cls === b.cls).length - m.filter((z) => z.cls === a.cls).length)[0].cls
   const Lbl = ({ x, y, end, t }: { x: number; y: number; end?: boolean; t: string }) => {
-    const w = t.length * 5.6 + 8
-    return <g><rect x={end ? x - w : x - 4} y={y - 10} width={w} height={13} rx="3" fill="var(--card)" opacity=".92" /><text className="ql" x={x} y={y} textAnchor={end ? 'end' : 'start'}>{t}</text></g>
+    const w = t.length * 6.8 + 8
+    return <g><rect x={end ? x - w : x - 4} y={y - 12} width={w} height={16} rx="3" fill="var(--card)" opacity=".92" /><text className="ql" x={x} y={y} textAnchor={end ? 'end' : 'start'}>{t}</text></g>
   }
   return (
-    <svg className="scatter" viewBox={`0 0 ${W} ${H}`} role={onPunto ? 'group' : 'img'} aria-label={`${yLabel} contra ${xLabel}: ` + pts.map((p) => p.title).join('; ')}>
+    <div className="scatter-box" ref={caja}>
+    <svg className="scatter" width={W} height={H} viewBox={`0 0 ${W} ${H}`} role={onPunto ? 'group' : 'img'} aria-label={`${yLabel} contra ${xLabel}: ` + pts.map((p) => p.title).join('; ')}>
       <line className="grid" x1={L} y1={H - B} x2={W - R} y2={H - B} /><line className="grid" x1={L} y1={T} x2={L} y2={H - B} />
       <line className="med" x1={sx(xMed)} y1={T} x2={sx(xMed)} y2={H - B} /><line className="med" x1={L} y1={sy(yMed)} x2={W - R} y2={sy(yMed)} />
       <text className="ax" x={(L + W - R) / 2} y={H - 6} textAnchor="middle">{xLabel} →</text>
@@ -270,7 +291,7 @@ export function Scatter({ pts, xMed, yMed, xLabel, yLabel, quad, onPunto }: { pt
         const ctrl: SVGProps<SVGGElement> = onPunto ? { role: 'button', tabIndex: 0, onClick: () => onPunto(g.idx), onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onPunto(g.idx) } }, 'aria-label': g.m.length > 1 ? `${g.m.length} asesores en el mismo punto: ${g.m.map((p) => p.title).join('; ')}. Elegir uno` : `${g.m[0].title}. Ver ficha` } : {}
         return (
           <g className={'pt' + (onPunto ? ' drill' : '')} key={g.m[0].label + g.m[0].title} {...ctrl}><title>{g.m.map((p) => p.title).join('\n')}</title>
-            <circle className={clsMayoria(g.m)} cx={g.x} cy={g.y} r={g.m.length > 1 ? 12 : 9} stroke="var(--card)" strokeWidth="1.5" />
+            <circle className={clsMayoria(g.m)} cx={g.x} cy={g.y} r={g.m.length > 1 ? 13 : 11} stroke="var(--card)" strokeWidth="1.5" />
             <text x={g.x} y={g.y + 2.5}>{g.m.length > 1 ? '×' + g.m.length : g.m[0].label}</text>
           </g>
         )
@@ -280,6 +301,7 @@ export function Scatter({ pts, xMed, yMed, xLabel, yLabel, quad, onPunto }: { pt
       <Lbl x={L + 6} y={H - B - 4} t={quad[2]} />
       <Lbl x={W - R - 2} y={H - B - 4} end t={quad[3]} />
     </svg>
+    </div>
   )
 }
 

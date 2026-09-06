@@ -49,7 +49,7 @@ h3 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: 0; t
 .skip:focus { left: 8px; }
 
 /* ---------- glosario ---------- */
-.ibtn { position: relative; width: 24px; height: 24px; padding: 0; margin-left: 5px; border: 1px solid var(--g2); border-radius: 50%; background: var(--card); color: var(--g2); font-size: 10px; font-weight: 700; line-height: 1; cursor: help; vertical-align: 1px; text-transform: none; letter-spacing: 0; }
+.ibtn { position: relative; width: 24px; height: 24px; padding: 0; margin-left: 5px; border: 1px solid var(--g2); border-radius: 50%; background: var(--card); color: var(--g2); font-size: 11px; font-weight: 700; line-height: 1; cursor: help; vertical-align: 1px; text-transform: none; letter-spacing: 0; }
 .ibtn::after { content: attr(data-tip); display: none; position: absolute; left: 0; top: calc(100% + 6px); z-index: 160; width: 240px; padding: 8px 10px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); font-size: 11.5px; font-weight: 400; line-height: 1.4; text-align: left; white-space: normal; color: var(--ink); }
 .ibtn::before { content: ''; position: absolute; inset: -5px; }
 .ibtn:hover::after, .ibtn:focus-visible::after { display: block; }
@@ -185,8 +185,8 @@ h3 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: 0; t
 .salud-grid { display: grid; grid-template-columns: minmax(150px, 1fr) 2fr; gap: 18px; align-items: center; }
 .widget .donut-svg, .widget .gauge-svg { width: 100%; height: auto; max-width: 100%; }
 /* Tope (Randall 5-sep, «mejora las proporciones»): a pantalla completa un medidor de 400 px se comía el widget y lo hacía desplazarse. */
-.widget .gauge-svg { max-width: 250px; }
-.widget .donut-svg { max-width: 230px; }
+.widget .gauge-svg { max-width: 210px; }
+.widget .donut-svg { max-width: 210px; }
 .donutbox { display: grid; place-items: center; }
 .donut-svg { display: block; }
 .dcenter { text-anchor: middle; font-weight: 700; fill: var(--ink); }
@@ -284,7 +284,7 @@ h3 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: 0; t
 .leadrow .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
 .leadrow .it { font-size: 11.5px; color: var(--g2); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .leadrow .l2 { grid-column: 1 / -1; overflow: hidden; text-overflow: ellipsis; }
-.tag { font-size: 10px; border-radius: 999px; padding: 2px 7px; font-weight: 600; white-space: nowrap; background: var(--c1-soft); color: var(--c1-ink); }
+.tag { font-size: 11px; border-radius: 999px; padding: 2px 7px; font-weight: 600; white-space: nowrap; background: var(--c1-soft); color: var(--c1-ink); }
 .tag.dark { background: var(--ink); color: var(--acc); }
 .tag.warn { background: #FBE4DF; color: #9A2E18; }
 .pfoot { display: block; width: 100%; padding: 11px; text-align: center; font-weight: 700; cursor: pointer; background: none; border: 0; color: var(--c1-ink); }
@@ -305,7 +305,7 @@ h3 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: 0; t
 .kcard.hero .n b { font-weight: inherit; }
 .bubbles { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; align-items: end; min-height: 160px; }
 .bcol { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 6px; border-bottom: 1px solid var(--line); padding-bottom: 8px; min-height: 150px; }
-.bubble { border-radius: 50%; background: var(--c1); color: #fff; display: grid; place-items: center; font-size: 10px; font-weight: 700; }
+.bubble { border-radius: 50%; background: var(--c1); color: #fff; display: grid; place-items: center; font-size: 11px; font-weight: 700; }
 .bubble.w { background: var(--c2); color: #fff; }
 .bubble.e { background: var(--c3); color: #fff; }
 .legend { display: flex; gap: 14px; font-size: 11.5px; margin-top: 10px; color: var(--g2); flex-wrap: wrap; }
@@ -341,7 +341,7 @@ h3 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: 0; t
 .task .tx { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .task .tx.done { text-decoration: line-through; color: var(--g2); }
 .task .hr { font-size: 11.5px; color: var(--g2); }
-.st { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; background: var(--neutral-soft); color: var(--neutral-ink); }
+.st { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; background: var(--neutral-soft); color: var(--neutral-ink); }
 .st.prog { background: var(--c2-soft); color: var(--c2-ink); }
 .st.done { background: var(--c4-soft); color: var(--c4-ink); }
 .add-task { margin-top: 10px; width: 100%; border: 1px dashed var(--g3); border-radius: 8px; background: var(--card); padding: 9px; font-weight: 600; cursor: pointer; color: var(--c1-ink); }
@@ -351,7 +351,8 @@ h3 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: 0; t
 .leader .lr.me { background: var(--acc-soft); font-weight: 700; }
 .leader .pos { font-weight: 700; color: var(--g2); }
 .leader .pos.top { color: var(--c1-ink); }
-.notes textarea { width: 100%; height: 88px; border: 0; resize: none; padding: 0; background: transparent; }
+.notes textarea { width: 100%; height: 88px; border: 0; resize: none; padding: 0; background: transparent; font: inherit; }
+.widget.hset.notes .wbody > textarea { flex: 1 1 auto; height: auto; min-height: 0; }   /* la nota llena la tarjeta, sea del alto que sea */
 .list { font-variant-numeric: tabular-nums; }
 .list .li { display: grid; grid-template-columns: 1fr auto auto; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); align-items: center; }
 .list .li .nm { font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
@@ -387,7 +388,7 @@ h3 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: 0; t
 .rank .pos.top { color: var(--c1-ink); }
 .rank .nm { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rank .v { font-weight: 700; white-space: nowrap; text-align: right; }
-.rank .v small { display: block; font-weight: 500; color: var(--g2); font-size: 10px; }
+.rank .v small { display: block; font-weight: 500; color: var(--g2); font-size: 11px; }
 
 /* ---------- entrada de leads (tasa de asignación) ---------- */
 .ent { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(0, 2fr); gap: 18px; align-items: center; }
@@ -417,16 +418,17 @@ h3 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: 0; t
 
 /* ---------- perfiles actividad × venta (dispersión) ---------- */
 /* Acotada: el SVG escala texto y puntos con el ancho; a 900 px de tarjeta salía gigante. */
-.scatter { width: 100%; height: auto; display: block; }
+.scatter-box { width: 100%; min-width: 0; }
+.scatter { display: block; max-width: 100%; }
 .scatter .pt.drill { cursor: pointer; }
 .scatter .pt.drill:hover circle, .scatter .pt.drill:focus-visible circle { stroke: var(--ink); stroke-width: 2.5; }
 .scatter .pt.drill:focus-visible { outline: none; }
 .grupo-sel { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 8px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--hover); font-size: 12.5px; }
 .scatter .grid { stroke: var(--line); }
 .scatter .med { stroke: var(--g3); stroke-dasharray: 4 3; }
-.scatter .ql { fill: var(--g2); font-size: 9.5px; font-weight: 700; }
-.scatter .ax { fill: var(--g2); font-size: 9.5px; }
-.scatter .pt text { fill: #fff; font-size: 9.5px; font-weight: 700; text-anchor: middle; pointer-events: none; paint-order: stroke; stroke: rgba(0, 0, 0, .45); stroke-width: 2.5px; stroke-linejoin: round; }
+.scatter .ql { fill: var(--g2); font-size: 11.5px; font-weight: 700; }
+.scatter .ax { fill: var(--g2); font-size: 11px; }
+.scatter .pt text { fill: #fff; font-size: 10px; font-weight: 700; text-anchor: middle; pointer-events: none; paint-order: stroke; stroke: rgba(0, 0, 0, .45); stroke-width: 2.5px; stroke-linejoin: round; }
 .scatter .p-mantener { fill: var(--c4); }
 .scatter .p-capacitar { fill: var(--c2); }
 .scatter .p-revisar { fill: var(--c3); }
@@ -437,7 +439,7 @@ h3 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: 0; t
 .perfil-chart, .perfil-tabla { min-width: 0; }
 .perfil-tabla .ftable td { padding: 6px 8px; }
 .perfil-tabla .ftable td.num, .perfil-tabla .ftable td:first-child { white-space: nowrap; }
-.perfil-tabla .ini { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; font-size: 9.5px; font-weight: 700; margin-right: 8px; vertical-align: middle; }
+.perfil-tabla .ini { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; font-size: 11px; font-weight: 700; margin-right: 8px; vertical-align: middle; }
 .pdot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
 /* Blanco de 9 px sobre ámbar/teal/gris daba 3.6-3.9:1. Mismo patrón del avatar: fondo suave + tinta. */
 .pdot.p-mantener { background: var(--c4); }
@@ -448,7 +450,8 @@ h3 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: 0; t
 .perfil-tabla .ini.p-capacitar { background: var(--c2-soft); color: var(--c2-ink); }
 .perfil-tabla .ini.p-revisar { background: var(--c3-soft); color: var(--c3-ink); }
 .perfil-tabla .ini.p-salida { background: var(--neutral-soft); color: var(--neutral-ink); }
-@container (min-width: 760px) { .perfil-wrap { grid-template-columns: minmax(0, 1fr) minmax(300px, 380px); } }
+@container (min-width: 760px) { .perfil-wrap { grid-template-columns: minmax(0, 1fr) minmax(360px, 440px); } }
+.perfil-tabla .ftable td:nth-child(2) { white-space: nowrap; }
 .perfil-legend { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; font-size: 11.5px; margin-top: 8px; }
 .perfil-legend .h { font-weight: 700; }
 .perfil-legend .names { color: var(--g2); }
@@ -526,7 +529,7 @@ h3 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: 0; t
 .widget.hset .flab { align-self: center; }
 .widget.hset .perfil-wrap { grid-template-rows: minmax(0, 1fr); }
 .widget.hset .perfil-chart { height: 100%; min-height: 0; display: flex; flex-direction: column; }
-.widget.hset .perfil-chart > .scatter { flex: 1 1 0; min-height: 0; }
+.widget.hset .perfil-chart > .scatter-box { flex: 1 1 0; min-height: 0; }
 .widget.hset .perfil-tabla { max-height: 100%; overflow: auto; }
 .widget.plain { background: none; border: 0; box-shadow: none; padding: 0; }
 .whead { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
@@ -545,7 +548,7 @@ h3 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: 0; t
 .grip { cursor: grab; border: 0; background: transparent; font-family: inherit; color: var(--g2); font-size: 16px; line-height: 1; letter-spacing: -3px; display: inline-grid; place-items: center; width: 24px; height: 24px; padding: 0; border-radius: 6px; user-select: none; touch-action: none; }
 .grip:hover { color: var(--ink); background: var(--hover); }
 .grip:active { cursor: grabbing; }
-.wbtn { appearance: none; border: 1px solid var(--edge); background: var(--card); border-radius: 6px; width: 26px; height: 24px; font-size: 9.5px; cursor: pointer; color: var(--g2); padding: 0; }
+.wbtn { appearance: none; border: 1px solid var(--edge); background: var(--card); border-radius: 6px; width: 26px; height: 24px; font-size: 13px; line-height: 1; cursor: pointer; color: var(--g2); padding: 0; }
 .wbtn:hover:not(:disabled) { background: var(--hover); color: var(--ink); }
 .wbtn:disabled { opacity: .3; cursor: default; }
 .widget.dragging { opacity: .92; z-index: 5; box-shadow: 0 14px 34px rgba(20, 22, 25, .22); pointer-events: none; transition: none; }
@@ -679,3 +682,18 @@ h3 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: 0; t
 .asig .btn { margin-top: 4px; padding: 3px 8px; font-size: 12px; min-height: 24px; }
 /* Rol de Kommo distinto de Ventas (Training, Seguimiento) junto al nombre del asesor. */
 .tag.rol { background: var(--c3-soft); color: var(--c3-ink); margin-left: 6px; vertical-align: 1px; }
+/* Auditoría visual 6-sep */
+.lr.drill:focus-visible, .frow.drill:focus-visible, .row:focus-visible { outline-width: 2px; outline-offset: -2px; border-radius: 8px; }   /* anillo adentro del renglón, no a todo lo ancho */
+.widget.hset .wbody { padding-bottom: 4px; }
+.pc-dist { margin-top: 14px; }
+.pc-dist .pcd { display: grid; grid-template-columns: 130px minmax(0, 1fr) 84px; gap: 10px; align-items: center; width: 100%; border: 0; background: transparent; padding: 4px 0; font: inherit; font-size: 12.5px; color: var(--ink); cursor: pointer; text-align: left; border-radius: 6px; }
+.pc-dist .pcd:hover:not(:disabled) { background: var(--hover); }
+.pc-dist .pcd:disabled { cursor: default; color: var(--g2); }
+.pc-dist .bar { display: block; height: 8px; border-radius: 999px; background: var(--track); overflow: hidden; }
+.pc-dist .bar i { display: block; height: 100%; background: var(--c1); }
+.pc-dist .n { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; }
+@media (max-width: 640px) { .ftable td, .ftable th { padding: 6px 5px; } }   /* la tabla de etapas cabía por 12 px en móvil */
+/* Estado vacío de un widget: centrado y con acción, no una línea gris arriba a la izquierda. */
+.vacio { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 8px; padding: 12px; color: var(--g2); min-height: 80px; }
+.vacio b { color: var(--ink); font-size: 14px; }
+.widget.hset .wbody > .vacio { flex: 1 1 auto; }

@@ -575,8 +575,17 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
 - **Primer contacto y Razones de descarte son dos widgets** (Randall 5-sep: «no encuentro relación»):
   cada uno abre con una línea que dice qué mide. Las razones son texto libre y se juntan por su forma
   sin acentos ni mayúsculas (`claveRazon`), mostrando la grafía más usada.
-- **Medidores con tope** (`.widget .gauge-svg` 250 px, `.donut-svg` 230 px): siguen creciendo con el
+- **Medidores con tope** (`.widget .gauge-svg` y `.donut-svg` a 210 px): siguen creciendo con el
   widget, pero a pantalla completa un medidor de 400 px se comía la tarjeta y la hacía desplazarse.
+- **Auditoría visual 6-sep** (`Knowledge/auditoria-visual-ventas-2026-09-06.md`, medida con
+  `audit_visual.py`; reglas para no regresar): **cada widget declara su `alto`** por defecto medido
+  contra su contenido (el flujo por bandas de igual alto va en `ORDEN_ADMIN`); **la dispersión dibuja
+  1 unidad = 1 px** (`useSize` + `ResizeObserver`), nunca un `viewBox` fijo que escale las letras;
+  **el embudo son barras centradas**, no trapecios (son fotos por etapa, no un flujo monótono);
+  **varios términos de glosario = un solo botón «i»** (`Info` acepta arreglo); **ningún texto menor
+  de 11 px**; estado vacío de un widget = bloque `.vacio` centrado con explicación; anillo de foco
+  de renglones clicables 2 px adentro con esquinas redondeadas; Primer contacto trae la
+  distribución por tramos (`PC_TRAMOS`).
 - **Comparativa app de comisiones vs CRM** (Randall 5-sep, «ver cuáles faltan»): clic en el asesor de
   «Ventas reales» abre `comparativaVentas`: cada venta de la app busca pareja entre los ganados del
   CRM del mismo asesor (palabras del nombre en común, igual o por prefijo; sufijos de origen del deal
