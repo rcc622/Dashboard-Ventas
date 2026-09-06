@@ -748,3 +748,40 @@ h3 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: 0; t
 .tbl.asesores .who { align-items: center; }
 .tbl.asesores .who .nm { font-size: 13.5px; line-height: 1.2; }
 @media (max-width: 1499px) { .tbl.asesores { table-layout: fixed; min-width: 1440px; } }   /* pantallas de menos de 1500 px: la tabla se desplaza a lo ancho en vez de aplastar las celdas (medido: a 1280 los renglones salían de 3 altos y 84 leyendas cortadas) */
+
+/* Filtros del detalle (Randall 6-sep, «como HubSpot y Sheets»): menú por columna, chips, grupos y páginas. */
+.modal .mtools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 18px; border-bottom: 1px solid var(--line); background: var(--hover); }
+.modal .mtools label { display: inline-flex; align-items: center; gap: 6px; }
+.sel.sm { padding: 4px 8px; font-size: 12px; font-weight: 600; }
+.chip { appearance: none; border: 1px solid var(--edge); background: var(--card); border-radius: 999px; padding: 3px 10px; font: inherit; font-size: 12px; font-weight: 600; color: var(--ink); cursor: pointer; display: inline-flex; gap: 6px; align-items: center; max-width: 320px; }
+.chip:hover { background: var(--c1-soft); border-color: var(--c1); }
+.chip b { color: var(--g2); font-weight: 700; }
+.dtable th .hcol { display: inline-flex; align-items: center; gap: 2px; max-width: 100%; }
+.dtable th .hsort { all: unset; cursor: pointer; font: inherit; color: inherit; padding: 2px 4px; border-radius: 4px; }
+.dtable th .hsort:hover { background: var(--hover); }
+.dtable th .hsort:focus-visible, .fbtn:focus-visible { outline: 2px solid var(--c1); outline-offset: 1px; }
+.dtable th[aria-sort] .hsort { color: var(--ink); }
+.fbtn { appearance: none; border: 0; background: transparent; width: 22px; height: 22px; border-radius: 6px; display: inline-grid; place-items: center; color: var(--g3); cursor: pointer; padding: 0; }
+.fbtn:hover { background: var(--hover); color: var(--ink); }
+.fbtn.on { color: var(--c1-ink); background: var(--c1-soft); }
+.popup.fmenu { z-index: 450; padding: 0; width: 300px; max-height: calc(100vh - 16px); overflow: auto; }   /* encima del fondo del modal (400) */
+.fm-sec { padding: 8px 10px; border-bottom: 1px solid var(--line); display: grid; gap: 6px; }
+.fm-item { all: unset; cursor: pointer; padding: 6px 8px; border-radius: 6px; font: inherit; color: var(--ink); }
+.fm-item:hover { background: var(--hover); }
+.fm-h { font-size: 11px; color: var(--g2); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.fm-row { display: flex; align-items: center; gap: 6px; }
+.fm-sec .inp { max-width: none; width: 100%; min-width: 0; padding: 5px 8px; font-size: 12.5px; }
+.fm-row .inp { flex: 1; }
+.fm-links { display: flex; gap: 6px; align-items: center; font-size: 12px; }
+.fm-links .nbtn { color: var(--c1-ink); font-weight: 600; }
+.fm-list { max-height: 210px; overflow: auto; display: grid; gap: 1px; }
+.fm-list label { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 3px 6px; border-radius: 6px; font-size: 12.5px; cursor: pointer; }
+.fm-list label:hover { background: var(--hover); }
+.fm-list label span:nth-child(2) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fm-list input[type=checkbox] { width: 15px; height: 15px; margin: 0; accent-color: var(--c1); }
+.fm-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 8px 10px; }
+.mpag { display: flex; gap: 10px; align-items: center; justify-content: center; padding: 10px 0 4px; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.dtable tr.grow td { background: var(--hover); padding: 6px 8px; }
+.dtable tr.grow button { all: unset; cursor: pointer; font: inherit; font-weight: 700; display: flex; gap: 8px; align-items: center; width: 100%; }
+.dtable tr.grow button .muted { font-weight: 500; }
+.dtable tr.grow button:focus-visible { outline: 2px solid var(--c1); outline-offset: 1px; border-radius: 4px; }

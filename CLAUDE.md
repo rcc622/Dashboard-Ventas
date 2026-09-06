@@ -783,6 +783,18 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   siempre en el 3.º («Quitar» / «Reactivar», acción completa en title y aria-label). Medido: a 1725 y 1440
   todos los renglones miden 96 px y solo se recorta el texto de error del Sheet; por debajo de 1500 px la
   tabla mide 1440 px y se desplaza a lo ancho en vez de aplastar las celdas.
+- **Filtros del detalle (drill-down) «como HubSpot y Sheets»** (Randall 6-sep, `drill.tsx`): cada
+  columna del `DrillModal` (Estado si hay, Registro, CRM, Asesor, Detalle, Monto, Cuándo) tiene un
+  botón de embudo que abre `MenuCol` calcado del filtro de Sheets: ordenar (A→Z / Z→A, menor→mayor,
+  más antiguo→más reciente), **filtrar por condición** (texto «contiene», monto mínimo/máximo, fecha
+  desde/hasta con el día completo) y **filtrar por valores** (lista con buscador y conteos, «Seleccionar
+  todo» y «Borrar» actúan sobre lo que se muestra), con Aceptar/Cancelar (los cambios se aplican al
+  aceptar). Los conteos del menú salen de las filas que pasan los DEMÁS filtros. Los filtros activos
+  se ven como **chips** (`Asesor: sin Randall Cruz`, `Monto: desde $100K`, `Orden: Monto ↑`) con ×
+  y «Borrar todo»; el encabezado también ordena al clic (`aria-sort`). **Agrupar por** (Asesor, CRM,
+  Detalle, Estado) mete encabezados de grupo con conteo y monto, colapsables; con grupos no hay
+  páginas. Sin grupos, **páginas** de 100 (50/250/500) con Anterior/Siguiente. Escape cierra primero
+  el menú y luego la ventana. El menú va con `z-index: 450` porque el fondo del modal es 400.
 - **Tabla de Asesores, 6-sep**: el resumen del asesor (`AsesorPopup`) se abre SOLO desde el
   nombre (el renglón ya no es clicable ni lleva `.row`); la columna Cotizado vigente trae una
   barra de avance contra el objetivo `cotizado_x` × meta mensual («2% de $8M · objetivo 10×»);
