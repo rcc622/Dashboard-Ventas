@@ -19,7 +19,7 @@ export const GLOSARIO = {
   'Tiempo promedio': 'Cuántos días llevan, en promedio, los leads en la etapa donde están hoy sin que nadie los mueva.',
   'Tareas hoy': 'Tareas que vencen hoy (más las que el asesor se puso aquí) contra las que ya terminó hoy. Las vencidas de días anteriores se cuentan aparte.',
   'Actividades': 'Todo lo que el asesor registró hoy: llamadas, tareas terminadas, cotizaciones entregadas y levantamientos solicitados.',
-  'Actividad': 'Qué tanto trabajó el asesor cada día o cada semana: llamadas, tareas terminadas, cotizaciones entregadas y levantamientos solicitados. Cada bolita es un conteo; entre más grande, más actividad. Con más de tres semanas se agrupa por semana y un clic en la semana la abre por día.',
+  'Actividad': 'Qué tanto trabajó el asesor cada día o cada semana: llamadas, tareas terminadas, cotizaciones entregadas y levantamientos solicitados. Cada bolita es un conteo; entre más grande, más actividad. Con más de tres semanas se agrupa por semana y con más de seis meses por mes; un clic en una semana o un mes lo abre por día.',
   'Actividad de hoy': 'Lo que registraste en el CRM, contado por hora de hoy (Día) o por día de esta semana (Semana): llamadas, tareas terminadas, cotizaciones y levantamientos.',
   'Meta': 'Cuánto debe vender cada asesor al mes, en pesos: $800,000 para todos, salvo quien tenga una meta propia en Configuración. Para otras fechas se toma la parte proporcional de los días elegidos.',
   'Esperado a hoy': 'La parte de la meta que ya debería estar vendida hoy si se vendiera parejo todos los días del periodo.',

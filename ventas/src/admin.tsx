@@ -355,10 +355,11 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
               </div>
             )}
           </div>
-          <div className="small muted" style={{ marginTop: 8 }}>La mitad del grupo pasa de {fmtN(perf.medAct)} actividades y de {fmtMoney0(perf.medVend)} vendido: esas dos líneas parten la matriz. Clic en una bolita abre la ficha del asesor.</div>
+          {/* Tarjeta de explicación (Randall 6-sep: «ponlo en una tarjeta para tenerlo en cuenta»). */}
+          <div className="nota-card" role="note"><b>Cómo se decide «baja actividad».</b> Actividad = llamadas + tareas terminadas + cotizaciones + levantamientos que el asesor registró en las fechas elegidas. La línea de cada eje es el punto medio del grupo: hoy {fmtN(perf.medAct)} actividades y {fmtMoney0(perf.medVend)} vendido. Quien queda en o abajo de esa línea es «baja actividad» o «baja venta». Es relativo: la mitad del grupo siempre queda abajo y cambia con las fechas y con el filtro de equipo; no hay un estándar fijo. Clic en una bolita abre la ficha del asesor.</div>
         </>
       )
-    ), { info: ['Perfil'], cls: 'wperf', span: 3, alto: 9 }),
+    ), { info: ['Perfil'], cls: 'wperf', span: 3, alto: 10 }),
     W('perfiles-tabla', 'Tabla de perfiles', (
       filas.length < 2 ? <div className="muted">Se necesitan al menos dos asesores con actividad en el rango.</div> : (
         <div className="perfil-tabla">
@@ -377,7 +378,7 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
           </table>
         </div>
       )
-    ), { info: ['Perfil'], cls: 'wperf', span: 3, alto: 9, desde: 'perfiles' }),
+    ), { info: ['Perfil'], cls: 'wperf', span: 3, alto: 10, desde: 'perfiles' }),
   ]
   return (
     <>
@@ -443,7 +444,35 @@ export function Asesores({ corte, filtros, onFicha }: { corte: Corte; filtros: F
     if (y + H > window.innerHeight - 8) y = Math.max(8, Math.min(cy - 14 - H, window.innerHeight - 8 - H))
     setDet(null); setPop({ fila, x, y })
   }
-  const detalle = (e: SyntheticEvent<HTMLDivElement>, title: string, total: number, rows: DetRow[]) => {
+  // Desgloses de las cifras (Randall 6-sep, img 2/4): la misma ventana que Llamadas y Tareas.
+  const porId = useMemo(() => new Map(corte.leads.map((l) => [l.id, l])), [corte])
+  const leadsDe = (evs: Evento[]) => { const vistos = new Set<string>(); const out: Lead[] = []; for (const e of evs) { const l = porId.get(e.lead); if (l && !vistos.has(l.id)) { vistos.add(l.id); out.push(l) } } return out }
+  const estadoHoy = (l: Lead) => (l.funnel === 5 ? 'Ganado' : l.funnel === 0 ? 'Perdido' : l.etapa)
+  /** Por dónde va hoy cada lead cotizado / con levantamiento: dice qué pasó después. */
+  const porEstado = (que: string, evs: Evento[], f: FilaAsesor, cuando: (l: Lead) => number): DetRow[] => {
+    const g = new Map<string, Lead[]>()
+    for (const l of leadsDe(evs)) g.set(estadoHoy(l), [...(g.get(estadoHoy(l)) || []), l])
+    const rows: DetRow[] = [...g.entries()].sort((a, b) => b[1].length - a[1].length).map(([k, xs]) => ({ label: `Hoy en ${k}`, val: xs.length, onVer: () => ver(`${que} · ${f.u.nombre} · hoy en ${k}`, filasDeLeads(xs, etapaDe, cuando), rango) }))
+    const suma = rows.reduce((a, r) => a + r.val, 0), total = evs.length
+    if (total > suma) rows.push({ label: 'Sin detalle del lead', val: total - suma })
+    return rows
+  }
+  const filasDescartes = (f: FilaAsesor, evs: Evento[]): DetRow[] => {
+    const rs = razones(corte, evs), top = rs.slice(0, 6), resto = rs.slice(6)
+    const rows: DetRow[] = top.map((r) => ({ label: r.razon, val: r.n, onVer: () => ver(`Descartados · ${r.razon} · ${f.u.nombre}`, filasDeLeads(r.leads, (l) => `Perdido · ${l.razon || 'sin razón'}`, (l) => l.cerrado), rango + ' · fecha = descarte') }))
+    if (resto.length) rows.push({ label: `Otras ${resto.length} razones`, val: resto.reduce((a, r) => a + r.n, 0), onVer: () => ver(`Descartados · otras razones · ${f.u.nombre}`, filasDeLeads(resto.flatMap((r) => r.leads), (l) => `Perdido · ${l.razon || 'sin razón'}`, (l) => l.cerrado), rango + ' · fecha = descarte') })
+    const suma = rows.reduce((a, r) => a + r.val, 0)
+    if (evs.length > suma) rows.push({ label: 'Sin detalle del lead', val: evs.length - suma })
+    return rows
+  }
+  /** Primer contacto vencido, por cuánto llevan asignados: entre más viejo, peor. */
+  const filasPc = (f: FilaAsesor): DetRow[] => {
+    const ls = f.leadsActivos.filter((l) => l.pc_vencida)
+    const tramos: [string, (d: number) => boolean][] = [['Asignados hace 1 a 3 días', (d) => d <= 3], ['Asignados hace 4 a 7 días', (d) => d > 3 && d <= 7], ['Asignados hace más de 7 días', (d) => d > 7]]
+    return tramos.map(([label, ok]) => ({ label, xs: ls.filter((l) => ok(diasDesde(l.asignacion))) })).filter((t) => t.xs.length)
+      .map((t) => ({ label: t.label, val: t.xs.length, onVer: () => ver(`Primer contacto vencido · ${f.u.nombre} · ${t.label.toLowerCase()}`, filasDeLeads(t.xs, (l) => `${etapaDe(l)} · asignado hace ${dias(diasDesde(l.asignacion))}`), rango) }))
+  }
+  const detalle = (e: SyntheticEvent<HTMLElement>, title: string, total: number, rows: DetRow[]) => {
     e.stopPropagation()
     setPop(null); setDet({ title, total, rows, anchor: e.currentTarget.getBoundingClientRect() })
   }
@@ -472,7 +501,7 @@ export function Asesores({ corte, filtros, onFicha }: { corte: Corte; filtros: F
               const tar = f.tareasCompletadas + f.tareasVencidas + f.sinTarea
               const evDe = (...tipos: string[]) => f.actividad.filter((e) => tipos.includes(e.tipo))
               return (
-                <tr key={f.u.id} className="row" onClick={(e) => abrir(f, e.clientX, e.clientY)}>
+                <tr key={f.u.id}>   {/* el resumen del asesor se abre solo desde el nombre (Randall 6-sep); cada cifra abre su propio desglose */}
                   <td><div className="who"><div className={avatarCls(f.u)} title={subAsesor(corte, f.u)} aria-hidden="true">{iniciales(f.u.nombre)}</div><div><div className="nm"><button type="button" className="nbtn" aria-haspopup="dialog" aria-label={`Ver resumen de ${f.u.nombre}`} onClick={(e) => { e.stopPropagation(); const r = e.currentTarget.getBoundingClientRect(); abrir(f, r.right, r.bottom) }}>{f.u.nombre}</button>{rolDestacado(f.u.rol) && <span className="tag rol" title="Rol en Kommo">{rolNombre(f.u.rol)}</span>}</div><div className="sub">{f.ventas} venta{f.ventas === 1 ? '' : 's'} · meta {fmtMoney0(f.metaMes)}/mes</div></div></div></td>
                   <td className="cellbar">
                     <div className="num">{fmtMoney0(f.montoVentas)}</div>
@@ -480,7 +509,13 @@ export function Asesores({ corte, filtros, onFicha }: { corte: Corte; filtros: F
                     <div className="tot">{pct(f.montoVentas, f.metaRango)}% de {fmtMoney0(f.metaRango)}</div>
                     <div className={'tot rt ' + f.ritmo.estado}>{f.ritmo.corto}</div>
                   </td>
-                  <td className="num">{fmtMoney0(f.cotizado.vigente)}{f.cotizado.viejo > 0 && <div className="small muted" style={{ fontWeight: 500 }}>+{fmtMoney(f.cotizado.viejo)} viejo</div>}</td>
+                  <td className="cellbar">
+                    {/* Avance contra el objetivo 10× (Randall 6-sep): «si lleva 1.4 M, qué tanto le falta para el factor 10×». */}
+                    <div className="num">{fmtMoney0(f.cotizado.vigente)}</div>
+                    <Bullet sm value={f.cotizado.vigente} target={f.metaMes * corte.cotizado_x} label={'Cotizado vigente de ' + f.u.nombre + ' contra el objetivo ' + corte.cotizado_x + '×'} color="var(--c2)" fmt={fmtMoney0} />
+                    <div className="tot">{pct(f.cotizado.vigente, f.metaMes * corte.cotizado_x)}% de {fmtMoney0(f.metaMes * corte.cotizado_x)} · objetivo {corte.cotizado_x}×</div>
+                    {f.cotizado.viejo > 0 && <div className="small muted" style={{ fontWeight: 500 }}>+{fmtMoney(f.cotizado.viejo)} viejo</div>}
+                  </td>
                   <td><div className="num">{f.leadsActivos.length}</div><div className="minibar" aria-hidden="true"><i style={{ width: pct(f.leadsActivos.length, maxLeads) + '%' }} /></div>{f.estancados > 0 && <div className="small muted">{f.estancados} estancado{f.estancados === 1 ? '' : 's'}</div>}</td>
                   <td className="cellbar">
                     <StackedBar segs={[{ val: f.contestadas, cls: 'seg-comp' }, { val: f.sinContestar, cls: 'seg-warn' }]} total={f.llamadas} max={maxLlam}
@@ -499,11 +534,11 @@ export function Asesores({ corte, filtros, onFicha }: { corte: Corte; filtros: F
                         { label: 'Leads sin tarea', val: f.sinTarea, onVer: () => ver(`Leads sin tarea · ${f.u.nombre}`, fLeads(f.leadsActivos.filter((l) => l.sin_tarea)), rango) }])} />
                     <div className="tot">{fmtN(tar)}</div>
                   </td>
-                  <td className="num">{f.pcVencidas > 0 ? <span className="tag warn">{f.pcVencidas}</span> : '0'}</td>
-                  <td className="num">{f.cotizaciones}</td>
-                  <td className="num">{f.descartes}</td>
-                  <td className="num">{f.levantamientos}</td>
-                  <td className="asig" onClick={(e) => e.stopPropagation()}>
+                  <td className="num">{f.pcVencidas > 0 ? <button type="button" className="nbtn celln" aria-haspopup="dialog" aria-label={`${f.pcVencidas} leads con primer contacto vencido de ${f.u.nombre}. Abrir desglose`} onClick={(e) => detalle(e, 'Primer contacto vencido · ' + f.u.nombre, f.pcVencidas, filasPc(f))}><span className="tag warn">{f.pcVencidas}</span></button> : '0'}</td>
+                  <td className="num">{f.cotizaciones > 0 ? <button type="button" className="nbtn celln" aria-haspopup="dialog" aria-label={`${f.cotizaciones} cotizaciones de ${f.u.nombre}. Abrir desglose`} onClick={(e) => detalle(e, 'Cotizaciones · ' + f.u.nombre, f.cotizaciones, porEstado('Cotizaciones', evDe('cotizacion'), f, (l) => l.cotizacion || l.asignacion))}>{f.cotizaciones}</button> : '0'}</td>
+                  <td className="num">{f.descartes > 0 ? <button type="button" className="nbtn celln" aria-haspopup="dialog" aria-label={`${f.descartes} descartes de ${f.u.nombre}. Abrir desglose`} onClick={(e) => detalle(e, 'Descartes · ' + f.u.nombre, f.descartes, filasDescartes(f, evDe('descarte')))}>{f.descartes}</button> : '0'}</td>
+                  <td className="num">{f.levantamientos > 0 ? <button type="button" className="nbtn celln" aria-haspopup="dialog" aria-label={`${f.levantamientos} levantamientos de ${f.u.nombre}. Abrir desglose`} onClick={(e) => detalle(e, 'Levantamientos · ' + f.u.nombre, f.levantamientos, porEstado('Levantamientos', evDe('levantamiento'), f, (l) => l.levantamiento || l.asignacion))}>{f.levantamientos}</button> : '0'}</td>
+                  <td className="asig">
                     <Asignacion u={f.u} sanc={sanc} ocupado={ocupado === f.u.id} msg={msg[f.u.id]} onAccion={(a) => accionar(f.u, a)} />
                   </td>
                 </tr>
@@ -584,9 +619,9 @@ export function Ficha({ corte, filtros, uid, onBack }: { corte: Corte; filtros: 
   const f: Filtros = { ...filtros, asesor: uid, equipo: null }
   const leads = useMemo(() => leadsFiltrados(corte, f), [corte, filtros, uid])   // eslint-disable-line react-hooks/exhaustive-deps
   const ventas = useMemo(() => ventasFiltradas(corte, f), [corte, filtros, uid]) // eslint-disable-line react-hooks/exhaustive-deps
-  const [sem, setSem] = useState<Date | null>(null)   // semana abierta en Actividad; null = vista del rango
+  const [zoom, setZoom] = useState<{ ini: Date; dias: number; texto: string } | null>(null)   // semana o mes abierto en Actividad por día; null = vista del rango
   const [drill, setDrill] = useState<Drill | null>(null)
-  useEffect(() => setSem(null), [filtros.rango.ini, filtros.rango.fin, uid])
+  useEffect(() => setZoom(null), [filtros.rango.ini, filtros.rango.fin, uid])
   if (!u) return <div className="panel">Asesor no encontrado. <button type="button" className="btn" onClick={onBack}>← Volver</button></div>
   const rango = filtros.rango.label, periodo = periodoTexto(filtros.rango)
   const metaMes = metaDe(corte, u), metaRango = metaEnRango(metaMes, filtros.rango)
@@ -598,7 +633,8 @@ export function Ficha({ corte, filtros, uid, onBack }: { corte: Corte; filtros: 
   const objetivo = metaMes * corte.cotizado_x
   const serie = serieDiaria(ventas.map((l) => l.cerrado), filtros.rango, true)
   const vr = ventasReales(corte, f)
-  // Actividad: el rango manda. Hasta 21 días se ve por día; más largo, por semana y cada semana se abre por día.
+  // Actividad: el rango manda. Hasta 21 días por día; hasta 26 semanas por semana; más largo (p. ej. «Máximo» desde 2023)
+  // por mes, siempre en una sola fila. Una semana o un mes se abren por día con un clic.
   const ini = filtros.rango.ini, fin = filtros.rango.fin
   const evRango = corte.eventos.filter((e) => pasaCrm(e.crm, filtros) && e.asesor_id === uid && e.ts >= ini && e.ts < fin)
   const burbujas = (ev: Evento[]) => [
@@ -610,24 +646,33 @@ export function Ficha({ corte, filtros, uid, onBack }: { corte: Corte; filtros: 
   const entre = (a: number, b: number) => evRango.filter((e) => e.ts >= a && e.ts < b)
   const diasRango = Math.round((fin - ini) / 86400)
   let cols: BubbleCol[], evVista: Evento[], vista: string, onCol: ((i: number) => void) | undefined
-  if (sem) {
-    const ds = Array.from({ length: 7 }, (_, i) => sumar(sem, i))
-    evVista = entre(ep(sem), ep(sumar(sem, 7)))
+  if (zoom) {
+    const ds = Array.from({ length: zoom.dias }, (_, i) => sumar(zoom.ini, i))
+    evVista = entre(ep(zoom.ini), ep(sumar(zoom.ini, zoom.dias)))
     cols = ds.map((d) => ({ label: fmtCorta(d), bubbles: burbujas(entre(ep(d), ep(d) + 86400)) }))
-    vista = `Semana del ${fmtCorta(ds[0])} al ${fmtCorta(ds[6])}, por día`
+    vista = `${zoom.texto}, por día`
   } else if (diasRango <= 21) {
     const d0 = inicioDia(new Date(ini * 1000))
     const ds = Array.from({ length: Math.max(1, diasRango) }, (_, i) => sumar(d0, i))
     evVista = evRango
     cols = ds.map((d) => ({ label: fmtCorta(d), bubbles: burbujas(entre(ep(d), ep(d) + 86400)) }))
     vista = `Por día · ${rango}`
-  } else {
+  } else if (diasRango <= 26 * 7) {
     const semanas: Date[] = []
     for (let d = lunes(new Date(ini * 1000)); ep(d) < fin; d = sumar(d, 7)) semanas.push(d)
     evVista = evRango
     cols = semanas.map((d) => ({ label: fmtCorta(d), title: `Semana del ${fmtCorta(d)}. Clic para ver por día`, bubbles: burbujas(entre(Math.max(ini, ep(d)), Math.min(fin, ep(sumar(d, 7))))) }))
-    onCol = (i) => setSem(semanas[i])
+    onCol = (i) => setZoom({ ini: semanas[i], dias: 7, texto: `Semana del ${fmtCorta(semanas[i])} al ${fmtCorta(sumar(semanas[i], 6))}` })
     vista = `Por semana · ${rango} · clic en una semana para verla por día`
+  } else {
+    const meses: Date[] = []
+    for (let d = new Date(new Date(ini * 1000).getFullYear(), new Date(ini * 1000).getMonth(), 1); ep(d) < fin; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) meses.push(d)
+    const paso = Math.ceil(meses.length / 16)   // con muchos meses, una etiqueta cada `paso` columnas (el título trae todas)
+    const nombre = (d: Date) => `${mesNombre(d)} ${String(d.getFullYear()).slice(2)}`
+    evVista = evRango
+    cols = meses.map((d, i) => { const sig = new Date(d.getFullYear(), d.getMonth() + 1, 1); return { label: i % paso === 0 ? nombre(d) : '', title: `${nombre(d)}. Clic para ver por día`, bubbles: burbujas(entre(Math.max(ini, ep(d)), Math.min(fin, ep(sig)))) } })
+    onCol = (i) => { const d = meses[i]; setZoom({ ini: d, dias: new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate(), texto: `${mesNombre(d)} de ${d.getFullYear()}` }) }
+    vista = `Por mes · ${rango} · clic en un mes para verlo por día`
   }
   const tareas = corte.tareas_abiertas.filter((t) => pasaCrm(t.crm, filtros) && t.asesor_id === uid).sort((p, q) => p.vence - q.vence).slice(0, 24)
   const hoy = ep(inicioDia(new Date()))
@@ -663,12 +708,12 @@ export function Ficha({ corte, filtros, uid, onBack }: { corte: Corte; filtros: 
       <>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 6 }}>
           <span className="small muted" aria-live="polite">{vista}</span>
-          {sem && <button type="button" className="nbtn" onClick={() => setSem(null)}>‹ Volver a las semanas</button>}
+          {zoom && <button type="button" className="nbtn" onClick={() => setZoom(null)}>‹ Volver a todo el periodo</button>}
         </div>
         <BubbleChart cols={cols} onCol={onCol} />
-        <div className="small muted" style={{ marginTop: 8 }}>Cada columna es {sem || diasRango <= 21 ? 'un día' : 'una semana'} y cada bolita cuenta lo que el asesor registró de cada tipo: entre más grande, más actividad.</div>
+        <div className="small muted" style={{ marginTop: 8 }}>Cada columna es {zoom || diasRango <= 21 ? 'un día' : diasRango <= 26 * 7 ? 'una semana' : 'un mes'} y cada bolita cuenta lo que el asesor registró de cada tipo: entre más grande, más actividad.</div>
         <div className="legend"><span><i className="lg-comp" aria-hidden="true" />Llamadas</span><span><i className="lg-warn" aria-hidden="true" />Tareas completadas</span><span><i className="lg-e" aria-hidden="true" />Cotizaciones entregadas</span><span><i className="lg-l" aria-hidden="true" />Levantamientos solicitados</span>
-          <button type="button" onClick={() => setDrill({ titulo: `Actividad de ${u.nombre} · ${sem ? 'semana del ' + fmtCorta(sem) : rango}`, filas: filasDeEventos(corte, evVista) })}>Ver las {fmtN(evVista.length)} actividades ›</button></div>
+          <button type="button" onClick={() => setDrill({ titulo: `Actividad de ${u.nombre} · ${zoom ? zoom.texto : rango}`, filas: filasDeEventos(corte, evVista) })}>Ver las {fmtN(evVista.length)} actividades ›</button></div>
       </>
     ), { span: 6, alto: 7, info: ['Actividad'] }),
     wg('leads', `Leads activos · ${fmtN(activos.length)}`, <LeadsTabla corte={corte} leads={activos} />, { span: 6, info: ['Leads activos', 'Estancados'] }),

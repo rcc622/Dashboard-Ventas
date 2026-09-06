@@ -722,3 +722,9 @@ h3 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: 0; t
   select.sel option:checked { font-weight: 700; }
   select.sel option::checkmark { display: none; }
 }
+
+/* Tarjeta de explicación dentro de un widget (Randall 6-sep: «ponlo en una tarjeta para tenerlo en cuenta»). */
+.nota-card { margin-top: 10px; padding: 8px 12px; border-radius: 10px; background: var(--hover); border-left: 3px solid var(--c1); font-size: 12px; line-height: 1.45; color: var(--ink); }
+.nota-card b { font-weight: 700; }
+/* Cifra de la tabla de Asesores que abre su desglose: botón con aire para el hover. */
+.nbtn.celln { padding: 2px 8px; margin: -2px -8px; font-weight: 600; }

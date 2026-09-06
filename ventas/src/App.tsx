@@ -50,7 +50,10 @@ export default function App() {
 
 function Shell({ yo, corte, origen, error, onRetry, onConfig, onLogout }: { yo: Yo; corte: Corte; origen: 'kommo' | 'ejemplo'; error?: string; onRetry: () => void; onConfig: (cfg: Config) => void; onLogout: () => void }) {
   const h0 = useMemo(leerHash, [])
-  const r0 = useMemo(() => rangoDeHash(h0.r, corte.desde), [h0, corte.desde])
+  // «Máximo» = del lead más viejo del corte (creación o asignación) a hoy (Randall 6-sep, opción b:
+  // aunque la actividad solo cubra VENTAS_DIAS). Sin leads, el inicio de la historia del corte.
+  const desdeMaximo = useMemo(() => { let m = corte.desde; for (const l of corte.leads) { if (l.asignacion && l.asignacion < m) m = l.asignacion; if (l.creado && l.creado < m) m = l.creado } return m }, [corte])
+  const r0 = useMemo(() => rangoDeHash(h0.r, desdeMaximo), [h0, desdeMaximo])
   // Un asesor solo ve su perfil; el administrador puede alternar y mirar a cualquiera.
   const esAdmin = yo.rol === 'admin'
   const [perfil, setPerfil] = useState<Perfil>(!esAdmin || h0.perfil === 'asesor' ? 'asesor' : 'admin')
@@ -184,7 +187,7 @@ function Shell({ yo, corte, origen, error, onRetry, onConfig, onLogout }: { yo: 
             <button type="button" className="btn btn-date" aria-haspopup="dialog" aria-expanded={drp} onClick={() => setDrp(!drp)}><span className="ico" aria-hidden="true" />{filtros.rango.label}</button>
           </div>
         )}
-        {drp && <DateRangePicker rango={filtros.rango} presetActivo={presetActivo} desde={corte.desde} onClose={() => setDrp(false)}
+        {drp && <DateRangePicker rango={filtros.rango} presetActivo={presetActivo} desde={desdeMaximo} onClose={() => setDrp(false)}
           onApply={(r, p) => { setFiltros({ ...filtros, rango: r }); setPresetActivo(p); setDrp(false) }} />}
         {contenido}
       </main>

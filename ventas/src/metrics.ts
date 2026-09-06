@@ -42,8 +42,9 @@ export const PRESETS: { id: Preset; label: string }[] = [
 const PRESETS_VIEJOS: Record<string, string> = { trimestre: 'Este trimestre' }
 export const esPreset = (x: string | undefined): x is Preset => !!x && (PRESETS.some((p) => p.id === x) || x in PRESETS_VIEJOS)
 export const nombrePreset = (p: Preset) => PRESETS.find((x) => x.id === p)?.label ?? PRESETS_VIEJOS[p]
-/** «Máximo» sin corte a la mano: los días de historia que trae el extractor (VENTAS_DIAS). Con corte, va de
- *  `corte.desde` (el dato más antiguo que tiene) a hoy (pedido de Randall 6-sep). */
+/** «Máximo» sin corte a la mano: los días de historia que trae el extractor (VENTAS_DIAS). Con corte, va del
+ *  lead más viejo (creación o asignación, `desdeMaximo` en App) a hoy: Randall 6-sep eligió eso aunque la
+ *  actividad solo cubra VENTAS_DIAS. */
 export const MAXIMO_DIAS = 90
 
 /** «Últimos 7 días: 29 ago 2026 – 4 sep 2026», como el botón de Meta Ads; sin nombre, solo las fechas. */

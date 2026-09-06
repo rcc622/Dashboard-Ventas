@@ -588,12 +588,14 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   como radios en el orden de Meta (Hoy, Ayer, Hoy y ayer, Últimos 7/14/28/30/60/90 días, Esta semana,
   La semana pasada, Este mes, El mes pasado, Máximo, Personalizado; sin «Usados recientemente» ni
   «Comparar»), dos meses con selector de mes y año, y abajo el periodo con las dos fechas escribibles
-  (`<input type=date>`, sin días futuros). **«Máximo» va del dato más antiguo del corte a hoy**
-  (`corte.desde` = generado − `VENTAS_DIAS`; `preset(p, ahora, desde)` lo recibe desde `App` y el
-  calendario; sin corte cae a `MAXIMO_DIAS` = 90). Randall 6-sep: «al ponerle max debería ser el date
-  más antiguo hasta hoy»; ojo, los leads traen creación desde 2023 pero la actividad solo 90 días, por
-  eso el mínimo es el del corte y no el del lead más viejo. `trimestre` sigue valiendo en ligas viejas
-  (`esPreset`) pero no se ofrece. La etiqueta del
+  (`<input type=date>`, sin días futuros). **«Máximo» va del lead más viejo del corte a hoy**
+  (`desdeMaximo` en `App` = mínimo de creación/asignación entre `corte.leads`, hoy 10 jul 2023;
+  `preset(p, ahora, desde)` lo recibe desde `App` y el calendario; sin corte cae a `MAXIMO_DIAS` = 90).
+  Decisión de Randall 6-sep (opción b) aun sabiendo que la actividad solo cubre `VENTAS_DIAS` = 90:
+  de los 3,145 leads asignados antes de esos 90 días, 3,121 ya están ganados/perdidos. Por eso la
+  Actividad de la ficha agrupa **por mes** cuando el rango pasa de 26 semanas (una etiqueta cada
+  `paso` columnas) y un clic en el mes o la semana lo abre por día (`zoom`). `trimestre` sigue
+  valiendo en ligas viejas (`esPreset`) pero no se ofrece. La etiqueta del
   rango lleva el nombre y las fechas («El mes pasado: 1 ago 2026 – 31 ago 2026», `etiquetaRango`) y
   se usa tal cual en subtítulos y drills.
 - **Primer contacto y Razones de descarte son dos widgets** (Randall 5-sep: «no encuentro relación»):
@@ -767,7 +769,17 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   (`.bubble.e`, c3) y levantamientos (`.bubble.l`, c4) son series separadas.
 - **Glosario en lenguaje llano** (`glosario.ts`, Randall 6-sep): cada «i» dice qué
   muestra el widget y cómo se cuenta, sin mediana/prorrateo/cohorte/CF; todos los
-  widgets (cifras, embudo, ficha, Mi día) llevan `info`.
+  widgets (cifras, embudo, ficha, Mi día) llevan `info`. Perfiles trae además una
+  **tarjeta de explicación** (`.nota-card`) de cómo se decide «baja actividad»
+  (relativo a la mediana del grupo; Randall 6-sep: «ponlo en una tarjeta para tenerlo en cuenta»).
+- **Tabla de Asesores, 6-sep**: el resumen del asesor (`AsesorPopup`) se abre SOLO desde el
+  nombre (el renglón ya no es clicable ni lleva `.row`); la columna Cotizado vigente trae una
+  barra de avance contra el objetivo `cotizado_x` × meta mensual («2% de $8M · objetivo 10×»);
+  y las cifras Primer contacto vencido / Cotizaciones / Descartes / Levantamientos son botones
+  (`.nbtn.celln`) que abren el mismo `BarDetailPopup` que Llamadas y Tareas: PC vencido por
+  cuánto llevan asignados (1-3, 4-7, más de 7 días), cotizaciones y levantamientos por dónde
+  van hoy sus leads (`estadoHoy`: etapa, Ganado o Perdido), descartes por razón (`razones()`,
+  top 6 + «otras»); cada renglón abre el detalle de leads.
 - **Sin contraseña en `/ventas`** (`VENTAS_PUBLICO=1` en el servicio `mkt-ventas`,
   pedido de Randall 4-sep): `do_GET` sirve `/ventas*` (y `/` → `/ventas/` en modo
   ventas) antes del auth y `do_POST` deja pasar `/ventas/config`. Todo lo demás
