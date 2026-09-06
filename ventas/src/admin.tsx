@@ -482,7 +482,9 @@ export function Asesores({ corte, filtros, onFicha }: { corte: Corte; filtros: F
   return (
     <>
       <div className="tblwrap">
-        <table className="tbl">
+        <table className="tbl asesores">
+          {/* Anchos fijos (Randall 6-sep, «está todo muy amontonado»): cada columna mide lo mismo en todos los renglones y la tabla cabe sin scroll desde 1280 px. */}
+          <colgroup>{['11.5%', '11.5%', '11.5%', '9.5%', '10%', '11.5%', '5.5%', '6%', '6%', '6.5%', '10.5%'].map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
           <thead><tr>
             <SortTh k="nombre" label="Asesor" {...th} />
             <SortTh k="vendido" label="Vendido" {...th}><Info termino="Vendido" /></SortTh>
@@ -490,11 +492,11 @@ export function Asesores({ corte, filtros, onFicha }: { corte: Corte; filtros: F
             <SortTh k="leads" label="Leads activos" {...th}><Info termino="Leads activos" /></SortTh>
             <SortTh k="llamadas" label="Llamadas" {...th}><Info termino="Llamadas" /></SortTh>
             <SortTh k="tareas" label="Tareas" {...th}><Info termino="Tareas" /></SortTh>
-            <SortTh k="pc" label="Primer contacto vencido" {...th}><Info termino="Primer contacto vencido" /></SortTh>
-            <SortTh k="cotiz" label="Cotizaciones" {...th} />
-            <SortTh k="desc" label="Descartes" {...th} />
-            <SortTh k="lev" label="Levantamientos" {...th} />
-            <th scope="col">Asignación<Info termino="Asignación" /></th>
+            <SortTh k="pc" label="Primer contacto vencido" className="cnt" {...th}><Info termino="Primer contacto vencido" /></SortTh>
+            <SortTh k="cotiz" label={"Cotiza­ciones"} className="cnt" {...th} />
+            <SortTh k="desc" label="Descartes" className="cnt" {...th} />
+            <SortTh k="lev" label={"Levanta­mientos"} className="cnt" {...th} />
+            <th scope="col" className="asig-th">Asignación<Info termino="Asignación" /></th>
           </tr></thead>
           <tbody>
             {filas.map((f) => {
@@ -503,41 +505,50 @@ export function Asesores({ corte, filtros, onFicha }: { corte: Corte; filtros: F
               return (
                 <tr key={f.u.id}>   {/* el resumen del asesor se abre solo desde el nombre (Randall 6-sep); cada cifra abre su propio desglose */}
                   <td><div className="who"><div className={avatarCls(f.u)} title={subAsesor(corte, f.u)} aria-hidden="true">{iniciales(f.u.nombre)}</div><div><div className="nm"><button type="button" className="nbtn" aria-haspopup="dialog" aria-label={`Ver resumen de ${f.u.nombre}`} onClick={(e) => { e.stopPropagation(); const r = e.currentTarget.getBoundingClientRect(); abrir(f, r.right, r.bottom) }}>{f.u.nombre}</button>{rolDestacado(f.u.rol) && <span className="tag rol" title="Rol en Kommo">{rolNombre(f.u.rol)}</span>}</div><div className="sub">{f.ventas} venta{f.ventas === 1 ? '' : 's'} · meta {fmtMoney0(f.metaMes)}/mes</div></div></div></td>
-                  <td className="cellbar">
-                    <div className="num">{fmtMoney0(f.montoVentas)}</div>
+                  <td><div className="mc">
+                    <div className="v">{fmtMoney0(f.montoVentas)}</div>
                     <Bullet sm value={f.montoVentas} target={f.metaRango} expected={f.esperado} label={'Vendido de ' + f.u.nombre} fmt={fmtMoney0} />
-                    <div className="tot">{pct(f.montoVentas, f.metaRango)}% de {fmtMoney0(f.metaRango)}</div>
-                    <div className={'tot rt ' + f.ritmo.estado}>{f.ritmo.corto}</div>
-                  </td>
-                  <td className="cellbar">
+                    <div className="c" title={`${pct(f.montoVentas, f.metaRango)}% de la meta de ${fmtMoney0(f.metaRango)}`}>{pct(f.montoVentas, f.metaRango)}% de {fmtMoney0(f.metaRango)}</div>
+                    <div className={'c rt ' + f.ritmo.estado} title={f.ritmo.corto}>{f.ritmo.corto}</div>
+                  </div></td>
+                  <td><div className="mc">
                     {/* Avance contra el objetivo 10× (Randall 6-sep): «si lleva 1.4 M, qué tanto le falta para el factor 10×». */}
-                    <div className="num">{fmtMoney0(f.cotizado.vigente)}</div>
+                    <div className="v">{fmtMoney0(f.cotizado.vigente)}</div>
                     <Bullet sm value={f.cotizado.vigente} target={f.metaMes * corte.cotizado_x} label={'Cotizado vigente de ' + f.u.nombre + ' contra el objetivo ' + corte.cotizado_x + '×'} color="var(--c2)" fmt={fmtMoney0} />
-                    <div className="tot">{pct(f.cotizado.vigente, f.metaMes * corte.cotizado_x)}% de {fmtMoney0(f.metaMes * corte.cotizado_x)} · objetivo {corte.cotizado_x}×</div>
-                    {f.cotizado.viejo > 0 && <div className="small muted" style={{ fontWeight: 500 }}>+{fmtMoney(f.cotizado.viejo)} viejo</div>}
-                  </td>
-                  <td><div className="num">{f.leadsActivos.length}</div><div className="minibar" aria-hidden="true"><i style={{ width: pct(f.leadsActivos.length, maxLeads) + '%' }} /></div>{f.estancados > 0 && <div className="small muted">{f.estancados} estancado{f.estancados === 1 ? '' : 's'}</div>}</td>
-                  <td className="cellbar">
+                    <div className="c" title={`${pct(f.cotizado.vigente, f.metaMes * corte.cotizado_x)}% del objetivo ${corte.cotizado_x}× la meta mensual (${fmtMoney0(f.metaMes * corte.cotizado_x)})`}>{pct(f.cotizado.vigente, f.metaMes * corte.cotizado_x)}% de {fmtMoney0(f.metaMes * corte.cotizado_x)} ({corte.cotizado_x}×)</div>
+                    <div className="c" title={f.cotizado.viejo > 0 ? `${fmtMoney(f.cotizado.viejo)} cotizados hace más de ${corte.cotizado_dias} días: ya no cuentan` : `Objetivo: ${corte.cotizado_x} veces la meta mensual`}>{f.cotizado.viejo > 0 ? `+${fmtMoney(f.cotizado.viejo)} viejo` : `objetivo ${corte.cotizado_x}× la meta`}</div>
+                  </div></td>
+                  <td><div className="mc">
+                    <div className="v">{fmtN(f.leadsActivos.length)}</div>
+                    <div className="minibar" aria-hidden="true"><i style={{ width: pct(f.leadsActivos.length, maxLeads) + '%' }} /></div>
+                    <div className="c">{f.estancados > 0 ? `${fmtN(f.estancados)} estancado${f.estancados === 1 ? '' : 's'}` : 'sin estancados'}</div>
+                    <div className="c" title="Suma del precio cotizado a sus leads activos">{f.presupuesto > 0 ? `${fmtMoney0(f.presupuesto)} en presupuesto` : 'sin presupuesto'}</div>
+                  </div></td>
+                  <td><div className="mc">
+                    <div className="v">{fmtN(f.llamadas)}</div>
                     <StackedBar segs={[{ val: f.contestadas, cls: 'seg-comp' }, { val: f.sinContestar, cls: 'seg-warn' }]} total={f.llamadas} max={maxLlam}
                       title={`Llamadas de ${f.u.nombre}: ${f.contestadas} contestadas, ${f.sinContestar} sin contestar. Abrir detalle`}
                       onClick={(e) => detalle(e, 'Llamadas · ' + f.u.nombre, f.llamadas, [
                         { label: 'Contestadas', val: f.contestadas, onVer: () => ver(`Llamadas contestadas · ${f.u.nombre}`, filasDeEventos(corte, evDe('llamada_ok')), rango) },
                         { label: 'Sin contestar', val: f.sinContestar, onVer: () => ver(`Llamadas sin contestar · ${f.u.nombre}`, filasDeEventos(corte, evDe('llamada_no')), rango) }])} />
-                    <div className="tot">{fmtN(f.llamadas)}</div>
-                  </td>
-                  <td className="cellbar">
+                    <div className="c">{fmtN(f.contestadas)} contestadas</div>
+                    <div className="c">{fmtN(f.sinContestar)} sin contestar</div>
+                  </div></td>
+                  <td><div className="mc">
+                    <div className="v">{fmtN(tar)}</div>
                     <StackedBar segs={[{ val: f.tareasCompletadas, cls: 'seg-comp' }, { val: f.tareasVencidas, cls: 'seg-alert' }, { val: f.sinTarea, cls: 'seg-empty' }]} total={tar} max={maxTar}
                       title={`Tareas de ${f.u.nombre}: ${f.tareasCompletadas} completadas, ${f.tareasVencidas} vencidas, ${f.sinTarea} leads sin tarea. Abrir detalle`}
                       onClick={(e) => detalle(e, 'Tareas · ' + f.u.nombre, tar, [
                         { label: 'Completadas', val: f.tareasCompletadas, onVer: () => ver(`Tareas completadas · ${f.u.nombre}`, filasDeEventos(corte, evDe('tarea')), rango) },
                         { label: 'Vencidas', val: f.tareasVencidas, onVer: () => ver(`Leads con tareas vencidas · ${f.u.nombre}`, filasDeLeads(f.leadsActivos.filter((l) => l.tareas_vencidas > 0), (l) => `${etapaDe(l)} · ${l.tareas_vencidas} vencida${l.tareas_vencidas > 1 ? 's' : ''}`), rango) },
                         { label: 'Leads sin tarea', val: f.sinTarea, onVer: () => ver(`Leads sin tarea · ${f.u.nombre}`, fLeads(f.leadsActivos.filter((l) => l.sin_tarea)), rango) }])} />
-                    <div className="tot">{fmtN(tar)}</div>
-                  </td>
-                  <td className="num">{f.pcVencidas > 0 ? <button type="button" className="nbtn celln" aria-haspopup="dialog" aria-label={`${f.pcVencidas} leads con primer contacto vencido de ${f.u.nombre}. Abrir desglose`} onClick={(e) => detalle(e, 'Primer contacto vencido · ' + f.u.nombre, f.pcVencidas, filasPc(f))}><span className="tag warn">{f.pcVencidas}</span></button> : '0'}</td>
-                  <td className="num">{f.cotizaciones > 0 ? <button type="button" className="nbtn celln" aria-haspopup="dialog" aria-label={`${f.cotizaciones} cotizaciones de ${f.u.nombre}. Abrir desglose`} onClick={(e) => detalle(e, 'Cotizaciones · ' + f.u.nombre, f.cotizaciones, porEstado('Cotizaciones', evDe('cotizacion'), f, (l) => l.cotizacion || l.asignacion))}>{f.cotizaciones}</button> : '0'}</td>
-                  <td className="num">{f.descartes > 0 ? <button type="button" className="nbtn celln" aria-haspopup="dialog" aria-label={`${f.descartes} descartes de ${f.u.nombre}. Abrir desglose`} onClick={(e) => detalle(e, 'Descartes · ' + f.u.nombre, f.descartes, filasDescartes(f, evDe('descarte')))}>{f.descartes}</button> : '0'}</td>
-                  <td className="num">{f.levantamientos > 0 ? <button type="button" className="nbtn celln" aria-haspopup="dialog" aria-label={`${f.levantamientos} levantamientos de ${f.u.nombre}. Abrir desglose`} onClick={(e) => detalle(e, 'Levantamientos · ' + f.u.nombre, f.levantamientos, porEstado('Levantamientos', evDe('levantamiento'), f, (l) => l.levantamiento || l.asignacion))}>{f.levantamientos}</button> : '0'}</td>
+                    <div className="c">{fmtN(f.tareasCompletadas)} completadas</div>
+                    <div className="c" title={`${fmtN(f.tareasVencidas)} tareas vencidas · ${fmtN(f.sinTarea)} leads sin tarea`}>{fmtN(f.tareasVencidas)} vencidas · {fmtN(f.sinTarea)} sin tarea</div>
+                  </div></td>
+                  <td className="cnt">{f.pcVencidas > 0 ? <button type="button" className="nbtn celln" aria-haspopup="dialog" aria-label={`${f.pcVencidas} leads con primer contacto vencido de ${f.u.nombre}. Abrir desglose`} onClick={(e) => detalle(e, 'Primer contacto vencido · ' + f.u.nombre, f.pcVencidas, filasPc(f))}><span className="tag warn">{f.pcVencidas}</span></button> : '0'}</td>
+                  <td className="cnt">{f.cotizaciones > 0 ? <button type="button" className="nbtn celln" aria-haspopup="dialog" aria-label={`${f.cotizaciones} cotizaciones de ${f.u.nombre}. Abrir desglose`} onClick={(e) => detalle(e, 'Cotizaciones · ' + f.u.nombre, f.cotizaciones, porEstado('Cotizaciones', evDe('cotizacion'), f, (l) => l.cotizacion || l.asignacion))}>{f.cotizaciones}</button> : '0'}</td>
+                  <td className="cnt">{f.descartes > 0 ? <button type="button" className="nbtn celln" aria-haspopup="dialog" aria-label={`${f.descartes} descartes de ${f.u.nombre}. Abrir desglose`} onClick={(e) => detalle(e, 'Descartes · ' + f.u.nombre, f.descartes, filasDescartes(f, evDe('descarte')))}>{f.descartes}</button> : '0'}</td>
+                  <td className="cnt">{f.levantamientos > 0 ? <button type="button" className="nbtn celln" aria-haspopup="dialog" aria-label={`${f.levantamientos} levantamientos de ${f.u.nombre}. Abrir desglose`} onClick={(e) => detalle(e, 'Levantamientos · ' + f.u.nombre, f.levantamientos, porEstado('Levantamientos', evDe('levantamiento'), f, (l) => l.levantamiento || l.asignacion))}>{f.levantamientos}</button> : '0'}</td>
                   <td className="asig">
                     <Asignacion u={f.u} sanc={sanc} ocupado={ocupado === f.u.id} msg={msg[f.u.id]} onAccion={(a) => accionar(f.u, a)} />
                   </td>
@@ -765,9 +776,10 @@ function Asignacion({ u, sanc, ocupado, msg, onAccion }: { u: Usuario; sanc: San
   const puede = (u.ids.kommo != null && sanc.kommo.configurado && !sanc.kommo.error) || u.ids.hubspot != null
   return (
     <div>
-      {lineas.map((l) => <div key={l.txt} className={'st' + (l.fuera ? ' off' : '')}>{l.txt}</div>)}
-      {puede && <button type="button" className="btn" disabled={ocupado} onClick={() => onAccion(fuera ? 'reactivar' : 'quitar')}>{ocupado ? 'Aplicando…' : fuera ? 'Reactivar' : 'Quitar de la asignación'}</button>}
-      {msg && <div className="small muted" role="status">{msg}</div>}
+      {lineas.map((l) => <div key={l.txt} className={'st' + (l.fuera ? ' off' : '')} title={l.txt}>{l.txt}</div>)}
+      {/* Etiqueta corta para que quepa en un renglón de la tabla; el título y el aria-label dicen la acción completa. */}
+      {puede && <button type="button" className="btn" disabled={ocupado} title={fuera ? `Reactivar a ${u.nombre} en la asignación de leads` : `Quitar a ${u.nombre} de la asignación de leads`} aria-label={fuera ? `Reactivar a ${u.nombre} en la asignación de leads` : `Quitar a ${u.nombre} de la asignación de leads`} onClick={() => onAccion(fuera ? 'reactivar' : 'quitar')}>{ocupado ? 'Aplicando…' : fuera ? 'Reactivar' : 'Quitar'}</button>}
+      {msg && <div className="small muted" role="status" title={msg}>{msg}</div>}
     </div>
   )
 }

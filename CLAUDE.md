@@ -772,6 +772,17 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   widgets (cifras, embudo, ficha, Mi día) llevan `info`. Perfiles trae además una
   **tarjeta de explicación** (`.nota-card`) de cómo se decide «baja actividad»
   (relativo a la mediana del grupo; Randall 6-sep: «ponlo en una tarjeta para tenerlo en cuenta»).
+- **Controles del widget siempre a la vista** (Randall 6-sep, img 1): mover (⋮⋮), «i» y cerrar (×)
+  ya no esperan al mouse (la esquina de tamaño sí); en las cifras (`.wtile`) el grupo va arriba a la
+  IZQUIERDA. Esto revierte la regla del 4-sep de esconderlos hasta el hover: Randall los quiere visibles.
+- **Tabla de Asesores con ritmo fijo** (Randall 6-sep, img 2 «está todo muy amontonado»): `table-layout:
+  fixed` con `<colgroup>` en porcentajes (11.5 / 11.5 / 11.5 / 9.5 / 10 / 11.5 / 5.5 / 6 / 6 / 6.5 / 10.5),
+  cada celda de métrica es `.mc` = rejilla de 4 renglones iguales (cifra 20 px · barra 12 px · dos leyendas
+  de 15 px, una línea con puntos suspensivos y `title`), conteos centrados (`.cnt`), encabezados con guion
+  suave (`Cotiza­ciones`, `Levanta­mientos`) y Asignación en rejilla de 4 renglones con el botón
+  siempre en el 3.º («Quitar» / «Reactivar», acción completa en title y aria-label). Medido: a 1725 y 1440
+  todos los renglones miden 96 px y solo se recorta el texto de error del Sheet; por debajo de 1500 px la
+  tabla mide 1440 px y se desplaza a lo ancho en vez de aplastar las celdas.
 - **Tabla de Asesores, 6-sep**: el resumen del asesor (`AsesorPopup`) se abre SOLO desde el
   nombre (el renglón ya no es clicable ni lleva `.row`); la columna Cotizado vigente trae una
   barra de avance contra el objetivo `cotizado_x` × meta mensual («2% de $8M · objetivo 10×»);
