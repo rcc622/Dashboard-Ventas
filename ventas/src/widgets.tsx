@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent as RPointerEvent, type ReactNode } from 'react'
 import { Info } from './components'
 import type { Termino } from './glosario'
+import type { Grafica } from './constructor'
 
 // Rejilla LIBRE de widgets (Randall 6-sep: «colocar libremente las gráficas en el lugar que yo
 // quiera, con un sistema de grids», como los editores de tablero de Kommo y HubSpot). Seis
@@ -16,11 +17,18 @@ import type { Termino } from './glosario'
 // localStorage por clave (admin / midia-<uid> / ficha): son preferencia de quien mira, no dato.
 /** `span`/`alto`: tamaño por defecto en columnas y filas. `desde`: id del widget que agrupaba a este
  *  antes (p. ej. las cifras que vivían juntas en «cifras»); sirve para migrar un orden viejo. */
-export interface Widget { id: string; titulo: string; nodo: ReactNode; span?: number; alto?: number; plain?: boolean; info?: Termino[]; cls?: string; desde?: string }
+export interface Widget { id: string; titulo: string; nodo: ReactNode; span?: number; alto?: number; plain?: boolean; info?: Termino[]; ayuda?: string; cls?: string; desde?: string; grafica?: Grafica }
+/** Lo que la página presta para las gráficas propias (constructor.tsx): dibujarlas, la galería y el editor. */
+export interface Constructor {
+  render: (g: Grafica) => ReactNode
+  galeria: (p: { quitados: Widget[]; onAgregar: (id: string) => void; onCrear: (g: Grafica) => void; onClose: () => void }) => ReactNode
+  editor: (p: { g: Grafica; onGuardar: (g: Grafica) => void; onClose: () => void }) => ReactNode
+}
 export interface Pos { x: number; y: number; w: number; h: number }
-interface Layout { v: 2; pos: Record<string, Pos>; ocultos: string[]; seps: Record<string, string> }
+interface Layout { v: 2; pos: Record<string, Pos>; ocultos: string[]; seps: Record<string, string>; graficas?: Grafica[] }
 interface LayoutV1 { orden: string[]; spans?: Record<string, number>; altos?: Record<string, number>; ocultos?: string[]; seps?: Record<string, string> }
 const esSep = (id: string) => id.startsWith('sep:')
+const esGraf = (id: string) => id.startsWith('g:')   // gráfica hecha con el constructor (Randall 7-sep)
 
 export const COLS = 6
 const GAP = 14
@@ -75,7 +83,7 @@ function inicial(clave: string, widgets: Widget[]): Layout {
   const por = new Map(widgets.map((w) => [w.id, w]))
   if (v && typeof v === 'object' && (v as Layout).v === 2 && (v as Layout).pos) {
     const l = v as Layout
-    return sanear({ v: 2, pos: { ...l.pos }, ocultos: [...(l.ocultos || [])], seps: { ...(l.seps || {}) } }, widgets)
+    return sanear({ v: 2, pos: { ...l.pos }, ocultos: [...(l.ocultos || [])], seps: { ...(l.seps || {}) }, graficas: [...(l.graficas || [])] }, widgets)
   }
   // Formato anterior (orden + anchos + altos): se coloca igual que fluía la rejilla de antes.
   const v1: LayoutV1 = Array.isArray(v) ? { orden: v as string[] } : (v && typeof v === 'object' && Array.isArray((v as LayoutV1).orden)) ? (v as LayoutV1) : { orden: [] }
@@ -86,19 +94,21 @@ function inicial(clave: string, widgets: Widget[]): Layout {
     const w = por.get(id)
     pos[id] = esSep(id) ? colocar(pos, COLS, SEP_H) : colocar(pos, clamp(v1.spans?.[id] ?? anchoDe(w), 1, COLS), clamp(v1.altos?.[id] ?? altoDe(w), MIN_FILAS, MAX_FILAS))
   }
-  return { v: 2, pos, ocultos, seps }
+  return { v: 2, pos, ocultos, seps, graficas: [] }
 }
 /** Quita posiciones de widgets que ya no existen y coloca los nuevos en el primer hueco. */
 function sanear(l: Layout, widgets: Widget[]): Layout {
   const por = new Map(widgets.map((w) => [w.id, w]))
   const pos: Record<string, Pos> = {}
-  for (const [id, p] of Object.entries(l.pos)) if (por.has(id) || (esSep(id) && id in l.seps)) pos[id] = { x: clamp(p.x, 1, COLS), y: clamp(p.y, 1, 5000), w: clamp(p.w, 1, COLS), h: clamp(p.h, esSep(id) ? SEP_H : MIN_FILAS, MAX_FILAS) }
+  const propias = new Set((l.graficas || []).map((g) => 'g:' + g.id))
+  for (const [id, p] of Object.entries(l.pos)) if (por.has(id) || (esSep(id) && id in l.seps) || propias.has(id)) pos[id] = { x: clamp(p.x, 1, COLS), y: clamp(p.y, 1, 5000), w: clamp(p.w, 1, COLS), h: clamp(p.h, esSep(id) ? SEP_H : MIN_FILAS, MAX_FILAS) }
   const ocultos = l.ocultos.filter((id) => por.has(id))
+  for (const g of l.graficas || []) if (!('g:' + g.id in pos)) pos['g:' + g.id] = colocar(pos, clamp(g.span ?? 3, 1, COLS), clamp(g.alto ?? 9, MIN_FILAS, MAX_FILAS))
   // Un widget nuevo que nace de otro (`desde`) y cabe a su derecha parte al viejo en dos en vez de caer
   // al primer hueco (Perfiles → matriz + tabla, 6-sep); si no cabe, va al primer hueco como los demás.
   for (const w of widgets) { const o = w.desde ? pos[w.desde] : undefined; if (o && !(w.id in pos) && !ocultos.includes(w.id) && o.w >= 2 * anchoDe(w)) { o.w -= anchoDe(w); pos[w.id] = { x: o.x + o.w, y: o.y, w: anchoDe(w), h: o.h } } }
   for (const w of widgets) if (!(w.id in pos) && !ocultos.includes(w.id)) pos[w.id] = colocar(pos, anchoDe(w), altoDe(w))
-  return { v: 2, pos, ocultos, seps: l.seps }
+  return { v: 2, pos, ocultos, seps: l.seps, graficas: l.graficas || [] }
 }
 function useLibre() {
   const q = '(min-width: 1000px)'
@@ -110,10 +120,17 @@ function useLibre() {
 interface Arrastre { id: string; ghost: Pos; dx: number; dy: number }
 interface Estiro { id: string; ghost: Pos }
 
-export function WidgetGrid({ clave, widgets }: { clave: string; widgets: Widget[] }) {
-  const ids = widgets.map((w) => w.id)
-  const por = useMemo(() => new Map(widgets.map((w) => [w.id, w])), [widgets])
+export function WidgetGrid({ clave, widgets, taller: ctor }: { clave: string; widgets: Widget[]; taller?: Constructor }) {
   const [layout, setLayout] = useState<Layout>(() => inicial(clave, widgets))
+  const [galeria, setGaleria] = useState(false)
+  const [ajustando, setAjustando] = useState<Grafica | null>(null)
+  // Las gráficas propias son widgets como los demás: se mueven, se estiran y se quitan igual.
+  const todos = useMemo(() => [...widgets, ...(layout.graficas || []).map((g): Widget => ({
+    id: 'g:' + g.id, titulo: g.titulo, nodo: ctor ? ctor.render(g) : null, span: g.span ?? 3, alto: g.alto ?? 9, grafica: g,
+    cls: g.tipo === 'cifra' ? 'wtile wgraf' : 'wgraf', plain: g.tipo === 'cifra',
+  }))], [widgets, layout.graficas, ctor])
+  const ids = todos.map((w) => w.id)
+  const por = useMemo(() => new Map(todos.map((w) => [w.id, w])), [todos])
   const [tocado, setTocado] = useState(() => { try { return localStorage.getItem(KEY(clave)) != null } catch { return false } })
   const [drag, setDrag] = useState<Arrastre | null>(null)
   const [estiro, setEstiro] = useState<Estiro | null>(null)
@@ -122,7 +139,7 @@ export function WidgetGrid({ clave, widgets }: { clave: string; widgets: Widget[
   const refs = useRef<Record<string, HTMLElement | null>>({})
   const grid = useRef<HTMLDivElement>(null)
   const actual = useRef(layout); actual.current = layout
-  useEffect(() => { setLayout((l) => { const s = sanear(l, widgets); return JSON.stringify(s) === JSON.stringify(l) ? l : s }) }, [ids.join()])   // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setLayout((l) => { const s = sanear(l, todos); return JSON.stringify(s) === JSON.stringify(l) ? l : s }) }, [ids.join()])   // eslint-disable-line react-hooks/exhaustive-deps
 
   const fijar = (l: Layout, aviso = '') => { setLayout(l); guardar(clave, l); setTocado(true); if (aviso) setMsg(aviso) }
   const tituloDe = (id: string) => (esSep(id) ? `Separador ${layout.seps[id] || ''}`.trim() : por.get(id)?.titulo || id)
@@ -141,7 +158,18 @@ export function WidgetGrid({ clave, widgets }: { clave: string; widgets: Widget[
     if (np.w === p.w && np.h === p.h) return
     fijar({ ...actual.current, pos: acomodar({ ...actual.current.pos, [id]: np }, id) }, `${tituloDe(id)}: ${np.w} de ${COLS} columnas por ${np.h} filas`)
   }
-  const quitar = (id: string) => { const pos = { ...layout.pos }; delete pos[id]; fijar({ ...layout, pos, ocultos: [...layout.ocultos.filter((x) => x !== id), id] }, `${tituloDe(id)} quitado del tablero`) }
+  const quitar = (id: string) => {
+    const pos = { ...layout.pos }; delete pos[id]
+    // Una gráfica propia se borra (se puede volver a crear); un widget del tablero solo se esconde.
+    if (esGraf(id)) return fijar({ ...layout, pos, graficas: (layout.graficas || []).filter((g) => 'g:' + g.id !== id) }, `${tituloDe(id)} borrada`)
+    fijar({ ...layout, pos, ocultos: [...layout.ocultos.filter((x) => x !== id), id] }, `${tituloDe(id)} quitado del tablero`)
+  }
+  const crearGrafica = (g: Grafica) => {
+    const prev = (layout.graficas || []).some((x) => x.id === g.id)
+    const graficas = prev ? (layout.graficas || []).map((x) => (x.id === g.id ? g : x)) : [...(layout.graficas || []), g]
+    const pos = prev ? layout.pos : { ...layout.pos, ['g:' + g.id]: colocar(layout.pos, clamp(g.span ?? 3, 1, COLS), clamp(g.alto ?? 9, MIN_FILAS, MAX_FILAS)) }
+    fijar({ ...layout, pos, graficas }, `${g.titulo} ${prev ? 'actualizada' : 'agregada al tablero'}`)
+  }
   const poner = (id: string) => { const w = por.get(id); fijar({ ...layout, pos: { ...layout.pos, [id]: colocar(layout.pos, anchoDe(w), altoDe(w)) }, ocultos: layout.ocultos.filter((x) => x !== id) }, `${tituloDe(id)} de vuelta en el tablero`) }
   const agregarSep = () => {
     const id = 'sep:' + Date.now().toString(36)
@@ -233,12 +261,10 @@ export function WidgetGrid({ clave, widgets }: { clave: string; widgets: Widget[
   return (
     <>
       <div className="wbar">
-        <label className="wadd">Agregar gráfica:{' '}
-          <select value="" aria-label="Agregar gráfica quitada al tablero" disabled={!quitados.length} onChange={(e) => { if (e.target.value) poner(e.target.value) }}>
-            <option value="">{quitados.length ? 'elegir…' : 'todas están en el tablero'}</option>
-            {quitados.map((id) => <option key={id} value={id}>{por.get(id)!.titulo}</option>)}
-          </select>
-        </label>
+        <button type="button" className="btn wadd-btn" onClick={() => setGaleria(true)} aria-haspopup="dialog">
+          <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M10 4v12M4 10h12" /></svg>
+          Agregar gráfica{quitados.length ? ` (${quitados.length} quitadas)` : ''}
+        </button>
         <button type="button" className="nbtn wsep-add" onClick={agregarSep}>Agregar separador</button>
         {tocado && <button type="button" className="nbtn wreset-btn" onClick={restablecer}>Restablecer tablero</button>}
         <span className="sr-solo" role="status" aria-live="polite">{msg}</span>
@@ -253,10 +279,10 @@ export function WidgetGrid({ clave, widgets }: { clave: string; widgets: Widget[
             <section key={id} ref={(el) => { refs.current[id] = el }} aria-label={`Separador: ${layout.seps[id]}`} style={estilo}
               className={'widget sep' + (arrastrando ? ' dragging' : '')}>
               <div className="whead">
-                <button type="button" className="grip" title="Arrastra para mover (o usa las flechas)" aria-label={`Mover el separador «${layout.seps[id]}»: flechas mueven una celda, Home y End a los bordes`} onPointerDown={onGrip(id)} onKeyDown={onGripKey(id)}>⋮⋮</button>
+                <button type="button" className="grip" title="Arrastra para mover (o usa las flechas)" aria-label={`Mover el separador «${layout.seps[id]}»: flechas mueven una celda, Home y End a los bordes`} onPointerDown={onGrip(id)} onKeyDown={onGripKey(id)}><IconoGrip /></button>
                 <input className="sep-in" value={layout.seps[id]} aria-label="Título del separador" placeholder="Título de la sección" onChange={(e) => titularSep(id, e.target.value)} />
                 <span className="wctl">
-                  <button type="button" className="wbtn" aria-label="Borrar separador" title="Borrar separador" onClick={() => borrarSep(id)}>×</button>
+                  <button type="button" className="wbtn" aria-label="Borrar separador" title="Borrar separador" onClick={() => borrarSep(id)}><IconoX /></button>
                 </span>
               </div>
             </section>
@@ -266,10 +292,11 @@ export function WidgetGrid({ clave, widgets }: { clave: string; widgets: Widget[
             <section key={id} ref={(el) => { refs.current[id] = el }} aria-label={w.titulo} style={estilo}
               className={'widget' + (w.plain ? ' plain' : ' panel') + (w.cls ? ' ' + w.cls : '') + (libre ? ' hset' : '') + (arrastrando ? ' dragging' : '') + (estiro?.id === id ? ' resizing' : '')}>
               <div className="whead">
-                <button type="button" className="grip" title="Arrastra para mover (o usa las flechas)" aria-label={`Mover «${w.titulo}»: flechas mueven una celda, Home y End a los bordes. Ahora en columna ${p.x}, fila ${p.y}`} onPointerDown={onGrip(id)} onKeyDown={onGripKey(id)}>⋮⋮</button>
-                <h3><span className="wt">{w.titulo}</span>{w.info?.length ? <Info termino={w.info} /> : null}</h3>
+                <button type="button" className="grip" title="Arrastra para mover (o usa las flechas)" aria-label={`Mover «${w.titulo}»: flechas mueven una celda, Home y End a los bordes. Ahora en columna ${p.x}, fila ${p.y}`} onPointerDown={onGrip(id)} onKeyDown={onGripKey(id)}><IconoGrip /></button>
+                <h3><span className="wt">{w.titulo}</span>{w.info?.length ? <Info termino={w.info} /> : null}{w.ayuda ? <button type="button" className="ibtn" data-tip={w.ayuda} aria-label={w.ayuda} onClick={(e) => e.stopPropagation()}>i</button> : null}</h3>
                 <span className="wctl">
-                  <button type="button" className="wbtn" aria-label={`Quitar «${w.titulo}» del tablero`} title="Quitar del tablero" onClick={() => quitar(id)}>×</button>
+                  {w.grafica && <button type="button" className="wbtn" aria-label={`Ajustar «${w.titulo}»`} title="Ajustar esta gráfica" onClick={() => setAjustando(w.grafica!)}><IconoLapiz /></button>}
+                  <button type="button" className="wbtn" aria-label={w.grafica ? `Borrar «${w.titulo}»` : `Quitar «${w.titulo}» del tablero`} title={w.grafica ? 'Borrar esta gráfica' : 'Quitar del tablero'} onClick={() => quitar(id)}><IconoX /></button>
                 </span>
               </div>
               <div className="wbody">{w.nodo}</div>
@@ -282,6 +309,20 @@ export function WidgetGrid({ clave, widgets }: { clave: string; widgets: Widget[
         })}
       </div>
       <div className="wreset">Arrastra el asa ⋮⋮ a la celda que quieras (o enfócala y usa ← → ↑ ↓); estira la esquina inferior derecha para cambiar ancho y alto (← → ↑ ↓ sobre ella; Supr regresa el tamaño por defecto). Nada se encima: lo que choca se empuja hacia abajo. × quita la gráfica del tablero y arriba, en «Agregar gráfica», la regresas. Se guarda en este navegador.</div>
+
+      {galeria && ctor && ctor.galeria({ quitados: quitados.map((id) => por.get(id)!), onAgregar: poner, onCrear: crearGrafica, onClose: () => setGaleria(false) })}
+      {ajustando && ctor && ctor.editor({ g: ajustando, onGuardar: (g) => { crearGrafica(g); setAjustando(null) }, onClose: () => setAjustando(null) })}
     </>
   )
+}
+
+/** Iconos de los controles del widget: 16 px dentro de un botón de 24 (Randall 7-sep: nada mayor de 25 px). */
+function IconoGrip() {
+  return <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="6" cy="4" r="1.4" /><circle cx="10" cy="4" r="1.4" /><circle cx="6" cy="8" r="1.4" /><circle cx="10" cy="8" r="1.4" /><circle cx="6" cy="12" r="1.4" /><circle cx="10" cy="12" r="1.4" /></svg>
+}
+function IconoX() {
+  return <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg>
+}
+function IconoLapiz() {
+  return <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M11 2.5l2.5 2.5L6 12.5 3 13l.5-3z" /></svg>
 }

@@ -6,6 +6,7 @@ import { BarDetailPopup, BubbleChart, Bullet, DonutChart, FunnelChart, Gauge, In
 import { DrillModal, type Drill } from './drill'
 import { aplicarSancion, cargarSanciones } from './data'
 import { WidgetGrid, type Widget } from './widgets'
+import { Galeria, GraficaLibre, Editor, type Grafica } from './constructor'
 
 const mixto = (c: Corte) => (c.fuentes || []).length > 1
 const crmCorto = (l: { crm: Lead['crm'] }) => CRM_LABEL[l.crm]
@@ -383,7 +384,12 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
   return (
     <>
       <div className="hint" style={{ marginBottom: 8 }}>Clic en cualquier cifra, barra o renglón abre la lista de registros detrás, con liga a Kommo o HubSpot.</div>
-      <WidgetGrid clave="admin" widgets={ORDEN_ADMIN.map((id) => widgets.find((w) => w.id === id)).filter((w): w is Widget => !!w).concat(widgets.filter((w) => !ORDEN_ADMIN.includes(w.id)))} />
+      <WidgetGrid clave="admin" widgets={ORDEN_ADMIN.map((id) => widgets.find((w) => w.id === id)).filter((w): w is Widget => !!w).concat(widgets.filter((w) => !ORDEN_ADMIN.includes(w.id)))}
+        taller={{
+          render: (g: Grafica) => <GraficaLibre corte={corte} filtros={filtros} g={g} onDrill={setDrill} />,
+          galeria: (p) => <Galeria corte={corte} filtros={filtros} quitados={p.quitados} onAgregar={p.onAgregar} onCrear={p.onCrear} onClose={p.onClose} />,
+          editor: (p) => <Editor corte={corte} filtros={filtros} g={p.g} onGuardar={p.onGuardar} onClose={p.onClose} />,
+        }} />
       {drill && <DrillModal d={drill} onClose={() => setDrill(null)} />}
     </>
   )

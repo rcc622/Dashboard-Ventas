@@ -821,6 +821,32 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   copiado o restaurado tiene otra fecha y eso recargaba en bucle); al cambiar, `onRetry` vuelve a bajar
   `data.json` y el hash conserva página y filtros. Tarda unos 4 minutos en producción. Si termina sin
   cambiar el archivo, avisa «Terminó sin cambios» o «No se pudo actualizar; se muestra el corte anterior».
+- **Constructor de gráficas** (Randall 7-sep: «un graph modifier/builder para que ya no dependamos tanto
+  de ti», `constructor.tsx`). Una gráfica = **medida × dimensión × tipo**. Medidas (23): actividad
+  (llamadas realizadas/contestadas/sin contestar, tareas completadas, cotizaciones, levantamientos,
+  descartados, primer contacto completado), seguimiento (tareas vencidas, tareas agendadas, leads sin
+  tarea, primer contacto vencido, estancados, leads asignados, leads en juego, cotizado vigente),
+  ventas del CRM (clientes cerrados, monto vendido, ticket) y ventas reales de la app de comisiones
+  (ventas, contrato, ticket, paneles, precio por panel, enganches). Dimensiones: asesor, equipo, CRM,
+  etapa, razón de descarte, mes, semana, día, origen, forma de pago, zona de la app, tamaño en paneles
+  y «sin partir». Tipos: barras horizontales, verticales, línea, dona, cifra y tabla. Cada medida
+  declara qué dimensiones acepta y su propia fecha (asignación, cierre o fecha del hecho); **las tareas
+  abiertas son foto de hoy**, no del rango, como el reporte de HubSpot. `serie()` agrega con `suma`,
+  `promedio` o `razón` (precio por panel = contrato ÷ paneles) y cada grupo guarda sus registros, así
+  que toda barra abre el mismo detalle que el resto del tablero.
+- **«Agregar gráfica» es una galería, no un desplegable** (Randall 7-sep): modal con buscador, las
+  gráficas quitadas del tablero y 32 plantillas listas, **cada una con vista previa hecha con los datos
+  y filtros de ese momento** (`mini`: top 5, sin drill). Desde ahí se agrega con un toque, se ajusta
+  antes de agregar, o se abre el editor en blanco. El **editor** tiene los campos a la izquierda
+  (qué medir, cómo partirlo, tipo con iconos, título, cuántos mostrar, y captura para las de
+  comisiones) y la vista previa viva a la derecha. Las gráficas propias viven en el layout
+  (`kv_orden_<clave>.graficas`, id `g:<n>`), se mueven, estiran, ajustan (lápiz) y se borran (×) como
+  cualquier widget, y sobreviven a la recarga.
+- **La página «Ventas reales» desapareció** (Randall 7-sep: «no quiero otra sección, lo quiero todo en
+  Dashboard»): sus nueve gráficas y sus cifras son plantillas de la galería, con las mismas fórmulas.
+  Se perdió el filtro de Región (los botones de equipo ya cubren las zonas) y el tile de mes contra mes.
+- **Iconos de los controles del widget ≤ 25 px** (Randall 7-sep, img 4): el asa, cerrar y ajustar son
+  SVG de 15-16 px dentro de botones de 24; la «i» mide 18. Nada de glifos de texto (⋮⋮, ×).
 - **Sesión móvil (Randall 7-sep, `/ui-ux-pro-max`, ≤ 699 px)**: **barra inferior** `.bnav` con las
   secciones del perfil (iconos SVG de trazo + etiqueta, 56 px de alto, indicador ámbar arriba, aire
   para `env(safe-area-inset-bottom)`; `.main` lleva 76 px de padding abajo) en lugar del menú

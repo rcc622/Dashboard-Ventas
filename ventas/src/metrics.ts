@@ -195,6 +195,9 @@ export const BUCKETS = ['≤ 30 d', '31-60 d', '61-90 d', '> 90 d']
 /** Fecha desde la que envejece una cotización: la del CF, o la asignación si no la hay. */
 export const fechaCotizado = (l: Lead) => l.cotizacion || l.asignacion
 /** Presupuesto de los leads activos con monto, partido por antigüedad. Vigente = ≤ dias. */
+/** Los leads que hoy cuentan como cotizado vigente (mismo corte que `cotizado`): con monto y ≤ `dias` de antigüedad. */
+export const cotizadoVigenteDe = (leads: Lead[], dias: number, ahora = Date.now() / 1000) =>
+  leads.filter((l) => vivo(l) && l.presupuesto > 0 && (ahora - fechaCotizado(l)) / DIA <= dias)
 export function cotizado(leads: Lead[], dias: number, ahora = Date.now() / 1000): Cotizado {
   const c: Cotizado = { vigente: 0, viejo: 0, n: 0, nViejo: 0, buckets: [0, 0, 0, 0] }
   for (const l of leads) {
