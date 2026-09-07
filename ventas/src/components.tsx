@@ -317,3 +317,69 @@ export function SortTh<K extends string>({ k, label, sort, onSort, className, ch
     </th>
   )
 }
+
+// ---------------------------------------------------------------- Gráficas de la analítica (7-sep)
+export interface BarItem { label: string; value: number; sub?: string; title?: string }
+/** Barras verticales con la cifra encima y una sola escala (nunca dos ejes: el segundo dato va como texto bajo la cifra). */
+export function BarChart({ items, fmt, color = 'var(--c1)', label, onBar }: { items: BarItem[]; fmt: (n: number) => string; color?: string; label: string; onBar?: (i: number) => void }) {
+  const max = Math.max(1, ...items.map((i) => i.value))
+  return (
+    <div className="vbars" role={onBar ? 'group' : 'img'} aria-label={label + ': ' + items.map((i) => `${i.label} ${fmt(i.value)}${i.sub ? ' (' + i.sub + ')' : ''}`).join(', ')}>
+      {items.map((it, i) => {
+        const inner = (
+          <>
+            <span className="vv">{fmt(it.value)}</span>
+            {it.sub && <span className="vs">{it.sub}</span>}
+            <span className="vtrack"><i style={{ height: Math.max(2, (it.value / max) * 100) + '%', background: color }} /></span>
+            <span className="vl" title={it.label}>{it.label}</span>
+          </>
+        )
+        return onBar
+          ? <button type="button" key={it.label + i} className="vcol drill" title={it.title || `${it.label}: ${fmt(it.value)}. Ver registros`} onClick={() => onBar(i)}>{inner}</button>
+          : <div key={it.label + i} className="vcol" title={it.title || `${it.label}: ${fmt(it.value)}`}>{inner}</div>
+      })}
+    </div>
+  )
+}
+/** Lista de barras horizontales: etiqueta · barra · cifra (y un dato chico opcional). */
+export function HBarList({ items, fmt, color = 'var(--c1)', label, onBar }: { items: BarItem[]; fmt: (n: number) => string; color?: string; label: string; onBar?: (i: number) => void }) {
+  const max = Math.max(1, ...items.map((i) => i.value))
+  return (
+    <div className="hbars" role={onBar ? 'group' : 'img'} aria-label={label + ': ' + items.map((i) => `${i.label} ${fmt(i.value)}${i.sub ? ' (' + i.sub + ')' : ''}`).join(', ')}>
+      {items.map((it, i) => {
+        const inner = (
+          <>
+            <span className="hl" title={it.label}>{it.label}</span>
+            <span className="htrack"><i style={{ width: Math.max(1, (it.value / max) * 100) + '%', background: color }} /></span>
+            <span className="hv">{fmt(it.value)}{it.sub && <small>{it.sub}</small>}</span>
+          </>
+        )
+        return onBar
+          ? <button type="button" key={it.label + i} className="hrow drill" title={it.title || `${it.label}: ${fmt(it.value)}. Ver registros`} onClick={() => onBar(i)}>{inner}</button>
+          : <div key={it.label + i} className="hrow" title={it.title || `${it.label}: ${fmt(it.value)}`}>{inner}</div>
+      })}
+    </div>
+  )
+}
+/** Línea con un punto por periodo y la cifra encima; la línea es SVG y los textos HTML, así nada se estira. */
+export function LineChart({ items, fmt, color = 'var(--c1)', label, onPoint }: { items: BarItem[]; fmt: (n: number) => string; color?: string; label: string; onPoint?: (i: number) => void }) {
+  const vals = items.map((i) => i.value)
+  const max = Math.max(1, ...vals), min = Math.min(0, ...vals)
+  const y = (v: number) => 100 - ((v - min) / (max - min || 1)) * 100
+  const x = (i: number) => (items.length === 1 ? 50 : (i / (items.length - 1)) * 100)
+  const d = items.map((it, i) => `${i ? 'L' : 'M'} ${x(i)} ${y(it.value)}`).join(' ')
+  return (
+    <div className="linebox" role={onPoint ? 'group' : 'img'} aria-label={label + ': ' + items.map((i) => `${i.label} ${fmt(i.value)}`).join(', ')}>
+      <div className="larea">
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d={d} fill="none" stroke={color} strokeWidth="2" vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" /></svg>
+        {items.map((it, i) => {
+          const est = { left: x(i) + '%', top: y(it.value) + '%' }
+          return onPoint
+            ? <button type="button" key={it.label + i} className="lpt drill" style={est} title={it.title || `${it.label}: ${fmt(it.value)}. Ver registros`} onClick={() => onPoint(i)}><i style={{ background: color }} /><span>{fmt(it.value)}</span></button>
+            : <div key={it.label + i} className="lpt" style={est} title={it.title || `${it.label}: ${fmt(it.value)}`}><i style={{ background: color }} /><span>{fmt(it.value)}</span></div>
+        })}
+      </div>
+      <div className="llabels" aria-hidden="true">{items.map((it, i) => <span key={it.label + i} style={{ left: x(i) + '%' }}>{it.label}</span>)}</div>
+    </div>
+  )
+}

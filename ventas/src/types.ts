@@ -31,7 +31,9 @@ export interface Tarea { id: string; crm: Crm; lead: string; lead_nombre: string
 export interface Fuente { crm: Crm; generado: string; leads: number; eventos: number; tareas: number }
 /** App de comisiones (Supabase): la venta que sí se cobró, cruzada con el asesor del CRM por nombre. */
 export interface VendedorCom { id: string; nombre: string; zona: string; rol: string; asesor_id: string | null }
-export interface VentaReal { id: string; vendedor_id: string | null; asesor_id: string | null; vendedor: string; cliente: string; zona: string; mes: string | null; mes_texto: string; fecha: number | null; monto: number; comisionable: number; cancelada: boolean; liga: string; origen: string; compartida_con: string }
+export interface VentaReal { id: string; vendedor_id: string | null; asesor_id: string | null; vendedor: string; cliente: string; zona: string; mes: string | null; mes_texto: string; fecha: number | null; monto: number; comisionable: number; cancelada: boolean; liga: string; origen: string; compartida_con: string
+  /** Analítica (7-sep); opcionales porque un corte viejo no los trae. */
+  paneles?: number; forma_pago?: string; enganche?: boolean; referido_por?: string; bidireccional?: boolean; extras?: number; comision_pagada?: boolean; zona_app?: string; captura?: 'completa' | 'incompleta' }
 export interface Comisiones { generado?: string; error?: string; vendedores: VendedorCom[]; ventas: VentaReal[] }
 
 export interface Corte {

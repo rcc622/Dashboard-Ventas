@@ -10,7 +10,11 @@ Contrato de `build(usuarios)` (entra a data/ventas.json como `comisiones`):
   vendedores[{id, nombre, zona, rol, asesor_id}]
   ventas[{id, vendedor_id, asesor_id, vendedor, cliente, zona, mes 'AAAA-MM', mes_texto,
           fecha (epoch del día 1 del mes, hora Monterrey), monto, comisionable, cancelada,
-          liga, origen, compartida_con}]
+          liga, origen, compartida_con,
+          paneles, forma_pago, enganche, referido_por, bidireccional, extras, comision_pagada,
+          zona_app (texto tal cual en la app: «COMERCIAL MTY», «FORANEO»…),
+          captura ('completa' = trae origen y liga de HubSpot, o el vendedor está en la lista que
+          no necesita liga; misma regla que la pestaña Analítica de la app)}]
 
 Cruce con el CRM (`emparejar`): la app guarda casi solo el primer nombre («Carlos», «Mara»);
 el corte usa el slug «nombre-apellido». Un vendedor se casa con el asesor del CRM cuyo slug
@@ -103,11 +107,17 @@ def emparejar(vendedores, usuarios, forzados=None):
     return vendedores
 
 
+# Vendedores cuya captura cuenta como completa sin liga de HubSpot (misma lista que catalogs.js de la app).
+SIN_LIGA_HUBSPOT = {"cambaceo1@kenetsolar.com", "ventasmty4@kenetsolar.com", "btnhlopez@gmail.com"}
+
+
 def build(usuarios=None, forzados=None):
     """`forzados` ({nombre en la app: slug del CRM o ''}) viene de Configuración; VENTAS_COMISIONES_MAP se suma."""
-    prof = get("profiles", "id,full_name,role,zone,comisionable")
+    prof = get("profiles", "id,full_name,role,zone,comisionable,email")
     sales = get("sales", "id,vendor_id,shared_vendor_id,client_name,zone,sale_month,contract_amount,"
-                         "commissionable_amount,cancelled,hubspot_link,origin,created_at")
+                         "commissionable_amount,cancelled,hubspot_link,origin,created_at,"
+                         "panels,payment_method,advance_paid,referred_by,has_bidirectional_meter,extras_non_commissionable,commission_paid")
+    correo = {p["id"]: (p.get("email") or "").strip().lower() for p in prof}
     vend = [{"id": p["id"], "nombre": (p.get("full_name") or "").strip(), "zona": ZONAS.get(norm(p.get("zone")), ""),
              "rol": p.get("role") or "", "asesor_id": None} for p in prof]
     try:
@@ -129,6 +139,12 @@ def build(usuarios=None, forzados=None):
             "comisionable": float(s.get("commissionable_amount") or 0), "cancelada": bool(s.get("cancelled")),
             "liga": s.get("hubspot_link") or "", "origen": s.get("origin") or "",
             "compartida_con": (por.get(s.get("shared_vendor_id")) or {}).get("nombre") or "",
+            # Analítica (Randall 7-sep): lo mismo que la pestaña Analítica de la app.
+            "paneles": int(s.get("panels") or 0), "forma_pago": (s.get("payment_method") or "").strip(),
+            "enganche": bool(s.get("advance_paid")), "referido_por": (s.get("referred_by") or "").strip(),
+            "bidireccional": bool(s.get("has_bidirectional_meter")), "extras": float(s.get("extras_non_commissionable") or 0),
+            "comision_pagada": bool(s.get("commission_paid")), "zona_app": (s.get("zone") or "").strip(),
+            "captura": "completa" if s.get("origin") and (correo.get(s.get("vendor_id")) in SIN_LIGA_HUBSPOT or s.get("hubspot_link")) else "incompleta",
         })
     ventas.sort(key=lambda x: (x["fecha"] or 0, x["id"]), reverse=True)
     return {"generado": datetime.datetime.now(TZ).isoformat(timespec="seconds"), "vendedores": vend, "ventas": ventas}

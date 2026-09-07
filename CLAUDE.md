@@ -795,6 +795,23 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   Detalle, Estado) mete encabezados de grupo con conteo y monto, colapsables; con grupos no hay
   páginas. Sin grupos, **páginas** de 100 (50/250/500) con Anterior/Siguiente. Escape cierra primero
   el menú y luego la ventana. El menú va con `z-index: 450` porque el fondo del modal es 400.
+- **Página «Ventas reales» = la Analítica de la app de comisiones** (Randall 7-sep, `reales.tsx`,
+  `analiticaReales()` en metrics.ts): mismas fórmulas que `renderAnalytics` de la app (master.js de
+  comisiones-ventas-dun.vercel.app): seis cifras (ventas, contrato total, precio por panel = contrato /
+  paneles, ticket = contrato / ventas, paneles, enganches pagados con %), mes contra mes (contrato del
+  último mes con ventas contra el anterior, pegado a la gráfica de meses) y nueve gráficas (contrato y
+  ventas por mes, top 10 vendedores, origen por monto, contrato por zona de la app, forma de pago,
+  ticket por forma de pago, tamaño por paneles 1-4/5-8/9-12/13-16/17-20/21+, precio por panel por
+  asesor top 10 y por mes). Las canceladas no cuentan; las gráficas «por mes» y el mes contra mes
+  usan TODOS los meses (no el calendario), como la app. Filtros: los de la barra (calendario, equipo,
+  propietario) + Región (R1 = MTY+SLT, R2 = TRC+MVA) y Captura (completa = origen + liga de HubSpot,
+  salvo tres correos de `SIN_LIGA_HUBSPOT`) propios de la página. Toda barra, rebanada o punto abre el
+  drill de sus ventas. Gráficas nuevas en components.tsx: `BarChart` (verticales, cifra encima y el
+  segundo dato como texto: nunca dos ejes), `HBarList`, `LineChart` (línea SVG + textos HTML).
+  `ventas_comisiones.py` trae desde el 7-sep `paneles, forma_pago, enganche, referido_por,
+  bidireccional, extras, comision_pagada, zona_app, captura`; un corte viejo sin ellos muestra el
+  aviso «se llena en el siguiente corte». Verificado contra la app: 1,008 ventas · $110M · 11,393
+  paneles · 494 enganches (49 %) · −20.8 % Ago vs Jul, idénticos.
 - **Configuración › Ventas reales (7-sep)**: la tabla del cruce con la app de comisiones trae la columna
   «Activo en» con el CRM (Kommo / HubSpot / ambos) del vendedor con el que queda cruzado (fijo o
   automático) y la etiqueta «desactivado» si está oculto en Vendedores; las opciones del menú dicen

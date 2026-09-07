@@ -7,15 +7,16 @@ import { esPreset, fmtCorta, fmtHora, iniciales, preset, rangoManual, usuariosVi
 
 const CRMS: Crm[] = ['kommo', 'hubspot']
 import { DateRangePicker } from './DateRangePicker'
+import { VentasRealesPage } from './reales'
 import { AdminDashboard, Asesores, Ficha } from './admin'
 import { Calendario, MiDia, MisVentas, Prospectos } from './asesor'
 import { Configuracion } from './config'
 
 type Perfil = 'admin' | 'asesor'
-type Pagina = 'dashboard' | 'asesores' | 'config' | 'midia' | 'ventas' | 'prospectos' | 'calendario'
-const PAGINAS: Pagina[] = ['dashboard', 'asesores', 'config', 'midia', 'ventas', 'prospectos', 'calendario']
+type Pagina = 'dashboard' | 'asesores' | 'reales' | 'config' | 'midia' | 'ventas' | 'prospectos' | 'calendario'
+const PAGINAS: Pagina[] = ['dashboard', 'asesores', 'reales', 'config', 'midia', 'ventas', 'prospectos', 'calendario']
 const NAV: Record<Perfil, { id: Pagina; label: string }[]> = {
-  admin: [{ id: 'dashboard', label: 'Dashboard' }, { id: 'asesores', label: 'Asesores' }, { id: 'config', label: 'Configuración' }],
+  admin: [{ id: 'dashboard', label: 'Dashboard' }, { id: 'asesores', label: 'Asesores' }, { id: 'reales', label: 'Ventas reales' }, { id: 'config', label: 'Configuración' }],
   asesor: [{ id: 'midia', label: 'Mi día' }, { id: 'ventas', label: 'Mis ventas' }, { id: 'prospectos', label: 'Prospectos' }, { id: 'calendario', label: 'Calendario' }],
 }
 
@@ -117,7 +118,8 @@ function Shell({ yo, corte, origen, error, onRetry, onConfig, onLogout }: { yo: 
     contenido = ficha != null
       ? <Ficha corte={corte} filtros={filtros} uid={ficha} onBack={() => setFicha(null)} />
       : pagina === 'config' ? <Configuracion key={corte.generado} corte={corte} onSaved={onConfig} />
-        : pagina === 'asesores' ? <Asesores corte={corte} filtros={filtros} onFicha={setFicha} /> : <AdminDashboard corte={corte} filtros={filtros} onFicha={setFicha} />
+        : pagina === 'asesores' ? <Asesores corte={corte} filtros={filtros} onFicha={setFicha} />
+          : pagina === 'reales' ? <VentasRealesPage corte={corte} filtros={filtros} /> : <AdminDashboard corte={corte} filtros={filtros} onFicha={setFicha} />
   } else {
     contenido = pagina === 'ventas' ? <MisVentas corte={corte} uid={asesorActual} />
       : pagina === 'prospectos' ? <Prospectos corte={corte} uid={asesorActual} />

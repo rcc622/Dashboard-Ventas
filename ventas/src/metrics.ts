@@ -537,3 +537,64 @@ export function comparativaVentas(crm: Lead[], app: VentaReal[]): Fila[] {
   }
   return out.sort((a, b) => Number(!!b.alerta) - Number(!!a.alerta) || (a.estado || '').localeCompare(b.estado || '') || a.nombre.localeCompare(b.nombre))
 }
+
+// ---------------------------------------------------------------- Analítica de ventas reales (app de comisiones)
+// Copia de la pestaña «Analítica» de la app de comisiones (Randall 7-sep): mismas fórmulas, mismos
+// cortes. Las canceladas no cuentan en nada. Las gráficas «por mes» y el mes contra mes usan TODOS
+// los meses (no siguen el calendario de arriba) para que se vea la tendencia completa, como en la app.
+export type Region = 'R1' | 'R2'
+export const REGIONES: Record<Region, { nombre: string; zonas: string[] }> = {
+  R1: { nombre: 'Monterrey y Saltillo', zonas: ['MTY', 'SLT'] },
+  R2: { nombre: 'Torreón y Monclova', zonas: ['TRC', 'MVA'] },
+}
+export type Captura = 'completa' | 'incompleta'
+export interface Serie { label: string; value: number; n: number; ventas: VentaReal[] }
+export interface Analitica {
+  ventas: VentaReal[]; n: number; contrato: number; ticket: number; paneles: number; precioPanel: number; enganches: number; pctEnganche: number
+  crecimiento: { actual: string; anterior: string; pct: number; ventas: VentaReal[] } | null
+  porMes: Serie[]; topVendedores: Serie[]; origen: Serie[]; porZona: Serie[]; formaPago: Serie[]; ticketMetodo: Serie[]; tamano: Serie[]; panelAsesor: Serie[]; panelMes: Serie[]
+}
+const TAMANOS: [string, number, number][] = [['1 a 4 paneles', 1, 4], ['5 a 8 paneles', 5, 8], ['9 a 12 paneles', 9, 12], ['13 a 16 paneles', 13, 16], ['17 a 20 paneles', 17, 20], ['21 paneles o más', 21, Infinity]]
+const mesLabel = (v: VentaReal) => { if (!v.fecha) return 'Sin mes'; const d = fechaDe(v.fecha); return `${MESES[d.getMonth()][0].toUpperCase()}${MESES[d.getMonth()].slice(1)} ${d.getFullYear()}` }   // «Ene 2026»: corto para que quepa bajo cada barra
+function series(vs: VentaReal[], clave: (v: VentaReal) => string, valor: (g: VentaReal[]) => number): Serie[] {
+  const m = new Map<string, VentaReal[]>()
+  for (const v of vs) { const k = clave(v); m.set(k, [...(m.get(k) || []), v]) }
+  return [...m.entries()].map(([label, g]) => ({ label, value: valor(g), n: g.length, ventas: g }))
+}
+const suma = (g: VentaReal[]) => g.reduce((s, v) => s + v.monto, 0)
+const paneles = (g: VentaReal[]) => g.reduce((s, v) => s + (v.paneles || 0), 0)
+const porPanel = (g: VentaReal[]) => (paneles(g) > 0 ? suma(g) / paneles(g) : 0)
+export function analiticaReales(c: Corte, f: Filtros, region: Region | null, captura: Captura | null): Analitica {
+  const vacio: Analitica = { ventas: [], n: 0, contrato: 0, ticket: 0, paneles: 0, precioPanel: 0, enganches: 0, pctEnganche: 0, crecimiento: null, porMes: [], topVendedores: [], origen: [], porZona: [], formaPago: [], ticketMetodo: [], tamano: [], panelAsesor: [], panelMes: [] }
+  const com = c.comisiones
+  if (!com) return vacio
+  const users = mapaUsuarios(c), oc = ocultosDe(c)
+  // Todo lo que respeta vendedor, equipo, región y captura (sin fechas): base de las gráficas por mes.
+  const linea = com.ventas.filter((v) => !v.cancelada && v.fecha != null
+    && (v.asesor_id ? pasaPersona(v.asesor_id, f, users, oc) : f.asesor == null && f.equipo == null)
+    && (!region || REGIONES[region].zonas.includes(v.zona))
+    && (!captura || (v.captura || 'incompleta') === captura))
+  // Lo del calendario de arriba: KPIs y las demás gráficas.
+  const sel = linea.filter((v) => v.fecha! < f.rango.fin && finMes(v.fecha!) > f.rango.ini)
+  const contrato = suma(sel), pan = paneles(sel), enganches = sel.filter((v) => v.enganche).length
+  const porMes = series(linea, mesLabel, suma).sort((a, b) => (a.ventas[0].fecha || 0) - (b.ventas[0].fecha || 0))
+  let crecimiento: Analitica['crecimiento'] = null
+  if (porMes.length >= 2) {
+    const ant = porMes[porMes.length - 2], act = porMes[porMes.length - 1]
+    if (ant.value > 0) crecimiento = { actual: act.label, anterior: ant.label, pct: ((act.value - ant.value) / ant.value) * 100, ventas: [...act.ventas, ...ant.ventas] }
+  }
+  const top = (xs: Serie[]) => xs.sort((a, b) => b.value - a.value).slice(0, 10)
+  return {
+    ventas: sel, n: sel.length, contrato, ticket: sel.length ? contrato / sel.length : 0, paneles: pan, precioPanel: pan > 0 ? contrato / pan : 0,
+    enganches, pctEnganche: sel.length ? (enganches / sel.length) * 100 : 0, crecimiento,
+    porMes,
+    topVendedores: top(series(sel, (v) => v.vendedor || '(sin asignar)', suma)),
+    origen: series(sel, (v) => v.origen || 'Sin origen', suma).sort((a, b) => b.value - a.value),
+    porZona: series(sel, (v) => v.zona_app || 'Sin zona', suma).sort((a, b) => b.value - a.value),
+    formaPago: series(sel, (v) => v.forma_pago || 'Sin forma de pago', suma).sort((a, b) => b.value - a.value),
+    ticketMetodo: series(sel, (v) => v.forma_pago || 'Sin forma de pago', (g) => suma(g) / g.length).sort((a, b) => b.value - a.value),
+    tamano: TAMANOS.map(([label, lo, hi]) => { const g = sel.filter((v) => (v.paneles || 0) >= lo && (v.paneles || 0) <= hi); return { label, value: g.length, n: g.length, ventas: g } }),
+    panelAsesor: top(series(sel.filter((v) => (v.paneles || 0) > 0), (v) => v.vendedor || '(sin asignar)', porPanel)),
+    panelMes: series(linea.filter((v) => (v.paneles || 0) > 0), mesLabel, porPanel).sort((a, b) => (a.ventas[0].fecha || 0) - (b.ventas[0].fecha || 0)),
+  }
+}
