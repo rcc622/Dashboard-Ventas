@@ -821,6 +821,19 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   copiado o restaurado tiene otra fecha y eso recargaba en bucle); al cambiar, `onRetry` vuelve a bajar
   `data.json` y el hash conserva página y filtros. Tarda unos 4 minutos en producción. Si termina sin
   cambiar el archivo, avisa «Terminó sin cambios» o «No se pudo actualizar; se muestra el corte anterior».
+- **Sesión móvil (Randall 7-sep, `/ui-ux-pro-max`, ≤ 699 px)**: **barra inferior** `.bnav` con las
+  secciones del perfil (iconos SVG de trazo + etiqueta, 56 px de alto, indicador ámbar arriba, aire
+  para `env(safe-area-inset-bottom)`; `.main` lleva 76 px de padding abajo) en lugar del menú
+  hamburguesa, que se oculta en teléfono (sigue entre 700 y 960 px). **Barra de filtros compacta**:
+  calendario a lo ancho, botón «Filtros (n)» y la leyenda «Actualizado»; propietario, equipos y
+  Kommo/HubSpot viven en una **hoja inferior** (`.tb-controles.abierta`, fondo `.tb-fondo`, botón
+  «Listo») — en escritorio `.tb-controles` es `display: contents` y todo fluye igual que antes, así
+  que los selectores de las pruebas no cambian. **Cifras en dos columnas** (`.wtile` span 1 sobre una
+  rejilla de 2), el resto a lo ancho. **Sin controles de edición** en teléfono: ⋮⋮, ×, esquina de
+  tamaño y la barra «Agregar gráfica / separador» se esconden (el acomodo libre es de escritorio y
+  las posiciones ya se ignoraban < 1000 px); la «i» se queda. El detalle ya era pantalla completa
+  ≤ 640 y el menú de columna cabe (300 px). Medido con `medir_i.py` a 390 × 844: sin desborde en
+  Dashboard, Asesores (la tabla se desplaza adentro), Ventas reales, Mi día y el detalle.
 - **Configuración › Ventas reales (7-sep)**: la tabla del cruce con la app de comisiones trae la columna
   «Activo en» con el CRM (Kommo / HubSpot / ambos) del vendedor con el que queda cruzado (fijo o
   automático) y la etiqueta «desactivado» si está oculto en Vendedores; las opciones del menú dicen

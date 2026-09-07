@@ -66,6 +66,7 @@ function Shell({ yo, corte, origen, error, onRetry, onConfig, onLogout }: { yo: 
     return p ?? (h0.perfil === 'asesor' ? 'midia' : 'dashboard')
   })
   const [menu, setMenu] = useState(false)
+  const [hoja, setHoja] = useState(false)   // hoja inferior de filtros (solo móvil)
   const [drp, setDrp] = useState(false)
   const [presetActivo, setPresetActivo] = useState<Preset | null>(r0.preset)
   // c=kommo en el hash = solo Kommo encendido; c=hubspot = solo HubSpot; sin c = los dos.
@@ -100,6 +101,7 @@ function Shell({ yo, corte, origen, error, onRetry, onConfig, onLogout }: { yo: 
   const usuariosOrden = useMemo(() => usuariosVisibles(corte).sort((a, b) => a.nombre.localeCompare(b.nombre)), [corte])
   const fuentes = (corte.fuentes || []).map((f) => CRM_LABEL[f.crm]).join(' + ')
 
+  const nFiltros = (filtros.asesor ? 1 : 0) + (filtros.equipo ? 1 : 0) + (!filtros.crm.kommo || !filtros.crm.hubspot ? 1 : 0)
   const cambiaPerfil = (p: Perfil) => { setPerfil(p); setPagina(p === 'admin' ? 'dashboard' : 'midia'); setFicha(null); setMenu(false) }
   // Botones Kommo · HubSpot: incluir o excluir la data de un CRM en todo el tablero. Siempre queda uno encendido.
   const mixto = (corte.fuentes || []).length > 1
@@ -159,6 +161,11 @@ function Shell({ yo, corte, origen, error, onRetry, onConfig, onLogout }: { yo: 
         {origen === 'ejemplo' && <div className="aviso" role="status">Datos de ejemplo: no se pudo cargar el corte real{error ? ` (${error})` : ''}. Revisa que el refresh del servicio haya generado data/ventas.json. Las cifras no son reales. <button type="button" className="btn" style={{ marginLeft: 8 }} onClick={onRetry}>Reintentar</button></div>}
         {perfil === 'admin' && pagina !== 'config' && (
           <div className="toolbar">
+            {/* Móvil (Randall 7-sep): los filtros viven en una hoja inferior; en escritorio `.tb-controles` es display: contents y todo fluye como antes. */}
+            <button type="button" className="btn tb-filtros solo-movil" aria-expanded={hoja} aria-controls="tb-controles" onClick={() => setHoja(!hoja)}>Filtros{nFiltros ? ` (${nFiltros})` : ''}</button>
+            {hoja && <button type="button" className="tb-fondo solo-movil" aria-label="Cerrar filtros" onClick={() => setHoja(false)} />}
+            <div id="tb-controles" className={'tb-controles' + (hoja ? ' abierta' : '')}>
+            <div className="tb-titulo solo-movil"><b>Filtros</b><button type="button" className="ib" aria-label="Cerrar" onClick={() => setHoja(false)}>×</button></div>
             <select className="sel sel-as" aria-label="Propietario" value={filtros.asesor ?? ''} onChange={(e) => setFiltros({ ...filtros, asesor: e.target.value || null })}>
               <option value="">Todos los propietarios</option>
               {usuariosOrden.filter((u) => (filtros.equipo == null || u.zona === filtros.equipo) && u.crm.some((x) => filtros.crm[x])).map((u) => <option key={u.id} value={u.id}>{u.nombre}</option>)}
@@ -178,6 +185,8 @@ function Shell({ yo, corte, origen, error, onRetry, onConfig, onLogout }: { yo: 
                   </button>) })}
               </span>
             )}
+            <button type="button" className="btn on solo-movil tb-listo" onClick={() => setHoja(false)}>Listo</button>
+            </div>
             <span className="spacer" />
             {/* Cambiar filtros redibuja todo el tablero sin avisar a un lector de pantalla: esto lo anuncia. */}
             <span className="sr-solo" role="status" aria-live="polite">
@@ -191,6 +200,29 @@ function Shell({ yo, corte, origen, error, onRetry, onConfig, onLogout }: { yo: 
           onApply={(r, p) => { setFiltros({ ...filtros, rango: r }); setPresetActivo(p); setDrp(false) }} />}
         {contenido}
       </main>
+      {/* Barra inferior en móvil (≤ 699 px): las mismas secciones del menú lateral, a la mano del pulgar. */}
+      <nav className="bnav" aria-label="Secciones">
+        {NAV[perfil].map((n) => (
+          <button type="button" key={n.id} className={'bnav-b' + (pagina === n.id && ficha == null ? ' on' : '')} aria-current={pagina === n.id && ficha == null ? 'page' : undefined} onClick={() => navega(n.id)}>
+            <Icono id={n.id} /><span>{n.label}</span>
+          </button>
+        ))}
+      </nav>
     </div>
   )
+}
+
+/** Iconos de la barra inferior: trazos simples, sin emojis. */
+function Icono({ id }: { id: Pagina }) {
+  const p: Record<Pagina, string> = {
+    dashboard: 'M3 3h8v8H3zM13 3h8v8h-8zM3 13h8v8H3zM13 13h8v8h-8z',
+    asesores: 'M16 11a4 4 0 1 0-8 0 4 4 0 0 0 8 0zM4 21a8 8 0 0 1 16 0',
+    reales: 'M4 20V10M10 20V4M16 20v-7M22 20H2',
+    config: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z',
+    midia: 'M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4',
+    ventas: 'M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+    prospectos: 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01',
+    calendario: 'M3 5h18v16H3zM3 10h18M8 3v4M16 3v4',
+  }
+  return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={p[id]} /></svg>
 }
