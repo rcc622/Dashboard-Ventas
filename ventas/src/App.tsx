@@ -3,11 +3,12 @@ import type { Config, Corte, Crm, Rango, Yo } from './types'
 import { CRM_LABEL } from './types'
 import { aplicarConfig, cargar, logout, yo as pedirYo, type Carga } from './data'
 import { Login } from './login'
-import { esPreset, fmtCorta, fmtHora, iniciales, preset, rangoManual, usuariosVisibles, vivo, zonaNombre, type Filtros, type Preset } from './metrics'
+import { esPreset, iniciales, preset, rangoManual, usuariosVisibles, vivo, zonaNombre, type Filtros, type Preset } from './metrics'
 
 const CRMS: Crm[] = ['kommo', 'hubspot']
 import { DateRangePicker } from './DateRangePicker'
 import { VentasRealesPage } from './reales'
+import { Actualizacion } from './actualizar'
 import { AdminDashboard, Asesores, Ficha } from './admin'
 import { Calendario, MiDia, MisVentas, Prospectos } from './asesor'
 import { Configuracion } from './config'
@@ -97,8 +98,6 @@ function Shell({ yo, corte, origen, error, onRetry, onConfig, onLogout }: { yo: 
 
   // Solo los activos: los desactivados en Configuración no salen en ningún menú.
   const usuariosOrden = useMemo(() => usuariosVisibles(corte).sort((a, b) => a.nombre.localeCompare(b.nombre)), [corte])
-  const generado = useMemo(() => { const d = new Date(corte.generado); return isNaN(d.getTime()) ? corte.generado : `${fmtCorta(d)} ${fmtHora(d.getTime() / 1000)}` }, [corte])
-  const horas = useMemo(() => { const d = new Date(corte.generado).getTime(); return isNaN(d) ? 0 : (Date.now() - d) / 36e5 }, [corte])
   const fuentes = (corte.fuentes || []).map((f) => CRM_LABEL[f.crm]).join(' + ')
 
   const cambiaPerfil = (p: Perfil) => { setPerfil(p); setPagina(p === 'admin' ? 'dashboard' : 'midia'); setFicha(null); setMenu(false) }
@@ -184,8 +183,7 @@ function Shell({ yo, corte, origen, error, onRetry, onConfig, onLogout }: { yo: 
             <span className="sr-solo" role="status" aria-live="polite">
               {`Mostrando ${filtros.rango.label}, ${filtros.equipo ? zonaNombre(corte, filtros.equipo) : 'todos los equipos'}, ${filtros.asesor ? (corte.usuarios.find((u) => u.id === filtros.asesor)?.nombre ?? filtros.asesor) : 'todos los propietarios'}.`}
             </span>
-            <span className="small muted">{fuentes ? fuentes + ' · ' : ''}corte {generado}</span>
-            {horas > 8 && <span className="stale" title="El corte se regenera cada 6 horas">corte de hace {Math.round(horas)} h</span>}
+            <Actualizacion corte={corte} fuentes={fuentes} esAdmin={esAdmin} onRecargar={onRetry} />
             <button type="button" className="btn btn-date" aria-haspopup="dialog" aria-expanded={drp} onClick={() => setDrp(!drp)}><span className="ico" aria-hidden="true" />{filtros.rango.label}</button>
           </div>
         )}

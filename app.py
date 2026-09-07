@@ -853,6 +853,18 @@ class H(BaseHTTPRequestHandler):
             if not ses or ses["rol"] != "admin":
                 return self._send(403 if ses else 401, json.dumps({"error": "solo administradores"}), "application/json")
             return self._send(200, json.dumps(estado_sanciones(), ensure_ascii=False), "application/json")
+        if rel == "estado.json":
+            # Estado del refresh para el botón «Actualizar» de /ventas (Randall 7-sep): cualquier sesión.
+            if not self._sesion():
+                return self._send(401, json.dumps({"error": "sin sesión"}), "application/json")
+            try:
+                mt = datetime.fromtimestamp(os.path.getmtime(VENTAS_JSON), TZ).isoformat(timespec="seconds")
+            except OSError:
+                mt = None
+            with _lock:
+                e = {k: _estado[k] for k in ("corriendo", "ultimo_intento", "ultimo_exito", "ok", "proximo")}
+            e["corte_mtime"] = mt
+            return self._send(200, json.dumps(e), "application/json")
         if rel == "hist.json":
             filas = []
             if os.path.exists(VENTAS_HIST):
@@ -897,6 +909,16 @@ class H(BaseHTTPRequestHandler):
         if DASH_MODO == "marketing":
             return self._send(404, json.dumps({"ok": False, "error": "este servicio no sirve ventas"}), "application/json")
         err = lambda code, msg: self._send(code, json.dumps({"ok": False, "error": msg}, ensure_ascii=False), "application/json")
+        if ruta == "/ventas/refrescar":
+            # Botón «Actualizar» (Randall 7-sep): regenera el corte ahora, solo administradores; una corrida a la vez.
+            ses = self._sesion()
+            if not ses or ses["rol"] != "admin":
+                return err(403 if ses else 401, "solo administradores")
+            with _lock:
+                if _estado["corriendo"]:
+                    return self._send(409, json.dumps({"ok": False, "corriendo": True, "error": "ya se está actualizando"}), "application/json")
+            threading.Thread(target=refrescar, daemon=True).start()
+            return self._send(202, json.dumps({"ok": True, "corriendo": True}), "application/json")
         if ruta == "/ventas/login":
             ip = self._ip()
             intentos, hasta = _LOGIN_FALLOS.get(ip, [0, 0])

@@ -812,6 +812,15 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   bidireccional, extras, comision_pagada, zona_app, captura`; un corte viejo sin ellos muestra el
   aviso «se llena en el siguiente corte». Verificado contra la app: 1,008 ventas · $110M · 11,393
   paneles · 494 enganches (49 %) · −20.8 % Ago vs Jul, idénticos.
+- **«Actualizado: 7 sep 2026, 09:12 · hace 2 h» + botón «Actualizar»** (Randall 7-sep, `actualizar.tsx`):
+  en la barra del Admin, en lugar de «corte 7 sep 09:12». El botón (solo admin) hace `POST /ventas/refrescar`,
+  que arranca `refrescar()` en un hilo (una corrida a la vez, 409 si ya corre) y `GET /ventas/estado.json`
+  (cualquier sesión) da `{corriendo, ultimo_intento, ultimo_exito, ok, proximo, corte_mtime}`. El
+  componente sondea cada 5 s mientras corre y cada 60 s en reposo; **la señal de «hay corte nuevo» es
+  que `corte_mtime` cambie contra la línea base tomada al cargar**, no contra `corte.generado` (un archivo
+  copiado o restaurado tiene otra fecha y eso recargaba en bucle); al cambiar, `onRetry` vuelve a bajar
+  `data.json` y el hash conserva página y filtros. Tarda unos 4 minutos en producción. Si termina sin
+  cambiar el archivo, avisa «Terminó sin cambios» o «No se pudo actualizar; se muestra el corte anterior».
 - **Configuración › Ventas reales (7-sep)**: la tabla del cruce con la app de comisiones trae la columna
   «Activo en» con el CRM (Kommo / HubSpot / ambos) del vendedor con el que queda cruzado (fijo o
   automático) y la etiqueta «desactivado» si está oculto en Vendedores; las opciones del menú dicen

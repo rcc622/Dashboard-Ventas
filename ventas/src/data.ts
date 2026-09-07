@@ -98,3 +98,16 @@ export async function aplicarSancion(uid: string, accion: 'quitar' | 'reactivar'
   const r = await post('sancion', { uid, accion, motivo })
   return r as { resultado: { avisos: string[] }; estado: Sanciones }
 }
+
+// Estado del corte y refresh a pedido (botón «Actualizar», Randall 7-sep).
+export interface EstadoCorte { corriendo: boolean; ultimo_intento: string | null; ultimo_exito: string | null; ok: boolean | null; proximo: string | null; corte_mtime: string | null }
+export async function estadoCorte(): Promise<EstadoCorte> {
+  const r = await fetch('estado.json', { cache: 'no-store' })
+  if (!r.ok) throw new Error('HTTP ' + r.status)
+  return (await r.json()) as EstadoCorte
+}
+export async function pedirRefresco(): Promise<{ ok: boolean; corriendo: boolean; error?: string }> {
+  const r = await fetch('refrescar', { method: 'POST' })
+  const j = (await r.json().catch(() => ({}))) as { corriendo?: boolean; error?: string }
+  return { ok: r.ok, corriendo: !!j.corriendo, error: j.error }
+}
