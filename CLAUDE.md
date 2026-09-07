@@ -795,6 +795,10 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   Detalle, Estado) mete encabezados de grupo con conteo y monto, colapsables; con grupos no hay
   páginas. Sin grupos, **páginas** de 100 (50/250/500) con Anterior/Siguiente. Escape cierra primero
   el menú y luego la ventana. El menú va con `z-index: 450` porque el fondo del modal es 400.
+- **Configuración › Ventas reales (7-sep)**: la tabla del cruce con la app de comisiones trae la columna
+  «Activo en» con el CRM (Kommo / HubSpot / ambos) del vendedor con el que queda cruzado (fijo o
+  automático) y la etiqueta «desactivado» si está oculto en Vendedores; las opciones del menú dicen
+  «Nombre · CRM».
 - **Tabla de Asesores, 6-sep**: el resumen del asesor (`AsesorPopup`) se abre SOLO desde el
   nombre (el renglón ya no es clicable ni lleva `.row`); la columna Cotizado vigente trae una
   barra de avance contra el objetivo `cotizado_x` × meta mensual («2% de $8M · objetivo 10×»);

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Acceso, Config, Corte, Usuario } from './types'
+import { CRM_LABEL } from './types'
 import { cargarAccesos, guardarAccesos, guardarConfig } from './data'
 import { fmtMoney0, fmtN, metaDe, rolNombre, zonaNombre } from './metrics'
 import { Info } from './components'
@@ -197,19 +198,24 @@ export function Configuracion({ corte, onSaved }: { corte: Corte; onSaved: (cfg:
               <h3>Ventas reales · app de comisiones<Info termino="Ventas reales" /></h3>
               <div className="small muted" style={{ marginBottom: 8 }}>Cada vendedor de la app se cruza solo con el vendedor del CRM por su primer nombre y zona. Aquí se corrige el cruce; «Automático» deja la regla, «Sin asesor» lo saca del tablero. Aplica al guardar.</div>
               <div className="scrollx"><table className="ftable" aria-label="Cruce de vendedores de la app de comisiones con vendedores del CRM">
-                <thead><tr><th scope="col">Vendedor en la app</th><th scope="col">Zona</th><th scope="col" className="num">Ventas</th><th scope="col">Vendedor en el CRM</th></tr></thead>
+                <thead><tr><th scope="col">Vendedor en la app</th><th scope="col">Zona</th><th scope="col" className="num">Ventas</th><th scope="col">Vendedor en el CRM</th><th scope="col">Activo en</th></tr></thead>
                 <tbody>
                   {corte.comisiones.vendedores.filter((v) => v.rol === 'vendor').sort((a, b) => a.nombre.localeCompare(b.nombre)).map((v) => {
                     const n = corte.comisiones!.ventas.filter((x) => x.vendedor_id === v.id && !x.cancelada).length
                     const fijo = comMap[v.nombre]
+                    // En qué CRM está el vendedor con el que queda cruzado (Randall 7-sep): el fijo, o el automático.
+                    const ligado = fijo === undefined ? v.asesor_id : fijo === '' ? null : fijo
+                    const uLig = ligado ? corte.usuarios.find((x) => x.id === ligado) : undefined
+                    const enCrm = (u: Usuario) => u.crm.map((c) => CRM_LABEL[c]).join(' + ')
                     return (
                       <tr key={v.id}>
                         <td>{v.nombre}</td><td>{v.zona || '—'}</td><td className="num">{fmtN(n)}</td>
                         <td><select className="sel" aria-label={'Vendedor del CRM para ' + v.nombre} value={fijo === undefined ? '' : fijo === '' ? '-' : fijo} onChange={(ev) => { const val = ev.target.value; setComMap((mp) => { const c = { ...mp }; if (val === '') delete c[v.nombre]; else c[v.nombre] = val === '-' ? '' : val; return c }) }}>
-                          <option value="">Automático{v.asesor_id ? ` (${corte.usuarios.find((u) => u.id === v.asesor_id)?.nombre || v.asesor_id})` : ' (sin asesor)'}</option>
+                          <option value="">Automático{v.asesor_id ? ` (${(() => { const u = corte.usuarios.find((x) => x.id === v.asesor_id); return u ? `${u.nombre} · ${enCrm(u)}` : v.asesor_id })()})` : ' (sin asesor)'}</option>
                           <option value="-">Sin asesor</option>
-                          {usuarios.map((u) => <option key={u.id} value={u.id}>{u.nombre}</option>)}
+                          {usuarios.map((u) => <option key={u.id} value={u.id}>{u.nombre} · {enCrm(u)}</option>)}
                         </select></td>
+                        <td>{uLig ? <>{uLig.crm.map((c) => <span key={c} className="tag" style={{ marginRight: 4 }}>{CRM_LABEL[c]}</span>)}{ocultos.has(uLig.id) && <span className="tag alerta" title="Desactivado en Vendedores: no sale en el tablero">desactivado</span>}</> : <span className="muted">—</span>}</td>
                       </tr>
                     )
                   })}
