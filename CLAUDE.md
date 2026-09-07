@@ -842,6 +842,8 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   comisiones) y la vista previa viva a la derecha. Las gráficas propias viven en el layout
   (`kv_orden_<clave>.graficas`, id `g:<n>`), se mueven, estiran, ajustan (lápiz) y se borran (×) como
   cualquier widget, y sobreviven a la recarga.
+- **La ficha del asesor también trae el constructor**, fijado a esa persona (`{...filtros, asesor: uid}`);
+  Mi día usa una galería simple con lo que se quitó de ese tablero (no tiene medidas propias).
 - **La página «Ventas reales» desapareció** (Randall 7-sep: «no quiero otra sección, lo quiero todo en
   Dashboard»): sus nueve gráficas y sus cifras son plantillas de la galería, con las mismas fórmulas.
   Se perdió el filtro de Región (los botones de equipo ya cubren las zonas) y el tile de mes contra mes.

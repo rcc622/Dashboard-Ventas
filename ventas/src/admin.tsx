@@ -756,7 +756,12 @@ export function Ficha({ corte, filtros, uid, onBack }: { corte: Corte; filtros: 
         <div className="who"><div className={avatarCls(u)} aria-hidden="true">{iniciales(u.nombre)}</div><div><h2 className="nm" style={{ margin: 0, fontSize: 14 }}>{u.nombre}</h2><div className="sub">{subAsesor(corte, u)}</div></div></div>
         <span className="tag dark">{activos.length} leads activos</span>
       </div>
-      <WidgetGrid clave="ficha" widgets={widgets} />
+      {/* La ficha usa el mismo constructor, pero fijado a este asesor. */}
+      <WidgetGrid clave="ficha" widgets={widgets} taller={{
+        render: (g: Grafica) => <GraficaLibre corte={corte} filtros={{ ...filtros, asesor: uid }} g={g} onDrill={setDrill} />,
+        galeria: (p) => <Galeria corte={corte} filtros={{ ...filtros, asesor: uid }} quitados={p.quitados} onAgregar={p.onAgregar} onCrear={p.onCrear} onClose={p.onClose} />,
+        editor: (p) => <Editor corte={corte} filtros={{ ...filtros, asesor: uid }} g={p.g} onGuardar={p.onGuardar} onClose={p.onClose} />,
+      }} />
       {drill && <DrillModal d={drill} onClose={() => setDrill(null)} />}
     </>
   )

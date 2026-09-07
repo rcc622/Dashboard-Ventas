@@ -310,9 +310,35 @@ export function WidgetGrid({ clave, widgets, taller: ctor }: { clave: string; wi
       </div>
       <div className="wreset">Arrastra el asa ⋮⋮ a la celda que quieras (o enfócala y usa ← → ↑ ↓); estira la esquina inferior derecha para cambiar ancho y alto (← → ↑ ↓ sobre ella; Supr regresa el tamaño por defecto). Nada se encima: lo que choca se empuja hacia abajo. × quita la gráfica del tablero y arriba, en «Agregar gráfica», la regresas. Se guarda en este navegador.</div>
 
-      {galeria && ctor && ctor.galeria({ quitados: quitados.map((id) => por.get(id)!), onAgregar: poner, onCrear: crearGrafica, onClose: () => setGaleria(false) })}
+      {galeria && (ctor
+        ? ctor.galeria({ quitados: quitados.map((id) => por.get(id)!), onAgregar: poner, onCrear: crearGrafica, onClose: () => setGaleria(false) })
+        : <GaleriaSimple quitados={quitados.map((id) => por.get(id)!)} onAgregar={poner} onClose={() => setGaleria(false)} />)}
       {ajustando && ctor && ctor.editor({ g: ajustando, onGuardar: (g) => { crearGrafica(g); setAjustando(null) }, onClose: () => setAjustando(null) })}
     </>
+  )
+}
+
+/** Galería de una rejilla sin constructor (Mi día): solo lo que se quitó, con su vista previa. */
+function GaleriaSimple({ quitados, onAgregar, onClose }: { quitados: Widget[]; onAgregar: (id: string) => void; onClose: () => void }) {
+  return (
+    <div className="modal-bg" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="modal galeria" role="dialog" aria-modal="true" aria-label="Agregar una gráfica">
+        <div className="mh">
+          <div className="mt"><h2>Agregar una gráfica</h2><div className="small muted">Lo que quitaste de este tablero. Toca una para regresarla.</div></div>
+          <button type="button" className="ib" aria-label="Cerrar" onClick={onClose}>×</button>
+        </div>
+        <div className="mb">
+          {!quitados.length && <div className="muted" style={{ padding: 16 }}>No has quitado ninguna: están todas en el tablero.</div>}
+          <div className="ggrid">
+            {quitados.map((w) => (
+              <button type="button" key={w.id} className="gcard" onClick={() => { onAgregar(w.id); onClose() }} title={`Regresar «${w.titulo}» al tablero`}>
+                <span className="gt">{w.titulo}</span><span className="gprev" aria-hidden="true">{w.nodo}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
 
