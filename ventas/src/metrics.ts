@@ -568,10 +568,13 @@ export function analiticaReales(c: Corte, f: Filtros, region: Region | null, cap
   const vacio: Analitica = { ventas: [], n: 0, contrato: 0, ticket: 0, paneles: 0, precioPanel: 0, enganches: 0, pctEnganche: 0, crecimiento: null, porMes: [], topVendedores: [], origen: [], porZona: [], formaPago: [], ticketMetodo: [], tamano: [], panelAsesor: [], panelMes: [] }
   const com = c.comisiones
   if (!com) return vacio
-  const users = mapaUsuarios(c), oc = ocultosDe(c)
+  const users = mapaUsuarios(c)
+  // Propietario y equipo de la barra. A diferencia del resto del tablero, aquí NO se quitan las ventas de
+  // vendedores desactivados: son ventas históricas y la app las cuenta (en prod salían 940 de 1,008).
+  const persona = (v: VentaReal) => f.asesor != null ? v.asesor_id === f.asesor
+    : f.equipo != null ? v.zona === f.equipo || (v.asesor_id != null && users.get(v.asesor_id)?.zona === f.equipo) : true
   // Todo lo que respeta vendedor, equipo, región y captura (sin fechas): base de las gráficas por mes.
-  const linea = com.ventas.filter((v) => !v.cancelada && v.fecha != null
-    && (v.asesor_id ? pasaPersona(v.asesor_id, f, users, oc) : f.asesor == null && f.equipo == null)
+  const linea = com.ventas.filter((v) => !v.cancelada && v.fecha != null && persona(v)
     && (!region || REGIONES[region].zonas.includes(v.zona))
     && (!captura || (v.captura || 'incompleta') === captura))
   // Lo del calendario de arriba: KPIs y las demás gráficas.
