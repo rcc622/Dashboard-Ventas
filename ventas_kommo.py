@@ -35,6 +35,8 @@ ST_ENTRANTES = 109293108     # CADENCIA · Entrantes (aún no confirma interés)
 FIELD_RECIBO = 1833111       # checkbox "Recibo CFE recibido"
 FIELD_LLAMADAS = 1833303     # numeric "Intentos llamada" (lo mantiene el server)
 FIELD_ASIGNADO = 1833389     # date "Última asignación" — vive en el CONTACTO
+FIELD_CIUDAD = 1823968       # text "Ciudad" — vive en el CONTACTO (la llena el bot al precalificar)
+FIELD_MUNICIPIO = 1833639    # text "Municipio" del formulario de levantamiento; respaldo del anterior
 FIELD_COTIZACION = 1833423   # date_time "Cotización entregada" (a mano; cubre el 25 %: solo respaldo)
 ET_PROPUESTA = 109436768     # etapa «Propuesta entregada» del embudo Ventas: entrar aquí ES la cotización
 FIELD_LEVANTAMIENTO = 1833425  # date_time "Levantamiento solicitado"
@@ -299,17 +301,19 @@ def build():
 
     leads = leads_(desde)
 
-    # Contacto → lead (llamadas registradas en el contacto) y CF 1833389 del contacto.
-    C2L, ASIG = {}, {}
+    # Contacto → lead (llamadas registradas en el contacto) y CF 1833389 y 1823968 del contacto.
+    C2L, L2C, ASIG, CIUDAD = {}, {}, {}, {}
     for l in leads:
         cs = (l.get("_embedded") or {}).get("contacts") or []
         if cs:
             C2L[cs[0]["id"]] = l["id"]
+            L2C[l["id"]] = cs[0]["id"]
     ids = sorted(C2L)
     for i in range(0, len(ids), 100):
         try:
             for c in k.paged("contacts", "contacts", **{"filter[id][]": ids[i:i + 100]}):
                 ASIG[c["id"]] = fecha_cf(k.cf(c, FIELD_ASIGNADO))
+                CIUDAD[c["id"]] = (k.cf(c, FIELD_CIUDAD) or "").strip()
         except SystemExit as e:
             aviso("lote de contactos: %s" % str(e)[:120])
     ASIG_EV = asignaciones_por_evento(desde)
@@ -372,6 +376,9 @@ def build():
             "funnel": funnel, "funnel_label": FUNNEL[funnel],
             "tareas_abiertas": T["abiertas"], "tareas_vencidas": T["vencidas"], "pc_vencida": T["pc"],
             "tags": tags, "dias_sin_cambio": max(0, (hoy - (l.get("updated_at") or hoy)) // 86400),
+            # La ciudad vive en el CONTACTO (la deja el bot al precalificar); el «Municipio» del
+            # formulario de levantamiento es el respaldo cuando el contacto no la trae (Randall 8-sep).
+            "ciudad": CIUDAD.get(L2C.get(l["id"]), "") or str(cfv.get(FIELD_MUNICIPIO) or "").strip(),
             "link": "https://%s.kommo.com/leads/detail/%d" % (k.SUB, l["id"]),
             "msjs": nmsg, "llamadas_cf": int(num(cfv.get(FIELD_LLAMADAS))),
             # Los tags se renombraron el 12-ago (Contactado → Respondió): se aceptan ambos.

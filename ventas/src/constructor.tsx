@@ -34,7 +34,7 @@ interface Medida {
   fecha?: (it: Item) => number | undefined
   dims: string[]
 }
-const DIMS_CRM = ['asesor', 'equipo', 'crm', 'etapa', 'mes', 'semana', 'dia', 'ninguna']
+const DIMS_CRM = ['asesor', 'equipo', 'ciudad', 'crm', 'etapa', 'mes', 'semana', 'dia', 'ninguna']
 const DIMS_COM = ['asesor', 'zona_app', 'origen', 'forma_pago', 'tamano', 'mes', 'ninguna']
 const activos = (c: Corte, f: Filtros) => leadsDe(c, f).filter(vivo)
 /** Leads del rango con los filtros de la barra (misma regla que el resto del tablero). */
@@ -81,8 +81,8 @@ export const MEDIDAS: Medida[] = [
   { id: 'descartes', label: 'Descartados', grupo: 'Actividad', fmt: fmtN, dims: [...DIMS_CRM, 'razon'], ayuda: 'Leads descartados dentro de las fechas elegidas, por la fecha del descarte.', items: (c, f) => uno(eventosDe(c, f, ['descarte']), (e) => ({ v: 1, ev: e })), fecha: (i) => i.ev?.ts },
   { id: 'pc_hecho', label: 'Primer contacto completado', grupo: 'Actividad', fmt: fmtN, dims: DIMS_CRM, ayuda: 'Leads asignados en las fechas elegidas a los que ya se les hizo la primera llamada o tarea. Solo Kommo.', items: (c, f) => uno(primerContacto(c, leadsDe(c, f)).con, (x) => ({ v: 1, lead: x.lead })), fecha: (i) => i.lead?.asignacion },
   // Seguimiento: foto de hoy
-  { id: 'tareas_vencidas', label: 'Tareas vencidas', grupo: 'Seguimiento', fmt: fmtN, dims: ['asesor', 'equipo', 'crm', 'etapa', 'ninguna'], ayuda: 'Tareas abiertas cuya fecha ya pasó, contadas hoy (no dependen de las fechas de arriba).', items: (c, f) => uno(tareasDe(c, f, true), (t) => ({ v: 1, tar: t })) },
-  { id: 'tareas_abiertas', label: 'Tareas agendadas', grupo: 'Seguimiento', fmt: fmtN, dims: ['asesor', 'equipo', 'crm', 'etapa', 'ninguna'], ayuda: 'Tareas abiertas hoy en leads que siguen en juego, vencidas o por vencer.', items: (c, f) => uno(tareasDe(c, f, false), (t) => ({ v: 1, tar: t })) },
+  { id: 'tareas_vencidas', label: 'Tareas vencidas', grupo: 'Seguimiento', fmt: fmtN, dims: ['asesor', 'equipo', 'ciudad', 'crm', 'etapa', 'ninguna'], ayuda: 'Tareas abiertas cuya fecha ya pasó, contadas hoy (no dependen de las fechas de arriba).', items: (c, f) => uno(tareasDe(c, f, true), (t) => ({ v: 1, tar: t })) },
+  { id: 'tareas_abiertas', label: 'Tareas agendadas', grupo: 'Seguimiento', fmt: fmtN, dims: ['asesor', 'equipo', 'ciudad', 'crm', 'etapa', 'ninguna'], ayuda: 'Tareas abiertas hoy en leads que siguen en juego, vencidas o por vencer.', items: (c, f) => uno(tareasDe(c, f, false), (t) => ({ v: 1, tar: t })) },
   { id: 'sin_tarea', label: 'Leads sin tarea', grupo: 'Seguimiento', fmt: fmtN, dims: DIMS_CRM, ayuda: 'Leads en juego sin ninguna tarea pendiente: nadie los está siguiendo.', items: (c, f) => uno(activos(c, f).filter((l) => l.sin_tarea), (l) => ({ v: 1, lead: l })), fecha: (i) => i.lead?.asignacion },
   { id: 'pc_vencido', label: 'Primer contacto vencido', grupo: 'Seguimiento', fmt: fmtN, dims: DIMS_CRM, ayuda: 'Leads en juego a los que se les pasó la fecha de la tarea de primer contacto. Solo Kommo.', items: (c, f) => uno(activos(c, f).filter((l) => l.pc_vencida), (l) => ({ v: 1, lead: l })), fecha: (i) => i.lead?.asignacion },
   { id: 'estancados', label: 'Leads estancados', grupo: 'Seguimiento', fmt: fmtN, dims: DIMS_CRM, ayuda: 'Leads en juego con más de 7 días sin ningún cambio en el CRM.', items: (c, f) => uno(activos(c, f).filter((l) => l.dias_sin_cambio > 7), (l) => ({ v: 1, lead: l })), fecha: (i) => i.lead?.asignacion },
@@ -106,7 +106,7 @@ export const medidaDe = (id: string) => MEDIDAS.find((m) => m.id === id) || MEDI
 // ---------------------------------------------------------------- dimensiones
 interface Dimension { id: string; label: string; tiempo?: boolean }
 export const DIMENSIONES: Dimension[] = [
-  { id: 'asesor', label: 'Asesor' }, { id: 'equipo', label: 'Equipo' }, { id: 'crm', label: 'CRM' }, { id: 'etapa', label: 'Etapa del embudo' },
+  { id: 'asesor', label: 'Asesor' }, { id: 'equipo', label: 'Equipo' }, { id: 'ciudad', label: 'Ciudad del cliente' }, { id: 'crm', label: 'CRM' }, { id: 'etapa', label: 'Etapa del embudo' },
   { id: 'razon', label: 'Razón de descarte' }, { id: 'mes', label: 'Mes', tiempo: true }, { id: 'semana', label: 'Semana', tiempo: true }, { id: 'dia', label: 'Día', tiempo: true },
   { id: 'origen', label: 'Origen de la venta' }, { id: 'forma_pago', label: 'Forma de pago' }, { id: 'zona_app', label: 'Zona de la app' }, { id: 'tamano', label: 'Tamaño en paneles' },
   { id: 'ninguna', label: 'Sin partir (total)' },
@@ -134,6 +134,8 @@ function valorDim(it: Item, dim: string, m: Medida, ctx: Ctx): { clave: string; 
       const u = asesorId ? ctx.users.get(asesorId) : undefined
       return { clave: zonaNombre(ctx.corte, (it.vr ? it.vr.zona : u?.zona) || '') }
     }
+    // La ciudad la trae el lead: en Kommo la del contacto, en HubSpot la del deal (Randall 8-sep).
+    case 'ciudad': return { clave: (l?.ciudad || '').trim() || 'Sin ciudad' }
     case 'crm': return { clave: CRM_LABEL[(it.lead?.crm ?? it.ev?.crm ?? it.tar?.crm) || 'kommo'] || 'Comisiones' }
     case 'etapa': return { clave: l ? etapaDe(l) : 'Sin etapa' }
     case 'razon': return { clave: (l?.razon || '').trim() || 'Sin razón registrada' }
@@ -234,6 +236,8 @@ export function GraficaLibre({ corte, filtros, g, onDrill, mini = false }: { cor
 // ---------------------------------------------------------------- plantillas de la galería
 const P = (id: string, titulo: string, medida: string, dim: string, tipo: TipoGrafica, extra: Partial<Grafica> = {}): Grafica => ({ id, titulo, medida, dim, tipo, ...extra })
 export const PLANTILLAS: Grafica[] = [
+  P('p-ciudad-leads', 'Leads asignados por ciudad', 'leads', 'ciudad', 'hbar'),
+  P('p-ciudad-ventas', 'Ventas cerradas por ciudad', 'ventas', 'ciudad', 'hbar'),
   P('p-tareas-venc', 'Tareas vencidas por asesor', 'tareas_vencidas', 'asesor', 'hbar'),
   P('p-tareas-hechas', 'Tareas completadas por asesor', 'tareas_hechas', 'asesor', 'hbar'),
   P('p-tareas-abiertas', 'Tareas agendadas por asesor', 'tareas_abiertas', 'asesor', 'hbar'),

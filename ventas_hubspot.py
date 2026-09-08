@@ -22,6 +22,8 @@ Qué es cada cosa en HubSpot:
                ya avanzaron no se pueden fechar (el portal no tiene hs_date_entered_*).
   · descarte = deal perdido, fecha = closedate, razón = closed_lost_reason /
                razon_de_descarte / nombre de la etapa de pérdida.
+  · ciudad   = propiedad `ciudad` del deal (picklist que llena el formulario; la
+               mantiene al día hs_ciudad.py). 85 de cada 100 deals recientes la traen.
   · deals SIN dueño no entran: no hay asesor a quién medírselos.
 """
 import sys, os, json, time
@@ -133,7 +135,7 @@ def build():
                "hubspot_owner_assigneddate", "hs_lastmodifieddate", "hs_is_closed", "hs_is_closed_won",
                "closed_lost_reason", "razon_de_descarte", "hs_v2_date_entered_current_stage",
                "hs_v2_date_entered_" + ET_PROPUESTA_HS,
-               "notes_next_activity_date", "notes_last_contacted", "origen"]
+               "notes_next_activity_date", "notes_last_contacted", "origen", "ciudad"]
     deals = {}
     for d in buscar("deals", "createdate", desde, hoy + 86400, props_d):
         deals[d["id"]] = d["properties"]
@@ -176,7 +178,8 @@ def build():
             "presupuesto": num(p.get("amount")), "recibo": False, "respondio": funnel != 0 and (orden >= 1 or funnel == 5),
             "funnel": funnel, "funnel_label": {5: "5·Ganado", 0: "0·Perdido"}.get(funnel, "4·Asignado (en Ventas/Hunting)"),
             "tareas_abiertas": 1 if nad else 0, "tareas_vencidas": 1 if nad and nad < hoy else 0, "pc_vencida": False,
-            "tags": [x for x in [p.get("origen")] if x], "dias_sin_cambio": max(0, (hoy - (seg(p.get("hs_lastmodifieddate")) or hoy)) // 86400),
+            "tags": [x for x in [p.get("origen")] if x], "ciudad": (p.get("ciudad") or "").strip(),
+            "dias_sin_cambio": max(0, (hoy - (seg(p.get("hs_lastmodifieddate")) or hoy)) // 86400),
             "link": "https://app.hubspot.com/contacts/%s/record/0-3/%s" % (PORTAL, did),
             "msjs": 0, "llamadas_cf": 0, "tel": "", "sin_tarea": funnel == 4 and not nad, "razon": razon,
             "asignacion": asig, "tareas_completadas": 0, "ult_tarea": 0, "ult_llamada": 0,

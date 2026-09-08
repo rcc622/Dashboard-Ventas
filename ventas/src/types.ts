@@ -19,6 +19,8 @@ export interface Lead {
   tareas_abiertas: number; tareas_vencidas: number; pc_vencida: boolean
   tags: string[]; dias_sin_cambio: number; link: string
   msjs: number; llamadas_cf: number; tel: string; sin_tarea: boolean; razon: string
+  /** Ciudad del cliente (contacto en Kommo, deal en HubSpot); opcional porque un corte viejo no la trae. */
+  ciudad?: string
   asignacion: number; tareas_completadas: number; ult_tarea: number; ult_llamada: number
   cotizacion: number; recotizaciones?: number; levantamiento: number; ult_actividad: number; cerrado: number
 }

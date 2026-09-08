@@ -19,6 +19,7 @@ Corte del dashboard de ventas (/ventas): junta Kommo y HubSpot en UN solo
 Contrato que lee ventas/src/types.ts:
   generado, dias_historia, desde, fuentes[{crm, generado, leads, eventos, tareas, error?}]
   usuarios[{id, nombre, zona, crm[], ids{}}], equipos[{id, nombre}], etapas[{id, nombre}], metas{slug: n}
+  Cada lead trae `ciudad` (la del contacto en Kommo, la del deal en HubSpot), ya normalizada.
   leads[], eventos[], tareas_abiertas[]   (ver docstrings de los extractores)
 
 Uso:
@@ -51,6 +52,28 @@ CANON = ["Por contactar", "Conversación iniciada", "Propuesta entregada",
          "Levantamiento agendado", "Levantamiento hecho", "Contrato solicitado"]
 # nombre normalizado completo -> slug. Solo lo que la regla no resuelve sola.
 ALIAS = {"randall cruz": "randall", "javier t": "javier-tonche"}
+
+
+# Las cuatro ciudades donde vendemos, escritas igual vengan de donde vengan: Kommo las guarda
+# como las escribe el cliente («torreon», «Monterrey, N.L.») y HubSpot con acento (Randall 8-sep).
+CIUDADES = {"monterrey": "Monterrey", "saltillo": "Saltillo", "torreon": "Torreón", "monclova": "Monclova",
+            "ramos arizpe": "Ramos Arizpe", "gomez palacio": "Gómez Palacio", "lerdo": "Lerdo",
+            "matamoros": "Matamoros", "frontera": "Frontera", "castanos": "Castaños",
+            "san pedro": "San Pedro", "santa catarina": "Santa Catarina", "guadalupe": "Guadalupe",
+            "apodaca": "Apodaca", "escobedo": "Escobedo", "garcia": "García", "juarez": "Juárez",
+            "san nicolas": "San Nicolás", "santiago": "Santiago", "cadereyta": "Cadereyta"}
+
+
+def ciudad_limpia(txt):
+    """«TORREON, COAH.» y «Torreón» son la misma ciudad: una sola etiqueta para poder agrupar."""
+    s = unicodedata.normalize("NFKD", txt or "").encode("ascii", "ignore").decode().lower()
+    s = " ".join(re.findall(r"[a-z]+", s))
+    if not s:
+        return ""
+    for clave, bonito in CIUDADES.items():
+        if clave in s:
+            return bonito
+    return " ".join(w.capitalize() for w in s.split())[:40]
 
 
 def normaliza(nombre):
@@ -129,6 +152,7 @@ def mezclar(partes):
     for crm, p in partes:
         for l in p["leads"]:
             l["asesor_id"] = asesor(crm, l.get("asesor_id"))
+            l["ciudad"] = ciudad_limpia(l.get("ciudad"))
             leads.append(l)
         for e in p["eventos"]:
             e["asesor_id"] = asesor(crm, e.get("asesor_id"))
@@ -234,6 +258,8 @@ def selftest():
     assert slug("Gamaliel Alvarez - IOPS Saltillo") == "gamaliel-alvarez"
     assert slug("Monserrat de León") == "monserrat-leon" and slug("Jose Luis Villarreal") == "jose-luis"
     assert slug("cambaceo1@kenetsolar.com") == "cambaceo1" and slug("") == "sin-nombre"
+    assert ciudad_limpia("TORREON, COAH.") == ciudad_limpia("Torreón") == "Torreón"
+    assert ciudad_limpia("") == "" and ciudad_limpia("Tampico") == "Tampico"
     partes = [("kommo", {"usuarios": {1: {"nombre": "Mara Gálvez", "zona": "SLT", "rol": "KS-TRAINING"}, 2: {"nombre": "Nuevo Trainee", "zona": "", "rol": "KS-SEGUIMIENTO", "activo": True},
                                       3: {"nombre": "Ex Vendedor", "zona": "TRAINING", "activo": False}}, "etapas": None,
                          "leads": [{"id": "k:1", "asesor_id": 1}], "eventos": [], "tareas_abiertas": []}),

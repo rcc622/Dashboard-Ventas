@@ -883,6 +883,14 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   las posiciones ya se ignoraban < 1000 px); la «i» se queda. El detalle ya era pantalla completa
   ≤ 640 y el menú de columna cabe (300 px). Medido con `medir_i.py` a 390 × 844: sin desborde en
   Dashboard, Asesores (la tabla se desplaza adentro), Ventas reales, Mi día y el detalle.
+- **De qué ciudad es cada lead** (Randall 8-sep, «me gustaría saber los leads de qué ciudad son»):
+  cada lead trae `ciudad`. En Kommo sale del campo «Ciudad» del CONTACTO (1823968, la deja el bot al
+  precalificar) y, si viene vacío, del «Municipio» del formulario de levantamiento (1833639); en
+  HubSpot, de la propiedad `ciudad` del deal (la mantiene al día `hs_ciudad.py`). `ciudad_limpia()` en
+  `ventas_corte.py` deja una sola forma de escribirla («TORREON, COAH.» y «Torreón» son la misma).
+  Sale como columna «Ciudad» en el detalle (se agrupa y se filtra como las demás) y como dimensión
+  «Ciudad del cliente» del constructor, con dos gráficas listas. Cobertura del corte del 8-sep: 7,406
+  de 11,222 leads (HubSpot 75 %, Kommo 34 %); lo demás dice «Sin ciudad», sin inventarla.
 - **Arrastrar y colocar desde la galería** (Randall 8-sep, «que pueda arrastrar y colocar, por ejemplo
   al lado, para no tener que buscar el widget dónde quedó»): elegir una tarjeta en «Agregar gráfica» ya
   no la manda al primer hueco libre. La galería se cierra y la gráfica queda pegada al puntero

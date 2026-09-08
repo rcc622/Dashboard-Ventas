@@ -288,7 +288,7 @@ export function razones(c: Corte, ev: Evento[]): { razon: string; n: number; lea
 /** `embudo`, `etapa` y `num` son columnas propias del detalle: mezclarlas en el texto de `detalle`
  *  hacía que ordenar «de mayor a menor» ordenara alfabéticamente (Randall 8-sep). `numLabel` es el
  *  encabezado de la columna numérica (días sin cambio, horas al primer contacto…). */
-export interface Fila { id: string; nombre: string; link?: string; crm: Origen; asesor: string; detalle: string; embudo?: string; etapa?: string; num?: number; numLabel?: string; monto?: number; cuando?: number; estado?: string; alerta?: boolean }
+export interface Fila { id: string; nombre: string; link?: string; crm: Origen; asesor: string; detalle: string; ciudad?: string; embudo?: string; etapa?: string; num?: number; numLabel?: string; monto?: number; cuando?: number; estado?: string; alerta?: boolean }
 export function mapaLeads(c: Corte): Map<string, Lead> { return new Map(c.leads.map((l) => [l.id, l])) }
 /** «KS-TRAINING» → «Training». Ventas es el rol normal y no se etiqueta; Training y Seguimiento sí (Randall 6-sep). */
 export const rolNombre = (r?: string) => (!r ? '' : /^admin/i.test(r) ? 'Administrador' : r.replace(/^KS-/i, '').toLowerCase().replace(/^\w/, (c) => c.toUpperCase()))
@@ -296,7 +296,7 @@ export const rolDestacado = (r?: string) => !!r && /^KS-/i.test(r) && !/^KS-VENT
 export const nombreAsesor = (c: Corte, id: string | null) => (id == null ? 'Sin asesor' : c.usuarios.find((u) => u.id === id)?.nombre || id)
 export function filasDeLeads(leads: Lead[], detalle: (l: Lead) => string, cuando: (l: Lead) => number = (l) => l.asignacion, num?: { label: string; de: (l: Lead) => number | undefined }): Fila[] {
   return leads.map((l) => ({ id: l.id, nombre: l.nombre || l.id, link: l.link || undefined, crm: l.crm, asesor: l.asesor || 'Sin asesor',
-    embudo: tipoLead(l), etapa: l.etapa, detalle: detalle(l), num: num?.de(l), numLabel: num?.label,
+    ciudad: l.ciudad || '', embudo: tipoLead(l), etapa: l.etapa, detalle: detalle(l), num: num?.de(l), numLabel: num?.label,
     monto: l.presupuesto || undefined, cuando: cuando(l) || undefined }))
 }
 /** Una fila por actividad. En HubSpot las tareas y llamadas no vienen ligadas al deal: se listan
@@ -306,7 +306,7 @@ export function filasDeEventos(c: Corte, ev: Evento[]): Fila[] {
   return ev.map((e, i) => {
     const l = porId.get(e.lead)
     return { id: e.lead + ':' + e.ts + ':' + i, nombre: l ? (l.nombre || l.id) : `${TIPO_LABEL[e.tipo] || e.tipo} · sin deal ligado`, link: l?.link || undefined, crm: e.crm,
-      asesor: nombreAsesor(c, e.asesor_id), detalle: TIPO_LABEL[e.tipo] || e.tipo, embudo: l ? tipoLead(l) : undefined, etapa: l?.etapa, monto: l?.presupuesto || undefined, cuando: e.ts }
+      asesor: nombreAsesor(c, e.asesor_id), detalle: TIPO_LABEL[e.tipo] || e.tipo, ciudad: l?.ciudad || '', embudo: l ? tipoLead(l) : undefined, etapa: l?.etapa, monto: l?.presupuesto || undefined, cuando: e.ts }
   }).sort((a, b) => (b.cuando || 0) - (a.cuando || 0))
 }
 export const etapaDe = (l: Lead) => `${tipoLead(l)} · ${l.etapa}`

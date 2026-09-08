@@ -12,20 +12,20 @@ import { useEscape, useFocoDialogo, useOutside } from './components'
 export interface Drill { titulo: string; sub?: string; filas: Fila[] }
 const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 
-type Col = 'estado' | 'nombre' | 'crm' | 'asesor' | 'embudo' | 'etapa' | 'detalle' | 'num' | 'monto' | 'cuando'
+type Col = 'estado' | 'nombre' | 'crm' | 'asesor' | 'ciudad' | 'embudo' | 'etapa' | 'detalle' | 'num' | 'monto' | 'cuando'
 type Tipo = 'texto' | 'monto' | 'fecha' | 'numero'
 interface ColDef { id: Col; label: string; tipo: Tipo }
 const COLS: ColDef[] = [
   { id: 'estado', label: 'Estado', tipo: 'texto' }, { id: 'nombre', label: 'Registro', tipo: 'texto' }, { id: 'crm', label: 'CRM', tipo: 'texto' },
-  { id: 'asesor', label: 'Asesor', tipo: 'texto' }, { id: 'embudo', label: 'Embudo', tipo: 'texto' }, { id: 'etapa', label: 'Etapa', tipo: 'texto' },
+  { id: 'asesor', label: 'Asesor', tipo: 'texto' }, { id: 'ciudad', label: 'Ciudad', tipo: 'texto' }, { id: 'embudo', label: 'Embudo', tipo: 'texto' }, { id: 'etapa', label: 'Etapa', tipo: 'texto' },
   { id: 'detalle', label: 'Detalle', tipo: 'texto' }, { id: 'num', label: 'Número', tipo: 'numero' }, { id: 'monto', label: 'Monto', tipo: 'monto' }, { id: 'cuando', label: 'Cuándo', tipo: 'fecha' },
 ]
 /** Columnas que solo aparecen cuando las filas de esta ventana las traen. */
-const OPCIONALES: Record<string, (f: Fila) => unknown> = { estado: (f) => f.estado, embudo: (f) => f.embudo, etapa: (f) => f.etapa, detalle: (f) => f.detalle, num: (f) => f.num }
+const OPCIONALES: Record<string, (f: Fila) => unknown> = { estado: (f) => f.estado, ciudad: (f) => f.ciudad, embudo: (f) => f.embudo, etapa: (f) => f.etapa, detalle: (f) => f.detalle, num: (f) => f.num }
 /** Texto con el que se filtra por valores y se ordena una columna de texto. */
 const texto = (f: Fila, c: Col): string =>
   c === 'crm' ? CRM_LABEL[f.crm] : c === 'estado' ? (f.estado || '—') : c === 'nombre' ? f.nombre : c === 'asesor' ? (f.asesor || '—')
-    : c === 'embudo' ? (f.embudo || '—') : c === 'etapa' ? (f.etapa || '—') : c === 'detalle' ? (f.detalle || '—')
+    : c === 'ciudad' ? (f.ciudad || 'Sin ciudad') : c === 'embudo' ? (f.embudo || '—') : c === 'etapa' ? (f.etapa || '—') : c === 'detalle' ? (f.detalle || '—')
       : c === 'num' ? (f.num == null ? '—' : fmtN(f.num)) : c === 'monto' ? (f.monto ? fmtMoney(f.monto) : '—') : (f.cuando ? fmtCorta(fechaDe(f.cuando)) : '—')
 const numero = (f: Fila, c: Col): number | undefined => (c === 'monto' ? f.monto : c === 'cuando' ? f.cuando : c === 'num' ? f.num : undefined)
 
@@ -95,7 +95,7 @@ export function DrillModal({ d, onClose }: { d: Drill; onClose: () => void }) {
       .map((c) => (c.id === 'num' && etiqueta ? { ...c, label: etiqueta } : c))
   }, [d])
   const nq = norm(q.trim())
-  const buscadas = useMemo(() => (nq ? d.filas.filter((f) => norm([f.nombre, f.asesor, f.embudo, f.etapa, f.detalle, f.estado].filter(Boolean).join(' ')).includes(nq)) : d.filas), [d, nq])
+  const buscadas = useMemo(() => (nq ? d.filas.filter((f) => norm([f.nombre, f.asesor, f.ciudad, f.embudo, f.etapa, f.detalle, f.estado].filter(Boolean).join(' ')).includes(nq)) : d.filas), [d, nq])
   const filtradas = useMemo(() => {
     const act = (Object.entries(filtros) as [Col, FiltroCol][]).filter(([, x]) => activo(x))
     const base = act.length ? buscadas.filter((f) => act.every(([c, x]) => pasa(f, c, x))) : buscadas
@@ -136,6 +136,7 @@ export function DrillModal({ d, onClose }: { d: Drill; onClose: () => void }) {
       <td>{f.link ? <a href={f.link} target="_blank" rel="noreferrer" title={'Abrir en ' + CRM_LABEL[f.crm]}>{f.nombre}</a> : <span className="muted">{f.nombre}</span>}</td>
       <td><span className="tag">{CRM_LABEL[f.crm]}</span></td>
       <td>{f.asesor}</td>
+      {hay('ciudad') && <td>{f.ciudad || <span className="muted">Sin ciudad</span>}</td>}
       {hay('embudo') && <td>{f.embudo || '—'}</td>}
       {hay('etapa') && <td>{f.etapa || '—'}</td>}
       {hay('detalle') && <td>{f.detalle || '—'}</td>}
@@ -154,7 +155,7 @@ export function DrillModal({ d, onClose }: { d: Drill; onClose: () => void }) {
               {fmtN(filtradas.length)}{filtradas.length !== d.filas.length ? ` de ${fmtN(d.filas.length)}` : ''} registro{filtradas.length === 1 ? '' : 's'}{total ? ` · ${fmtMoney(total)}` : ''}{conEstado ? ` · ${fmtN(alertas)} sin pareja` : ''}{crms.length ? ' · ' + crms.map((c) => CRM_LABEL[c]).join(' + ') : ''}{d.sub ? ' · ' + d.sub : ''}
             </div>
           </div>
-          <input ref={inp} className="sel" type="search" placeholder="Buscar nombre, asesor, etapa o detalle…" aria-label="Buscar en el detalle" value={q} onChange={(e) => setQ(e.target.value)} />
+          <input ref={inp} className="sel" type="search" placeholder="Buscar nombre, asesor, ciudad o etapa…" aria-label="Buscar en el detalle" value={q} onChange={(e) => setQ(e.target.value)} />
           <button type="button" className="ib" aria-label="Cerrar" onClick={onClose}>×</button>
         </div>
         {/* Herramientas como en HubSpot: agrupar, chips de filtros activos, borrar todo. */}
