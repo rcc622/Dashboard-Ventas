@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState, type SyntheticEvent, useEffect } from 'react'
 import type { Corte, Evento, Lead, Sanciones, Usuario } from './types'
 import { CRM_LABEL } from './types'
-import { BUCKETS, PERFIL_LABEL, actividad, cotizado, dias, embudo, entrada, ep, etapaDe, eventosFiltrados, fechaCotizado, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, metaDe, metaEnRango, pasaCrm, periodoTexto, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, type Fila, type FilaAsesor, type Filtros, type Perfil , type PuntoPerfil, ventasReales, filasDeVentasReales, comparativaVentas, rolDestacado, rolNombre } from './metrics'
+import { BUCKETS, PERFIL_LABEL, actividad, cotizado, dias, embudo, entrada, ep, eventosFiltrados, fechaCotizado, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, metaDe, metaEnRango, pasaCrm, periodoTexto, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, type Fila, type FilaAsesor, type Filtros, type Perfil , type PuntoPerfil, ventasReales, filasDeVentasReales, comparativaVentas, rolDestacado, rolNombre } from './metrics'
 import { BarDetailPopup, BubbleChart, Bullet, DonutChart, FunnelChart, Gauge, Info, LlamadasBar, MiniAreaChart, Scatter, SortTh, StackedBar, activar, useEscape, useOutside, type DetRow, type Sort, type BubbleCol, useFocoDialogo } from './components'
 import { DrillModal, type Drill } from './drill'
 import { aplicarSancion, cargarSanciones } from './data'
@@ -24,15 +24,18 @@ const AHORA = () => Date.now() / 1000
 const diasDesde = (ts: number) => Math.max(0, Math.floor((AHORA() - ts) / 86400))
 // Filas para la ventana de detalle según de qué cifra vienen.
 /** Tramos del primer contacto (Primer contacto, auditoría 6-sep): qué tan rápido se atiende, no solo la mediana. */
+/** Una décima basta para las horas del primer contacto: la columna se ordena por número, no por texto. */
+const redondear = (h: number) => Math.round(h * 10) / 10
+/** Tramos del primer contacto: */
 const PC_TRAMOS = [
   { l: 'en menos de 1 hora', ok: (h: number) => h <= 1 }, { l: 'de 1 a 4 horas', ok: (h: number) => h > 1 && h <= 4 },
   { l: 'de 4 a 24 horas', ok: (h: number) => h > 4 && h <= 24 }, { l: 'más de un día', ok: (h: number) => h > 24 },
 ]
 /** Orden de colocación por defecto del Dashboard: pares de igual alto (bandas) para que la rejilla libre no deje huecos. */
 const ORDEN_ADMIN = ['t-leads', 't-ventas', 't-vendido', 't-conversion', 't-perdida', 't-tareas', 't-cotizaciones', 't-descartes', 't-levantamientos', 'llamadas', 'salud', 'pipeline', 'ranking', 'reales', 'entrada', 'embudo', 'etapas', 'contacto', 'razones', 'perfiles', 'perfiles-tabla']
-const fLeads = (ls: Lead[]) => filasDeLeads(ls, (l) => `${etapaDe(l)} · ${dias(l.dias_sin_cambio)} sin cambio`)
-const fVentas = (ls: Lead[]) => filasDeLeads(ls, (l) => `Ganado · ${etapaDe(l)}`, (l) => l.cerrado)
-const fCotizado = (ls: Lead[]) => filasDeLeads(ls, (l) => `${etapaDe(l)} · cotizado hace ${dias(diasDesde(fechaCotizado(l)))}`, (l) => fechaCotizado(l))
+const fLeads = (ls: Lead[]) => filasDeLeads(ls, () => '', undefined, { label: 'Días sin cambio', de: (l) => l.dias_sin_cambio })
+const fVentas = (ls: Lead[]) => filasDeLeads(ls, () => 'Ganado', (l) => l.cerrado)
+const fCotizado = (ls: Lead[]) => filasDeLeads(ls, () => '', (l) => fechaCotizado(l), { label: 'Días desde la cotización', de: (l) => diasDesde(fechaCotizado(l)) })
 const fEntrada = (ls: Lead[]) => filasDeLeads(ls, (l) => l.funnel_label, (l) => l.creado)
 /** Botón que se ve como la cifra: el tile entero no puede ser botón porque adentro va el «i» del glosario. */
 function Cifra({ children, onClick, label }: { children: React.ReactNode; onClick: () => void; label: string }) {
@@ -308,16 +311,16 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
         <div className="small muted">Qué tan rápido se atiende un lead nuevo: horas entre la asignación y la primera llamada o tarea registrada (mediana).{mixto(corte) ? ' Solo Kommo.' : ''}</div>
         <div className="pc-hero" style={{ marginTop: 8 }}><span className="n">{horasPC}</span><span className="u">{unidadPC}</span></div>
         <div className="small muted">
-          <button type="button" className="nbtn" onClick={() => ver('Leads con primer contacto registrado', filasDeLeads(pc.con.map((x) => x.lead), (l) => { const h = pc.con.find((x) => x.lead.id === l.id)?.horas || 0; return `${etapaDe(l)} · primer contacto a las ${h < 48 ? h.toFixed(1) + ' horas' : Math.round(h / 24) + ' días'}` }), rango)}>{fmtN(pc.n)} leads con contacto registrado</button>
+          <button type="button" className="nbtn" onClick={() => ver('Leads con primer contacto registrado', filasDeLeads(pc.con.map((x) => x.lead), () => '', undefined, { label: 'Horas al primer contacto', de: (l) => redondear(pc.con.find((x) => x.lead.id === l.id)?.horas || 0) }), rango)}>{fmtN(pc.n)} leads con contacto registrado</button>
           {' · '}{fmtN(pc.en24)} en menos de 24 horas ({pct(pc.en24, pc.n)}%){' · '}
-          <button type="button" className="nbtn" onClick={() => ver('Leads sin contacto tras un día asignados', filasDeLeads(pc.sin, (l) => `${etapaDe(l)} · asignado hace ${dias(diasDesde(l.asignacion))}, sin llamada ni tarea`), rango)}>{fmtN(pc.sinContacto)} sin contacto tras un día asignados</button>
+          <button type="button" className="nbtn" onClick={() => ver('Leads sin contacto tras un día asignados', filasDeLeads(pc.sin, () => 'Sin llamada ni tarea', undefined, { label: 'Días desde la asignación', de: (l) => diasDesde(l.asignacion) }), rango)}>{fmtN(pc.sinContacto)} sin contacto tras un día asignados</button>
         </div>
         {pc.n > 0 && (
           <div className="pc-dist" role="group" aria-label="Leads por tiempo al primer contacto">
             <div className="small" style={{ fontWeight: 600, marginBottom: 4 }}>¿Cuánto tardó el primer contacto?</div>
             {PC_TRAMOS.map((t) => { const xs = pc.con.filter((x) => t.ok(x.horas)); const mx = Math.max(1, ...PC_TRAMOS.map((u) => pc.con.filter((x) => u.ok(x.horas)).length)); return (
               <button type="button" className="pcd" key={t.l} aria-label={`${t.l}: ${fmtN(xs.length)} leads (${pct(xs.length, pc.n)}%). Ver leads`} disabled={!xs.length}
-                onClick={() => ver(`Primer contacto ${t.l}`, filasDeLeads(xs.map((x) => x.lead), (l) => { const h = xs.find((x) => x.lead.id === l.id)?.horas || 0; return `${etapaDe(l)} · primer contacto a las ${h < 48 ? h.toFixed(1) + ' horas' : Math.round(h / 24) + ' días'}` }), rango)}>
+                onClick={() => ver(`Primer contacto ${t.l}`, filasDeLeads(xs.map((x) => x.lead), () => '', undefined, { label: 'Horas al primer contacto', de: (l) => redondear(xs.find((x) => x.lead.id === l.id)?.horas || 0) }), rango)}>
                 <span className="l">{t.l}</span><span className="bar" aria-hidden="true"><i style={{ width: pct(xs.length, mx) + '%' }} /></span><span className="n">{fmtN(xs.length)} <span className="muted">{pct(xs.length, pc.n)}%</span></span>
               </button>) })}
           </div>
@@ -458,7 +461,7 @@ export function Asesores({ corte, filtros, onFicha }: { corte: Corte; filtros: F
   const porEstado = (que: string, evs: Evento[], f: FilaAsesor, cuando: (l: Lead) => number): DetRow[] => {
     const g = new Map<string, Lead[]>()
     for (const l of leadsDe(evs)) g.set(estadoHoy(l), [...(g.get(estadoHoy(l)) || []), l])
-    const rows: DetRow[] = [...g.entries()].sort((a, b) => b[1].length - a[1].length).map(([k, xs]) => ({ label: `Hoy en ${k}`, val: xs.length, onVer: () => ver(`${que} · ${f.u.nombre} · hoy en ${k}`, filasDeLeads(xs, etapaDe, cuando), rango) }))
+    const rows: DetRow[] = [...g.entries()].sort((a, b) => b[1].length - a[1].length).map(([k, xs]) => ({ label: `Hoy en ${k}`, val: xs.length, onVer: () => ver(`${que} · ${f.u.nombre} · hoy en ${k}`, filasDeLeads(xs, () => '', cuando), rango) }))
     const suma = rows.reduce((a, r) => a + r.val, 0), total = evs.length
     if (total > suma) rows.push({ label: 'Sin detalle del lead', val: total - suma })
     return rows
@@ -476,7 +479,7 @@ export function Asesores({ corte, filtros, onFicha }: { corte: Corte; filtros: F
     const ls = f.leadsActivos.filter((l) => l.pc_vencida)
     const tramos: [string, (d: number) => boolean][] = [['Asignados hace 1 a 3 días', (d) => d <= 3], ['Asignados hace 4 a 7 días', (d) => d > 3 && d <= 7], ['Asignados hace más de 7 días', (d) => d > 7]]
     return tramos.map(([label, ok]) => ({ label, xs: ls.filter((l) => ok(diasDesde(l.asignacion))) })).filter((t) => t.xs.length)
-      .map((t) => ({ label: t.label, val: t.xs.length, onVer: () => ver(`Primer contacto vencido · ${f.u.nombre} · ${t.label.toLowerCase()}`, filasDeLeads(t.xs, (l) => `${etapaDe(l)} · asignado hace ${dias(diasDesde(l.asignacion))}`), rango) }))
+      .map((t) => ({ label: t.label, val: t.xs.length, onVer: () => ver(`Primer contacto vencido · ${f.u.nombre} · ${t.label.toLowerCase()}`, filasDeLeads(t.xs, () => '', undefined, { label: 'Días desde la asignación', de: (l) => diasDesde(l.asignacion) }), rango) }))
   }
   const detalle = (e: SyntheticEvent<HTMLElement>, title: string, total: number, rows: DetRow[]) => {
     e.stopPropagation()
@@ -546,7 +549,7 @@ export function Asesores({ corte, filtros, onFicha }: { corte: Corte; filtros: F
                       title={`Tareas de ${f.u.nombre}: ${f.tareasCompletadas} completadas, ${f.tareasVencidas} vencidas, ${f.sinTarea} leads sin tarea. Abrir detalle`}
                       onClick={(e) => detalle(e, 'Tareas · ' + f.u.nombre, tar, [
                         { label: 'Completadas', val: f.tareasCompletadas, onVer: () => ver(`Tareas completadas · ${f.u.nombre}`, filasDeEventos(corte, evDe('tarea')), rango) },
-                        { label: 'Vencidas', val: f.tareasVencidas, onVer: () => ver(`Leads con tareas vencidas · ${f.u.nombre}`, filasDeLeads(f.leadsActivos.filter((l) => l.tareas_vencidas > 0), (l) => `${etapaDe(l)} · ${l.tareas_vencidas} vencida${l.tareas_vencidas > 1 ? 's' : ''}`), rango) },
+                        { label: 'Vencidas', val: f.tareasVencidas, onVer: () => ver(`Leads con tareas vencidas · ${f.u.nombre}`, filasDeLeads(f.leadsActivos.filter((l) => l.tareas_vencidas > 0), () => '', undefined, { label: 'Tareas vencidas', de: (l) => l.tareas_vencidas }), rango) },
                         { label: 'Leads sin tarea', val: f.sinTarea, onVer: () => ver(`Leads sin tarea · ${f.u.nombre}`, fLeads(f.leadsActivos.filter((l) => l.sin_tarea)), rango) }])} />
                     <div className="c">{fmtN(f.tareasCompletadas)} completadas</div>
                     <div className="c" title={`${fmtN(f.tareasVencidas)} tareas vencidas · ${fmtN(f.sinTarea)} leads sin tarea`}>{fmtN(f.tareasVencidas)} vencidas · {fmtN(f.sinTarea)} sin tarea</div>

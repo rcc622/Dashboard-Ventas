@@ -950,3 +950,11 @@ h3 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: 0; t
 .cfg-com .ftable td, .cfg-com .ftable th { vertical-align: middle; }
 .cfg-com .tag { margin-right: 4px; }
 @media (max-width: 900px) { .cfg-com .ftable { min-width: 760px; } }
+
+/* Gráfica elegida en la galería y todavía sin colocar (Randall 8-sep): aviso fijo mientras sigue al
+   puntero, con salida a «donde quepa» por si no quiere elegir celda. */
+.colocando { position: fixed; left: 50%; transform: translateX(-50%); bottom: 22px; z-index: 340; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; max-width: calc(100vw - 32px); background: var(--ink); color: #fff; padding: 9px 14px; border-radius: 12px; box-shadow: var(--shadow); font-size: 13px; }
+.colocando b { color: #ffd67a; }
+.colocando .btn { background: transparent; color: #fff; border-color: rgba(255, 255, 255, .45); }
+.colocando .btn:hover { background: rgba(255, 255, 255, .14); }
+.wgrid.editing .wghost { transition: none; }

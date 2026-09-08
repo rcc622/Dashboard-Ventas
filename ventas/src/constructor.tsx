@@ -185,7 +185,7 @@ function filasDe(c: Corte, items: Item[]) {
     id: 't:' + t.id, nombre: t.lead_nombre || t.texto || 'Tarea', link: t.link || undefined, crm: t.crm, asesor: c.usuarios.find((u) => u.id === t.asesor_id)?.nombre || 'Sin asesor',
     detalle: [t.texto, t.vencida ? 'vencida' : 'por vencer'].filter(Boolean).join(' · '), cuando: t.vence, alerta: t.vencida,
   }))
-  return filasDeLeads(items.map((i) => i.lead!).filter(Boolean), (l) => etapaDe(l), (l) => l.cerrado || l.asignacion)
+  return filasDeLeads(items.map((i) => i.lead!).filter(Boolean), () => '', (l) => l.cerrado || l.asignacion)
 }
 
 // ---------------------------------------------------------------- la gráfica
@@ -280,6 +280,14 @@ export function Galeria({ corte, filtros, quitados, onAgregar, onCrear, onClose 
   const [q, setQ] = useState('')
   const [editar, setEditar] = useState<Grafica | null>(null)
   const hayComisiones = !!corte.comisiones
+  // Arrastrar una tarjeta hace lo mismo que tocarla: cierra la galería y la deja pegada al puntero.
+  const arrastrar = (accion: () => void) => (e: React.PointerEvent) => {
+    if (e.button !== 0) return
+    const x0 = e.clientX, y0 = e.clientY
+    const mover = (ev: PointerEvent) => { if (Math.hypot(ev.clientX - x0, ev.clientY - y0) > 8) { soltar(); accion() } }
+    const soltar = () => { window.removeEventListener('pointermove', mover); window.removeEventListener('pointerup', soltar) }
+    window.addEventListener('pointermove', mover); window.addEventListener('pointerup', soltar)
+  }
   const nq = q.trim().toLowerCase()
   const plantillas = PLANTILLAS.filter((p) => (hayComisiones || !p.medida.startsWith('r_')) && (!nq || p.titulo.toLowerCase().includes(nq) || medidaDe(p.medida).label.toLowerCase().includes(nq)))
   const dev = quitados.filter((w) => !nq || w.titulo.toLowerCase().includes(nq))
@@ -288,7 +296,7 @@ export function Galeria({ corte, filtros, quitados, onAgregar, onCrear, onClose 
     <div className="modal-bg" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div className="modal galeria" role="dialog" aria-modal="true" aria-label="Agregar una gráfica" ref={ref}>
         <div className="mh">
-          <div className="mt"><h2>Agregar una gráfica</h2><div className="small muted">Toca una para ponerla en el tablero. La vista previa usa tus datos y los filtros de arriba.</div></div>
+          <div className="mt"><h2>Agregar una gráfica</h2><div className="small muted">Arrástrala a la celda del tablero donde la quieras, o tócala y luego toca el lugar. La vista previa usa tus datos y los filtros de arriba.</div></div>
           <input className="sel" type="search" placeholder="Buscar…" aria-label="Buscar gráfica" value={q} onChange={(e) => setQ(e.target.value)} />
           <button type="button" className="ib" aria-label="Cerrar" onClick={onClose}>×</button>
         </div>
@@ -299,7 +307,7 @@ export function Galeria({ corte, filtros, quitados, onAgregar, onCrear, onClose 
           {dev.length > 0 && <h3 className="gsec">Quitadas del tablero</h3>}
           <div className="ggrid">
             {dev.map((w) => (
-              <button type="button" key={w.id} className="gcard" onClick={() => { onAgregar(w.id); onClose() }} title={`Regresar «${w.titulo}» al tablero`}>
+              <button type="button" key={w.id} className="gcard" onClick={() => { onAgregar(w.id); onClose() }} onPointerDown={arrastrar(() => { onAgregar(w.id); onClose() })} title={`Arrastra «${w.titulo}» a la celda del tablero donde la quieras`}>
                 <span className="gt">{w.titulo}</span>
                 <span className="gprev" aria-hidden="true">{w.nodo}</span>
               </button>
@@ -309,7 +317,7 @@ export function Galeria({ corte, filtros, quitados, onAgregar, onCrear, onClose 
           <div className="ggrid">
             {plantillas.map((p) => (
               <span className="gcard-wrap" key={p.id}>
-                <button type="button" className="gcard" onClick={() => { onCrear({ ...p, id: 'g' + Date.now().toString(36) }); onClose() }} title={`Agregar «${p.titulo}»`}>
+                <button type="button" className="gcard" onClick={() => { onCrear({ ...p, id: 'g' + Date.now().toString(36) }); onClose() }} onPointerDown={arrastrar(() => { onCrear({ ...p, id: 'g' + Date.now().toString(36) }); onClose() })} title={`Arrastra «${p.titulo}» a la celda del tablero donde la quieras`}>
                   <span className="gt">{p.titulo}</span>
                   <span className="gprev" aria-hidden="true"><GraficaLibre corte={corte} filtros={filtros} g={p} mini /></span>
                 </button>

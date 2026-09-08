@@ -12,18 +12,22 @@ import { useEscape, useFocoDialogo, useOutside } from './components'
 export interface Drill { titulo: string; sub?: string; filas: Fila[] }
 const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 
-type Col = 'estado' | 'nombre' | 'crm' | 'asesor' | 'detalle' | 'monto' | 'cuando'
-type Tipo = 'texto' | 'monto' | 'fecha'
+type Col = 'estado' | 'nombre' | 'crm' | 'asesor' | 'embudo' | 'etapa' | 'detalle' | 'num' | 'monto' | 'cuando'
+type Tipo = 'texto' | 'monto' | 'fecha' | 'numero'
 interface ColDef { id: Col; label: string; tipo: Tipo }
 const COLS: ColDef[] = [
   { id: 'estado', label: 'Estado', tipo: 'texto' }, { id: 'nombre', label: 'Registro', tipo: 'texto' }, { id: 'crm', label: 'CRM', tipo: 'texto' },
-  { id: 'asesor', label: 'Asesor', tipo: 'texto' }, { id: 'detalle', label: 'Detalle', tipo: 'texto' }, { id: 'monto', label: 'Monto', tipo: 'monto' }, { id: 'cuando', label: 'Cuándo', tipo: 'fecha' },
+  { id: 'asesor', label: 'Asesor', tipo: 'texto' }, { id: 'embudo', label: 'Embudo', tipo: 'texto' }, { id: 'etapa', label: 'Etapa', tipo: 'texto' },
+  { id: 'detalle', label: 'Detalle', tipo: 'texto' }, { id: 'num', label: 'Número', tipo: 'numero' }, { id: 'monto', label: 'Monto', tipo: 'monto' }, { id: 'cuando', label: 'Cuándo', tipo: 'fecha' },
 ]
+/** Columnas que solo aparecen cuando las filas de esta ventana las traen. */
+const OPCIONALES: Record<string, (f: Fila) => unknown> = { estado: (f) => f.estado, embudo: (f) => f.embudo, etapa: (f) => f.etapa, detalle: (f) => f.detalle, num: (f) => f.num }
 /** Texto con el que se filtra por valores y se ordena una columna de texto. */
 const texto = (f: Fila, c: Col): string =>
   c === 'crm' ? CRM_LABEL[f.crm] : c === 'estado' ? (f.estado || '—') : c === 'nombre' ? f.nombre : c === 'asesor' ? (f.asesor || '—')
-    : c === 'detalle' ? (f.detalle || '—') : c === 'monto' ? (f.monto ? fmtMoney(f.monto) : '—') : (f.cuando ? fmtCorta(fechaDe(f.cuando)) : '—')
-const numero = (f: Fila, c: Col): number | undefined => (c === 'monto' ? f.monto : c === 'cuando' ? f.cuando : undefined)
+    : c === 'embudo' ? (f.embudo || '—') : c === 'etapa' ? (f.etapa || '—') : c === 'detalle' ? (f.detalle || '—')
+      : c === 'num' ? (f.num == null ? '—' : fmtN(f.num)) : c === 'monto' ? (f.monto ? fmtMoney(f.monto) : '—') : (f.cuando ? fmtCorta(fechaDe(f.cuando)) : '—')
+const numero = (f: Fila, c: Col): number | undefined => (c === 'monto' ? f.monto : c === 'cuando' ? f.cuando : c === 'num' ? f.num : undefined)
 
 /** Filtro de una columna: valores marcados (null = todos), rango para monto y fecha, «contiene» para texto. */
 interface FiltroCol { valores: Set<string> | null; sin?: string[]; min?: number; max?: number; contiene?: string }   // `sin`: los pocos valores desmarcados, para que el chip diga «sin X» en vez de «21 valores»
@@ -54,7 +58,7 @@ function ordenar(filas: Fila[], o: Orden | null): Fila[] {
 function resumen(col: ColDef, x: FiltroCol): string {
   const out: string[] = []
   if (x.valores) out.push(x.valores.size === 0 ? 'ningún valor' : x.valores.size <= 2 ? [...x.valores].join(', ') : x.sin?.length ? `sin ${x.sin.join(', ')}` : `${fmtN(x.valores.size)} valores`)
-  const f = (n: number) => (col.tipo === 'monto' ? fmtMoney(n) : fmtCorta(fechaDe(n)))
+  const f = (n: number) => (col.tipo === 'monto' ? fmtMoney(n) : col.tipo === 'numero' ? fmtN(n) : fmtCorta(fechaDe(n)))
   if (x.min != null && x.max != null) out.push(`${f(x.min)} a ${f(x.max)}`)
   else if (x.min != null) out.push(`desde ${f(x.min)}`)
   else if (x.max != null) out.push(`hasta ${f(x.max)}`)
@@ -83,9 +87,15 @@ export function DrillModal({ d, onClose }: { d: Drill; onClose: () => void }) {
   useEffect(() => { setFiltros({}); setOrden(null); setGrupo(null); setCerrados(new Set()); setMenu(null) }, [d])
 
   const conEstado = d.filas.some((f) => f.estado)
-  const cols = useMemo(() => COLS.filter((c) => c.id !== 'estado' || conEstado), [conEstado])
+  // Cada ventana enseña solo sus columnas, y la numérica toma el nombre que traigan las filas
+  // («Días sin cambio», «Horas al primer contacto»…) para poder ordenarla de mayor a menor de verdad.
+  const cols = useMemo(() => {
+    const etiqueta = d.filas.find((f) => f.numLabel)?.numLabel
+    return COLS.filter((c) => { const p = OPCIONALES[c.id]; return !p || d.filas.some((f) => { const v = p(f); return v != null && v !== '' }) })
+      .map((c) => (c.id === 'num' && etiqueta ? { ...c, label: etiqueta } : c))
+  }, [d])
   const nq = norm(q.trim())
-  const buscadas = useMemo(() => (nq ? d.filas.filter((f) => norm(f.nombre + ' ' + f.asesor + ' ' + f.detalle + ' ' + (f.estado || '')).includes(nq)) : d.filas), [d, nq])
+  const buscadas = useMemo(() => (nq ? d.filas.filter((f) => norm([f.nombre, f.asesor, f.embudo, f.etapa, f.detalle, f.estado].filter(Boolean).join(' ')).includes(nq)) : d.filas), [d, nq])
   const filtradas = useMemo(() => {
     const act = (Object.entries(filtros) as [Col, FiltroCol][]).filter(([, x]) => activo(x))
     const base = act.length ? buscadas.filter((f) => act.every(([c, x]) => pasa(f, c, x))) : buscadas
@@ -119,13 +129,17 @@ export function DrillModal({ d, onClose }: { d: Drill; onClose: () => void }) {
   const visibles = grupo ? filtradas : filtradas.slice(pag * porPagina, (pag + 1) * porPagina)
   const nCols = cols.length
 
+  const hay = (c: Col) => cols.some((x) => x.id === c)
   const fila = (f: Fila) => (
     <tr key={f.id}>
       {conEstado && <td><span className={'tag' + (f.alerta ? ' alerta' : '')}>{f.estado || '—'}</span></td>}
       <td>{f.link ? <a href={f.link} target="_blank" rel="noreferrer" title={'Abrir en ' + CRM_LABEL[f.crm]}>{f.nombre}</a> : <span className="muted">{f.nombre}</span>}</td>
       <td><span className="tag">{CRM_LABEL[f.crm]}</span></td>
       <td>{f.asesor}</td>
-      <td>{f.detalle}</td>
+      {hay('embudo') && <td>{f.embudo || '—'}</td>}
+      {hay('etapa') && <td>{f.etapa || '—'}</td>}
+      {hay('detalle') && <td>{f.detalle || '—'}</td>}
+      {hay('num') && <td className="num">{f.num == null ? '—' : fmtN(f.num)}</td>}
       <td className="num">{f.monto ? fmtMoney(f.monto) : '—'}</td>
       <td className="muted">{cuando(f.cuando)}</td>
     </tr>
@@ -140,7 +154,7 @@ export function DrillModal({ d, onClose }: { d: Drill; onClose: () => void }) {
               {fmtN(filtradas.length)}{filtradas.length !== d.filas.length ? ` de ${fmtN(d.filas.length)}` : ''} registro{filtradas.length === 1 ? '' : 's'}{total ? ` · ${fmtMoney(total)}` : ''}{conEstado ? ` · ${fmtN(alertas)} sin pareja` : ''}{crms.length ? ' · ' + crms.map((c) => CRM_LABEL[c]).join(' + ') : ''}{d.sub ? ' · ' + d.sub : ''}
             </div>
           </div>
-          <input ref={inp} className="sel" type="search" placeholder="Buscar nombre, asesor o detalle…" aria-label="Buscar en el detalle" value={q} onChange={(e) => setQ(e.target.value)} />
+          <input ref={inp} className="sel" type="search" placeholder="Buscar nombre, asesor, etapa o detalle…" aria-label="Buscar en el detalle" value={q} onChange={(e) => setQ(e.target.value)} />
           <button type="button" className="ib" aria-label="Cerrar" onClick={onClose}>×</button>
         </div>
         {/* Herramientas como en HubSpot: agrupar, chips de filtros activos, borrar todo. */}
@@ -161,7 +175,7 @@ export function DrillModal({ d, onClose }: { d: Drill; onClose: () => void }) {
             <table className="ftable dtable">
               <thead><tr>
                 {cols.map((c) => (
-                  <th scope="col" key={c.id} className={c.tipo === 'monto' ? 'num' : ''} aria-sort={orden?.col === c.id ? (orden.dir === 'asc' ? 'ascending' : 'descending') : undefined}>
+                  <th scope="col" key={c.id} className={c.tipo === 'monto' || c.tipo === 'numero' ? 'num' : ''} aria-sort={orden?.col === c.id ? (orden.dir === 'asc' ? 'ascending' : 'descending') : undefined}>
                     <span className="hcol">
                       <button type="button" className="hsort" aria-label={`Ordenar por ${c.label}`} onClick={() => toggleOrden(c.id)}>{c.label}<span aria-hidden="true">{orden?.col === c.id ? (orden.dir === 'asc' ? ' ▲' : ' ▼') : ''}</span></button>
                       <button type="button" className={'fbtn' + (activo(filtros[c.id]) ? ' on' : '')} aria-label={`Ordenar y filtrar ${c.label}`} aria-haspopup="dialog" aria-expanded={menu?.col === c.id}
@@ -243,13 +257,13 @@ function MenuCol({ col, filas, filtro, anchor, onOrden, onAplicar, onClose }: { 
   return (
     <div className="popup fmenu" ref={ref} style={{ left, top, width: W }} role="dialog" aria-modal="true" aria-label={`Ordenar y filtrar ${col.label}`} onMouseDown={(e) => e.stopPropagation()}>
       <div className="fm-sec">
-        <button type="button" className="fm-item" onClick={() => onOrden('asc')}>{col.tipo === 'texto' ? 'Ordenar de A a Z' : col.tipo === 'monto' ? 'Ordenar de menor a mayor' : 'Ordenar del más antiguo al más reciente'}</button>
-        <button type="button" className="fm-item" onClick={() => onOrden('desc')}>{col.tipo === 'texto' ? 'Ordenar de Z a A' : col.tipo === 'monto' ? 'Ordenar de mayor a menor' : 'Ordenar del más reciente al más antiguo'}</button>
+        <button type="button" className="fm-item" onClick={() => onOrden('asc')}>{col.tipo === 'texto' ? 'Ordenar de la A a la Z' : col.tipo === 'fecha' ? 'Ordenar del más antiguo al más reciente' : 'Ordenar de menor a mayor'}</button>
+        <button type="button" className="fm-item" onClick={() => onOrden('desc')}>{col.tipo === 'texto' ? 'Ordenar de la Z a la A' : col.tipo === 'fecha' ? 'Ordenar del más reciente al más antiguo' : 'Ordenar de mayor a menor'}</button>
       </div>
       <div className="fm-sec">
         <div className="fm-h">Filtrar por condición</div>
         {col.tipo === 'texto' && <input className="inp" type="text" placeholder="El texto contiene…" aria-label={`${col.label} contiene`} value={contiene} onChange={(e) => setContiene(e.target.value)} />}
-        {col.tipo === 'monto' && <div className="fm-row"><input className="inp" type="number" inputMode="numeric" placeholder="Mínimo" aria-label="Monto mínimo" value={min ?? ''} onChange={(e) => setMin(numOr(e.target.value))} /><span className="muted">a</span><input className="inp" type="number" inputMode="numeric" placeholder="Máximo" aria-label="Monto máximo" value={max ?? ''} onChange={(e) => setMax(numOr(e.target.value))} /></div>}
+        {(col.tipo === 'monto' || col.tipo === 'numero') && <div className="fm-row"><input className="inp" type="number" inputMode="numeric" placeholder="Mínimo" aria-label={`${col.label}: mínimo`} value={min ?? ''} onChange={(e) => setMin(numOr(e.target.value))} /><span className="muted">a</span><input className="inp" type="number" inputMode="numeric" placeholder="Máximo" aria-label={`${col.label}: máximo`} value={max ?? ''} onChange={(e) => setMax(numOr(e.target.value))} /></div>}
         {col.tipo === 'fecha' && <div className="fm-row"><input className="inp" type="date" aria-label="Desde" value={iso(min)} onChange={(e) => fechaDesde(e.target.value)} /><span className="muted">a</span><input className="inp" type="date" aria-label="Hasta" value={iso(max)} onChange={(e) => fechaHasta(e.target.value)} /></div>}
       </div>
       <div className="fm-sec">

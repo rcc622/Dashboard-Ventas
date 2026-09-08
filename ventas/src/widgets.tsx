@@ -134,6 +134,8 @@ function useLibre() {
 
 interface Arrastre { id: string; ghost: Pos; dx: number; dy: number }
 interface Estiro { id: string; ghost: Pos }
+/** Gráfica elegida en la galería que todavía no aterriza: sigue al puntero hasta que se suelta. */
+interface Colocando { titulo: string; w: number; h: number; pos: Pos | null; poner: (p: Pos | null) => void }
 
 export function WidgetGrid({ clave, widgets, taller: ctor }: { clave: string; widgets: Widget[]; taller?: Constructor }) {
   const [layout, setLayout] = useState<Layout>(() => inicial(clave, widgets))
@@ -149,6 +151,7 @@ export function WidgetGrid({ clave, widgets, taller: ctor }: { clave: string; wi
   const [tocado, setTocado] = useState(() => { try { return localStorage.getItem(KEY(clave)) != null } catch { return false } })
   const [drag, setDrag] = useState<Arrastre | null>(null)
   const [estiro, setEstiro] = useState<Estiro | null>(null)
+  const [colocando, setColocando] = useState<Colocando | null>(null)
   const [msg, setMsg] = useState('')
   const libre = useLibre()
   const refs = useRef<Record<string, HTMLElement | null>>({})
@@ -179,13 +182,33 @@ export function WidgetGrid({ clave, widgets, taller: ctor }: { clave: string; wi
     if (esGraf(id)) return fijar({ ...layout, pos: compactar(pos), graficas: (layout.graficas || []).filter((g) => 'g:' + g.id !== id) }, `${tituloDe(id)} borrada`)
     fijar({ ...layout, pos: compactar(pos), ocultos: [...layout.ocultos.filter((x) => x !== id), id] }, `${tituloDe(id)} quitado del tablero`)
   }
-  const crearGrafica = (g: Grafica) => {
-    const prev = (layout.graficas || []).some((x) => x.id === g.id)
-    const graficas = prev ? (layout.graficas || []).map((x) => (x.id === g.id ? g : x)) : [...(layout.graficas || []), g]
-    const pos = prev ? layout.pos : { ...layout.pos, ['g:' + g.id]: colocar(layout.pos, clamp(g.span ?? 3, 1, COLS), clamp(g.alto ?? 9, MIN_FILAS, MAX_FILAS)) }
-    fijar({ ...layout, pos, graficas }, `${g.titulo} ${prev ? 'actualizada' : 'agregada al tablero'}`)
+  // Guardar una gráfica: si viene una celda, ahí se queda; si no, en el primer hueco libre.
+  const guardarGrafica = (g: Grafica, celdaDestino: Pos | null) => {
+    const l = actual.current
+    const prev = (l.graficas || []).some((x) => x.id === g.id)
+    const graficas = prev ? (l.graficas || []).map((x) => (x.id === g.id ? g : x)) : [...(l.graficas || []), g]
+    if (prev) return fijar({ ...l, graficas }, `${g.titulo} actualizada`)
+    const gid = 'g:' + g.id, w = clamp(g.span ?? 3, 1, COLS), h = clamp(g.alto ?? 9, MIN_FILAS, MAX_FILAS)
+    const np = celdaDestino ? { ...celdaDestino, w, h } : colocar(l.pos, w, h)
+    fijar({ ...l, pos: acomodar({ ...l.pos, [gid]: np }, gid), graficas }, `${g.titulo} en la columna ${np.x}, fila ${np.y}`)
   }
-  const poner = (id: string) => { const w = por.get(id); fijar({ ...layout, pos: { ...layout.pos, [id]: colocar(layout.pos, anchoDe(w), altoDe(w)) }, ocultos: layout.ocultos.filter((x) => x !== id) }, `${tituloDe(id)} de vuelta en el tablero`) }
+  const ponerEn = (id: string, celdaDestino: Pos | null) => {
+    const l = actual.current, w = por.get(id)
+    const np = celdaDestino ? { ...celdaDestino, w: anchoDe(w), h: altoDe(w) } : colocar(l.pos, anchoDe(w), altoDe(w))
+    fijar({ ...l, pos: acomodar({ ...l.pos, [id]: np }, id), ocultos: l.ocultos.filter((x) => x !== id) }, `${tituloDe(id)} en la columna ${np.x}, fila ${np.y}`)
+  }
+  // Elegir en la galería no la manda al primer hueco: queda pegada al puntero y aterriza donde se
+  // suelte (Randall 8-sep: «que pueda arrastrar y colocar, para no tener que buscar dónde quedó»).
+  const crearGrafica = (g: Grafica) => {
+    const prev = (actual.current.graficas || []).some((x) => x.id === g.id)
+    if (prev || !libre) return guardarGrafica(g, null)
+    setColocando({ titulo: g.titulo, w: clamp(g.span ?? 3, 1, COLS), h: clamp(g.alto ?? 9, MIN_FILAS, MAX_FILAS), pos: null, poner: (p) => guardarGrafica(g, p) })
+  }
+  const poner = (id: string) => {
+    if (!libre) return ponerEn(id, null)
+    const w = por.get(id)
+    setColocando({ titulo: w?.titulo || id, w: anchoDe(w), h: altoDe(w), pos: null, poner: (p) => ponerEn(id, p) })
+  }
   const agregarSep = () => {
     const id = 'sep:' + Date.now().toString(36)
     fijar({ ...layout, pos: { ...layout.pos, [id]: { x: 1, y: fondo(layout.pos), w: COLS, h: SEP_H } }, seps: { ...layout.seps, [id]: 'Nueva sección' } })
@@ -269,8 +292,37 @@ export function WidgetGrid({ clave, widgets, taller: ctor }: { clave: string; wi
     else return
     e.preventDefault()
   }
-  const editando = !!(drag || estiro)
-  const ghost = drag?.ghost || estiro?.ghost
+  // Mientras se coloca: un fantasma marca la celda bajo el puntero y el siguiente clic la deja ahí.
+  useEffect(() => {
+    if (!colocando) return
+    let movio = false
+    const celdaEn = (cx: number, cy: number): Pos | null => {
+      const g = grid.current
+      if (!g) return null
+      const r = g.getBoundingClientRect(), { colW, filaH } = celda()
+      if (cx < r.left - 40 || cx > r.right + 40 || cy < r.top - 60) return null
+      const maxY = Math.max(1, fondo(actual.current.pos))
+      return { x: clamp(Math.round((cx - r.left) / (colW + GAP) - colocando.w / 2) + 1, 1, COLS - colocando.w + 1),
+               y: clamp(Math.floor((cy - r.top) / (filaH + GAP)) + 1, 1, maxY), w: colocando.w, h: colocando.h }
+    }
+    const mover = (e: PointerEvent) => { movio = true; const p = celdaEn(e.clientX, e.clientY); setColocando((c) => (c && JSON.stringify(c.pos) !== JSON.stringify(p) ? { ...c, pos: p } : c)) }
+    // Solo cuenta el soltar que viene después de mover: así el clic que abrió el modo no la suelta sola.
+    const soltar = (e: PointerEvent) => {
+      if (!movio) return
+      const p = celdaEn(e.clientX, e.clientY)
+      if (!p) return
+      e.preventDefault(); e.stopPropagation()
+      setColocando(null); colocando.poner(p)
+    }
+    const tecla = (e: globalThis.KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); setColocando(null); setMsg('Se canceló: no se agregó nada') } }
+    window.addEventListener('pointermove', mover)
+    window.addEventListener('pointerup', soltar, true)
+    window.addEventListener('keydown', tecla, true)
+    return () => { window.removeEventListener('pointermove', mover); window.removeEventListener('pointerup', soltar, true); window.removeEventListener('keydown', tecla, true) }
+  }, [colocando])   // eslint-disable-line react-hooks/exhaustive-deps
+
+  const editando = !!(drag || estiro || colocando)
+  const ghost = drag?.ghost || estiro?.ghost || colocando?.pos || undefined
   const area = (p: Pos) => ({ gridColumn: `${p.x} / span ${p.w}`, gridRow: `${p.y} / span ${p.h}` })
 
   return (
@@ -336,6 +388,13 @@ export function WidgetGrid({ clave, widgets, taller: ctor }: { clave: string; wi
       </div>
       <div className="wreset">Arrastra el asa ⋮⋮ a la celda que quieras (o enfócala y usa ← → ↑ ↓); estira la esquina inferior derecha para cambiar ancho y alto (← → ↑ ↓ sobre ella; Supr regresa el tamaño por defecto). Nada se encima: lo que choca se empuja hacia abajo. × quita la gráfica del tablero y arriba, en «Agregar gráfica», la regresas. Se guarda en este navegador.</div>
 
+      {colocando && (
+        <div className="colocando" role="status">
+          <span>Sueltas <b>{colocando.titulo}</b> donde toques el tablero.</span>
+          <button type="button" className="btn sm" onClick={() => { const c = colocando; setColocando(null); c.poner(null) }}>Ponla donde quepa</button>
+          <button type="button" className="btn sm" onClick={() => setColocando(null)}>Cancelar</button>
+        </div>
+      )}
       {galeria && (ctor
         ? ctor.galeria({ quitados: quitados.map((id) => por.get(id)!), onAgregar: poner, onCrear: crearGrafica, onClose: () => setGaleria(false) })
         : <GaleriaSimple quitados={quitados.map((id) => por.get(id)!)} onAgregar={poner} onClose={() => setGaleria(false)} />)}
@@ -350,7 +409,7 @@ function GaleriaSimple({ quitados, onAgregar, onClose }: { quitados: Widget[]; o
     <div className="modal-bg" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div className="modal galeria" role="dialog" aria-modal="true" aria-label="Agregar una gráfica">
         <div className="mh">
-          <div className="mt"><h2>Agregar una gráfica</h2><div className="small muted">Lo que quitaste de este tablero. Toca una para regresarla.</div></div>
+          <div className="mt"><h2>Agregar una gráfica</h2><div className="small muted">Lo que quitaste de este tablero. Tócala y luego toca el lugar del tablero donde la quieras.</div></div>
           <button type="button" className="ib" aria-label="Cerrar" onClick={onClose}>×</button>
         </div>
         <div className="mb">

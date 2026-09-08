@@ -883,6 +883,20 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   las posiciones ya se ignoraban < 1000 px); la «i» se queda. El detalle ya era pantalla completa
   ≤ 640 y el menú de columna cabe (300 px). Medido con `medir_i.py` a 390 × 844: sin desborde en
   Dashboard, Asesores (la tabla se desplaza adentro), Ventas reales, Mi día y el detalle.
+- **Arrastrar y colocar desde la galería** (Randall 8-sep, «que pueda arrastrar y colocar, por ejemplo
+  al lado, para no tener que buscar el widget dónde quedó»): elegir una tarjeta en «Agregar gráfica» ya
+  no la manda al primer hueco libre. La galería se cierra y la gráfica queda pegada al puntero
+  (`colocando` en `widgets.tsx`): un fantasma marca la celda y el siguiente clic —o soltar, si se
+  arrastró la tarjeta— la deja ahí; el aviso de abajo ofrece «Ponla donde quepa» y Escape cancela.
+  Arrastrar la tarjeta más de 8 px equivale a tocarla (`arrastrar()` en `constructor.tsx`). Solo en la
+  rejilla libre (≥ 1000 px): en móvil sigue cayendo en el primer hueco.
+- **El detalle ya no mezcla etapa con números** (Randall 8-sep: «le pongo de mayor a menor y me ordena
+  por el nombre del embudo y etapa de la A a la Z»): `Fila` tiene `embudo`, `etapa` y una columna
+  numérica propia (`num` + `numLabel`), y el drill-down las muestra como columnas separadas, cada una
+  con su menú de ordenar y filtrar. La numérica se llama según de dónde venga la ventana («Días sin
+  cambio», «Días desde la cotización», «Horas al primer contacto», «Días desde la asignación», «Tareas
+  vencidas») y ordena por número, no por texto; su filtro por condición es un rango mínimo–máximo. Cada
+  ventana enseña solo las columnas que sus filas traen (`OPCIONALES` en `drill.tsx`).
 - **Configuración › Ventas reales (8-sep)**: la tabla del cruce lleva `<colgroup>` (26 / 10 / 9 / 33 / 22 %),
   `table-layout: fixed` y tope de 1,060 px (`.cfg-com`); el menú no parte su texto en dos líneas. A 1,780 px
   las cinco columnas quedaban desperdigadas y los renglones medían distinto; ahora todos miden 43 px.
