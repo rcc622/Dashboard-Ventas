@@ -855,6 +855,14 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   widgets con título (Randall 8-sep). En la barra del tablero los cuatro botones son `.btn.sm` con
   icono y texto: Agregar gráfica · Agregar separador · Quitar espacios · Restablecer tablero (antes
   uno tenía recuadro y los otros eran texto suelto).
+- **Barras congeladas** (Randall 8-sep, «como Excel cuando congelas filas»): la barra de filtros y la de
+  gráficas se quedan pegadas arriba al bajar por el tablero. La chincheta del extremo derecho de la barra
+  de filtros las suelta y las vuelve a fijar (`.main.congelado`, preferencia en `localStorage`
+  `kv_congelar`, encendido por defecto). La segunda barra se pega justo debajo de la primera con
+  `top: calc(var(--barra-h) - 18px)`, y `--barra-h` lo escribe un `ResizeObserver` sobre la barra de
+  filtros (su alto cambia al filtrar o al angostar la ventana). **Solo de 961 px para arriba**: en
+  teléfono dos barras fijas se comen media pantalla. Medido: con el tablero desplazado 1,400 px las dos
+  siguen visibles (0 y 103 px); soltadas, se van con el contenido; la elección sobrevive a la recarga.
 - **«Quitar espacios»** (Randall 8-sep, «por un error en el acomodo me quedaron huecos que quitan mucho
   tiempo»): `compactar()` sube cada widget hasta donde tope sin cambiar columna ni tamaño, y se aplica
   **al quitar un widget** (para no dejar el hueco) y al tocar el botón, que **solo aparece cuando hay
