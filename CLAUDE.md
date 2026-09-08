@@ -850,7 +850,9 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
 - **Una sola familia de botones** (Randall 7 y 8-sep): en el widget, asa, «i», ajustar y cerrar son
   iconos de trazo del mismo gris (`--g2`), **sin recuadro**, en cajas de 22-24 px que se pintan con
   `--hover` al pasar el mouse; la «i» es un círculo DIBUJADO (`IconoInfo` en components.tsx), no la
-  letra suelta en un círculo con borde. En la barra del tablero los cuatro botones son `.btn.sm` con
+  letra suelta en un círculo con borde. En las **cifras** (`.wtile`) el asa y la «i» van arriba a la
+  izquierda y la × en la **esquina superior derecha** (`.whead` con `left` y `right`), igual que en los
+  widgets con título (Randall 8-sep). En la barra del tablero los cuatro botones son `.btn.sm` con
   icono y texto: Agregar gráfica · Agregar separador · Quitar espacios · Restablecer tablero (antes
   uno tenía recuadro y los otros eran texto suelto).
 - **«Quitar espacios»** (Randall 8-sep, «por un error en el acomodo me quedaron huecos que quitan mucho
