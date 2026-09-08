@@ -197,7 +197,9 @@ export function Configuracion({ corte, onSaved }: { corte: Corte; onSaved: (cfg:
             <div className="panel" style={{ marginTop: 14 }}>
               <h3>Ventas reales · app de comisiones<Info termino="Ventas reales" /></h3>
               <div className="small muted" style={{ marginBottom: 8 }}>Cada vendedor de la app se cruza solo con el vendedor del CRM por su primer nombre y zona. Aquí se corrige el cruce; «Automático» deja la regla, «Sin asesor» lo saca del tablero. Aplica al guardar.</div>
-              <div className="scrollx"><table className="ftable" aria-label="Cruce de vendedores de la app de comisiones con vendedores del CRM">
+              <div className="scrollx cfg-com"><table className="ftable" aria-label="Cruce de vendedores de la app de comisiones con vendedores del CRM">
+                {/* Anchos fijos: a pantalla ancha las cinco columnas quedaban desperdigadas (Randall 8-sep). */}
+                <colgroup>{['26%', '10%', '9%', '33%', '22%'].map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
                 <thead><tr><th scope="col">Vendedor en la app</th><th scope="col">Zona</th><th scope="col" className="num">Ventas</th><th scope="col">Vendedor en el CRM</th><th scope="col">Activo en</th></tr></thead>
                 <tbody>
                   {corte.comisiones.vendedores.filter((v) => v.rol === 'vendor').sort((a, b) => a.nombre.localeCompare(b.nombre)).map((v) => {

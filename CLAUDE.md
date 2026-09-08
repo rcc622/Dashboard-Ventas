@@ -883,6 +883,9 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   las posiciones ya se ignoraban < 1000 px); la «i» se queda. El detalle ya era pantalla completa
   ≤ 640 y el menú de columna cabe (300 px). Medido con `medir_i.py` a 390 × 844: sin desborde en
   Dashboard, Asesores (la tabla se desplaza adentro), Ventas reales, Mi día y el detalle.
+- **Configuración › Ventas reales (8-sep)**: la tabla del cruce lleva `<colgroup>` (26 / 10 / 9 / 33 / 22 %),
+  `table-layout: fixed` y tope de 1,060 px (`.cfg-com`); el menú no parte su texto en dos líneas. A 1,780 px
+  las cinco columnas quedaban desperdigadas y los renglones medían distinto; ahora todos miden 43 px.
 - **Configuración › Ventas reales (7-sep)**: la tabla del cruce con la app de comisiones trae la columna
   «Activo en» con el CRM (Kommo / HubSpot / ambos) del vendedor con el que queda cruzado (fijo o
   automático) y la etiqueta «desactivado» si está oculto en Vendedores; las opciones del menú dicen
