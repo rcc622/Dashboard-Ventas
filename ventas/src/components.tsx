@@ -221,7 +221,16 @@ export function Info({ termino }: { termino: Termino | Termino[] }) {
   const txt = ts.map((t) => (ts.length > 1 ? `${t}: ` : '') + GLOSARIO[t]).join('  ·  ')
   // Escape cierra el tooltip sin mover el puntero (WCAG 1.4.13).
   return <button type="button" className="ibtn" aria-label={`${ts.join(' y ')}: ${txt}`} data-tip={txt} onClick={(e) => e.stopPropagation()}
-    onKeyDown={(e) => { if (e.key === 'Escape') e.currentTarget.blur() }}>i</button>
+    onKeyDown={(e) => { if (e.key === 'Escape') e.currentTarget.blur() }}><IconoInfo /></button>
+}
+
+/** El círculo con la «i»: dibujado, no la letra suelta, para que pese lo mismo que el asa y la × (Randall 8-sep). */
+export function IconoInfo() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true">
+      <circle cx="8" cy="8" r="6.3" /><path d="M8 7.3v4" strokeLinecap="round" /><circle cx="8" cy="4.6" r=".95" fill="currentColor" stroke="none" />
+    </svg>
+  )
 }
 
 /** Bullet: valor contra objetivo. Marca negra = objetivo; marca gris = lo esperado a hoy.

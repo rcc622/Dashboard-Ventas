@@ -847,8 +847,19 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
 - **La página «Ventas reales» desapareció** (Randall 7-sep: «no quiero otra sección, lo quiero todo en
   Dashboard»): sus nueve gráficas y sus cifras son plantillas de la galería, con las mismas fórmulas.
   Se perdió el filtro de Región (los botones de equipo ya cubren las zonas) y el tile de mes contra mes.
-- **Iconos de los controles del widget ≤ 25 px** (Randall 7-sep, img 4): el asa, cerrar y ajustar son
-  SVG de 15-16 px dentro de botones de 24; la «i» mide 18. Nada de glifos de texto (⋮⋮, ×).
+- **Una sola familia de botones** (Randall 7 y 8-sep): en el widget, asa, «i», ajustar y cerrar son
+  iconos de trazo del mismo gris (`--g2`), **sin recuadro**, en cajas de 22-24 px que se pintan con
+  `--hover` al pasar el mouse; la «i» es un círculo DIBUJADO (`IconoInfo` en components.tsx), no la
+  letra suelta en un círculo con borde. En la barra del tablero los cuatro botones son `.btn.sm` con
+  icono y texto: Agregar gráfica · Agregar separador · Quitar espacios · Restablecer tablero (antes
+  uno tenía recuadro y los otros eran texto suelto).
+- **«Quitar espacios»** (Randall 8-sep, «por un error en el acomodo me quedaron huecos que quitan mucho
+  tiempo»): `compactar()` sube cada widget hasta donde tope sin cambiar columna ni tamaño, y se aplica
+  **al quitar un widget** (para no dejar el hueco) y al tocar el botón, que **solo aparece cuando hay
+  algo que subir** (`huecos()`, comparando fila por fila: comparar los objetos serializados siempre
+  decía que sí porque `compactar` devuelve las llaves en otro orden). Arrastrar sigue SIN gravedad: se
+  puede dejar aire a propósito. Medido: tablero empujado 6 filas + hueco de 8 → 4,198 px de alto;
+  tras el botón, 3,226 px, primera fila 1, cero solapes y guardado.
 - **Sesión móvil (Randall 7-sep, `/ui-ux-pro-max`, ≤ 699 px)**: **barra inferior** `.bnav` con las
   secciones del perfil (iconos SVG de trazo + etiqueta, 56 px de alto, indicador ámbar arriba, aire
   para `env(safe-area-inset-bottom)`; `.main` lleva 76 px de padding abajo) en lugar del menú

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent as RPointerEvent, type ReactNode } from 'react'
-import { Info } from './components'
+import { IconoInfo, Info } from './components'
 import type { Termino } from './glosario'
 import type { Grafica } from './constructor'
 
@@ -49,6 +49,21 @@ function colocar(pos: Record<string, Pos>, w: number, h: number, desdeY = 1): Po
   return { x: 1, y: 5000, w, h }
 }
 const fondo = (pos: Record<string, Pos>) => Object.values(pos).reduce((m, p) => Math.max(m, p.y + p.h), 1)
+/** Sube cada widget hasta donde tope, sin cambiar su columna ni su tamaño: quita los huecos que quedan
+ *  al mover o quitar cosas (Randall 8-sep: «un botón para quitar espacios en blanco»). Arrastrar sigue
+ *  sin gravedad, para poder dejar aire a propósito; esto se aplica solo cuando se pide o al quitar. */
+function compactar(pos: Record<string, Pos>): Record<string, Pos> {
+  const out: Record<string, Pos> = {}
+  for (const id of Object.keys(pos).sort((a, b) => pos[a].y - pos[b].y || pos[a].x - pos[b].x)) {
+    let p = { ...pos[id] }
+    while (p.y > 1 && !Object.values(out).some((o) => choca({ ...p, y: p.y - 1 }, o))) p = { ...p, y: p.y - 1 }
+    out[id] = p
+  }
+  return out
+}
+/** ¿Hay algo que se pueda subir? Se compara fila por fila: comparar los objetos serializados decía que sí
+ *  siempre, porque `compactar` devuelve las llaves en otro orden. */
+const huecos = (pos: Record<string, Pos>) => { const c = compactar(pos); return Object.keys(pos).some((k) => c[k] && c[k].y !== pos[k].y) }
 /** Empuja hacia abajo lo que choque con `id` (y lo que choque con lo empujado); `id` no se mueve. */
 function acomodar(pos: Record<string, Pos>, id: string): Record<string, Pos> {
   const out = { ...pos }
@@ -161,8 +176,8 @@ export function WidgetGrid({ clave, widgets, taller: ctor }: { clave: string; wi
   const quitar = (id: string) => {
     const pos = { ...layout.pos }; delete pos[id]
     // Una gráfica propia se borra (se puede volver a crear); un widget del tablero solo se esconde.
-    if (esGraf(id)) return fijar({ ...layout, pos, graficas: (layout.graficas || []).filter((g) => 'g:' + g.id !== id) }, `${tituloDe(id)} borrada`)
-    fijar({ ...layout, pos, ocultos: [...layout.ocultos.filter((x) => x !== id), id] }, `${tituloDe(id)} quitado del tablero`)
+    if (esGraf(id)) return fijar({ ...layout, pos: compactar(pos), graficas: (layout.graficas || []).filter((g) => 'g:' + g.id !== id) }, `${tituloDe(id)} borrada`)
+    fijar({ ...layout, pos: compactar(pos), ocultos: [...layout.ocultos.filter((x) => x !== id), id] }, `${tituloDe(id)} quitado del tablero`)
   }
   const crearGrafica = (g: Grafica) => {
     const prev = (layout.graficas || []).some((x) => x.id === g.id)
@@ -261,12 +276,23 @@ export function WidgetGrid({ clave, widgets, taller: ctor }: { clave: string; wi
   return (
     <>
       <div className="wbar">
-        <button type="button" className="btn wadd-btn" onClick={() => setGaleria(true)} aria-haspopup="dialog">
-          <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M10 4v12M4 10h12" /></svg>
+        {/* Los tres botones de la barra son la misma familia (Randall 8-sep): recuadro, icono y texto. */}
+        <button type="button" className="btn sm wadd-btn" onClick={() => setGaleria(true)} aria-haspopup="dialog">
+          <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M10 4v12M4 10h12" /></svg>
           Agregar gráfica{quitados.length ? ` (${quitados.length} quitadas)` : ''}
         </button>
-        <button type="button" className="nbtn wsep-add" onClick={agregarSep}>Agregar separador</button>
-        {tocado && <button type="button" className="nbtn wreset-btn" onClick={restablecer}>Restablecer tablero</button>}
+        <button type="button" className="btn sm wsep-add" onClick={agregarSep}>
+          <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M3 10h14M6 5h8M6 15h8" /></svg>
+          Agregar separador
+        </button>
+        {libre && huecos(layout.pos) && <button type="button" className="btn sm wcompact" onClick={() => fijar({ ...layout, pos: compactar(layout.pos) }, 'Espacios en blanco quitados')} title="Sube los widgets para que no queden huecos entre ellos">
+          <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M10 12V4M7 7l3-3 3 3M4 16h12" /></svg>
+          Quitar espacios
+        </button>}
+        {tocado && <button type="button" className="btn sm wreset-btn" onClick={restablecer}>
+          <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 10a6 6 0 1 0 1.8-4.2M4 4v3h3" /></svg>
+          Restablecer tablero
+        </button>}
         <span className="sr-solo" role="status" aria-live="polite">{msg}</span>
       </div>
       <div className={'wgrid' + (libre ? ' libre' : '') + (editando ? ' editing' : '')} ref={grid} style={libre ? { gridAutoRows: FILA + 'px' } : undefined}>
@@ -293,7 +319,7 @@ export function WidgetGrid({ clave, widgets, taller: ctor }: { clave: string; wi
               className={'widget' + (w.plain ? ' plain' : ' panel') + (w.cls ? ' ' + w.cls : '') + (libre ? ' hset' : '') + (arrastrando ? ' dragging' : '') + (estiro?.id === id ? ' resizing' : '')}>
               <div className="whead">
                 <button type="button" className="grip" title="Arrastra para mover (o usa las flechas)" aria-label={`Mover «${w.titulo}»: flechas mueven una celda, Home y End a los bordes. Ahora en columna ${p.x}, fila ${p.y}`} onPointerDown={onGrip(id)} onKeyDown={onGripKey(id)}><IconoGrip /></button>
-                <h3><span className="wt">{w.titulo}</span>{w.info?.length ? <Info termino={w.info} /> : null}{w.ayuda ? <button type="button" className="ibtn" data-tip={w.ayuda} aria-label={w.ayuda} onClick={(e) => e.stopPropagation()}>i</button> : null}</h3>
+                <h3><span className="wt">{w.titulo}</span>{w.info?.length ? <Info termino={w.info} /> : null}{w.ayuda ? <button type="button" className="ibtn" data-tip={w.ayuda} aria-label={w.ayuda} onClick={(e) => e.stopPropagation()}><IconoInfo /></button> : null}</h3>
                 <span className="wctl">
                   {w.grafica && <button type="button" className="wbtn" aria-label={`Ajustar «${w.titulo}»`} title="Ajustar esta gráfica" onClick={() => setAjustando(w.grafica!)}><IconoLapiz /></button>}
                   <button type="button" className="wbtn" aria-label={w.grafica ? `Borrar «${w.titulo}»` : `Quitar «${w.titulo}» del tablero`} title={w.grafica ? 'Borrar esta gráfica' : 'Quitar del tablero'} onClick={() => quitar(id)}><IconoX /></button>
