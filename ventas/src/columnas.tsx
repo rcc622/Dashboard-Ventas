@@ -11,12 +11,24 @@ import { useRef } from 'react'
 export interface ColDef<F> {
   id: string
   label: string
-  peso: number                 // ancho relativo; se reparte el 100 % entre las visibles
+  ancho: number                // ancho en PÍXELES; la tabla se desplaza cuando no cabe
   fija?: boolean               // no se puede quitar
   cnt?: boolean                // columna de conteo, centrada
   oculta?: boolean             // no se muestra hasta que alguien la pida
+  /** Qué le hace el rango de fechas a esta columna. Se escribe bajo el título para que nadie tenga
+   *  que adivinar si está viendo leads asignados, actividad hecha o ventas cerradas en esas fechas
+   *  (Randall 9-sep: «es peligroso no saber»). Sustituye a tener dos selectores de fecha. */
+  fecha?: BaseFecha
   info?: string                // término del glosario para el botón «i»
   celda: (f: F) => React.ReactNode
+}
+export type BaseFecha = 'asignacion' | 'actividad' | 'cierre' | 'ninguna'
+/** Lo que se escribe bajo el título de la columna, y la explicación larga del `title`. */
+export const BASE_FECHA: Record<BaseFecha, { corto: string; largo: string }> = {
+  asignacion: { corto: 'por asignación', largo: 'Cuenta los leads que se ASIGNARON dentro de las fechas elegidas; el estado (activo, vencido, sin tarea) es el de hoy.' },
+  actividad: { corto: 'por actividad', largo: 'Cuenta lo que PASÓ dentro de las fechas elegidas: la llamada, la tarea, la cotización o el descarte, por su propia fecha.' },
+  cierre: { corto: 'por cierre', largo: 'Cuenta las ventas que se CERRARON dentro de las fechas elegidas, sin importar cuándo entró el lead.' },
+  ninguna: { corto: 'sin fechas', largo: 'No depende del rango: es el estado de hoy.' },
 }
 export interface Eleccion { orden: string[]; ocultas: string[]; ts?: number }
 const KEY = (clave: string) => 'kv_cols_' + clave
@@ -72,10 +84,15 @@ export function useColumnas<F>(clave: string, todas: ColDef<F>[]) {
   return { visibles, ordenadas, ocultas, tocado, fijar, restablecer, eleccion: el, actual }
 }
 
-/** Ancho en porcentaje de cada columna visible: se reparte el 100 % según su peso. */
+/** Ancho fijo de cada columna, en píxeles. Repartir el 100 % entre las visibles hacía que agregar
+ *  una columna aplastara a todas las demás (Randall 9-sep: «para el problema del ancho usa un
+ *  slider»): ahora cada columna conserva su ancho legible y, si no caben, la tabla se desplaza a lo
+ *  ancho con su barra. `anchoTotal` es lo que mide la tabla completa. */
 export function anchos<F>(visibles: ColDef<F>[]): string[] {
-  const tot = visibles.reduce((a, c) => a + c.peso, 0) || 1
-  return visibles.map((c) => ((c.peso / tot) * 100).toFixed(2) + '%')
+  return visibles.map((c) => c.ancho + 'px')
+}
+export function anchoTotal<F>(visibles: ColDef<F>[]): number {
+  return visibles.reduce((a, c) => a + c.ancho, 0)
 }
 
 export function EditarColumnas<F>({ todas, ordenadas, ocultas, onFijar, onRestablecer, onClose }: {

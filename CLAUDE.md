@@ -891,6 +891,24 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   abre su lista. Prueba de punta a punta 9-sep: `POST /cotizador/entregada` escribió las 2 filas
   esperadas en la tabla `cotizaciones` de Supabase y se borró la fila de prueba; la tabla quedó vacía
   porque el registro se estrenó el 8-sep a las 20:00 y nadie había generado una cotización todavía.
+- **La tabla de Asesores, resuelta (Randall 9-sep, `/goal`)**: (a) **el ancho ya no reparte el
+  100 %** — cada columna trae su ancho en píxeles y la tabla lleva `min-width` en línea, así que
+  cuando no caben todas `.tblwrap` las desplaza con su barra en vez de aplastarlas (antes, agregar
+  una columna angostaba a todas); (b) **siete columnas nuevas** para ver la misma data del tablero:
+  «Leads asignados» del periodo y «Cómo acabaron» (barra mixta en juego / ganados / descartados)
+  visibles por defecto, más Conversión, Tasa de pérdida, Ticket promedio, Cumplimiento de la meta y
+  Actividad total ocultas hasta que se pidan — 22 columnas en total, todas ordenables y movibles
+  desde el modal; (c) **encabezados arreglados**: el «i» del glosario ya no cae solo en su renglón
+  (`.sortbtn` pasa a `display: inline` en esta tabla) y el título no se parte en tres líneas;
+  (d) **las cifras grandes abren su detalle**: Vendido (ventas del rango), Cotizado vigente (los
+  leads que sí cuentan, con `vigentesDe`) y Leads activos, además de las de conteo que ya lo hacían.
+- **Qué le hacen las fechas a cada columna, dicho en su encabezado** (Randall 9-sep: «es peligroso
+  no saber si lo que veo es de leads asignados o de actividad»; en el Sheet había DOS selectores de
+  fecha y se veía feo). Cada `ColDef` declara `fecha: 'asignacion' | 'actividad' | 'cierre' |
+  'ninguna'` y bajo el título se escribe «por asignación», «por actividad» o «por cierre», con la
+  explicación completa en el `title`. Arriba de la tabla, una línea dice que el rango no significa
+  lo mismo en todas las columnas. Sin segundo calendario. `BASE_FECHA` en `columnas.tsx` es la
+  tabla de significados; si se agrega una columna, se le pone su base o queda muda.
 - **Columnas de la tabla de Asesores: se eligen y se ordenan** (Randall 9-sep: «poder agregar y
   quitar columnas, como en el tablero podía quitar y agregar gráficas»). `columnas.tsx` es el
   elegidor reutilizable: `ColDef` describe cada columna (id, etiqueta, `peso` de ancho, `fija`,

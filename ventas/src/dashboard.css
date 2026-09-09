@@ -747,7 +747,16 @@ h3 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: 0; t
 .tbl td.cnt { font-size: 15.5px; font-weight: 700; }
 .tbl.asesores .who { align-items: center; }
 .tbl.asesores .who .nm { font-size: 13.5px; line-height: 1.2; }
-@media (max-width: 1499px) { .tbl.asesores { table-layout: fixed; min-width: 1440px; } }   /* pantallas de menos de 1500 px: la tabla se desplaza a lo ancho en vez de aplastar las celdas (medido: a 1280 los renglones salían de 3 altos y 84 leyendas cortadas) */
+/* El ancho de cada columna va en píxeles y la tabla lleva su `min-width` en línea (Randall 9-sep):
+   si no caben todas, `.tblwrap` las desplaza con su barra en vez de aplastarlas. Antes el 100 % se
+   repartía entre las visibles y agregar una columna angostaba a todas las demás. */
+.tbl.asesores th, .tbl.asesores td { overflow: hidden; }
+/* El «i» del glosario nunca cae solo en su renglón: el título y el icono fluyen como un solo texto. */
+.tbl.asesores th .sortbtn { display: inline; }
+.tbl.asesores th .ibtn, .tbl.asesores th .info { vertical-align: middle; }
+.tbl.asesores th { letter-spacing: .01em; }
+/* La cifra grande de una celda también abre su detalle (Randall 9-sep, img 4). */
+.tbl.asesores .mc .v.nbtn { font: inherit; text-align: left; padding: 0 2px; margin-left: -2px; border-radius: 4px; }
 
 /* Filtros del detalle (Randall 6-sep, «como HubSpot y Sheets»): menú por columna, chips, grupos y páginas. */
 .modal .mtools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 18px; border-bottom: 1px solid var(--line); background: var(--hover); }
@@ -976,3 +985,13 @@ h3 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: 0; t
 .colmov .ib.sm:disabled { opacity: .35; cursor: default; }
 .modal.cols .mf { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .cols-btns { display: flex; gap: 8px; }
+
+/* Qué le hacen las fechas a cada columna, escrito bajo su título (Randall 9-sep: «es peligroso no
+   saber si lo que veo es de leads asignados o de actividad»). Sustituye al segundo selector de
+   fecha que teníamos en el Sheet, que se veía feo y nadie usaba. */
+.tbl.asesores th .thbase { display: block; margin-top: 3px; font-size: 10.5px; letter-spacing: 0; text-transform: none; font-weight: 500; color: var(--g3); }
+.basefechas { flex: 1; min-width: 260px; line-height: 1.45; }
+.basefechas .bf { font-style: normal; font-weight: 600; white-space: nowrap; }
+.basefechas .bf.asignacion { color: var(--c1-ink); }
+.basefechas .bf.actividad { color: var(--c2-ink); }
+.basefechas .bf.cierre { color: var(--c4-ink); }

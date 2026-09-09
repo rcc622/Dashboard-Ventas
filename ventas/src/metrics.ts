@@ -433,6 +433,10 @@ export function actividad(ev: Evento[]): Actividad {
 // ---------------------------------------------------------------- Asesores
 export interface FilaAsesor {
   u: Usuario; ventas: number; montoVentas: number
+  /** Los leads que se le asignaron DENTRO del rango, ganados y perdidos incluidos, y cómo acabaron.
+   *  `leadsActivos` es otra cosa: los que siguen en juego hoy, se hayan asignado cuando se hayan
+   *  asignado. Randall 9-sep quiso ver las dos cifras como columnas distintas. */
+  asignados: Lead[]; ganados: number; perdidos: number
   metaMes: number; metaRango: number; esperado: number; ritmo: Ritmo
   leadsActivos: Lead[]; presupuesto: number; cotizado: Cotizado; estancados: number
   llamadas: number; contestadas: number; sinContestar: number
@@ -453,6 +457,7 @@ export function porAsesor(c: Corte, f: Filtros): FilaAsesor[] {
     const metaMes = metaDe(c, u), metaRango = metaEnRango(metaMes, f.rango), montoVentas = vt.reduce((s, l) => s + l.presupuesto, 0)
     filas.push({
       u, ventas: vt.length, montoVentas,
+      asignados: mios, ganados: mios.filter((l) => l.funnel === 5).length, perdidos: mios.filter((l) => l.funnel === 0).length,
       metaMes, metaRango, esperado: metaEsperada(metaRango, f.rango), ritmo: ritmo(montoVentas, metaRango, f.rango),
       leadsActivos: activos, presupuesto: activos.reduce((s, l) => s + l.presupuesto, 0),
       cotizado: cotizado(activos, c.cotizado_dias), estancados: activos.filter((l) => l.dias_sin_cambio > 7).length,
