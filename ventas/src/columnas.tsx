@@ -79,7 +79,12 @@ export function useColumnas<F>(clave: string, todas: ColDef<F>[]) {
   }, [todas, el.orden])
   // Sin elección guardada mandan los valores por defecto de cada columna; en cuanto se toca algo,
   // manda la elección, para que quitar una columna «de fábrica» no la resucite al recargar.
-  const ocultas = new Set(tocado ? el.ocultas : todas.filter((c) => c.oculta).map((c) => c.id))
+  // Y una columna que NACE oculta sigue oculta aunque ya haya elección guardada, mientras no esté
+  // en el orden guardado: si no, agregar columnas nuevas al código se las encendía de golpe a todo
+  // el que ya tenía su tabla acomodada (pasó en producción el 9-sep).
+  const ocultas = new Set(tocado
+    ? [...el.ocultas, ...todas.filter((c) => c.oculta && !el.orden.includes(c.id)).map((c) => c.id)]
+    : todas.filter((c) => c.oculta).map((c) => c.id))
   const visibles = ordenadas.filter((c) => c.fija || !ocultas.has(c.id))
   return { visibles, ordenadas, ocultas, tocado, fijar, restablecer, eleccion: el, actual }
 }
