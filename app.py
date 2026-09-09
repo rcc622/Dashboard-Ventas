@@ -792,6 +792,18 @@ class H(BaseHTTPRequestHandler):
 
     def _send(self, code, body, ctype="text/html; charset=utf-8", extra=None):
         data = body.encode("utf-8") if isinstance(body, str) else body
+        # El dashboard pasa del MB desde que cada bloque se pre-renderiza por
+        # canal. Comprimirlo lo deja en ~una decima parte y el navegador lo
+        # descomprime solo; se salta lo ya comprimido y lo que no es texto.
+        extra = dict(extra or {})
+        if (len(data) > 4096 and "Content-Encoding" not in extra
+                and (ctype.startswith("text/") or ctype.startswith("application/json")
+                     or ctype.startswith("application/javascript")
+                     or ctype.startswith("image/svg"))
+                and "gzip" in (self.headers.get("Accept-Encoding") or "")):
+            data = gzip.compress(data, 6)
+            extra["Content-Encoding"] = "gzip"
+            extra["Vary"] = "Accept-Encoding"
         self.send_response(code)
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(data)))

@@ -1,146 +1,3070 @@
 {
   "por_ventana": {
     "7": {
-      "leads_total": 919,
-      "leads_meta": 814,
-      "asignados": 147,
-      "asignados_por_zona": {
-        "MTY": 23,
-        "SLT": 22,
-        "TRC": 80,
-        "MVA": 20
+      "embudo": {
+        "asignados_por_canal": {
+          "Sin origen": 6,
+          "Web orgánico": 15,
+          "Meta Ads": 175,
+          "Directo": 18,
+          "Google Ads": 4
+        },
+        "propuesta_por_canal": {
+          "Sin origen": 3,
+          "Directo": 11,
+          "Meta Ads": 77,
+          "Web orgánico": 5,
+          "Google Ads": 3
+        },
+        "ventas_por_canal": {
+          "Sin origen": 1
+        },
+        "ventas_total": {
+          "count": 1,
+          "mxn": 125000.0
+        },
+        "etapa_propuesta": "Propuesta entregada",
+        "leads_zona_por_canal": {
+          "Web orgánico": {
+            "MTY": 14,
+            "MVA": 1,
+            "TRC": 2
+          },
+          "Meta Ads": {
+            "MTY": 142,
+            "SLT": 2,
+            "TRC": 13,
+            "MVA": 8
+          },
+          "Sin origen": {
+            "MTY": 1
+          },
+          "Directo": {
+            "MTY": 15,
+            "MVA": 3,
+            "SLT": 1,
+            "TRC": 3
+          },
+          "Google Ads": {
+            "MTY": 4
+          }
+        },
+        "asignados_zona_por_canal": {
+          "Web orgánico": {
+            "MTY": 14,
+            "TRC": 1
+          },
+          "Meta Ads": {
+            "MTY": 132,
+            "TRC": 12,
+            "MVA": 8
+          },
+          "Sin origen": {
+            "MTY": 1
+          },
+          "Directo": {
+            "MTY": 9,
+            "MVA": 2,
+            "SLT": 1,
+            "TRC": 2
+          },
+          "Google Ads": {
+            "MTY": 4
+          }
+        },
+        "etapas_por_canal": {
+          "Meta Ads": [
+            {
+              "id": 109436768,
+              "nombre": "Propuesta entregada",
+              "n": 70
+            },
+            {
+              "id": 110346332,
+              "nombre": "Conversación iniciada",
+              "n": 47
+            },
+            {
+              "id": 109665668,
+              "nombre": "Por contactar",
+              "n": 32
+            },
+            {
+              "id": 143,
+              "nombre": "Perdido",
+              "n": 11
+            },
+            {
+              "id": 110266952,
+              "nombre": "Levantamiento agendado",
+              "n": 5
+            },
+            {
+              "id": 109436772,
+              "nombre": "Levantamiento hecho",
+              "n": 2
+            }
+          ],
+          "Sin origen": [
+            {
+              "id": 143,
+              "nombre": "Perdido",
+              "n": 5
+            },
+            {
+              "id": 109436768,
+              "nombre": "Propuesta entregada",
+              "n": 2
+            },
+            {
+              "id": 109665668,
+              "nombre": "Por contactar",
+              "n": 1
+            },
+            {
+              "id": 142,
+              "nombre": "Ganado",
+              "n": 1
+            }
+          ],
+          "Web orgánico": [
+            {
+              "id": 110346332,
+              "nombre": "Conversación iniciada",
+              "n": 8
+            },
+            {
+              "id": 109436768,
+              "nombre": "Propuesta entregada",
+              "n": 4
+            },
+            {
+              "id": 143,
+              "nombre": "Perdido",
+              "n": 3
+            },
+            {
+              "id": 109665668,
+              "nombre": "Por contactar",
+              "n": 2
+            },
+            {
+              "id": 109436776,
+              "nombre": "Contrato solicitiado",
+              "n": 1
+            }
+          ],
+          "Directo": [
+            {
+              "id": 109436768,
+              "nombre": "Propuesta entregada",
+              "n": 8
+            },
+            {
+              "id": 110266952,
+              "nombre": "Levantamiento agendado",
+              "n": 3
+            },
+            {
+              "id": 109665668,
+              "nombre": "Por contactar",
+              "n": 2
+            },
+            {
+              "id": 110346332,
+              "nombre": "Conversación iniciada",
+              "n": 1
+            },
+            {
+              "id": 143,
+              "nombre": "Perdido",
+              "n": 1
+            }
+          ],
+          "Google Ads": [
+            {
+              "id": 109436768,
+              "nombre": "Propuesta entregada",
+              "n": 3
+            },
+            {
+              "id": 109665668,
+              "nombre": "Por contactar",
+              "n": 1
+            }
+          ]
+        }
       },
+      "ttc_dias": 0.0,
+      "contactados": 132,
+      "primer_contacto_horas": 22.8,
+      "etapas": [
+        {
+          "id": 109436768,
+          "nombre": "Propuesta entregada",
+          "n": 70
+        },
+        {
+          "id": 110346332,
+          "nombre": "Conversación iniciada",
+          "n": 47
+        },
+        {
+          "id": 109665668,
+          "nombre": "Por contactar",
+          "n": 32
+        },
+        {
+          "id": 143,
+          "nombre": "Perdido",
+          "n": 11
+        },
+        {
+          "id": 110266952,
+          "nombre": "Levantamiento agendado",
+          "n": 5
+        },
+        {
+          "id": 109436772,
+          "nombre": "Levantamiento hecho",
+          "n": 2
+        }
+      ],
+      "leads_por_canal": {
+        "Redes orgánico": 427,
+        "Meta Ads": 370,
+        "Sin origen": 17,
+        "Web orgánico": 18,
+        "Directo": 39,
+        "Google Ads": 4
+      },
+      "google_fuga": {
+        "leads": 4,
+        "en_zona": 4,
+        "fuera": 0,
+        "sin_dato": 0,
+        "ciudades_fuera": {}
+      },
+      "google_por_campana": [
+        {
+          "campana": "KS_MTY_SEARCH_COMPETIDORES_DIC",
+          "keyword": "mtysolar",
+          "leads": 2,
+          "asignados": 2
+        },
+        {
+          "campana": "KS_MTY_SEARCH_COMPETIDORES_DIC",
+          "keyword": "kenet solar",
+          "leads": 2,
+          "asignados": 2
+        }
+      ],
+      "leads_total": 875,
+      "leads_meta": 370,
+      "asignados": 175,
+      "por_asesor": [
+        {
+          "rep": "Marco Pérez",
+          "zone": "MTY",
+          "leads": 46,
+          "ventas": 1,
+          "mxn": 85000.0,
+          "ventas_meta": 0,
+          "mxn_meta": 0.0,
+          "cohorte": 0,
+          "por_canal": {
+            "Directo": [
+              1,
+              85000.0
+            ]
+          }
+        },
+        {
+          "rep": "Adriana Sanchez",
+          "zone": "MTY",
+          "leads": 41,
+          "ventas": 1,
+          "mxn": 110000.0,
+          "ventas_meta": 1,
+          "mxn_meta": 110000.0,
+          "cohorte": 0,
+          "por_canal": {
+            "Meta Ads": [
+              1,
+              110000.0
+            ]
+          }
+        },
+        {
+          "rep": "Carlos Campillo",
+          "zone": "MTY",
+          "leads": 29,
+          "ventas": 1,
+          "mxn": 125000.0,
+          "ventas_meta": 0,
+          "mxn_meta": 0.0,
+          "cohorte": 1,
+          "por_canal": {
+            "Sin origen": [
+              1,
+              125000.0
+            ]
+          }
+        },
+        {
+          "rep": "Javier Tonche",
+          "zone": "MTY",
+          "leads": 24,
+          "ventas": 0,
+          "mxn": 0.0,
+          "ventas_meta": 0,
+          "mxn_meta": 0.0,
+          "cohorte": 0,
+          "por_canal": {}
+        },
+        {
+          "rep": "Sandra Mejia",
+          "zone": "MVA",
+          "leads": 20,
+          "ventas": 0,
+          "mxn": 0.0,
+          "ventas_meta": 0,
+          "mxn_meta": 0.0,
+          "cohorte": 0,
+          "por_canal": {}
+        },
+        {
+          "rep": "Erick Barajas",
+          "zone": "TRC",
+          "leads": 13,
+          "ventas": 0,
+          "mxn": 0.0,
+          "ventas_meta": 0,
+          "mxn_meta": 0.0,
+          "cohorte": 0,
+          "por_canal": {}
+        },
+        {
+          "rep": "Samuel Giacoman Marcos",
+          "zone": "MTY",
+          "leads": 1,
+          "ventas": 0,
+          "mxn": 0.0,
+          "ventas_meta": 0,
+          "mxn_meta": 0.0,
+          "cohorte": 0,
+          "por_canal": {}
+        },
+        {
+          "rep": "Monserrat de León",
+          "zone": "MVA",
+          "leads": 1,
+          "ventas": 0,
+          "mxn": 0.0,
+          "ventas_meta": 0,
+          "mxn_meta": 0.0,
+          "cohorte": 0,
+          "por_canal": {}
+        }
+      ],
       "won_meta": {
-        "count": 10,
-        "mxn": 683910.0
+        "count": 1,
+        "mxn": 110000.0
+      },
+      "won_meta_por_zona": {
+        "MTY": {
+          "count": 1,
+          "mxn": 110000.0
+        }
+      },
+      "won_por_canal": {
+        "Meta Ads": {
+          "count": 1,
+          "mxn": 110000.0
+        },
+        "Sin origen": {
+          "count": 1,
+          "mxn": 125000.0
+        },
+        "Directo": {
+          "count": 1,
+          "mxn": 85000.0
+        }
+      },
+      "won_zona_por_canal": {
+        "Meta Ads": {
+          "MTY": {
+            "count": 1,
+            "mxn": 110000.0
+          }
+        },
+        "Sin origen": {
+          "MTY": {
+            "count": 1,
+            "mxn": 125000.0
+          }
+        },
+        "Directo": {
+          "MTY": {
+            "count": 1,
+            "mxn": 85000.0
+          }
+        }
+      },
+      "asignados_por_zona": {
+        "MTY": 132,
+        "SLT": 0,
+        "TRC": 12,
+        "MVA": 8
+      },
+      "asignables": 165,
+      "llegaron_por_zona": {
+        "MTY": 142,
+        "SLT": 2,
+        "TRC": 13,
+        "MVA": 8
+      },
+      "sin_asignar_por_zona": {
+        "MTY": 10,
+        "SLT": 2,
+        "TRC": 1,
+        "MVA": 0
+      },
+      "fuera_de_zona": 1,
+      "zona_ambigua": 0,
+      "sin_ciudad": 204,
+      "fuera_por_ciudad": {
+        "chihuahua": 1
       }
     },
     "14": {
-      "leads_total": 1657,
-      "leads_meta": 1425,
-      "asignados": 514,
-      "asignados_por_zona": {
-        "MTY": 236,
-        "SLT": 37,
-        "TRC": 193,
-        "MVA": 42
+      "embudo": {
+        "asignados_por_canal": {
+          "Sin origen": 40,
+          "Meta Ads": 313,
+          "Directo": 38,
+          "Web orgánico": 35,
+          "Google Ads": 8
+        },
+        "propuesta_por_canal": {
+          "Sin origen": 3,
+          "Directo": 22,
+          "Meta Ads": 174,
+          "Web orgánico": 14,
+          "Google Ads": 4
+        },
+        "ventas_por_canal": {
+          "Sin origen": 1,
+          "Directo": 1
+        },
+        "ventas_total": {
+          "count": 2,
+          "mxn": 210000.0
+        },
+        "etapa_propuesta": "Propuesta entregada",
+        "leads_zona_por_canal": {
+          "Meta Ads": {
+            "MTY": 267,
+            "SLT": 5,
+            "TRC": 16,
+            "MVA": 8
+          },
+          "Directo": {
+            "MTY": 32,
+            "TRC": 12,
+            "MVA": 4,
+            "SLT": 1
+          },
+          "Sin origen": {
+            "TRC": 24,
+            "MTY": 1
+          },
+          "Web orgánico": {
+            "TRC": 7,
+            "MTY": 28,
+            "MVA": 2,
+            "SLT": 2
+          },
+          "Google Ads": {
+            "MTY": 8,
+            "SLT": 1
+          }
+        },
+        "asignados_zona_por_canal": {
+          "Meta Ads": {
+            "MTY": 252,
+            "TRC": 15,
+            "MVA": 8
+          },
+          "Directo": {
+            "MTY": 19,
+            "TRC": 10,
+            "MVA": 2,
+            "SLT": 1
+          },
+          "Sin origen": {
+            "TRC": 24,
+            "MTY": 1
+          },
+          "Web orgánico": {
+            "MTY": 28,
+            "MVA": 1,
+            "TRC": 5
+          },
+          "Google Ads": {
+            "MTY": 8
+          }
+        },
+        "etapas_por_canal": {
+          "Sin origen": [
+            {
+              "id": 143,
+              "nombre": "Perdido",
+              "n": 43
+            },
+            {
+              "id": 109436768,
+              "nombre": "Propuesta entregada",
+              "n": 2
+            },
+            {
+              "id": 109665668,
+              "nombre": "Por contactar",
+              "n": 1
+            },
+            {
+              "id": 142,
+              "nombre": "Ganado",
+              "n": 1
+            },
+            {
+              "id": 110346332,
+              "nombre": "Conversación iniciada",
+              "n": 1
+            }
+          ],
+          "Web orgánico": [
+            {
+              "id": 110346332,
+              "nombre": "Conversación iniciada",
+              "n": 16
+            },
+            {
+              "id": 109436768,
+              "nombre": "Propuesta entregada",
+              "n": 12
+            },
+            {
+              "id": 143,
+              "nombre": "Perdido",
+              "n": 8
+            },
+            {
+              "id": 109665668,
+              "nombre": "Por contactar",
+              "n": 4
+            },
+            {
+              "id": 109436772,
+              "nombre": "Levantamiento hecho",
+              "n": 1
+            },
+            {
+              "id": 109436776,
+              "nombre": "Contrato solicitiado",
+              "n": 1
+            }
+          ],
+          "Meta Ads": [
+            {
+              "id": 109436768,
+              "nombre": "Propuesta entregada",
+              "n": 162
+            },
+            {
+              "id": 110346332,
+              "nombre": "Conversación iniciada",
+              "n": 76
+            },
+            {
+              "id": 109665668,
+              "nombre": "Por contactar",
+              "n": 35
+            },
+            {
+              "id": 143,
+              "nombre": "Perdido",
+              "n": 26
+            },
+            {
+              "id": 110266952,
+              "nombre": "Levantamiento agendado",
+              "n": 9
+            },
+            {
+              "id": 109436772,
+              "nombre": "Levantamiento hecho",
+              "n": 2
+            },
+            {
+              "id": 109436776,
+              "nombre": "Contrato solicitiado",
+              "n": 1
+            }
+          ],
+          "Directo": [
+            {
+              "id": 109436768,
+              "nombre": "Propuesta entregada",
+              "n": 17
+            },
+            {
+              "id": 143,
+              "nombre": "Perdido",
+              "n": 8
+            },
+            {
+              "id": 110266952,
+              "nombre": "Levantamiento agendado",
+              "n": 4
+            },
+            {
+              "id": 110346332,
+              "nombre": "Conversación iniciada",
+              "n": 2
+            },
+            {
+              "id": 109665668,
+              "nombre": "Por contactar",
+              "n": 2
+            },
+            {
+              "id": 142,
+              "nombre": "Ganado",
+              "n": 1
+            }
+          ],
+          "Google Ads": [
+            {
+              "id": 109436768,
+              "nombre": "Propuesta entregada",
+              "n": 4
+            },
+            {
+              "id": 143,
+              "nombre": "Perdido",
+              "n": 2
+            },
+            {
+              "id": 109665668,
+              "nombre": "Por contactar",
+              "n": 2
+            },
+            {
+              "id": 110346332,
+              "nombre": "Conversación iniciada",
+              "n": 1
+            }
+          ]
+        }
       },
+      "ttc_dias": 1.5,
+      "contactados": 268,
+      "primer_contacto_horas": 21.5,
+      "etapas": [
+        {
+          "id": 109436768,
+          "nombre": "Propuesta entregada",
+          "n": 162
+        },
+        {
+          "id": 110346332,
+          "nombre": "Conversación iniciada",
+          "n": 76
+        },
+        {
+          "id": 109665668,
+          "nombre": "Por contactar",
+          "n": 35
+        },
+        {
+          "id": 143,
+          "nombre": "Perdido",
+          "n": 26
+        },
+        {
+          "id": 110266952,
+          "nombre": "Levantamiento agendado",
+          "n": 9
+        },
+        {
+          "id": 109436772,
+          "nombre": "Levantamiento hecho",
+          "n": 2
+        },
+        {
+          "id": 109436776,
+          "nombre": "Contrato solicitiado",
+          "n": 1
+        }
+      ],
+      "leads_por_canal": {
+        "Redes orgánico": 826,
+        "Sin origen": 68,
+        "Web orgánico": 43,
+        "Meta Ads": 653,
+        "Directo": 72,
+        "Google Ads": 9
+      },
+      "google_fuga": {
+        "leads": 9,
+        "en_zona": 9,
+        "fuera": 0,
+        "sin_dato": 0,
+        "ciudades_fuera": {}
+      },
+      "google_por_campana": [
+        {
+          "campana": "KS_MTY_SEARCH_COMPETIDORES_DIC",
+          "keyword": "kenet solar",
+          "leads": 6,
+          "asignados": 5
+        },
+        {
+          "campana": "KS_MTY_SEARCH_COMPETIDORES_DIC",
+          "keyword": "mtysolar",
+          "leads": 3,
+          "asignados": 3
+        }
+      ],
+      "leads_total": 1671,
+      "leads_meta": 653,
+      "asignados": 313,
+      "por_asesor": [
+        {
+          "rep": "Adriana Sanchez",
+          "zone": "MTY",
+          "leads": 85,
+          "ventas": 1,
+          "mxn": 110000.0,
+          "ventas_meta": 1,
+          "mxn_meta": 110000.0,
+          "cohorte": 0,
+          "por_canal": {
+            "Meta Ads": [
+              1,
+              110000.0
+            ]
+          }
+        },
+        {
+          "rep": "Carlos Campillo",
+          "zone": "MTY",
+          "leads": 84,
+          "ventas": 2,
+          "mxn": 293000.0,
+          "ventas_meta": 1,
+          "mxn_meta": 168000.0,
+          "cohorte": 1,
+          "por_canal": {
+            "Sin origen": [
+              1,
+              125000.0
+            ],
+            "Meta Ads": [
+              1,
+              168000.0
+            ]
+          }
+        },
+        {
+          "rep": "Marco Pérez",
+          "zone": "MTY",
+          "leads": 76,
+          "ventas": 2,
+          "mxn": 197000.0,
+          "ventas_meta": 0,
+          "mxn_meta": 0.0,
+          "cohorte": 1,
+          "por_canal": {
+            "Sin origen": [
+              1,
+              112000.0
+            ],
+            "Directo": [
+              1,
+              85000.0
+            ]
+          }
+        },
+        {
+          "rep": "Javier Tonche",
+          "zone": "MTY",
+          "leads": 24,
+          "ventas": 0,
+          "mxn": 0.0,
+          "ventas_meta": 0,
+          "mxn_meta": 0.0,
+          "cohorte": 0,
+          "por_canal": {}
+        },
+        {
+          "rep": "Sandra Mejia",
+          "zone": "MVA",
+          "leads": 20,
+          "ventas": 0,
+          "mxn": 0.0,
+          "ventas_meta": 0,
+          "mxn_meta": 0.0,
+          "cohorte": 0,
+          "por_canal": {}
+        },
+        {
+          "rep": "Erick Barajas",
+          "zone": "TRC",
+          "leads": 17,
+          "ventas": 0,
+          "mxn": 0.0,
+          "ventas_meta": 0,
+          "mxn_meta": 0.0,
+          "cohorte": 0,
+          "por_canal": {}
+        },
+        {
+          "rep": "Samuel Giacoman Marcos",
+          "zone": "MTY",
+          "leads": 6,
+          "ventas": 0,
+          "mxn": 0.0,
+          "ventas_meta": 0,
+          "mxn_meta": 0.0,
+          "cohorte": 0,
+          "por_canal": {}
+        },
+        {
+          "rep": "Monserrat de León",
+          "zone": "MVA",
+          "leads": 1,
+          "ventas": 0,
+          "mxn": 0.0,
+          "ventas_meta": 0,
+          "mxn_meta": 0.0,
+          "cohorte": 0,
+          "por_canal": {}
+        }
+      ],
       "won_meta": {
-        "count": 18,
-        "mxn": 1355910.0
+        "count": 2,
+        "mxn": 278000.0
+      },
+      "won_meta_por_zona": {
+        "MTY": {
+          "count": 2,
+          "mxn": 278000.0
+        }
+      },
+      "won_por_canal": {
+        "Sin origen": {
+          "count": 2,
+          "mxn": 237000.0
+        },
+        "Meta Ads": {
+          "count": 2,
+          "mxn": 278000.0
+        },
+        "Directo": {
+          "count": 1,
+          "mxn": 85000.0
+        }
+      },
+      "won_zona_por_canal": {
+        "Sin origen": {
+          "MTY": {
+            "count": 2,
+            "mxn": 237000.0
+          }
+        },
+        "Meta Ads": {
+          "MTY": {
+            "count": 2,
+            "mxn": 278000.0
+          }
+        },
+        "Directo": {
+          "MTY": {
+            "count": 1,
+            "mxn": 85000.0
+          }
+        }
+      },
+      "asignados_por_zona": {
+        "MTY": 252,
+        "SLT": 0,
+        "TRC": 15,
+        "MVA": 8
+      },
+      "asignables": 296,
+      "llegaron_por_zona": {
+        "MTY": 267,
+        "SLT": 5,
+        "TRC": 16,
+        "MVA": 8
+      },
+      "sin_asignar_por_zona": {
+        "MTY": 15,
+        "SLT": 5,
+        "TRC": 1,
+        "MVA": 0
+      },
+      "fuera_de_zona": 1,
+      "zona_ambigua": 0,
+      "sin_ciudad": 356,
+      "fuera_por_ciudad": {
+        "chihuahua": 1
       }
     },
     "28": {
-      "leads_total": 3488,
-      "leads_meta": 2966,
-      "asignados": 1622,
-      "asignados_por_zona": {
-        "MTY": 796,
-        "SLT": 139,
-        "TRC": 540,
-        "MVA": 136
+      "embudo": {
+        "asignados_por_canal": {
+          "Web orgánico": 67,
+          "Directo": 64,
+          "Sin origen": 48,
+          "Meta Ads": 594,
+          "Google Ads": 9
+        },
+        "propuesta_por_canal": {
+          "Meta Ads": 352,
+          "Sin origen": 3,
+          "Directo": 35,
+          "Web orgánico": 24,
+          "Google Ads": 6
+        },
+        "ventas_por_canal": {
+          "Meta Ads": 2,
+          "Sin origen": 1,
+          "Directo": 1
+        },
+        "ventas_total": {
+          "count": 4,
+          "mxn": 488000.0
+        },
+        "etapa_propuesta": "Propuesta entregada",
+        "leads_zona_por_canal": {
+          "Directo": {
+            "TRC": 15,
+            "MTY": 51,
+            "MVA": 4,
+            "SLT": 1
+          },
+          "Web orgánico": {
+            "TRC": 14,
+            "MTY": 51,
+            "SLT": 8,
+            "MVA": 6
+          },
+          "Meta Ads": {
+            "MTY": 504,
+            "TRC": 18,
+            "SLT": 6,
+            "MVA": 9
+          },
+          "Sin origen": {
+            "TRC": 24,
+            "MTY": 1
+          },
+          "Google Ads": {
+            "MTY": 9,
+            "SLT": 2
+          }
+        },
+        "asignados_zona_por_canal": {
+          "Web orgánico": {
+            "TRC": 10,
+            "MTY": 49,
+            "SLT": 2,
+            "MVA": 4
+          },
+          "Meta Ads": {
+            "MTY": 483,
+            "TRC": 15,
+            "MVA": 9
+          },
+          "Directo": {
+            "MTY": 38,
+            "TRC": 11,
+            "MVA": 2,
+            "SLT": 1
+          },
+          "Sin origen": {
+            "TRC": 24,
+            "MTY": 1
+          },
+          "Google Ads": {
+            "MTY": 9
+          }
+        },
+        "etapas_por_canal": {
+          "Web orgánico": [
+            {
+              "id": 143,
+              "nombre": "Perdido",
+              "n": 31
+            },
+            {
+              "id": 109436768,
+              "nombre": "Propuesta entregada",
+              "n": 22
+            },
+            {
+              "id": 110346332,
+              "nombre": "Conversación iniciada",
+              "n": 22
+            },
+            {
+              "id": 109665668,
+              "nombre": "Por contactar",
+              "n": 8
+            },
+            {
+              "id": 109436772,
+              "nombre": "Levantamiento hecho",
+              "n": 1
+            },
+            {
+              "id": 109436776,
+              "nombre": "Contrato solicitiado",
+              "n": 1
+            }
+          ],
+          "Directo": [
+            {
+              "id": 109436768,
+              "nombre": "Propuesta entregada",
+              "n": 29
+            },
+            {
+              "id": 143,
+              "nombre": "Perdido",
+              "n": 20
+            },
+            {
+              "id": 110346332,
+              "nombre": "Conversación iniciada",
+              "n": 7
+            },
+            {
+              "id": 110266952,
+              "nombre": "Levantamiento agendado",
+              "n": 4
+            },
+            {
+              "id": 109665668,
+              "nombre": "Por contactar",
+              "n": 2
+            },
+            {
+              "id": 142,
+              "nombre": "Ganado",
+              "n": 1
+            },
+            {
+              "id": 109436772,
+              "nombre": "Levantamiento hecho",
+              "n": 1
+            }
+          ],
+          "Sin origen": [
+            {
+              "id": 143,
+              "nombre": "Perdido",
+              "n": 52
+            },
+            {
+              "id": 110346332,
+              "nombre": "Conversación iniciada",
+              "n": 3
+            },
+            {
+              "id": 109436768,
+              "nombre": "Propuesta entregada",
+              "n": 2
+            },
+            {
+              "id": 109665668,
+              "nombre": "Por contactar",
+              "n": 1
+            },
+            {
+              "id": 142,
+              "nombre": "Ganado",
+              "n": 1
+            }
+          ],
+          "Meta Ads": [
+            {
+              "id": 109436768,
+              "nombre": "Propuesta entregada",
+              "n": 332
+            },
+            {
+              "id": 110346332,
+              "nombre": "Conversación iniciada",
+              "n": 126
+            },
+            {
+              "id": 143,
+              "nombre": "Perdido",
+              "n": 93
+            },
+            {
+              "id": 109665668,
+              "nombre": "Por contactar",
+              "n": 37
+            },
+            {
+              "id": 110266952,
+              "nombre": "Levantamiento agendado",
+              "n": 14
+            },
+            {
+              "id": 109436772,
+              "nombre": "Levantamiento hecho",
+              "n": 3
+            },
+            {
+              "id": 142,
+              "nombre": "Ganado",
+              "n": 2
+            },
+            {
+              "id": 109436776,
+              "nombre": "Contrato solicitiado",
+              "n": 1
+            }
+          ],
+          "Google Ads": [
+            {
+              "id": 109436768,
+              "nombre": "Propuesta entregada",
+              "n": 5
+            },
+            {
+              "id": 143,
+              "nombre": "Perdido",
+              "n": 2
+            },
+            {
+              "id": 109665668,
+              "nombre": "Por contactar",
+              "n": 2
+            },
+            {
+              "id": 110346332,
+              "nombre": "Conversación iniciada",
+              "n": 1
+            },
+            {
+              "id": 110266952,
+              "nombre": "Levantamiento agendado",
+              "n": 1
+            }
+          ]
+        }
       },
+      "ttc_dias": 6.5,
+      "contactados": 565,
+      "primer_contacto_horas": 20.0,
+      "etapas": [
+        {
+          "id": 109436768,
+          "nombre": "Propuesta entregada",
+          "n": 332
+        },
+        {
+          "id": 110346332,
+          "nombre": "Conversación iniciada",
+          "n": 126
+        },
+        {
+          "id": 143,
+          "nombre": "Perdido",
+          "n": 93
+        },
+        {
+          "id": 109665668,
+          "nombre": "Por contactar",
+          "n": 37
+        },
+        {
+          "id": 110266952,
+          "nombre": "Levantamiento agendado",
+          "n": 14
+        },
+        {
+          "id": 109436772,
+          "nombre": "Levantamiento hecho",
+          "n": 3
+        },
+        {
+          "id": 142,
+          "nombre": "Ganado",
+          "n": 2
+        },
+        {
+          "id": 109436776,
+          "nombre": "Contrato solicitiado",
+          "n": 1
+        }
+      ],
+      "leads_por_canal": {
+        "Redes orgánico": 1507,
+        "Sin origen": 96,
+        "Web orgánico": 89,
+        "Directo": 140,
+        "Meta Ads": 1185,
+        "Google Ads": 11
+      },
+      "google_fuga": {
+        "leads": 11,
+        "en_zona": 11,
+        "fuera": 0,
+        "sin_dato": 0,
+        "ciudades_fuera": {}
+      },
+      "google_por_campana": [
+        {
+          "campana": "KS_MTY_SEARCH_COMPETIDORES_DIC",
+          "keyword": "kenet solar",
+          "leads": 7,
+          "asignados": 5
+        },
+        {
+          "campana": "KS_MTY_SEARCH_COMPETIDORES_DIC",
+          "keyword": "mtysolar",
+          "leads": 4,
+          "asignados": 4
+        }
+      ],
+      "leads_total": 3028,
+      "leads_meta": 1185,
+      "asignados": 594,
+      "por_asesor": [
+        {
+          "rep": "Carlos Campillo",
+          "zone": "MTY",
+          "leads": 190,
+          "ventas": 2,
+          "mxn": 293000.0,
+          "ventas_meta": 1,
+          "mxn_meta": 168000.0,
+          "cohorte": 2,
+          "por_canal": {
+            "Sin origen": [
+              1,
+              125000.0
+            ],
+            "Meta Ads": [
+              1,
+              168000.0
+            ]
+          }
+        },
+        {
+          "rep": "Adriana Sanchez",
+          "zone": "MTY",
+          "leads": 177,
+          "ventas": 1,
+          "mxn": 110000.0,
+          "ventas_meta": 1,
+          "mxn_meta": 110000.0,
+          "cohorte": 1,
+          "por_canal": {
+            "Meta Ads": [
+              1,
+              110000.0
+            ]
+          }
+        },
+        {
+          "rep": "Marco Pérez",
+          "zone": "MTY",
+          "leads": 125,
+          "ventas": 4,
+          "mxn": 407000.0,
+          "ventas_meta": 1,
+          "mxn_meta": 105000.0,
+          "cohorte": 1,
+          "por_canal": {
+            "Meta Ads": [
+              1,
+              105000.0
+            ],
+            "Sin origen": [
+              2,
+              217000.0
+            ],
+            "Directo": [
+              1,
+              85000.0
+            ]
+          }
+        },
+        {
+          "rep": "Samuel Giacoman Marcos",
+          "zone": "MTY",
+          "leads": 39,
+          "ventas": 1,
+          "mxn": 144000.0,
+          "ventas_meta": 1,
+          "mxn_meta": 144000.0,
+          "cohorte": 0,
+          "por_canal": {
+            "Meta Ads": [
+              1,
+              144000.0
+            ]
+          }
+        },
+        {
+          "rep": "Javier Tonche",
+          "zone": "MTY",
+          "leads": 24,
+          "ventas": 0,
+          "mxn": 0.0,
+          "ventas_meta": 0,
+          "mxn_meta": 0.0,
+          "cohorte": 0,
+          "por_canal": {}
+        },
+        {
+          "rep": "Sandra Mejia",
+          "zone": "MVA",
+          "leads": 20,
+          "ventas": 0,
+          "mxn": 0.0,
+          "ventas_meta": 0,
+          "mxn_meta": 0.0,
+          "cohorte": 0,
+          "por_canal": {}
+        },
+        {
+          "rep": "Erick Barajas",
+          "zone": "TRC",
+          "leads": 17,
+          "ventas": 0,
+          "mxn": 0.0,
+          "ventas_meta": 0,
+          "mxn_meta": 0.0,
+          "cohorte": 0,
+          "por_canal": {}
+        },
+        {
+          "rep": "Monserrat de León",
+          "zone": "MVA",
+          "leads": 2,
+          "ventas": 0,
+          "mxn": 0.0,
+          "ventas_meta": 0,
+          "mxn_meta": 0.0,
+          "cohorte": 0,
+          "por_canal": {}
+        }
+      ],
       "won_meta": {
-        "count": 32,
-        "mxn": 2191304.2
+        "count": 4,
+        "mxn": 527000.0
+      },
+      "won_meta_por_zona": {
+        "MTY": {
+          "count": 4,
+          "mxn": 527000.0
+        }
+      },
+      "won_por_canal": {
+        "Meta Ads": {
+          "count": 4,
+          "mxn": 527000.0
+        },
+        "Sin origen": {
+          "count": 3,
+          "mxn": 342000.0
+        },
+        "Directo": {
+          "count": 1,
+          "mxn": 85000.0
+        }
+      },
+      "won_zona_por_canal": {
+        "Meta Ads": {
+          "MTY": {
+            "count": 4,
+            "mxn": 527000.0
+          }
+        },
+        "Sin origen": {
+          "MTY": {
+            "count": 3,
+            "mxn": 342000.0
+          }
+        },
+        "Directo": {
+          "MTY": {
+            "count": 1,
+            "mxn": 85000.0
+          }
+        }
+      },
+      "asignados_por_zona": {
+        "MTY": 483,
+        "SLT": 0,
+        "TRC": 15,
+        "MVA": 9
+      },
+      "asignables": 537,
+      "llegaron_por_zona": {
+        "MTY": 504,
+        "SLT": 6,
+        "TRC": 18,
+        "MVA": 9
+      },
+      "sin_asignar_por_zona": {
+        "MTY": 21,
+        "SLT": 6,
+        "TRC": 3,
+        "MVA": 0
+      },
+      "fuera_de_zona": 1,
+      "zona_ambigua": 0,
+      "sin_ciudad": 647,
+      "fuera_por_ciudad": {
+        "chihuahua": 1
+      }
+    },
+    "30": {
+      "embudo": {
+        "asignados_por_canal": {
+          "Meta Ads": 622,
+          "Web orgánico": 67,
+          "Directo": 64,
+          "Sin origen": 50,
+          "Google Ads": 9
+        },
+        "propuesta_por_canal": {
+          "Meta Ads": 364,
+          "Sin origen": 4,
+          "Directo": 35,
+          "Web orgánico": 24,
+          "Google Ads": 6
+        },
+        "ventas_por_canal": {
+          "Meta Ads": 2,
+          "Sin origen": 1,
+          "Directo": 1
+        },
+        "ventas_total": {
+          "count": 4,
+          "mxn": 488000.0
+        },
+        "etapa_propuesta": "Propuesta entregada",
+        "leads_zona_por_canal": {
+          "Meta Ads": {
+            "MTY": 526,
+            "TRC": 18,
+            "SLT": 6,
+            "MVA": 9
+          },
+          "Directo": {
+            "TRC": 15,
+            "MTY": 51,
+            "MVA": 4,
+            "SLT": 1
+          },
+          "Web orgánico": {
+            "TRC": 14,
+            "MTY": 51,
+            "SLT": 8,
+            "MVA": 6
+          },
+          "Sin origen": {
+            "TRC": 24,
+            "MTY": 2
+          },
+          "Google Ads": {
+            "MTY": 9,
+            "SLT": 2
+          }
+        },
+        "asignados_zona_por_canal": {
+          "Meta Ads": {
+            "MTY": 504,
+            "TRC": 15,
+            "MVA": 9
+          },
+          "Web orgánico": {
+            "TRC": 10,
+            "MTY": 49,
+            "SLT": 2,
+            "MVA": 4
+          },
+          "Directo": {
+            "MTY": 38,
+            "TRC": 11,
+            "MVA": 2,
+            "SLT": 1
+          },
+          "Sin origen": {
+            "TRC": 24,
+            "MTY": 2
+          },
+          "Google Ads": {
+            "MTY": 9
+          }
+        },
+        "etapas_por_canal": {
+          "Meta Ads": [
+            {
+              "id": 109436768,
+              "nombre": "Propuesta entregada",
+              "n": 344
+            },
+            {
+              "id": 110346332,
+              "nombre": "Conversación iniciada",
+              "n": 128
+            },
+            {
+              "id": 143,
+              "nombre": "Perdido",
+              "n": 110
+            },
+            {
+              "id": 109665668,
+              "nombre": "Por contactar",
+              "n": 37
+            },
+            {
+              "id": 110266952,
+              "nombre": "Levantamiento agendado",
+              "n": 14
+            },
+            {
+              "id": 109436772,
+              "nombre": "Levantamiento hecho",
+              "n": 3
+            },
+            {
+              "id": 142,
+              "nombre": "Ganado",
+              "n": 2
+            },
+            {
+              "id": 109436776,
+              "nombre": "Contrato solicitiado",
+              "n": 1
+            }
+          ],
+          "Web orgánico": [
+            {
+              "id": 143,
+              "nombre": "Perdido",
+              "n": 31
+            },
+            {
+              "id": 109436768,
+              "nombre": "Propuesta entregada",
+              "n": 22
+            },
+            {
+              "id": 110346332,
+              "nombre": "Conversación iniciada",
+              "n": 22
+            },
+            {
+              "id": 109665668,
+              "nombre": "Por contactar",
+              "n": 8
+            },
+            {
+              "id": 109436772,
+              "nombre": "Levantamiento hecho",
+              "n": 1
+            },
+            {
+              "id": 109436776,
+              "nombre": "Contrato solicitiado",
+              "n": 1
+            }
+          ],
+          "Directo": [
+            {
+              "id": 109436768,
+              "nombre": "Propuesta entregada",
+              "n": 29
+            },
+            {
+              "id": 143,
+              "nombre": "Perdido",
+              "n": 20
+            },
+            {
+              "id": 110346332,
+              "nombre": "Conversación iniciada",
+              "n": 7
+            },
+            {
+              "id": 110266952,
+              "nombre": "Levantamiento agendado",
+              "n": 4
+            },
+            {
+              "id": 109665668,
+              "nombre": "Por contactar",
+              "n": 2
+            },
+            {
+              "id": 142,
+              "nombre": "Ganado",
+              "n": 1
+            },
+            {
+              "id": 109436772,
+              "nombre": "Levantamiento hecho",
+              "n": 1
+            }
+          ],
+          "Sin origen": [
+            {
+              "id": 143,
+              "nombre": "Perdido",
+              "n": 53
+            },
+            {
+              "id": 110346332,
+              "nombre": "Conversación iniciada",
+              "n": 3
+            },
+            {
+              "id": 109436768,
+              "nombre": "Propuesta entregada",
+              "n": 3
+            },
+            {
+              "id": 109665668,
+              "nombre": "Por contactar",
+              "n": 1
+            },
+            {
+              "id": 142,
+              "nombre": "Ganado",
+              "n": 1
+            }
+          ],
+          "Google Ads": [
+            {
+              "id": 109436768,
+              "nombre": "Propuesta entregada",
+              "n": 5
+            },
+            {
+              "id": 143,
+              "nombre": "Perdido",
+              "n": 2
+            },
+            {
+              "id": 109665668,
+              "nombre": "Por contactar",
+              "n": 2
+            },
+            {
+              "id": 110346332,
+              "nombre": "Conversación iniciada",
+              "n": 1
+            },
+            {
+              "id": 110266952,
+              "nombre": "Levantamiento agendado",
+              "n": 1
+            }
+          ]
+        }
+      },
+      "ttc_dias": 6.5,
+      "contactados": 605,
+      "primer_contacto_horas": 19.6,
+      "etapas": [
+        {
+          "id": 109436768,
+          "nombre": "Propuesta entregada",
+          "n": 344
+        },
+        {
+          "id": 110346332,
+          "nombre": "Conversación iniciada",
+          "n": 128
+        },
+        {
+          "id": 143,
+          "nombre": "Perdido",
+          "n": 110
+        },
+        {
+          "id": 109665668,
+          "nombre": "Por contactar",
+          "n": 37
+        },
+        {
+          "id": 110266952,
+          "nombre": "Levantamiento agendado",
+          "n": 14
+        },
+        {
+          "id": 109436772,
+          "nombre": "Levantamiento hecho",
+          "n": 3
+        },
+        {
+          "id": 142,
+          "nombre": "Ganado",
+          "n": 2
+        },
+        {
+          "id": 109436776,
+          "nombre": "Contrato solicitiado",
+          "n": 1
+        }
+      ],
+      "leads_por_canal": {
+        "Redes orgánico": 1516,
+        "Sin origen": 98,
+        "Meta Ads": 1248,
+        "Web orgánico": 89,
+        "Directo": 141,
+        "Google Ads": 11
+      },
+      "google_fuga": {
+        "leads": 11,
+        "en_zona": 11,
+        "fuera": 0,
+        "sin_dato": 0,
+        "ciudades_fuera": {}
+      },
+      "google_por_campana": [
+        {
+          "campana": "KS_MTY_SEARCH_COMPETIDORES_DIC",
+          "keyword": "kenet solar",
+          "leads": 7,
+          "asignados": 5
+        },
+        {
+          "campana": "KS_MTY_SEARCH_COMPETIDORES_DIC",
+          "keyword": "mtysolar",
+          "leads": 4,
+          "asignados": 4
+        }
+      ],
+      "leads_total": 3103,
+      "leads_meta": 1248,
+      "asignados": 622,
+      "por_asesor": [
+        {
+          "rep": "Carlos Campillo",
+          "zone": "MTY",
+          "leads": 198,
+          "ventas": 2,
+          "mxn": 293000.0,
+          "ventas_meta": 1,
+          "mxn_meta": 168000.0,
+          "cohorte": 2,
+          "por_canal": {
+            "Sin origen": [
+              1,
+              125000.0
+            ],
+            "Meta Ads": [
+              1,
+              168000.0
+            ]
+          }
+        },
+        {
+          "rep": "Adriana Sanchez",
+          "zone": "MTY",
+          "leads": 178,
+          "ventas": 1,
+          "mxn": 110000.0,
+          "ventas_meta": 1,
+          "mxn_meta": 110000.0,
+          "cohorte": 1,
+          "por_canal": {
+            "Meta Ads": [
+              1,
+              110000.0
+            ]
+          }
+        },
+        {
+          "rep": "Marco Pérez",
+          "zone": "MTY",
+          "leads": 134,
+          "ventas": 4,
+          "mxn": 407000.0,
+          "ventas_meta": 1,
+          "mxn_meta": 105000.0,
+          "cohorte": 1,
+          "por_canal": {
+            "Meta Ads": [
+              1,
+              105000.0
+            ],
+            "Sin origen": [
+              2,
+              217000.0
+            ],
+            "Directo": [
+              1,
+              85000.0
+            ]
+          }
+        },
+        {
+          "rep": "Samuel Giacoman Marcos",
+          "zone": "MTY",
+          "leads": 49,
+          "ventas": 1,
+          "mxn": 144000.0,
+          "ventas_meta": 1,
+          "mxn_meta": 144000.0,
+          "cohorte": 0,
+          "por_canal": {
+            "Meta Ads": [
+              1,
+              144000.0
+            ]
+          }
+        },
+        {
+          "rep": "Javier Tonche",
+          "zone": "MTY",
+          "leads": 24,
+          "ventas": 0,
+          "mxn": 0.0,
+          "ventas_meta": 0,
+          "mxn_meta": 0.0,
+          "cohorte": 0,
+          "por_canal": {}
+        },
+        {
+          "rep": "Sandra Mejia",
+          "zone": "MVA",
+          "leads": 20,
+          "ventas": 0,
+          "mxn": 0.0,
+          "ventas_meta": 0,
+          "mxn_meta": 0.0,
+          "cohorte": 0,
+          "por_canal": {}
+        },
+        {
+          "rep": "Erick Barajas",
+          "zone": "TRC",
+          "leads": 17,
+          "ventas": 0,
+          "mxn": 0.0,
+          "ventas_meta": 0,
+          "mxn_meta": 0.0,
+          "cohorte": 0,
+          "por_canal": {}
+        },
+        {
+          "rep": "Monserrat de León",
+          "zone": "MVA",
+          "leads": 2,
+          "ventas": 0,
+          "mxn": 0.0,
+          "ventas_meta": 0,
+          "mxn_meta": 0.0,
+          "cohorte": 0,
+          "por_canal": {}
+        }
+      ],
+      "won_meta": {
+        "count": 4,
+        "mxn": 527000.0
+      },
+      "won_meta_por_zona": {
+        "MTY": {
+          "count": 4,
+          "mxn": 527000.0
+        }
+      },
+      "won_por_canal": {
+        "Meta Ads": {
+          "count": 4,
+          "mxn": 527000.0
+        },
+        "Sin origen": {
+          "count": 3,
+          "mxn": 342000.0
+        },
+        "Directo": {
+          "count": 1,
+          "mxn": 85000.0
+        }
+      },
+      "won_zona_por_canal": {
+        "Meta Ads": {
+          "MTY": {
+            "count": 4,
+            "mxn": 527000.0
+          }
+        },
+        "Sin origen": {
+          "MTY": {
+            "count": 3,
+            "mxn": 342000.0
+          }
+        },
+        "Directo": {
+          "MTY": {
+            "count": 1,
+            "mxn": 85000.0
+          }
+        }
+      },
+      "asignados_por_zona": {
+        "MTY": 504,
+        "SLT": 0,
+        "TRC": 15,
+        "MVA": 9
+      },
+      "asignables": 559,
+      "llegaron_por_zona": {
+        "MTY": 526,
+        "SLT": 6,
+        "TRC": 18,
+        "MVA": 9
+      },
+      "sin_asignar_por_zona": {
+        "MTY": 22,
+        "SLT": 6,
+        "TRC": 3,
+        "MVA": 0
+      },
+      "fuera_de_zona": 1,
+      "zona_ambigua": 0,
+      "sin_ciudad": 688,
+      "fuera_por_ciudad": {
+        "chihuahua": 1
+      }
+    },
+    "60": {
+      "embudo": {
+        "asignados_por_canal": {
+          "Directo": 120,
+          "Meta Ads": 694,
+          "Sin origen": 68,
+          "Web orgánico": 67,
+          "Google Ads": 9
+        },
+        "propuesta_por_canal": {
+          "Directo": 44,
+          "Sin origen": 10,
+          "Meta Ads": 387,
+          "Web orgánico": 24,
+          "Google Ads": 6
+        },
+        "ventas_por_canal": {
+          "Directo": 5,
+          "Sin origen": 6,
+          "Meta Ads": 4
+        },
+        "ventas_total": {
+          "count": 15,
+          "mxn": 2009000.0
+        },
+        "etapa_propuesta": "Propuesta entregada",
+        "leads_zona_por_canal": {
+          "Meta Ads": {
+            "MVA": 25,
+            "MTY": 569,
+            "TRC": 19,
+            "SLT": 7
+          },
+          "Sin origen": {
+            "SLT": 1,
+            "TRC": 24,
+            "MTY": 2,
+            "MVA": 2
+          },
+          "Directo": {
+            "TRC": 15,
+            "MTY": 59,
+            "MVA": 5,
+            "SLT": 2
+          },
+          "Web orgánico": {
+            "TRC": 14,
+            "MTY": 51,
+            "SLT": 8,
+            "MVA": 6
+          },
+          "Google Ads": {
+            "MTY": 9,
+            "SLT": 2
+          }
+        },
+        "asignados_zona_por_canal": {
+          "Sin origen": {
+            "SLT": 1,
+            "TRC": 24,
+            "MTY": 2,
+            "MVA": 2
+          },
+          "Meta Ads": {
+            "MTY": 535,
+            "SLT": 1,
+            "TRC": 16,
+            "MVA": 22
+          },
+          "Web orgánico": {
+            "TRC": 10,
+            "MTY": 49,
+            "SLT": 2,
+            "MVA": 4
+          },
+          "Directo": {
+            "MTY": 43,
+            "TRC": 11,
+            "MVA": 3,
+            "SLT": 1
+          },
+          "Google Ads": {
+            "MTY": 9
+          }
+        },
+        "etapas_por_canal": {
+          "Directo": [
+            {
+              "id": 143,
+              "nombre": "Perdido",
+              "n": 41
+            },
+            {
+              "id": 109436768,
+              "nombre": "Propuesta entregada",
+              "n": 34
+            },
+            {
+              "id": 110346332,
+              "nombre": "Conversación iniciada",
+              "n": 10
+            },
+            {
+              "id": 142,
+              "nombre": "Ganado",
+              "n": 5
+            },
+            {
+              "id": 110266952,
+              "nombre": "Levantamiento agendado",
+              "n": 4
+            },
+            {
+              "id": 109665668,
+              "nombre": "Por contactar",
+              "n": 2
+            },
+            {
+              "id": 109436772,
+              "nombre": "Levantamiento hecho",
+              "n": 1
+            }
+          ],
+          "Meta Ads": [
+            {
+              "id": 109436768,
+              "nombre": "Propuesta entregada",
+              "n": 365
+            },
+            {
+              "id": 110346332,
+              "nombre": "Conversación iniciada",
+              "n": 142
+            },
+            {
+              "id": 143,
+              "nombre": "Perdido",
+              "n": 135
+            },
+            {
+              "id": 109665668,
+              "nombre": "Por contactar",
+              "n": 44
+            },
+            {
+              "id": 110266952,
+              "nombre": "Levantamiento agendado",
+              "n": 14
+            },
+            {
+              "id": 142,
+              "nombre": "Ganado",
+              "n": 4
+            },
+            {
+              "id": 109436772,
+              "nombre": "Levantamiento hecho",
+              "n": 3
+            },
+            {
+              "id": 109436776,
+              "nombre": "Contrato solicitiado",
+              "n": 1
+            }
+          ],
+          "Sin origen": [
+            {
+              "id": 143,
+              "nombre": "Perdido",
+              "n": 55
+            },
+            {
+              "id": 142,
+              "nombre": "Ganado",
+              "n": 6
+            },
+            {
+              "id": 110346332,
+              "nombre": "Conversación iniciada",
+              "n": 4
+            },
+            {
+              "id": 109436768,
+              "nombre": "Propuesta entregada",
+              "n": 4
+            },
+            {
+              "id": 109665668,
+              "nombre": "Por contactar",
+              "n": 2
+            }
+          ],
+          "Web orgánico": [
+            {
+              "id": 143,
+              "nombre": "Perdido",
+              "n": 31
+            },
+            {
+              "id": 109436768,
+              "nombre": "Propuesta entregada",
+              "n": 22
+            },
+            {
+              "id": 110346332,
+              "nombre": "Conversación iniciada",
+              "n": 22
+            },
+            {
+              "id": 109665668,
+              "nombre": "Por contactar",
+              "n": 8
+            },
+            {
+              "id": 109436772,
+              "nombre": "Levantamiento hecho",
+              "n": 1
+            },
+            {
+              "id": 109436776,
+              "nombre": "Contrato solicitiado",
+              "n": 1
+            }
+          ],
+          "Google Ads": [
+            {
+              "id": 109436768,
+              "nombre": "Propuesta entregada",
+              "n": 5
+            },
+            {
+              "id": 143,
+              "nombre": "Perdido",
+              "n": 2
+            },
+            {
+              "id": 109665668,
+              "nombre": "Por contactar",
+              "n": 2
+            },
+            {
+              "id": 110346332,
+              "nombre": "Conversación iniciada",
+              "n": 1
+            },
+            {
+              "id": 110266952,
+              "nombre": "Levantamiento agendado",
+              "n": 1
+            }
+          ]
+        }
+      },
+      "ttc_dias": 12.7,
+      "contactados": 698,
+      "primer_contacto_horas": 20.7,
+      "etapas": [
+        {
+          "id": 109436768,
+          "nombre": "Propuesta entregada",
+          "n": 365
+        },
+        {
+          "id": 110346332,
+          "nombre": "Conversación iniciada",
+          "n": 142
+        },
+        {
+          "id": 143,
+          "nombre": "Perdido",
+          "n": 135
+        },
+        {
+          "id": 109665668,
+          "nombre": "Por contactar",
+          "n": 44
+        },
+        {
+          "id": 110266952,
+          "nombre": "Levantamiento agendado",
+          "n": 14
+        },
+        {
+          "id": 142,
+          "nombre": "Ganado",
+          "n": 4
+        },
+        {
+          "id": 109436772,
+          "nombre": "Levantamiento hecho",
+          "n": 3
+        },
+        {
+          "id": 109436776,
+          "nombre": "Contrato solicitiado",
+          "n": 1
+        }
+      ],
+      "leads_por_canal": {
+        "Directo": 314,
+        "Meta Ads": 1425,
+        "Sin origen": 124,
+        "Redes orgánico": 1752,
+        "Web orgánico": 89,
+        "Google Ads": 11
+      },
+      "google_fuga": {
+        "leads": 11,
+        "en_zona": 11,
+        "fuera": 0,
+        "sin_dato": 0,
+        "ciudades_fuera": {}
+      },
+      "google_por_campana": [
+        {
+          "campana": "KS_MTY_SEARCH_COMPETIDORES_DIC",
+          "keyword": "kenet solar",
+          "leads": 7,
+          "asignados": 5
+        },
+        {
+          "campana": "KS_MTY_SEARCH_COMPETIDORES_DIC",
+          "keyword": "mtysolar",
+          "leads": 4,
+          "asignados": 4
+        }
+      ],
+      "leads_total": 3715,
+      "leads_meta": 1425,
+      "asignados": 694,
+      "por_asesor": [
+        {
+          "rep": "Carlos Campillo",
+          "zone": "MTY",
+          "leads": 203,
+          "ventas": 2,
+          "mxn": 293000.0,
+          "ventas_meta": 1,
+          "mxn_meta": 168000.0,
+          "cohorte": 2,
+          "por_canal": {
+            "Sin origen": [
+              1,
+              125000.0
+            ],
+            "Meta Ads": [
+              1,
+              168000.0
+            ]
+          }
+        },
+        {
+          "rep": "Adriana Sanchez",
+          "zone": "MTY",
+          "leads": 180,
+          "ventas": 1,
+          "mxn": 110000.0,
+          "ventas_meta": 1,
+          "mxn_meta": 110000.0,
+          "cohorte": 1,
+          "por_canal": {
+            "Meta Ads": [
+              1,
+              110000.0
+            ]
+          }
+        },
+        {
+          "rep": "Marco Pérez",
+          "zone": "MTY",
+          "leads": 172,
+          "ventas": 14,
+          "mxn": 1686000.0,
+          "ventas_meta": 1,
+          "mxn_meta": 105000.0,
+          "cohorte": 11,
+          "por_canal": {
+            "Sin origen": [
+              12,
+              1496000.0
+            ],
+            "Meta Ads": [
+              1,
+              105000.0
+            ],
+            "Directo": [
+              1,
+              85000.0
+            ]
+          }
+        },
+        {
+          "rep": "Samuel Giacoman Marcos",
+          "zone": "MTY",
+          "leads": 64,
+          "ventas": 1,
+          "mxn": 144000.0,
+          "ventas_meta": 1,
+          "mxn_meta": 144000.0,
+          "cohorte": 1,
+          "por_canal": {
+            "Meta Ads": [
+              1,
+              144000.0
+            ]
+          }
+        },
+        {
+          "rep": "Javier Tonche",
+          "zone": "MTY",
+          "leads": 24,
+          "ventas": 0,
+          "mxn": 0.0,
+          "ventas_meta": 0,
+          "mxn_meta": 0.0,
+          "cohorte": 0,
+          "por_canal": {}
+        },
+        {
+          "rep": "Sandra Mejia",
+          "zone": "MVA",
+          "leads": 20,
+          "ventas": 0,
+          "mxn": 0.0,
+          "ventas_meta": 0,
+          "mxn_meta": 0.0,
+          "cohorte": 0,
+          "por_canal": {}
+        },
+        {
+          "rep": "Erick Barajas",
+          "zone": "TRC",
+          "leads": 17,
+          "ventas": 0,
+          "mxn": 0.0,
+          "ventas_meta": 0,
+          "mxn_meta": 0.0,
+          "cohorte": 0,
+          "por_canal": {}
+        },
+        {
+          "rep": "Monserrat de León",
+          "zone": "MVA",
+          "leads": 14,
+          "ventas": 0,
+          "mxn": 0.0,
+          "ventas_meta": 0,
+          "mxn_meta": 0.0,
+          "cohorte": 0,
+          "por_canal": {}
+        }
+      ],
+      "won_meta": {
+        "count": 4,
+        "mxn": 527000.0
+      },
+      "won_meta_por_zona": {
+        "MTY": {
+          "count": 4,
+          "mxn": 527000.0
+        }
+      },
+      "won_por_canal": {
+        "Sin origen": {
+          "count": 13,
+          "mxn": 1621000.0
+        },
+        "Meta Ads": {
+          "count": 4,
+          "mxn": 527000.0
+        },
+        "Directo": {
+          "count": 1,
+          "mxn": 85000.0
+        }
+      },
+      "won_zona_por_canal": {
+        "Sin origen": {
+          "MTY": {
+            "count": 13,
+            "mxn": 1621000.0
+          }
+        },
+        "Meta Ads": {
+          "MTY": {
+            "count": 4,
+            "mxn": 527000.0
+          }
+        },
+        "Directo": {
+          "MTY": {
+            "count": 1,
+            "mxn": 85000.0
+          }
+        }
+      },
+      "asignados_por_zona": {
+        "MTY": 535,
+        "SLT": 1,
+        "TRC": 16,
+        "MVA": 22
+      },
+      "asignables": 620,
+      "llegaron_por_zona": {
+        "MTY": 569,
+        "SLT": 7,
+        "TRC": 19,
+        "MVA": 25
+      },
+      "sin_asignar_por_zona": {
+        "MTY": 34,
+        "SLT": 6,
+        "TRC": 3,
+        "MVA": 3
+      },
+      "fuera_de_zona": 1,
+      "zona_ambigua": 0,
+      "sin_ciudad": 804,
+      "fuera_por_ciudad": {
+        "chihuahua": 1
+      }
+    },
+    "90": {
+      "embudo": {
+        "asignados_por_canal": {
+          "Sin origen": 105,
+          "Directo": 235,
+          "Meta Ads": 696,
+          "Web orgánico": 67,
+          "Google Ads": 9
+        },
+        "propuesta_por_canal": {
+          "Directo": 51,
+          "Sin origen": 10,
+          "Meta Ads": 388,
+          "Web orgánico": 24,
+          "Google Ads": 6
+        },
+        "ventas_por_canal": {
+          "Directo": 9,
+          "Sin origen": 6,
+          "Meta Ads": 4
+        },
+        "ventas_total": {
+          "count": 19,
+          "mxn": 2365000.0
+        },
+        "etapa_propuesta": "Propuesta entregada",
+        "leads_zona_por_canal": {
+          "Meta Ads": {
+            "MVA": 25,
+            "MTY": 570,
+            "TRC": 19,
+            "SLT": 7
+          },
+          "Sin origen": {
+            "SLT": 1,
+            "TRC": 24,
+            "MTY": 2,
+            "MVA": 2
+          },
+          "Directo": {
+            "TRC": 15,
+            "MTY": 63,
+            "MVA": 5,
+            "SLT": 2
+          },
+          "Web orgánico": {
+            "TRC": 14,
+            "MTY": 51,
+            "SLT": 8,
+            "MVA": 6
+          },
+          "Google Ads": {
+            "MTY": 9,
+            "SLT": 2
+          }
+        },
+        "asignados_zona_por_canal": {
+          "Sin origen": {
+            "SLT": 1,
+            "TRC": 24,
+            "MTY": 2,
+            "MVA": 2
+          },
+          "Meta Ads": {
+            "MTY": 536,
+            "SLT": 1,
+            "TRC": 16,
+            "MVA": 22
+          },
+          "Web orgánico": {
+            "TRC": 10,
+            "MTY": 49,
+            "SLT": 2,
+            "MVA": 4
+          },
+          "Directo": {
+            "MTY": 47,
+            "TRC": 11,
+            "MVA": 3,
+            "SLT": 1
+          },
+          "Google Ads": {
+            "MTY": 9
+          }
+        },
+        "etapas_por_canal": {
+          "Sin origen": [
+            {
+              "id": 143,
+              "nombre": "Perdido",
+              "n": 63
+            },
+            {
+              "id": 142,
+              "nombre": "Ganado",
+              "n": 6
+            },
+            {
+              "id": 110346332,
+              "nombre": "Conversación iniciada",
+              "n": 4
+            },
+            {
+              "id": 109436768,
+              "nombre": "Propuesta entregada",
+              "n": 4
+            },
+            {
+              "id": 109665668,
+              "nombre": "Por contactar",
+              "n": 2
+            }
+          ],
+          "Directo": [
+            {
+              "id": 143,
+              "nombre": "Perdido",
+              "n": 100
+            },
+            {
+              "id": 109436768,
+              "nombre": "Propuesta entregada",
+              "n": 37
+            },
+            {
+              "id": 110346332,
+              "nombre": "Conversación iniciada",
+              "n": 11
+            },
+            {
+              "id": 142,
+              "nombre": "Ganado",
+              "n": 9
+            },
+            {
+              "id": 110266952,
+              "nombre": "Levantamiento agendado",
+              "n": 4
+            },
+            {
+              "id": 109665668,
+              "nombre": "Por contactar",
+              "n": 2
+            },
+            {
+              "id": 109436772,
+              "nombre": "Levantamiento hecho",
+              "n": 1
+            }
+          ],
+          "Meta Ads": [
+            {
+              "id": 109436768,
+              "nombre": "Propuesta entregada",
+              "n": 366
+            },
+            {
+              "id": 110346332,
+              "nombre": "Conversación iniciada",
+              "n": 142
+            },
+            {
+              "id": 143,
+              "nombre": "Perdido",
+              "n": 135
+            },
+            {
+              "id": 109665668,
+              "nombre": "Por contactar",
+              "n": 44
+            },
+            {
+              "id": 110266952,
+              "nombre": "Levantamiento agendado",
+              "n": 14
+            },
+            {
+              "id": 142,
+              "nombre": "Ganado",
+              "n": 4
+            },
+            {
+              "id": 109436772,
+              "nombre": "Levantamiento hecho",
+              "n": 3
+            },
+            {
+              "id": 109436776,
+              "nombre": "Contrato solicitiado",
+              "n": 1
+            }
+          ],
+          "Web orgánico": [
+            {
+              "id": 143,
+              "nombre": "Perdido",
+              "n": 31
+            },
+            {
+              "id": 109436768,
+              "nombre": "Propuesta entregada",
+              "n": 22
+            },
+            {
+              "id": 110346332,
+              "nombre": "Conversación iniciada",
+              "n": 22
+            },
+            {
+              "id": 109665668,
+              "nombre": "Por contactar",
+              "n": 8
+            },
+            {
+              "id": 109436772,
+              "nombre": "Levantamiento hecho",
+              "n": 1
+            },
+            {
+              "id": 109436776,
+              "nombre": "Contrato solicitiado",
+              "n": 1
+            }
+          ],
+          "Google Ads": [
+            {
+              "id": 109436768,
+              "nombre": "Propuesta entregada",
+              "n": 5
+            },
+            {
+              "id": 143,
+              "nombre": "Perdido",
+              "n": 2
+            },
+            {
+              "id": 109665668,
+              "nombre": "Por contactar",
+              "n": 2
+            },
+            {
+              "id": 110346332,
+              "nombre": "Conversación iniciada",
+              "n": 1
+            },
+            {
+              "id": 110266952,
+              "nombre": "Levantamiento agendado",
+              "n": 1
+            }
+          ]
+        }
+      },
+      "ttc_dias": 14.7,
+      "contactados": 703,
+      "primer_contacto_horas": 20.9,
+      "etapas": [
+        {
+          "id": 109436768,
+          "nombre": "Propuesta entregada",
+          "n": 366
+        },
+        {
+          "id": 110346332,
+          "nombre": "Conversación iniciada",
+          "n": 142
+        },
+        {
+          "id": 143,
+          "nombre": "Perdido",
+          "n": 135
+        },
+        {
+          "id": 109665668,
+          "nombre": "Por contactar",
+          "n": 44
+        },
+        {
+          "id": 110266952,
+          "nombre": "Levantamiento agendado",
+          "n": 14
+        },
+        {
+          "id": 142,
+          "nombre": "Ganado",
+          "n": 4
+        },
+        {
+          "id": 109436772,
+          "nombre": "Levantamiento hecho",
+          "n": 3
+        },
+        {
+          "id": 109436776,
+          "nombre": "Contrato solicitiado",
+          "n": 1
+        }
+      ],
+      "leads_por_canal": {
+        "Sin origen": 201,
+        "Directo": 694,
+        "Meta Ads": 1436,
+        "Redes orgánico": 2048,
+        "Web orgánico": 89,
+        "Google Ads": 11
+      },
+      "google_fuga": {
+        "leads": 11,
+        "en_zona": 11,
+        "fuera": 0,
+        "sin_dato": 0,
+        "ciudades_fuera": {}
+      },
+      "google_por_campana": [
+        {
+          "campana": "KS_MTY_SEARCH_COMPETIDORES_DIC",
+          "keyword": "kenet solar",
+          "leads": 7,
+          "asignados": 5
+        },
+        {
+          "campana": "KS_MTY_SEARCH_COMPETIDORES_DIC",
+          "keyword": "mtysolar",
+          "leads": 4,
+          "asignados": 4
+        }
+      ],
+      "leads_total": 4479,
+      "leads_meta": 1436,
+      "asignados": 696,
+      "por_asesor": [
+        {
+          "rep": "Carlos Campillo",
+          "zone": "MTY",
+          "leads": 203,
+          "ventas": 2,
+          "mxn": 293000.0,
+          "ventas_meta": 1,
+          "mxn_meta": 168000.0,
+          "cohorte": 2,
+          "por_canal": {
+            "Sin origen": [
+              1,
+              125000.0
+            ],
+            "Meta Ads": [
+              1,
+              168000.0
+            ]
+          }
+        },
+        {
+          "rep": "Adriana Sanchez",
+          "zone": "MTY",
+          "leads": 180,
+          "ventas": 1,
+          "mxn": 110000.0,
+          "ventas_meta": 1,
+          "mxn_meta": 110000.0,
+          "cohorte": 1,
+          "por_canal": {
+            "Meta Ads": [
+              1,
+              110000.0
+            ]
+          }
+        },
+        {
+          "rep": "Marco Pérez",
+          "zone": "MTY",
+          "leads": 174,
+          "ventas": 15,
+          "mxn": 1818000.0,
+          "ventas_meta": 1,
+          "mxn_meta": 105000.0,
+          "cohorte": 15,
+          "por_canal": {
+            "Sin origen": [
+              13,
+              1628000.0
+            ],
+            "Meta Ads": [
+              1,
+              105000.0
+            ],
+            "Directo": [
+              1,
+              85000.0
+            ]
+          }
+        },
+        {
+          "rep": "Samuel Giacoman Marcos",
+          "zone": "MTY",
+          "leads": 64,
+          "ventas": 1,
+          "mxn": 144000.0,
+          "ventas_meta": 1,
+          "mxn_meta": 144000.0,
+          "cohorte": 1,
+          "por_canal": {
+            "Meta Ads": [
+              1,
+              144000.0
+            ]
+          }
+        },
+        {
+          "rep": "Javier Tonche",
+          "zone": "MTY",
+          "leads": 24,
+          "ventas": 0,
+          "mxn": 0.0,
+          "ventas_meta": 0,
+          "mxn_meta": 0.0,
+          "cohorte": 0,
+          "por_canal": {}
+        },
+        {
+          "rep": "Sandra Mejia",
+          "zone": "MVA",
+          "leads": 20,
+          "ventas": 0,
+          "mxn": 0.0,
+          "ventas_meta": 0,
+          "mxn_meta": 0.0,
+          "cohorte": 0,
+          "por_canal": {}
+        },
+        {
+          "rep": "Erick Barajas",
+          "zone": "TRC",
+          "leads": 17,
+          "ventas": 0,
+          "mxn": 0.0,
+          "ventas_meta": 0,
+          "mxn_meta": 0.0,
+          "cohorte": 0,
+          "por_canal": {}
+        },
+        {
+          "rep": "Monserrat de León",
+          "zone": "MVA",
+          "leads": 14,
+          "ventas": 0,
+          "mxn": 0.0,
+          "ventas_meta": 0,
+          "mxn_meta": 0.0,
+          "cohorte": 0,
+          "por_canal": {}
+        }
+      ],
+      "won_meta": {
+        "count": 4,
+        "mxn": 527000.0
+      },
+      "won_meta_por_zona": {
+        "MTY": {
+          "count": 4,
+          "mxn": 527000.0
+        }
+      },
+      "won_por_canal": {
+        "Sin origen": {
+          "count": 14,
+          "mxn": 1753000.0
+        },
+        "Meta Ads": {
+          "count": 4,
+          "mxn": 527000.0
+        },
+        "Directo": {
+          "count": 1,
+          "mxn": 85000.0
+        }
+      },
+      "won_zona_por_canal": {
+        "Sin origen": {
+          "MTY": {
+            "count": 14,
+            "mxn": 1753000.0
+          }
+        },
+        "Meta Ads": {
+          "MTY": {
+            "count": 4,
+            "mxn": 527000.0
+          }
+        },
+        "Directo": {
+          "MTY": {
+            "count": 1,
+            "mxn": 85000.0
+          }
+        }
+      },
+      "asignados_por_zona": {
+        "MTY": 536,
+        "SLT": 1,
+        "TRC": 16,
+        "MVA": 22
+      },
+      "asignables": 621,
+      "llegaron_por_zona": {
+        "MTY": 570,
+        "SLT": 7,
+        "TRC": 19,
+        "MVA": 25
+      },
+      "sin_asignar_por_zona": {
+        "MTY": 34,
+        "SLT": 6,
+        "TRC": 3,
+        "MVA": 3
+      },
+      "fuera_de_zona": 1,
+      "zona_ambigua": 0,
+      "sin_ciudad": 814,
+      "fuera_por_ciudad": {
+        "chihuahua": 1
       }
     }
   },
-  "source": "hubspot",
-  "_generado": "2026-07-27T06:26:43-06:00",
+  "source": "kommo",
+  "_generado": "2026-09-08T23:36:44-06:00",
   "window_7d": {
-    "start": "2026-07-20",
-    "end": "2026-07-27"
+    "start": "2026-09-01",
+    "end": "2026-09-08"
   },
   "window_30d": {
-    "start": "2026-06-27",
-    "end": "2026-07-27"
+    "start": "2026-08-09",
+    "end": "2026-09-08"
   },
   "meta_origen_set": [
-    "FB-form",
-    "Wapp-FB",
-    "Redes Sociales",
-    "Instagram",
-    "Wapp-IG",
-    "WA-FB D",
-    "WA-IG D"
+    "Meta Ads"
   ],
   "leads_by_origen_7d": {
-    "FB-form": 504,
-    "Wapp-FB": 310,
-    "Unassigned": 66,
-    "Web Form": 18,
-    "Directo": 6,
-    "Referido": 13,
-    "Cita": 2
+    "Redes orgánico": 427,
+    "Meta Ads": 370,
+    "Sin origen": 17,
+    "Web orgánico": 18,
+    "Directo": 39,
+    "Google Ads": 4
   },
-  "leads_total_7d": 919,
-  "leads_unassigned_7d": 744,
-  "leads_meta_30d": 3097,
-  "leads_total_30d": 3648,
-  "ttc_meta_30d_days": 86.2,
-  "ttc_blended_30d_days": 60.19,
+  "leads_total_7d": 875,
+  "leads_unassigned_7d": 657,
+  "leads_meta_30d": 1248,
+  "leads_total_30d": 3103,
+  "ttc_meta_30d_days": 19.51,
+  "ttc_blended_30d_days": 16.87,
   "assigned_meta_by_zone_7d": {
-    "MTY": 23,
-    "SLT": 22,
-    "TRC": 80,
-    "MVA": 20
+    "MTY": 132,
+    "SLT": 0,
+    "TRC": 12,
+    "MVA": 8
   },
   "assigned_by_rep_7d": [
     {
-      "rep": "Oscar Regalado",
-      "zone": "TRC",
-      "leads": 28
+      "rep": "Marco Pérez",
+      "zone": "MTY",
+      "leads": 46
     },
     {
-      "rep": "JUAN MARTINEZ",
-      "zone": "TRC",
-      "leads": 27
-    },
-    {
-      "rep": "Carolina Solís Ruiz de Esparza",
-      "zone": "TRC",
-      "leads": 25
+      "rep": "Adriana Sanchez",
+      "zone": "MTY",
+      "leads": 41
     },
     {
       "rep": "Carlos Campillo",
       "zone": "MTY",
-      "leads": 10
+      "leads": 29
     },
     {
-      "rep": "Jose Luis Villarreal",
+      "rep": "Javier Tonche",
+      "zone": "",
+      "leads": 24
+    },
+    {
+      "rep": "Sandra Mejia",
       "zone": "MVA",
-      "leads": 10
+      "leads": 20
     },
     {
-      "rep": "Edgar Alvarez",
-      "zone": "MVA",
-      "leads": 10
-    },
-    {
-      "rep": "Mildred Garcia",
-      "zone": "SLT",
-      "leads": 8
-    },
-    {
-      "rep": "Yazmin Gonzalez",
-      "zone": "MTY",
-      "leads": 7
-    },
-    {
-      "rep": "Elizabeth Cadena",
-      "zone": "SLT",
-      "leads": 7
-    },
-    {
-      "rep": "Monica Muñiz",
-      "zone": "SLT",
-      "leads": 7
-    },
-    {
-      "rep": "Mara Galvez",
-      "zone": "MTY",
-      "leads": 6
+      "rep": "Erick Barajas",
+      "zone": "TRC",
+      "leads": 13
     },
     {
       "rep": "Samuel Giacoman Marcos",
@@ -148,25 +3072,855 @@
       "leads": 1
     },
     {
-      "rep": "Samuel Giacoman Marcos",
-      "zone": "MTY",
+      "rep": "Monserrat de León",
+      "zone": "MVA",
       "leads": 1
     }
   ],
   "won_7d": {
-    "count": 19,
-    "mxn": 1623910.0
+    "count": 3,
+    "mxn": 320000.0
   },
   "won_30d": {
-    "count": 85,
-    "mxn": 9570100.76
+    "count": 8,
+    "mxn": 954000.0
   },
   "won_meta_7d": {
-    "count": 10,
-    "mxn": 683910.0
+    "count": 1,
+    "mxn": 110000.0
   },
   "won_meta_30d": {
-    "count": 35,
-    "mxn": 2348304.2
-  }
+    "count": 4,
+    "mxn": 527000.0
+  },
+  "padron": {
+    "MTY": {
+      "turno": [
+        "Marco Pérez",
+        "Carlos Campillo",
+        "Adriana Sanchez"
+      ],
+      "seguimiento": []
+    },
+    "MVA": {
+      "turno": [
+        "Monserrat de León"
+      ],
+      "seguimiento": [
+        "Sandra Mejia"
+      ]
+    },
+    "TRC": {
+      "turno": [
+        "Erick Barajas"
+      ],
+      "seguimiento": []
+    }
+  },
+  "asesores_por_zona": {
+    "MTY": 3,
+    "MVA": 2,
+    "TRC": 1
+  },
+  "padron_version": "2026-09-08.2-auxiliar-conversacion",
+  "usuarios_por_zona": {
+    "MTY": [
+      15137632,
+      15690252,
+      15724552
+    ],
+    "TRC": [
+      15774736
+    ],
+    "MVA": [
+      15802500,
+      15816004
+    ]
+  },
+  "por_anuncio_7d": [
+    {
+      "ad_id": "52566687480700",
+      "ad_name": "MTY_VID28_WAPP_24MSI",
+      "campaign_name": "KENET_LEADS_MTY_DIRECTO_WAPP_2026-08",
+      "leads": 278,
+      "asignados": 129,
+      "ventas": 1,
+      "mxn": 110000.0
+    },
+    {
+      "ad_id": "52573189567500",
+      "ad_name": "TRC_VID28_WAPP_24MSI",
+      "campaign_name": "KENET_LEADS_TRC_DIRECTO_WAPP_2026-08",
+      "leads": 35,
+      "asignados": 13,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "52574974274100",
+      "ad_name": "MVA_VID28_WAPP_24MSI",
+      "campaign_name": "KENET_LEADS_MVA_DIRECTO_WAPP_2026-08",
+      "leads": 22,
+      "asignados": 18,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "52574973915700",
+      "ad_name": "MTY_VID15_WAPP_MEJORAVIT_sin-usar",
+      "campaign_name": "KENET_LEADS_MTY_DIRECTO_WAPP_2026-08",
+      "leads": 16,
+      "asignados": 8,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "52566687480300",
+      "ad_name": "MTY_VID30_WAPP_accesible",
+      "campaign_name": "KENET_LEADS_MTY_DIRECTO_WAPP_2026-08",
+      "leads": 12,
+      "asignados": 3,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "mtysolar",
+      "ad_name": "",
+      "campaign_name": "KS_MTY_SEARCH_COMPETIDORES_DIC",
+      "leads": 2,
+      "asignados": 2,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "52574974277100",
+      "ad_name": "MVA_VID30_WAPP_accesible",
+      "campaign_name": "KENET_LEADS_MVA_DIRECTO_WAPP_2026-08",
+      "leads": 2,
+      "asignados": 1,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "kenet solar",
+      "ad_name": "",
+      "campaign_name": "KS_MTY_SEARCH_COMPETIDORES_DIC",
+      "leads": 2,
+      "asignados": 2,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "120236584756640282",
+      "ad_name": "",
+      "campaign_name": "KS_Leads_*FORM",
+      "leads": 1,
+      "asignados": 0,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "52574973894100",
+      "ad_name": "MTY_VID14_WAPP_MEJORAVIT_desaprovechar",
+      "campaign_name": "KENET_LEADS_MTY_DIRECTO_WAPP_2026-08",
+      "leads": 1,
+      "asignados": 0,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "120248956199240282",
+      "ad_name": "",
+      "campaign_name": "120248956142500282",
+      "leads": 1,
+      "asignados": 1,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "52573189575700",
+      "ad_name": "TRC_VID30_WAPP_accesible",
+      "campaign_name": "KENET_LEADS_TRC_DIRECTO_WAPP_2026-08",
+      "leads": 1,
+      "asignados": 1,
+      "ventas": 0,
+      "mxn": 0.0
+    }
+  ],
+  "por_anuncio_14d": [
+    {
+      "ad_id": "52566687480700",
+      "ad_name": "MTY_VID28_WAPP_24MSI",
+      "campaign_name": "KENET_LEADS_MTY_DIRECTO_WAPP_2026-08",
+      "leads": 549,
+      "asignados": 260,
+      "ventas": 2,
+      "mxn": 278000.0
+    },
+    {
+      "ad_id": "52573189567500",
+      "ad_name": "TRC_VID28_WAPP_24MSI",
+      "campaign_name": "KENET_LEADS_TRC_DIRECTO_WAPP_2026-08",
+      "leads": 40,
+      "asignados": 16,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "52574974274100",
+      "ad_name": "MVA_VID28_WAPP_24MSI",
+      "campaign_name": "KENET_LEADS_MVA_DIRECTO_WAPP_2026-08",
+      "leads": 22,
+      "asignados": 18,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "52566687480300",
+      "ad_name": "MTY_VID30_WAPP_accesible",
+      "campaign_name": "KENET_LEADS_MTY_DIRECTO_WAPP_2026-08",
+      "leads": 18,
+      "asignados": 6,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "52574973915700",
+      "ad_name": "MTY_VID15_WAPP_MEJORAVIT_sin-usar",
+      "campaign_name": "KENET_LEADS_MTY_DIRECTO_WAPP_2026-08",
+      "leads": 16,
+      "asignados": 8,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "kenet solar",
+      "ad_name": "",
+      "campaign_name": "KS_MTY_SEARCH_COMPETIDORES_DIC",
+      "leads": 6,
+      "asignados": 5,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "mtysolar",
+      "ad_name": "",
+      "campaign_name": "KS_MTY_SEARCH_COMPETIDORES_DIC",
+      "leads": 3,
+      "asignados": 3,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "52574974277100",
+      "ad_name": "MVA_VID30_WAPP_accesible",
+      "campaign_name": "KENET_LEADS_MVA_DIRECTO_WAPP_2026-08",
+      "leads": 2,
+      "asignados": 1,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "120236584756640282",
+      "ad_name": "",
+      "campaign_name": "KS_Leads_*FORM",
+      "leads": 1,
+      "asignados": 0,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "52574973894100",
+      "ad_name": "MTY_VID14_WAPP_MEJORAVIT_desaprovechar",
+      "campaign_name": "KENET_LEADS_MTY_DIRECTO_WAPP_2026-08",
+      "leads": 1,
+      "asignados": 0,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "120248956199240282",
+      "ad_name": "",
+      "campaign_name": "120248956142500282",
+      "leads": 1,
+      "asignados": 1,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "52573189575700",
+      "ad_name": "TRC_VID30_WAPP_accesible",
+      "campaign_name": "KENET_LEADS_TRC_DIRECTO_WAPP_2026-08",
+      "leads": 1,
+      "asignados": 1,
+      "ventas": 0,
+      "mxn": 0.0
+    }
+  ],
+  "por_anuncio_28d": [
+    {
+      "ad_id": "52566687480700",
+      "ad_name": "MTY_VID28_WAPP_24MSI",
+      "campaign_name": "KENET_LEADS_MTY_DIRECTO_WAPP_2026-08",
+      "leads": 1076,
+      "asignados": 539,
+      "ventas": 3,
+      "mxn": 422000.0
+    },
+    {
+      "ad_id": "52573189567500",
+      "ad_name": "TRC_VID28_WAPP_24MSI",
+      "campaign_name": "KENET_LEADS_TRC_DIRECTO_WAPP_2026-08",
+      "leads": 40,
+      "asignados": 16,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "52566687480300",
+      "ad_name": "MTY_VID30_WAPP_accesible",
+      "campaign_name": "KENET_LEADS_MTY_DIRECTO_WAPP_2026-08",
+      "leads": 25,
+      "asignados": 9,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "52574974274100",
+      "ad_name": "MVA_VID28_WAPP_24MSI",
+      "campaign_name": "KENET_LEADS_MVA_DIRECTO_WAPP_2026-08",
+      "leads": 22,
+      "asignados": 18,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "52574973915700",
+      "ad_name": "MTY_VID15_WAPP_MEJORAVIT_sin-usar",
+      "campaign_name": "KENET_LEADS_MTY_DIRECTO_WAPP_2026-08",
+      "leads": 16,
+      "asignados": 8,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "kenet solar",
+      "ad_name": "",
+      "campaign_name": "KS_MTY_SEARCH_COMPETIDORES_DIC",
+      "leads": 7,
+      "asignados": 5,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "mtysolar",
+      "ad_name": "",
+      "campaign_name": "KS_MTY_SEARCH_COMPETIDORES_DIC",
+      "leads": 4,
+      "asignados": 4,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "52574974277100",
+      "ad_name": "MVA_VID30_WAPP_accesible",
+      "campaign_name": "KENET_LEADS_MVA_DIRECTO_WAPP_2026-08",
+      "leads": 2,
+      "asignados": 1,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "120236584756640282",
+      "ad_name": "",
+      "campaign_name": "KS_Leads_*FORM",
+      "leads": 1,
+      "asignados": 0,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "120251074918660514",
+      "ad_name": "MTY_WAPP_24MSI_VID",
+      "campaign_name": "KENET_LEADS_MTY_WAPP_2026-06",
+      "leads": 1,
+      "asignados": 1,
+      "ventas": 1,
+      "mxn": 105000.0
+    },
+    {
+      "ad_id": "52574973894100",
+      "ad_name": "MTY_VID14_WAPP_MEJORAVIT_desaprovechar",
+      "campaign_name": "KENET_LEADS_MTY_DIRECTO_WAPP_2026-08",
+      "leads": 1,
+      "asignados": 0,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "120248956199240282",
+      "ad_name": "",
+      "campaign_name": "120248956142500282",
+      "leads": 1,
+      "asignados": 1,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "52573189575700",
+      "ad_name": "TRC_VID30_WAPP_accesible",
+      "campaign_name": "KENET_LEADS_TRC_DIRECTO_WAPP_2026-08",
+      "leads": 1,
+      "asignados": 1,
+      "ventas": 0,
+      "mxn": 0.0
+    }
+  ],
+  "por_anuncio_30d": [
+    {
+      "ad_id": "52566687480700",
+      "ad_name": "MTY_VID28_WAPP_24MSI",
+      "campaign_name": "Chatea con nosotros",
+      "leads": 1135,
+      "asignados": 563,
+      "ventas": 3,
+      "mxn": 422000.0
+    },
+    {
+      "ad_id": "52573189567500",
+      "ad_name": "TRC_VID28_WAPP_24MSI",
+      "campaign_name": "KENET_LEADS_TRC_DIRECTO_WAPP_2026-08",
+      "leads": 40,
+      "asignados": 16,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "52566687480300",
+      "ad_name": "MTY_VID30_WAPP_accesible",
+      "campaign_name": "KENET_LEADS_MTY_DIRECTO_WAPP_2026-08",
+      "leads": 25,
+      "asignados": 9,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "52574974274100",
+      "ad_name": "MVA_VID28_WAPP_24MSI",
+      "campaign_name": "KENET_LEADS_MVA_DIRECTO_WAPP_2026-08",
+      "leads": 22,
+      "asignados": 18,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "52574973915700",
+      "ad_name": "MTY_VID15_WAPP_MEJORAVIT_sin-usar",
+      "campaign_name": "KENET_LEADS_MTY_DIRECTO_WAPP_2026-08",
+      "leads": 16,
+      "asignados": 8,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "kenet solar",
+      "ad_name": "",
+      "campaign_name": "KS_MTY_SEARCH_COMPETIDORES_DIC",
+      "leads": 7,
+      "asignados": 5,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "mtysolar",
+      "ad_name": "",
+      "campaign_name": "KS_MTY_SEARCH_COMPETIDORES_DIC",
+      "leads": 4,
+      "asignados": 4,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "120251074918660514",
+      "ad_name": "MTY_WAPP_24MSI_VID",
+      "campaign_name": "KENET_LEADS_MTY_WAPP_2026-06",
+      "leads": 3,
+      "asignados": 3,
+      "ventas": 1,
+      "mxn": 105000.0
+    },
+    {
+      "ad_id": "52574974277100",
+      "ad_name": "MVA_VID30_WAPP_accesible",
+      "campaign_name": "KENET_LEADS_MVA_DIRECTO_WAPP_2026-08",
+      "leads": 2,
+      "asignados": 1,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "120236584756640282",
+      "ad_name": "",
+      "campaign_name": "KS_Leads_*FORM",
+      "leads": 1,
+      "asignados": 0,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "52574973894100",
+      "ad_name": "MTY_VID14_WAPP_MEJORAVIT_desaprovechar",
+      "campaign_name": "KENET_LEADS_MTY_DIRECTO_WAPP_2026-08",
+      "leads": 1,
+      "asignados": 0,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "120248956199240282",
+      "ad_name": "",
+      "campaign_name": "120248956142500282",
+      "leads": 1,
+      "asignados": 1,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "52573189575700",
+      "ad_name": "TRC_VID30_WAPP_accesible",
+      "campaign_name": "KENET_LEADS_TRC_DIRECTO_WAPP_2026-08",
+      "leads": 1,
+      "asignados": 1,
+      "ventas": 0,
+      "mxn": 0.0
+    }
+  ],
+  "por_anuncio_60d": [
+    {
+      "ad_id": "52566687480700",
+      "ad_name": "MTY_VID28_WAPP_24MSI",
+      "campaign_name": "Chatea con nosotros",
+      "leads": 1146,
+      "asignados": 572,
+      "ventas": 3,
+      "mxn": 422000.0
+    },
+    {
+      "ad_id": "120251074918660514",
+      "ad_name": "MTY_WAPP_24MSI_VID",
+      "campaign_name": "KENET_LEADS_MTY_WAPP_2026-06",
+      "leads": 113,
+      "asignados": 52,
+      "ventas": 1,
+      "mxn": 105000.0
+    },
+    {
+      "ad_id": "120252024743110514",
+      "ad_name": "MVA_WAPP_24MSI_VID",
+      "campaign_name": "KENET_LEADS_MVA_WAPP_2026-07",
+      "leads": 47,
+      "asignados": 14,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "52573189567500",
+      "ad_name": "TRC_VID28_WAPP_24MSI",
+      "campaign_name": "KENET_LEADS_TRC_DIRECTO_WAPP_2026-08",
+      "leads": 40,
+      "asignados": 16,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "52566687480300",
+      "ad_name": "MTY_VID30_WAPP_accesible",
+      "campaign_name": "KENET_LEADS_MTY_DIRECTO_WAPP_2026-08",
+      "leads": 25,
+      "asignados": 9,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "52574974274100",
+      "ad_name": "MVA_VID28_WAPP_24MSI",
+      "campaign_name": "KENET_LEADS_MVA_DIRECTO_WAPP_2026-08",
+      "leads": 22,
+      "asignados": 18,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "52574973915700",
+      "ad_name": "MTY_VID15_WAPP_MEJORAVIT_sin-usar",
+      "campaign_name": "KENET_LEADS_MTY_DIRECTO_WAPP_2026-08",
+      "leads": 16,
+      "asignados": 8,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "kenet solar",
+      "ad_name": "",
+      "campaign_name": "KS_MTY_SEARCH_COMPETIDORES_DIC",
+      "leads": 7,
+      "asignados": 5,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "120252024743770514",
+      "ad_name": "MVA_WAPP_CFE-paga-paneles_VID",
+      "campaign_name": "KENET_LEADS_MVA_WAPP_2026-07",
+      "leads": 5,
+      "asignados": 1,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "mtysolar",
+      "ad_name": "",
+      "campaign_name": "KS_MTY_SEARCH_COMPETIDORES_DIC",
+      "leads": 4,
+      "asignados": 4,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "120252024745430514",
+      "ad_name": "MVA_WAPP_solar-sin-gastar_VID",
+      "campaign_name": "KENET_LEADS_MVA_WAPP_2026-07",
+      "leads": 3,
+      "asignados": 0,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "52574974277100",
+      "ad_name": "MVA_VID30_WAPP_accesible",
+      "campaign_name": "KENET_LEADS_MVA_DIRECTO_WAPP_2026-08",
+      "leads": 2,
+      "asignados": 1,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "120251074918190514",
+      "ad_name": "MTY_WAPP_CFE-paga-paneles_VID",
+      "campaign_name": "KENET_LEADS_MTY_WAPP_2026-06",
+      "leads": 1,
+      "asignados": 1,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "120236584756640282",
+      "ad_name": "",
+      "campaign_name": "KS_Leads_*FORM",
+      "leads": 1,
+      "asignados": 0,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "120251074919330514",
+      "ad_name": "MTY_WAPP_solar-sin-gastar_VID",
+      "campaign_name": "KENET_LEADS_MTY_WAPP_2026-06",
+      "leads": 1,
+      "asignados": 0,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "52574973894100",
+      "ad_name": "MTY_VID14_WAPP_MEJORAVIT_desaprovechar",
+      "campaign_name": "KENET_LEADS_MTY_DIRECTO_WAPP_2026-08",
+      "leads": 1,
+      "asignados": 0,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "120248956199240282",
+      "ad_name": "",
+      "campaign_name": "120248956142500282",
+      "leads": 1,
+      "asignados": 1,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "52573189575700",
+      "ad_name": "TRC_VID30_WAPP_accesible",
+      "campaign_name": "KENET_LEADS_TRC_DIRECTO_WAPP_2026-08",
+      "leads": 1,
+      "asignados": 1,
+      "ventas": 0,
+      "mxn": 0.0
+    }
+  ],
+  "por_anuncio_90d": [
+    {
+      "ad_id": "52566687480700",
+      "ad_name": "MTY_VID28_WAPP_24MSI",
+      "campaign_name": "Chatea con nosotros",
+      "leads": 1155,
+      "asignados": 573,
+      "ventas": 3,
+      "mxn": 422000.0
+    },
+    {
+      "ad_id": "120251074918660514",
+      "ad_name": "MTY_WAPP_24MSI_VID",
+      "campaign_name": "KENET_LEADS_MTY_WAPP_2026-06",
+      "leads": 115,
+      "asignados": 53,
+      "ventas": 1,
+      "mxn": 105000.0
+    },
+    {
+      "ad_id": "120252024743110514",
+      "ad_name": "MVA_WAPP_24MSI_VID",
+      "campaign_name": "KENET_LEADS_MVA_WAPP_2026-07",
+      "leads": 47,
+      "asignados": 14,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "52573189567500",
+      "ad_name": "TRC_VID28_WAPP_24MSI",
+      "campaign_name": "KENET_LEADS_TRC_DIRECTO_WAPP_2026-08",
+      "leads": 40,
+      "asignados": 16,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "52566687480300",
+      "ad_name": "MTY_VID30_WAPP_accesible",
+      "campaign_name": "KENET_LEADS_MTY_DIRECTO_WAPP_2026-08",
+      "leads": 25,
+      "asignados": 9,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "52574974274100",
+      "ad_name": "MVA_VID28_WAPP_24MSI",
+      "campaign_name": "KENET_LEADS_MVA_DIRECTO_WAPP_2026-08",
+      "leads": 22,
+      "asignados": 18,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "52574973915700",
+      "ad_name": "MTY_VID15_WAPP_MEJORAVIT_sin-usar",
+      "campaign_name": "KENET_LEADS_MTY_DIRECTO_WAPP_2026-08",
+      "leads": 16,
+      "asignados": 8,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "kenet solar",
+      "ad_name": "",
+      "campaign_name": "KS_MTY_SEARCH_COMPETIDORES_DIC",
+      "leads": 7,
+      "asignados": 5,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "120252024743770514",
+      "ad_name": "MVA_WAPP_CFE-paga-paneles_VID",
+      "campaign_name": "KENET_LEADS_MVA_WAPP_2026-07",
+      "leads": 5,
+      "asignados": 1,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "mtysolar",
+      "ad_name": "",
+      "campaign_name": "KS_MTY_SEARCH_COMPETIDORES_DIC",
+      "leads": 4,
+      "asignados": 4,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "120252024745430514",
+      "ad_name": "MVA_WAPP_solar-sin-gastar_VID",
+      "campaign_name": "KENET_LEADS_MVA_WAPP_2026-07",
+      "leads": 3,
+      "asignados": 0,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "52574974277100",
+      "ad_name": "MVA_VID30_WAPP_accesible",
+      "campaign_name": "KENET_LEADS_MVA_DIRECTO_WAPP_2026-08",
+      "leads": 2,
+      "asignados": 1,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "120251074918190514",
+      "ad_name": "MTY_WAPP_CFE-paga-paneles_VID",
+      "campaign_name": "KENET_LEADS_MTY_WAPP_2026-06",
+      "leads": 1,
+      "asignados": 1,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "120236584756640282",
+      "ad_name": "",
+      "campaign_name": "KS_Leads_*FORM",
+      "leads": 1,
+      "asignados": 0,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "120251074919330514",
+      "ad_name": "MTY_WAPP_solar-sin-gastar_VID",
+      "campaign_name": "KENET_LEADS_MTY_WAPP_2026-06",
+      "leads": 1,
+      "asignados": 0,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "52574973894100",
+      "ad_name": "MTY_VID14_WAPP_MEJORAVIT_desaprovechar",
+      "campaign_name": "KENET_LEADS_MTY_DIRECTO_WAPP_2026-08",
+      "leads": 1,
+      "asignados": 0,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "120248956199240282",
+      "ad_name": "",
+      "campaign_name": "120248956142500282",
+      "leads": 1,
+      "asignados": 1,
+      "ventas": 0,
+      "mxn": 0.0
+    },
+    {
+      "ad_id": "52573189575700",
+      "ad_name": "TRC_VID30_WAPP_accesible",
+      "campaign_name": "KENET_LEADS_TRC_DIRECTO_WAPP_2026-08",
+      "leads": 1,
+      "asignados": 1,
+      "ventas": 0,
+      "mxn": 0.0
+    }
+  ]
 }
