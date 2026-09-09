@@ -41,6 +41,12 @@ export interface VentaReal { id: string; vendedor_id: string | null; asesor_id: 
 /** Una opción de pago de una cotización generada; `cot` agrupa las opciones del mismo flyer. */
 export interface CotFila { ts: number; cot: string; lead: number | null; asesor: string; suc: string; paneles: number; micro: boolean; ptr: boolean; n: number; plan: string; plazo: number; ppanel: number; total: number }
 export interface Cotizaciones { generado?: string; error?: string; dias: number; filas: CotFila[] }
+/** Un levantamiento de ayuda a cierre como lo lleva operaciones en su Excel (no el embudo del CRM).
+ *  `solicitado` y `finalizado` son epoch en segundos; `hecho` es la palabra final: en MTY la columna
+ *  Estado, en el sheet por zona la respuesta «¿Se realizó el levantamiento?» de la cuadrilla. */
+export interface LevFila { fuente: 'excel-mty' | 'form-zonas'; zona: string; asesor: string; cliente: string; tel: string
+  municipio: string; prioridad: string; paneles: number; solicitado: number; finalizado: number; estado: string; hecho: boolean; lead: string }
+export interface Levantamientos { generado?: string; error?: string; dias: number; filas: LevFila[] }
 export interface Comisiones { generado?: string; error?: string; vendedores: VendedorCom[]; ventas: VentaReal[] }
 
 export interface Corte {
@@ -49,6 +55,8 @@ export interface Corte {
   comisiones?: Comisiones
   /** Cotizaciones generadas en /cotizador (tabla cotizaciones de Supabase): una fila por método de pago del flyer. */
   cotizaciones?: Cotizaciones
+  /** Levantamientos de los Excel de operaciones; opcional porque un corte viejo no los trae. */
+  levantamientos?: Levantamientos
   /** Configuración: nombre en la app de comisiones -> slug del CRM ('' = sin asesor). */
   comisiones_map?: Record<string, string>
   usuarios: Usuario[]; equipos: Equipo[]; etapas: Etapa[]

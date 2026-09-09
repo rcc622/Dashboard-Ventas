@@ -20,6 +20,7 @@ Contrato que lee ventas/src/types.ts:
   generado, dias_historia, desde, fuentes[{crm, generado, leads, eventos, tareas, error?}]
   usuarios[{id, nombre, zona, crm[], ids{}}], equipos[{id, nombre}], etapas[{id, nombre}], metas{slug: n}
   Cada lead trae `ciudad` (la del contacto en Kommo, la del deal en HubSpot), ya normalizada.
+  levantamientos{filas[]} = los Excel de operaciones (Apps Script), la verdad de «ya se hizo».
   leads[], eventos[], tareas_abiertas[]   (ver docstrings de los extractores)
 
 Uso:
@@ -217,6 +218,43 @@ HIST = os.path.join(os.path.dirname(OUT), "ventas_hist.jsonl")
 
 
 COTIZACIONES_DIAS = 120   # cuántos días de cotizaciones generadas viajan en el corte
+LEVANTAMIENTOS_DIAS = 400  # cuántos días de levantamientos de los Excel viajan en el corte
+
+
+def agregar_levantamientos(corte):
+    """Levantamientos de ayuda a cierre, tal como los lleva OPERACIONES en sus Excel.
+
+    El embudo del CRM subregistra la visita: el asesor no siempre mueve la tarjeta a
+    «Levantamiento hecho» (Randall 9-sep). Quien sabe de verdad si se hizo es el Excel:
+    en MTY la columna Estado que llena operaciones, y en el sheet nuevo por zona la
+    respuesta «¿Se realizó el levantamiento?» de la cuadrilla.
+
+    Los dos los sirve un Apps Script de solo lectura (`levantamientos_sheet.gs`), porque no
+    hay cuenta de servicio de Google en el proyecto y el dashboard corre sin dependencias.
+    Sin `LEVANTAMIENTOS_URL` no entra nada y el tablero sigue igual."""
+    url = os.environ.get("LEVANTAMIENTOS_URL", "").strip()
+    if not url:
+        return corte
+    token = os.environ.get("LEVANTAMIENTOS_TOKEN", "kenet-levantamientos-2026").strip()
+    import urllib.request, urllib.parse, urllib.error
+    liga = url + ("&" if "?" in url else "?") + urllib.parse.urlencode({"token": token, "dias": LEVANTAMIENTOS_DIAS})
+    try:
+        with urllib.request.urlopen(liga, timeout=180) as r:
+            d = json.loads(r.read().decode("utf-8"))
+        if d.get("error"):
+            raise RuntimeError(d["error"])
+        filas = d.get("filas") or []
+        for f in filas:
+            f["municipio"] = ciudad_limpia(f.get("municipio"))
+        corte["levantamientos"] = {"generado": d.get("generado") or datetime.now().isoformat(timespec="seconds"),
+                                   "dias": LEVANTAMIENTOS_DIAS, "filas": filas}
+        hechos = sum(1 for f in filas if f.get("hecho"))
+        print("levantamientos (Excel): %d filas · %d hechos · zonas %s"
+              % (len(filas), hechos, sorted({f.get("zona") for f in filas})))
+    except Exception as e:
+        aviso("levantamientos falló: %r" % e)
+        corte["levantamientos"] = {"error": str(e)[:200], "dias": LEVANTAMIENTOS_DIAS, "filas": []}
+    return corte
 
 
 def agregar_cotizaciones(corte):
@@ -322,7 +360,7 @@ if __name__ == "__main__":
     partes = fuentes()
     if not partes:
         sys.exit("ningún CRM entregó corte: se conserva el ventas.json anterior")
-    corte = agregar_cotizaciones(agregar_comisiones(mezclar(partes)))
+    corte = agregar_levantamientos(agregar_cotizaciones(agregar_comisiones(mezclar(partes))))
     print("corte: %s · %d asesores · %d leads · %d actividades · %d tareas abiertas"
           % (" + ".join(f["crm"] for f in corte["fuentes"]), len(corte["usuarios"]),
              len(corte["leads"]), len(corte["eventos"]), len(corte["tareas_abiertas"])))

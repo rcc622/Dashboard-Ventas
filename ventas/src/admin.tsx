@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState, type SyntheticEvent, useEffect } from 'react'
-import type { Corte, Evento, Lead, Sanciones, Usuario } from './types'
+import type { Corte, Evento, Lead, LevFila, Sanciones, Usuario } from './types'
 import { CRM_LABEL } from './types'
-import { BUCKETS, PERFIL_LABEL, actividad, cotizado, dias, embudo, entrada, ep, eventosFiltrados, fechaCotizado, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, metaDe, metaEnRango, pasaCrm, periodoTexto, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, type Fila, type FilaAsesor, type Filtros, type Perfil , type PuntoPerfil, ventasReales, filasDeVentasReales, comparativaVentas, rolDestacado, rolNombre, cotizacionesGeneradas, filasDeCotizaciones, visitas } from './metrics'
+import { BUCKETS, PERFIL_LABEL, actividad, cotizado, dias, embudo, entrada, ep, eventosFiltrados, fechaCotizado, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, metaDe, metaEnRango, pasaCrm, periodoTexto, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, type Fila, type FilaAsesor, type Filtros, type Perfil , type PuntoPerfil, ventasReales, filasDeVentasReales, comparativaVentas, rolDestacado, rolNombre, cotizacionesGeneradas, filasDeCotizaciones, visitas, levantados, filasDeLevantamientos } from './metrics'
 import { BarDetailPopup, BubbleChart, Bullet, DonutChart, FunnelChart, Gauge, Info, LlamadasBar, MiniAreaChart, Scatter, SortTh, StackedBar, activar, useEscape, useOutside, type DetRow, type Sort, type BubbleCol, useFocoDialogo } from './components'
 import { DrillModal, type Drill } from './drill'
 import { aplicarSancion, cargarSanciones } from './data'
@@ -32,11 +32,23 @@ const PC_TRAMOS = [
   { l: 'de 4 a 24 horas', ok: (h: number) => h > 4 && h <= 24 }, { l: 'más de un día', ok: (h: number) => h > 24 },
 ]
 /** Orden de colocación por defecto del Dashboard: pares de igual alto (bandas) para que la rejilla libre no deje huecos. */
-const ORDEN_ADMIN = ['t-leads', 't-ventas', 't-vendido', 't-conversion', 't-perdida', 't-tareas', 't-cotizaciones', 't-descartes', 't-levantamientos', 'llamadas', 'salud', 'pipeline', 'ranking', 'reales', 'cotiz-metodos', 'visitas', 'entrada', 'embudo', 'etapas', 'contacto', 'razones', 'perfiles', 'perfiles-tabla']
+const ORDEN_ADMIN = ['t-leads', 't-ventas', 't-vendido', 't-conversion', 't-perdida', 't-tareas', 't-cotizaciones', 't-descartes', 't-levantamientos', 'llamadas', 'salud', 'pipeline', 'ranking', 'reales', 'cotiz-metodos', 'lev-operaciones', 'visitas', 'entrada', 'embudo', 'etapas', 'contacto', 'razones', 'perfiles', 'perfiles-tabla']
 const fLeads = (ls: Lead[]) => filasDeLeads(ls, () => '', undefined, { label: 'Días sin cambio', de: (l) => l.dias_sin_cambio })
 const fVentas = (ls: Lead[]) => filasDeLeads(ls, () => 'Ganado', (l) => l.cerrado)
 const fCotizado = (ls: Lead[]) => filasDeLeads(ls, () => '', (l) => fechaCotizado(l), { label: 'Días desde la cotización', de: (l) => diasDesde(fechaCotizado(l)) })
 const fEntrada = (ls: Lead[]) => filasDeLeads(ls, (l) => l.funnel_label, (l) => l.creado)
+/** Un renglón de la tabla de levantamientos: pedidos, hechos, porcentaje y días típicos. */
+function FilaLev({ r, ver, rango, que }: { r: { label: string; solicitados: LevFila[]; hechos: LevFila[]; dias: number[] }; ver: (t: string, f: Fila[], s?: string) => void; rango: string; que: string }) {
+  return (
+    <tr>
+      <td><button type="button" className="nbtn" aria-label={`${r.label}: ${fmtN(r.solicitados.length)} levantamientos pedidos. Ver la lista`} onClick={() => ver(`Levantamientos · ${que} ${r.label}`, filasDeLevantamientos(r.solicitados), rango)}>{r.label}</button></td>
+      <td className="num">{fmtN(r.solicitados.length)}</td>
+      <td className="num">{r.hechos.length ? <button type="button" className="nbtn" aria-label={`${r.label}: ${fmtN(r.hechos.length)} levantamientos hechos. Ver la lista`} onClick={() => ver(`Levantamientos hechos · ${que} ${r.label}`, filasDeLevantamientos(r.hechos), rango)}>{fmtN(r.hechos.length)}</button> : '—'}</td>
+      <td className="num">{pct(r.hechos.length, r.solicitados.length)}%</td>
+      <td className="num">{r.dias.length ? Math.round(mediana(r.dias)) : '—'}</td>
+    </tr>
+  )
+}
 /** Detalle de visitas: la fecha es cuándo se agendó y el número, los días que tardó en hacerse. */
 const fVisitas = (ls: Lead[]) => filasDeLeads(ls, (l) => (l.lev_hecho ? 'Visita hecha' : 'Sin hacer todavía'), (l) => l.lev_agendado || l.lev_hecho || 0,
   { label: 'Días de agendar a visitar', de: (l) => (l.lev_hecho && l.lev_agendado ? Math.round((l.lev_hecho - l.lev_agendado) / 86400) : undefined) })
@@ -141,6 +153,7 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
   const vr = ventasReales(corte, filtros)
   const cg = useMemo(() => cotizacionesGeneradas(corte, filtros), [corte, filtros])
   const vis = useMemo(() => visitas(corte, filtros), [corte, filtros])
+  const lev = useMemo(() => levantados(corte, filtros), [corte, filtros])
   const [drill, setDrill] = useState<Drill | null>(null)
   const ver = (titulo: string, filas: Fila[], sub?: string) => setDrill({ titulo, filas, sub })
   const s = salud(leads)
@@ -310,9 +323,29 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
         <div className="small muted" style={{ marginTop: 8 }}>Un método suma en cada cotización donde aparece; la combinación cuenta el conjunto exacto de métodos del flyer. «La que más usa» es la combinación que ese asesor repite más veces. Fuente: cotizador (al generar la imagen), últimos {corte.cotizaciones.dias} días · corte {(corte.cotizaciones.generado || '').slice(0, 16).replace('T', ' ')}.{corte.cotizaciones.error ? ` Error al leer la tabla: ${corte.cotizaciones.error}` : ''}</div>
       </>
     ), { info: ['Cotizaciones generadas'], alto: 10 })] : []),
-    // De las visitas que se agendaron, cuántas ya se hicieron (Randall 9-sep). Agendar y hacer son
-    // dos etapas distintas del embudo: aquí se mide si la visita agendada se concretó.
-    W('visitas', 'Levantamientos agendados y hechos', (
+    // La verdad de «ya se hizo» está en el Excel que llena operaciones, no en el embudo (Randall
+    // 9-sep). Solo entran las prioridades de ayuda a cierre; el filtro de equipo aplica por zona.
+    ...(corte.levantamientos ? [W('lev-operaciones', 'Levantamientos de ayuda a cierre', (
+      <>
+        <div className="brow" style={{ marginBottom: 8 }}>
+          <Cifra label={`${fmtN(lev.filas.length)} levantamientos pedidos`} onClick={() => ver('Levantamientos pedidos', filasDeLevantamientos(lev.filas), rango + ' · fecha = cuando se pidió')}><span className="v">{fmtN(lev.filas.length)}</span></Cifra>
+          <span className="small muted">pedidos · <b>{fmtN(lev.hechos.length)} ya se hicieron ({pct(lev.hechos.length, lev.filas.length)}%)</b> · {fmtN(lev.pendientes.length)} sin hacer{lev.dias.length ? ` · ${dias(Math.round(mediana(lev.dias)))} de pedir a hacer` : ''}</span>
+        </div>
+        {lev.filas.length > 0 && (
+          <div className="scrollx crece"><table className="ftable">
+            <thead><tr><th scope="col">Zona</th><th scope="col" className="num">Pedidos</th><th scope="col" className="num">Hechos</th><th scope="col" className="num">%</th><th scope="col" className="num">Días típicos</th></tr></thead>
+            <tbody>{lev.porZona.map((r) => <FilaLev key={'z' + r.label} r={r} ver={ver} rango={rango} que="zona" />)}</tbody>
+            <thead><tr><th scope="col">Asesor</th><th scope="col" className="num">Pedidos</th><th scope="col" className="num">Hechos</th><th scope="col" className="num">%</th><th scope="col" className="num">Días típicos</th></tr></thead>
+            <tbody>{lev.porAsesor.slice(0, 12).map((r) => <FilaLev key={'a' + r.label} r={r} ver={ver} rango={rango} que="asesor" />)}</tbody>
+          </table></div>
+        )}
+        {!lev.filas.length && <div className="vacio"><b>Sin levantamientos en estas fechas</b><span>El Excel de operaciones no tiene ninguno pedido en este periodo{filtros.equipo ? ' de esta zona' : ''}.</span></div>}
+        <div className="small muted" style={{ marginTop: 8 }}>Cuentan solo los de ayuda a cierre (Ayuda Cierre, URGENTE Cierre, URGENTE mejoravit y URGENTE Cierre COMERCIAL); las visitas de instalación y post-venta quedan fuera. «Hecho» es lo que dice operaciones en su Excel, no la etapa del CRM. Monterrey sale del Excel «LEVANTAMIENTOS»; las demás zonas, del reporte que llenan las cuadrillas. Corte {(corte.levantamientos.generado || '').slice(0, 16).replace('T', ' ')}.{corte.levantamientos.error ? ` Error al leer: ${corte.levantamientos.error}` : ''}</div>
+      </>
+    ), { alto: 11 })] : []),
+    // De las visitas que se agendaron, cuántas ya se hicieron según el EMBUDO (Randall 9-sep).
+    // Se queda porque mide otra cosa: si el asesor mueve la tarjeta. El número bueno es el de arriba.
+    W('visitas', 'Levantamientos según el embudo del CRM', (
       <>
         <div className="brow" style={{ marginBottom: 8 }}>
           <Cifra label={`${fmtN(vis.agendados.length)} levantamientos agendados`} onClick={() => ver('Levantamientos agendados', fVisitas(vis.agendados), rango + ' · fecha = cuando se agendó')}><span className="v">{fmtN(vis.agendados.length)}</span></Cifra>

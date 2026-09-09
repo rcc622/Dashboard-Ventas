@@ -5,7 +5,7 @@
 // Reglas de Alejandro (consultor, juntas jul-ago 2026) que viven aquí: meta en pesos
 // prorrateada al rango, cotizado vigente (≤ 90 d) contra 10× la meta mensual, tasa de
 // asignación como KPI de entrada, primer contacto en horas y perfiles actividad × venta.
-import type { CotFila, Corte, Crm, Etapa, Evento, Lead, Rango, Tarea, Usuario, VentaReal, Origen } from './types'
+import type { CotFila, Corte, Crm, Etapa, Evento, Lead, LevFila, Rango, Tarea, Usuario, VentaReal, Origen } from './types'
 
 /** crm = qué CRM entran (botones Kommo · HubSpot de la barra del Admin); al menos uno encendido. */
 export interface Filtros { rango: Rango; equipo: string | null; asesor: string | null; crm: Record<Crm, boolean> }
@@ -153,6 +153,53 @@ export function visitas(c: Corte, f: Filtros): Visitas {
   const sinAgendar = c.leads.filter((l) => mio(l) && enRango(l.lev_hecho || 0, f.rango) && !(l.lev_agendado || 0))
   const dias = hechos.map((l) => Math.max(0, (l.lev_hecho! - l.lev_agendado!) / 86400)).sort((a, b) => a - b)
   return { agendados, hechos, pendientes, sinAgendar, dias }
+}
+
+/** Los levantamientos del Excel de operaciones, filtrados por el rango y por el equipo elegido.
+ *  Es la única fuente que sabe si la visita SE HIZO: el embudo del CRM se queda corto porque el
+ *  asesor no siempre mueve la tarjeta (Randall 9-sep). Se cuenta por la fecha de solicitud; si la
+ *  fila no la trae (el reporte de la cuadrilla se llena después de ir), por la de la visita. */
+export interface Visita { fila: LevFila; cuando: number }
+export interface PorGrupo { label: string; solicitados: LevFila[]; hechos: LevFila[]; dias: number[] }
+export interface Levantados { filas: LevFila[]; hechos: LevFila[]; pendientes: LevFila[]; dias: number[]; porZona: PorGrupo[]; porAsesor: PorGrupo[] }
+export function levantados(c: Corte, f: Filtros): Levantados {
+  const zonas = new Set((c.equipos || []).map((e) => e.id))
+  const equipo = f.equipo && zonas.has(f.equipo) ? f.equipo : ''
+  const filas = (c.levantamientos?.filas || []).filter((l) => {
+    if (equipo && l.zona !== equipo) return false
+    return enRango(l.solicitado || l.finalizado || 0, f.rango)
+  })
+  const hechos = filas.filter((l) => l.hecho)
+  const dias = hechos.filter((l) => l.solicitado && l.finalizado && l.finalizado >= l.solicitado)
+    .map((l) => (l.finalizado - l.solicitado) / 86400).sort((a, b) => a - b)
+  const agrupar = (clave: (l: LevFila) => string): PorGrupo[] => {
+    const m = new Map<string, PorGrupo>()
+    for (const l of filas) {
+      const k = clave(l) || 'Sin dato'
+      let g = m.get(k)
+      if (!g) { g = { label: k, solicitados: [], hechos: [], dias: [] }; m.set(k, g) }
+      g.solicitados.push(l)
+      if (l.hecho) {
+        g.hechos.push(l)
+        if (l.solicitado && l.finalizado && l.finalizado >= l.solicitado) g.dias.push((l.finalizado - l.solicitado) / 86400)
+      }
+    }
+    return [...m.values()].sort((a, b) => b.solicitados.length - a.solicitados.length || a.label.localeCompare(b.label, 'es'))
+  }
+  return { filas, hechos, pendientes: filas.filter((l) => !l.hecho), dias,
+           porZona: agrupar((l) => l.zona), porAsesor: agrupar((l) => l.asesor) }
+}
+/** Un levantamiento del Excel como renglón del detalle. La fecha es cuándo se pidió. */
+export function filasDeLevantamientos(ls: LevFila[]): Fila[] {
+  return ls.map((l, i) => ({
+    id: 'lev:' + i + ':' + (l.cliente || l.tel || ''),
+    nombre: l.cliente || '(sin nombre en el Excel)',
+    crm: 'kommo' as Origen, asesor: l.asesor || 'Sin asesor', ciudad: l.municipio || '',
+    detalle: [l.prioridad, l.estado].filter(Boolean).join(' · ') || (l.hecho ? 'Hecho' : 'Sin hacer'),
+    num: l.solicitado && l.finalizado && l.finalizado >= l.solicitado ? Math.round((l.finalizado - l.solicitado) / 86400) : undefined,
+    numLabel: 'Días de pedir a hacer', monto: undefined, cuando: l.solicitado || l.finalizado || undefined,
+    estado: l.hecho ? 'Hecho' : 'Sin hacer', alerta: !l.hecho,
+  }))
 }
 
 // ---------------------------------------------------------------- metas (MXN)

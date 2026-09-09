@@ -891,6 +891,19 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   abre su lista. Prueba de punta a punta 9-sep: `POST /cotizador/entregada` escribió las 2 filas
   esperadas en la tabla `cotizaciones` de Supabase y se borró la fila de prueba; la tabla quedó vacía
   porque el registro se estrenó el 8-sep a las 20:00 y nadie había generado una cotización todavía.
+- **«Ya se hizo» lo dice el Excel de operaciones, no el embudo** (Randall 9-sep, corrección): el
+  asesor no siempre mueve la tarjeta, así que el embudo subregistra. `levantamientos_sheet.gs` es un
+  Apps Script de SOLO LECTURA («Levantamientos para el dashboard») que sirve las dos fuentes reales:
+  el Excel de MTY `1Tddw84F…` pestaña «2026 Levantamientos» (columna Estado y Fecha Finalización,
+  **solo las prioridades de ayuda a cierre**: Ayuda Cierre, URGENTE Cierre, URGENTE mejoravit y
+  URGENTE Cierre COMERCIAL — 238 de 761 filas; las de instalación y post-venta quedan fuera) y el
+  sheet nuevo por zona `1blqheWi…` (pestañas MTY/SLT/MVA/TRC, columna «¿Se realizó el levantamiento?»),
+  al que Monterrey se mudará. `agregar_levantamientos()` en ventas_corte.py lo lee con `LEVANTAMIENTOS_URL`
+  (+ `LEVANTAMIENTOS_TOKEN`); sin esa variable no entra nada. `levantados()` en metrics.ts agrupa por
+  zona y por asesor; widget «Levantamientos de ayuda a cierre». ⚠️ Al pegar código en el editor de
+  Apps Script, los combining marks literales (el rango `̀-ͯ` de un `normalize('NFD')`)
+  **impiden guardar el archivo** sin decir por qué: van escapados. Números del Excel al 9-sep: 238
+  pedidos, 215 hechos (90 %), mediana 3 días; septiembre 21 pedidos y 4 hechos.
 - **De los levantamientos agendados, cuántos ya se hicieron** (Randall 9-sep): agendar y hacer la
   visita son dos etapas distintas del embudo. `ventas_kommo.entradas_etapas()` lee UNA sola vez el
   historial de `lead_status_changed` y saca las tres señales (Propuesta entregada, Levantamiento
