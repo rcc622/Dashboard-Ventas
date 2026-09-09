@@ -891,6 +891,19 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   abre su lista. Prueba de punta a punta 9-sep: `POST /cotizador/entregada` escribió las 2 filas
   esperadas en la tabla `cotizaciones` de Supabase y se borró la fila de prueba; la tabla quedó vacía
   porque el registro se estrenó el 8-sep a las 20:00 y nadie había generado una cotización todavía.
+- **El acomodo del tablero viaja con la CUENTA** (Randall 9-sep: «al ser una cuenta de usuario se
+  sobreentiende que web y móvil deben mostrar la misma información»): antes vivía solo en el
+  `localStorage` del navegador, así que el teléfono empezaba de cero, sin su orden ni sus
+  separadores. Ahora `GET /ventas/tablero.json` devuelve los acomodos de la sesión y
+  `POST /ventas/tablero {clave, layout}` guarda el suyo (cualquier rol, no solo admin; `layout: null`
+  lo borra) en `data/ventas_tableros.json` = `{uid: {clave: layout}}`, con tope de 200 KB por cuenta.
+  El navegador sigue escribiendo su copia local para pintar al instante. **Gana el más reciente**:
+  cada layout lleva `ts` y al abrir se compara el de la cuenta contra el de `localStorage` (no contra
+  el estado en memoria, que va un paso atrás); si el de este equipo es más nuevo, se sube en vez de
+  pisarse, así que la primera vez que abres la computadora tu acomodo de siempre estrena la cuenta.
+  En móvil las posiciones se siguen ignorando (se apila en orden de lectura), pero ese orden y los
+  separadores ya son los tuyos. ⚠️ Las pruebas que asumían solo `localStorage` tienen que borrar
+  también `data/ventas_tableros.json` (e2e_grid.py y e2e_v2.py ya lo hacen).
 - **«Ya se hizo» lo dice el Excel de operaciones, no el embudo** (Randall 9-sep, corrección): el
   asesor no siempre mueve la tarjeta, así que el embudo subregistra. `levantamientos_sheet.gs` es un
   Apps Script de SOLO LECTURA («Levantamientos para el dashboard») que sirve las dos fuentes reales:

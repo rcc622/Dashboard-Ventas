@@ -231,9 +231,9 @@
         }
       ],
       "leads_por_canal": {
-        "Redes orgánico": 427,
+        "Redes orgánico": 428,
         "Meta Ads": 370,
-        "Sin origen": 17,
+        "Sin origen": 18,
         "Web orgánico": 18,
         "Directo": 39,
         "Google Ads": 4
@@ -259,7 +259,7 @@
           "asignados": 2
         }
       ],
-      "leads_total": 875,
+      "leads_total": 877,
       "leads_meta": 370,
       "asignados": 175,
       "por_asesor": [
@@ -709,8 +709,8 @@
         }
       ],
       "leads_por_canal": {
-        "Redes orgánico": 826,
-        "Sin origen": 68,
+        "Redes orgánico": 827,
+        "Sin origen": 69,
         "Web orgánico": 43,
         "Meta Ads": 653,
         "Directo": 72,
@@ -737,7 +737,7 @@
           "asignados": 3
         }
       ],
-      "leads_total": 1671,
+      "leads_total": 1673,
       "leads_meta": 653,
       "asignados": 313,
       "por_asesor": [
@@ -1217,8 +1217,8 @@
         }
       ],
       "leads_por_canal": {
-        "Redes orgánico": 1507,
-        "Sin origen": 96,
+        "Redes orgánico": 1508,
+        "Sin origen": 97,
         "Web orgánico": 89,
         "Directo": 140,
         "Meta Ads": 1185,
@@ -1245,7 +1245,7 @@
           "asignados": 4
         }
       ],
-      "leads_total": 3028,
+      "leads_total": 3030,
       "leads_meta": 1185,
       "asignados": 594,
       "por_asesor": [
@@ -1734,8 +1734,8 @@
         }
       ],
       "leads_por_canal": {
-        "Redes orgánico": 1516,
-        "Sin origen": 98,
+        "Redes orgánico": 1517,
+        "Sin origen": 99,
         "Meta Ads": 1248,
         "Web orgánico": 89,
         "Directo": 141,
@@ -1762,7 +1762,7 @@
           "asignados": 4
         }
       ],
-      "leads_total": 3103,
+      "leads_total": 3105,
       "leads_meta": 1248,
       "asignados": 622,
       "por_asesor": [
@@ -2258,8 +2258,8 @@
       "leads_por_canal": {
         "Directo": 314,
         "Meta Ads": 1425,
-        "Sin origen": 124,
-        "Redes orgánico": 1752,
+        "Sin origen": 125,
+        "Redes orgánico": 1753,
         "Web orgánico": 89,
         "Google Ads": 11
       },
@@ -2284,7 +2284,7 @@
           "asignados": 4
         }
       ],
-      "leads_total": 3715,
+      "leads_total": 3717,
       "leads_meta": 1425,
       "asignados": 694,
       "por_asesor": [
@@ -2778,10 +2778,10 @@
         }
       ],
       "leads_por_canal": {
-        "Sin origen": 201,
+        "Sin origen": 202,
         "Directo": 694,
         "Meta Ads": 1436,
-        "Redes orgánico": 2048,
+        "Redes orgánico": 2049,
         "Web orgánico": 89,
         "Google Ads": 11
       },
@@ -2806,7 +2806,7 @@
           "asignados": 4
         }
       ],
-      "leads_total": 4479,
+      "leads_total": 4481,
       "leads_meta": 1436,
       "asignados": 696,
       "por_asesor": [
@@ -3003,7 +3003,7 @@
     }
   },
   "source": "kommo",
-  "_generado": "2026-09-08T23:36:44-06:00",
+  "_generado": "2026-09-09T00:02:50-06:00",
   "window_7d": {
     "start": "2026-09-01",
     "end": "2026-09-08"
@@ -3016,17 +3016,17 @@
     "Meta Ads"
   ],
   "leads_by_origen_7d": {
-    "Redes orgánico": 427,
+    "Redes orgánico": 428,
     "Meta Ads": 370,
-    "Sin origen": 17,
+    "Sin origen": 18,
     "Web orgánico": 18,
     "Directo": 39,
     "Google Ads": 4
   },
-  "leads_total_7d": 875,
-  "leads_unassigned_7d": 657,
+  "leads_total_7d": 877,
+  "leads_unassigned_7d": 659,
   "leads_meta_30d": 1248,
-  "leads_total_30d": 3103,
+  "leads_total_30d": 3105,
   "ttc_meta_30d_days": 19.51,
   "ttc_blended_30d_days": 16.87,
   "assigned_meta_by_zone_7d": {

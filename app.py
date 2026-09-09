@@ -47,6 +47,38 @@ VENTAS_PUBLICO = (os.environ.get("VENTAS_PUBLICO") or "").strip().lower() in ("1
 VENTAS_USUARIOS = os.path.join(DATA, "ventas_usuarios.json")  # accesos por usuario/contraseña de /ventas (POST /ventas/usuarios)
 VENTAS_SECRET_FILE = os.path.join(DATA, "ventas_secret.txt")   # firma de la cookie de sesión si no hay VENTAS_SECRET
 VENTAS_CONFIG = os.path.join(DATA, "ventas_config.json")   # metas en pesos desde la página (POST /ventas/config)
+# El acomodo del tablero de CADA CUENTA (Randall 9-sep: «al ser una cuenta de usuario, web y móvil
+# deben mostrar lo mismo»). Antes vivía solo en el localStorage del navegador, así que el teléfono
+# empezaba de cero. {uid: {clave: layout}}; el layout es opaco para el servidor, solo se acota.
+VENTAS_TABLEROS = os.path.join(DATA, "ventas_tableros.json")
+TABLERO_MAX = 200_000       # bytes por cuenta: un acomodo con gráficas propias ronda los 10 KB
+CLAVE_TABLERO = re.compile(r"^[a-z0-9][a-z0-9:_-]{0,59}$")
+
+
+def leer_tableros():
+    try:
+        with open(VENTAS_TABLEROS, encoding="utf-8") as f:
+            d = json.load(f)
+        return d if isinstance(d, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def validar_tablero(body):
+    """(clave, layout) del cuerpo; `layout` None = borrar. Levanta ValueError si viene mal."""
+    if not isinstance(body, dict):
+        raise ValueError("cuerpo inválido")
+    clave = str(body.get("clave") or "")
+    if not CLAVE_TABLERO.match(clave):
+        raise ValueError("clave inválida")
+    layout = body.get("layout")
+    if layout is None:
+        return clave, None
+    if not isinstance(layout, dict) or "pos" not in layout:
+        raise ValueError("layout inválido")
+    if len(json.dumps(layout)) > TABLERO_MAX:
+        raise ValueError("layout demasiado grande")
+    return clave, layout
 VENTAS_HIST = os.path.join(DATA, "ventas_hist.jsonl")      # foto diaria del pipeline (la escribe ventas_corte.py)
 CTYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
           ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png",
@@ -849,6 +881,13 @@ class H(BaseHTTPRequestHandler):
             if True:
                 return self._send(404, json.dumps({"error": "todavía no hay corte de ventas"}),
                                   "application/json")
+        if rel == "tablero.json":
+            # El acomodo guardado de ESTA cuenta, para que el teléfono vea lo mismo que la computadora.
+            ses = self._sesion()
+            if not ses:
+                return self._send(401, json.dumps({"error": "sin sesión"}), "application/json")
+            mios = leer_tableros().get(ses["uid"]) or {}
+            return self._send(200, json.dumps({"tableros": mios}, ensure_ascii=False), "application/json")
         if rel == "config.json":
             try:
                 with open(VENTAS_CONFIG, "rb") as f:
@@ -953,6 +992,21 @@ class H(BaseHTTPRequestHandler):
         ses = self._sesion()
         if not ses:
             return err(401, "inicia sesión")
+        if ruta == "/ventas/tablero":
+            # Cada quien guarda SU acomodo; no hace falta ser administrador y nadie toca el de otro.
+            try:
+                clave, layout = validar_tablero(self._json_body(TABLERO_MAX + 2000))
+            except (ValueError, TypeError) as e:
+                return err(400, str(e))
+            todos = leer_tableros()
+            mios = dict(todos.get(ses["uid"]) or {})
+            if layout is None:
+                mios.pop(clave, None)
+            else:
+                mios[clave] = layout
+            todos[ses["uid"]] = mios
+            self._escribir(VENTAS_TABLEROS, todos)
+            return self._send(200, json.dumps({"ok": True}), "application/json")
         if ses["rol"] != "admin":
             return err(403, "solo administradores")
         if ruta == "/ventas/config":

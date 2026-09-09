@@ -48,7 +48,8 @@ function doGet(e) {
     if (String(p.token || '') !== TOKEN) return _json({ error: 'token invalido' });
     if (p.accion === 'ping') return _json(_ping());
     var dias = Number(p.dias || DIAS_DEFAULT);
-    var desde = dias > 0 ? Date.now() - dias * 86400000 : 0;
+    // En SEGUNDOS, como `_ts`: comparar contra milisegundos dejaba fuera TODAS las filas.
+    var desde = dias > 0 ? Math.round((Date.now() - dias * 86400000) / 1000) : 0;
     var filas = _delExcelMty(desde).concat(_delFormPorZona(desde));
     return _json({ ok: true, generado: new Date().toISOString(), dias: dias, filas: filas });
   } catch (err) {

@@ -111,3 +111,15 @@ export async function pedirRefresco(): Promise<{ ok: boolean; corriendo: boolean
   const j = (await r.json().catch(() => ({}))) as { corriendo?: boolean; error?: string }
   return { ok: r.ok, corriendo: !!j.corriendo, error: j.error }
 }
+
+// Acomodo del tablero guardado en la CUENTA (Randall 9-sep): el teléfono debe ver el mismo orden,
+// la misma distribución y los mismos separadores que la computadora. El navegador sigue guardando
+// su copia en localStorage para pintar al instante; el servidor es el que manda entre dispositivos.
+export async function cargarTableros(): Promise<Record<string, unknown>> {
+  const r = await fetch('tablero.json', { cache: 'no-store' })
+  if (!r.ok) throw new Error('HTTP ' + r.status)
+  return ((await r.json()) as { tableros?: Record<string, unknown> }).tableros || {}
+}
+export async function guardarTablero(clave: string, layout: unknown | null): Promise<void> {
+  await post('tablero', { clave, layout })
+}

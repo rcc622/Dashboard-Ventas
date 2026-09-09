@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerE
 import { IconoInfo, Info } from './components'
 import type { Termino } from './glosario'
 import type { Grafica } from './constructor'
+import { cargarTableros, guardarTablero } from './data'
 
 // Rejilla LIBRE de widgets (Randall 6-sep: «colocar libremente las gráficas en el lugar que yo
 // quiera, con un sistema de grids», como los editores de tablero de Kommo y HubSpot). Seis
@@ -25,7 +26,9 @@ export interface Constructor {
   editor: (p: { g: Grafica; onGuardar: (g: Grafica) => void; onClose: () => void }) => ReactNode
 }
 export interface Pos { x: number; y: number; w: number; h: number }
-interface Layout { v: 2; pos: Record<string, Pos>; ocultos: string[]; seps: Record<string, string>; graficas?: Grafica[] }
+/** `ts` = cuándo se tocó por última vez. Es lo que decide quién gana entre el navegador y la cuenta:
+ *  sin esa marca, abrir el tablero en otro lado pisaba lo que acabas de acomodar aquí. */
+interface Layout { v: 2; pos: Record<string, Pos>; ocultos: string[]; seps: Record<string, string>; graficas?: Grafica[]; ts?: number }
 interface LayoutV1 { orden: string[]; spans?: Record<string, number>; altos?: Record<string, number>; ocultos?: string[]; seps?: Record<string, string> }
 const esSep = (id: string) => id.startsWith('sep:')
 const esGraf = (id: string) => id.startsWith('g:')   // gráfica hecha con el constructor (Randall 7-sep)
@@ -80,6 +83,12 @@ function acomodar(pos: Record<string, Pos>, id: string): Record<string, Pos> {
 
 const KEY = (clave: string) => 'kv_orden_' + clave
 const guardar = (clave: string, l: Layout) => { try { localStorage.setItem(KEY(clave), JSON.stringify(l)) } catch { /* modo privado */ } }
+/** El servidor guarda el acomodo de la cuenta, con un respiro para no escribir en cada tecla. */
+let _pendiente: ReturnType<typeof setTimeout> | null = null
+const guardarEnLaCuenta = (clave: string, l: Layout | null) => {
+  if (_pendiente) clearTimeout(_pendiente)
+  _pendiente = setTimeout(() => { guardarTablero(clave, l).catch(() => { /* sin sesión o sin red: queda el local */ }) }, 700)
+}
 /** Orden guardado del formato viejo + los widgets nuevos al final; un widget con `desde` entra en el lugar del id viejo. */
 const ordenar = (widgets: Widget[], guardado: string[], seps: Record<string, string>) => {
   const ids = widgets.map((w) => w.id)
@@ -98,7 +107,7 @@ function inicial(clave: string, widgets: Widget[]): Layout {
   const por = new Map(widgets.map((w) => [w.id, w]))
   if (v && typeof v === 'object' && (v as Layout).v === 2 && (v as Layout).pos) {
     const l = v as Layout
-    return sanear({ v: 2, pos: { ...l.pos }, ocultos: [...(l.ocultos || [])], seps: { ...(l.seps || {}) }, graficas: [...(l.graficas || [])] }, widgets)
+    return sanear({ v: 2, pos: { ...l.pos }, ocultos: [...(l.ocultos || [])], seps: { ...(l.seps || {}) }, graficas: [...(l.graficas || [])], ts: l.ts }, widgets)
   }
   // Formato anterior (orden + anchos + altos): se coloca igual que fluía la rejilla de antes.
   const v1: LayoutV1 = Array.isArray(v) ? { orden: v as string[] } : (v && typeof v === 'object' && Array.isArray((v as LayoutV1).orden)) ? (v as LayoutV1) : { orden: [] }
@@ -157,9 +166,34 @@ export function WidgetGrid({ clave, widgets, taller: ctor }: { clave: string; wi
   const refs = useRef<Record<string, HTMLElement | null>>({})
   const grid = useRef<HTMLDivElement>(null)
   const actual = useRef(layout); actual.current = layout
+  // El acomodo viaja con la CUENTA para que el teléfono vea lo mismo que la computadora (Randall
+  // 9-sep). Gana el más reciente: si lo de la cuenta es más viejo que lo de este navegador, se sube
+  // lo de aquí en vez de pisarlo; si no hay nada guardado en la cuenta, este navegador la estrena.
+  useEffect(() => {
+    let vivo = true
+    cargarTableros().then((t) => {
+      if (!vivo) return
+      const g = t[clave] as Layout | undefined
+      const suyo = g && typeof g === 'object' && g.pos ? g : null
+      // La marca del NAVEGADOR se lee de localStorage, que es lo que este equipo guardó de verdad;
+      // el estado en memoria puede ir un paso atrás y entonces lo de la cuenta pisaba lo recién hecho.
+      let mio: Layout | null = null
+      try { mio = JSON.parse(localStorage.getItem(KEY(clave)) || 'null') } catch { /* modo privado */ }
+      if (!suyo || (mio?.ts || 0) > (suyo.ts || 0)) {
+        if (mio) guardarEnLaCuenta(clave, mio)         // este navegador tenía lo más nuevo: se sube
+        return
+      }
+      setLayout(sanear({ v: 2, pos: { ...suyo.pos }, ocultos: [...(suyo.ocultos || [])], seps: { ...(suyo.seps || {}) }, graficas: [...(suyo.graficas || [])], ts: suyo.ts }, todos))
+      setTocado(true)
+    }).catch(() => { /* sin sesión: se usa lo del navegador */ })
+    return () => { vivo = false }
+  }, [clave])   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { setLayout((l) => { const s = sanear(l, todos); return JSON.stringify(s) === JSON.stringify(l) ? l : s }) }, [ids.join()])   // eslint-disable-line react-hooks/exhaustive-deps
 
-  const fijar = (l: Layout, aviso = '') => { setLayout(l); guardar(clave, l); setTocado(true); if (aviso) setMsg(aviso) }
+  const fijar = (l0: Layout, aviso = '') => {
+    const l = { ...l0, ts: Date.now() }   // la marca de tiempo decide quién gana entre dispositivos
+    setLayout(l); guardar(clave, l); guardarEnLaCuenta(clave, l); setTocado(true); if (aviso) setMsg(aviso)
+  }
   const tituloDe = (id: string) => (esSep(id) ? `Separador ${layout.seps[id] || ''}`.trim() : por.get(id)?.titulo || id)
   const celda = () => { const g = grid.current; return { colW: g ? (g.clientWidth - GAP * (COLS - 1)) / COLS : 150, filaH: FILA } }
   const moverA = (id: string, x: number, y: number) => {
@@ -216,7 +250,7 @@ export function WidgetGrid({ clave, widgets, taller: ctor }: { clave: string; wi
   }
   const titularSep = (id: string, t: string) => fijar({ ...layout, seps: { ...layout.seps, [id]: t } })
   const borrarSep = (id: string) => { const seps = { ...layout.seps }, pos = { ...layout.pos }; delete seps[id]; delete pos[id]; fijar({ ...layout, pos, seps }) }
-  const restablecer = () => { try { localStorage.removeItem(KEY(clave)) } catch { /* nada */ } setLayout(inicial(clave, widgets)); setTocado(false); setMsg('Tablero restablecido') }
+  const restablecer = () => { try { localStorage.removeItem(KEY(clave)) } catch { /* nada */ } guardarEnLaCuenta(clave, null); setLayout(inicial(clave, widgets)); setTocado(false); setMsg('Tablero restablecido en todos tus dispositivos') }
   const quitados = layout.ocultos.filter((id) => por.has(id))
   const visibles = Object.keys(layout.pos).filter((id) => (esSep(id) ? id in layout.seps : por.has(id))).sort((a, b) => layout.pos[a].y - layout.pos[b].y || layout.pos[a].x - layout.pos[b].x)
 
