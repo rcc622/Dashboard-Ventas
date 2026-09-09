@@ -138,6 +138,23 @@ export function ventasFiltradas(c: Corte, f: Filtros): Lead[] {
   return c.leads.filter((l) => pasaCrm(l.crm, f) && l.funnel === 5 && enRango(l.cerrado, f.rango) && pasaPersona(l.asesor_id, f, users, oc))
 }
 
+/** Visitas: de las que se agendaron, cuántas ya se hicieron (Randall 9-sep).
+ *  `agendados` = leads que entraron a «Levantamiento agendado» dentro de las fechas elegidas.
+ *  `hechos` = de esos, los que además llegaron a «Levantamiento hecho» (aunque haya sido después del
+ *  rango: lo que se mide es si la visita se concretó). `sinAgendar` = visitas hechas en el rango que
+ *  nunca pasaron por «agendado», es decir que el asesor movió el lead sin agendar antes. */
+export interface Visitas { agendados: Lead[]; hechos: Lead[]; pendientes: Lead[]; sinAgendar: Lead[]; dias: number[] }
+export function visitas(c: Corte, f: Filtros): Visitas {
+  const users = mapaUsuarios(c), oc = ocultosDe(c)
+  const mio = (l: Lead) => pasaCrm(l.crm, f) && pasaPersona(l.asesor_id, f, users, oc)
+  const agendados = c.leads.filter((l) => mio(l) && enRango(l.lev_agendado || 0, f.rango))
+  const hechos = agendados.filter((l) => (l.lev_hecho || 0) > 0)
+  const pendientes = agendados.filter((l) => !(l.lev_hecho || 0))
+  const sinAgendar = c.leads.filter((l) => mio(l) && enRango(l.lev_hecho || 0, f.rango) && !(l.lev_agendado || 0))
+  const dias = hechos.map((l) => Math.max(0, (l.lev_hecho! - l.lev_agendado!) / 86400)).sort((a, b) => a - b)
+  return { agendados, hechos, pendientes, sinAgendar, dias }
+}
+
 // ---------------------------------------------------------------- metas (MXN)
 export const META_DEFAULT = 800000
 /** Meta mensual en pesos del asesor: la suya, si no la de su zona, si no la general. */

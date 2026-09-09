@@ -23,6 +23,8 @@ export interface Lead {
   ciudad?: string
   asignacion: number; tareas_completadas: number; ult_tarea: number; ult_llamada: number
   cotizacion: number; recotizaciones?: number; levantamiento: number; ult_actividad: number; cerrado: number
+  /** Visitas: cuándo se agendó y cuándo se hizo (primera entrada a cada etapa). Opcionales: un corte viejo no las trae. */
+  lev_agendado?: number; lev_hecho?: number
 }
 
 export type TipoEvento = 'tarea' | 'llamada_ok' | 'llamada_no' | 'cotizacion' | 'recotizacion' | 'levantamiento' | 'descarte'

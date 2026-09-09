@@ -3,7 +3,7 @@ import type { Corte, Evento, Lead, Tarea, Usuario, VentaReal } from './types'
 import { CRM_LABEL } from './types'
 import {
   cotizadoVigenteDe, enRango, etapaDe, fechaDe, filasDeEventos, filasDeLeads, filasDeVentasReales, fmtCorta, fmtMoney0, fmtN,
-  inicioDia, mapaUsuarios, ocultosDe, pasaCrm, primerContacto, vivo, zonaNombre, type Filtros,
+  inicioDia, mapaUsuarios, ocultosDe, pasaCrm, primerContacto, visitas, vivo, zonaNombre, type Filtros,
 } from './metrics'
 import { BarChart, DonutChart, HBarList, LineChart, useEscape, useFocoDialogo } from './components'
 import type { Drill } from './drill'
@@ -77,6 +77,8 @@ export const MEDIDAS: Medida[] = [
   { id: 'sin_contestar', label: 'Llamadas sin contestar', grupo: 'Actividad', fmt: fmtN, dims: DIMS_CRM, ayuda: 'Llamadas que duraron cero.', items: (c, f) => uno(eventosDe(c, f, ['llamada_no']), (e) => ({ v: 1, ev: e })), fecha: (i) => i.ev?.ts },
   { id: 'tareas_hechas', label: 'Tareas completadas', grupo: 'Actividad', fmt: fmtN, dims: DIMS_CRM, ayuda: 'Tareas que el asesor marcó como terminadas dentro de las fechas elegidas.', items: (c, f) => uno(eventosDe(c, f, ['tarea']), (e) => ({ v: 1, ev: e })), fecha: (i) => i.ev?.ts },
   { id: 'cotizaciones', label: 'Cotizaciones entregadas', grupo: 'Actividad', fmt: fmtN, dims: DIMS_CRM, ayuda: 'Primera vez que el lead pasó a «Propuesta entregada» dentro de las fechas elegidas.', items: (c, f) => uno(eventosDe(c, f, ['cotizacion']), (e) => ({ v: 1, ev: e })), fecha: (i) => i.ev?.ts },
+  { id: 'lev_agendados', label: 'Levantamientos agendados', grupo: 'Actividad', fmt: fmtN, dims: DIMS_CRM, ayuda: 'Leads que entraron a la etapa «Levantamiento agendado» dentro de las fechas elegidas.', items: (c, f) => uno(visitas(c, f).agendados, (l) => ({ v: 1, lead: l })), fecha: (i) => i.lead?.lev_agendado || 0 },
+  { id: 'lev_hechos', label: 'Levantamientos hechos', grupo: 'Actividad', fmt: fmtN, dims: DIMS_CRM, ayuda: 'De los agendados en las fechas elegidas, los que llegaron a «Levantamiento hecho».', items: (c, f) => uno(visitas(c, f).hechos, (l) => ({ v: 1, lead: l })), fecha: (i) => i.lead?.lev_agendado || 0 },
   { id: 'levantamientos', label: 'Levantamientos solicitados', grupo: 'Actividad', fmt: fmtN, dims: DIMS_CRM, ayuda: 'Visitas técnicas solicitadas dentro de las fechas elegidas.', items: (c, f) => uno(eventosDe(c, f, ['levantamiento']), (e) => ({ v: 1, ev: e })), fecha: (i) => i.ev?.ts },
   { id: 'descartes', label: 'Descartados', grupo: 'Actividad', fmt: fmtN, dims: [...DIMS_CRM, 'razon'], ayuda: 'Leads descartados dentro de las fechas elegidas, por la fecha del descarte.', items: (c, f) => uno(eventosDe(c, f, ['descarte']), (e) => ({ v: 1, ev: e })), fecha: (i) => i.ev?.ts },
   { id: 'pc_hecho', label: 'Primer contacto completado', grupo: 'Actividad', fmt: fmtN, dims: DIMS_CRM, ayuda: 'Leads asignados en las fechas elegidas a los que ya se les hizo la primera llamada o tarea. Solo Kommo.', items: (c, f) => uno(primerContacto(c, leadsDe(c, f)).con, (x) => ({ v: 1, lead: x.lead })), fecha: (i) => i.lead?.asignacion },
@@ -236,6 +238,8 @@ export function GraficaLibre({ corte, filtros, g, onDrill, mini = false }: { cor
 // ---------------------------------------------------------------- plantillas de la galería
 const P = (id: string, titulo: string, medida: string, dim: string, tipo: TipoGrafica, extra: Partial<Grafica> = {}): Grafica => ({ id, titulo, medida, dim, tipo, ...extra })
 export const PLANTILLAS: Grafica[] = [
+  P('p-lev-agendados', 'Levantamientos agendados por asesor', 'lev_agendados', 'asesor', 'hbar'),
+  P('p-lev-hechos', 'Levantamientos hechos por asesor', 'lev_hechos', 'asesor', 'hbar'),
   P('p-ciudad-leads', 'Leads asignados por ciudad', 'leads', 'ciudad', 'hbar'),
   P('p-ciudad-ventas', 'Ventas cerradas por ciudad', 'ventas', 'ciudad', 'hbar'),
   P('p-tareas-venc', 'Tareas vencidas por asesor', 'tareas_vencidas', 'asesor', 'hbar'),

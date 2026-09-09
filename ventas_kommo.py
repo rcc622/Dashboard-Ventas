@@ -39,6 +39,8 @@ FIELD_CIUDAD = 1823968       # text "Ciudad" — vive en el CONTACTO (la llena e
 FIELD_MUNICIPIO = 1833639    # text "Municipio" del formulario de levantamiento; respaldo del anterior
 FIELD_COTIZACION = 1833423   # date_time "Cotización entregada" (a mano; cubre el 25 %: solo respaldo)
 ET_PROPUESTA = 109436768     # etapa «Propuesta entregada» del embudo Ventas: entrar aquí ES la cotización
+ET_LEV_AGENDADO = 110266952  # etapa «Levantamiento agendado»: entrar aquí ES agendar la visita
+ET_LEV_HECHO = 109436772     # etapa «Levantamiento hecho»: entrar aquí ES que la visita ya se hizo
 FIELD_LEVANTAMIENTO = 1833425  # date_time "Levantamiento solicitado"
 TIPO_PRIMER_CONTACTO = 3953735
 ST_GANADO, ST_PERDIDO = 142, 143
@@ -139,29 +141,35 @@ def eventos_(tipo, desde, **extra):
         aviso("eventos %s: %s" % (tipo, str(e)[:120]))
 
 
-def entrada_propuesta(e):
-    """(lead_id, ts) si el evento es una entrada a «Propuesta entregada» del embudo Ventas; si no, None."""
+def entrada_etapa(e, ids):
+    """(status_id, lead_id, ts) si el evento es una entrada a una de esas etapas del embudo Ventas."""
     if e.get("entity_type") != "lead":
         return None
     va = e.get("value_after") or []
     st = ((va[0] or {}).get("lead_status") or {}) if isinstance(va, list) and va else {}
-    if st.get("id") == ET_PROPUESTA and st.get("pipeline_id") == PIPE_VENTAS and e.get("entity_id"):
-        return e["entity_id"], e.get("created_at") or 0
+    if st.get("id") in ids and st.get("pipeline_id") == PIPE_VENTAS and e.get("entity_id"):
+        return st["id"], e["entity_id"], e.get("created_at") or 0
     return None
 
 
-def entradas_propuesta(desde):
-    """{lead_id: [ts, …]} entradas a «Propuesta entregada», en orden. Es la señal real de «cotización
-    entregada» (decisión de Randall 5-sep tras el diagnóstico): el campo de fecha lo llena una persona a
-    mano y cubre el 25 %. La primera entrada es la cotización; las siguientes son recotizaciones. El
-    endpoint de eventos da máximo 100 por página: ~120 llamadas y ~80 s a 90 días."""
-    out = {}
+def entradas_etapas(desde, ids):
+    """{status_id: {lead_id: [ts, …]}} entradas a cada etapa, en orden.
+
+    De aquí salen tres señales, todas del MISMO barrido del historial (el endpoint de eventos da 100
+    por página: ~120 llamadas y ~80 s a 90 días, así que leerlo una vez y repartir sale gratis):
+      · «Propuesta entregada» = la cotización de verdad (decisión de Randall 5-sep tras el
+        diagnóstico: el campo de fecha lo llena una persona a mano y cubre el 25 %). La primera
+        entrada es la cotización; las siguientes son recotizaciones.
+      · «Levantamiento agendado» y «Levantamiento hecho» = cuántas visitas se agendaron y cuántas de
+        esas ya se hicieron (Randall 9-sep). Se guarda la PRIMERA entrada a cada una."""
+    out = {i: {} for i in ids}
     for e in eventos_("lead_status_changed", desde, limit=100):
-        r = entrada_propuesta(e)
+        r = entrada_etapa(e, ids)
         if r:
-            out.setdefault(r[0], []).append(r[1])
-    for v in out.values():
-        v.sort()
+            out[r[0]].setdefault(r[1], []).append(r[2])
+    for d in out.values():
+        for v in d.values():
+            v.sort()
     return out
 
 
@@ -319,9 +327,12 @@ def build():
     ASIG_EV = asignaciones_por_evento(desde)
     LLAM = dedup_llamadas(notas_llamada(desde))
     print("llamadas (dedup): %d · cambios de responsable: %d leads" % (len(LLAM), len(ASIG_EV)))
-    PROP = entradas_propuesta(desde)
+    HIST = entradas_etapas(desde, (ET_PROPUESTA, ET_LEV_AGENDADO, ET_LEV_HECHO))
+    PROP, AGEND, HECHO = HIST[ET_PROPUESTA], HIST[ET_LEV_AGENDADO], HIST[ET_LEV_HECHO]
     print("entradas a Propuesta entregada (historial): %d leads, %d recotizaciones"
           % (len(PROP), sum(len(v) - 1 for v in PROP.values())))
+    print("levantamientos (historial): %d agendados · %d hechos · %d de los agendados ya hechos"
+          % (len(AGEND), len(HECHO), sum(1 for x in AGEND if x in HECHO)))
 
     llam_por_lead = {}
     for c in LLAM:
@@ -389,6 +400,8 @@ def build():
             "asignacion": ts_asig,
             "tareas_completadas": H2["n"], "ult_tarea": H2["ult"], "ult_llamada": ts_llam,
             "cotizacion": ts_cot, "recotizaciones": max(0, len(ents) - 1), "levantamiento": ts_lev,
+            # Agendar y hacer la visita son dos cosas distintas: la primera entrada a cada etapa.
+            "lev_agendado": (AGEND.get(l["id"]) or [0])[0], "lev_hecho": (HECHO.get(l["id"]) or [0])[0],
             "ult_actividad": max(H2["ult"], ts_llam, ts_cot, ts_lev),
             "cerrado": l.get("closed_at") or 0,
         })
@@ -471,10 +484,14 @@ def selftest():
     assert zona_grupo("KS-TRAINING") == "TRAINING" and zona_grupo("ks-Seguimiento ") == "SEGUIMIENTO" and zona_grupo("KS-") == ""
     # historial de etapas: solo cuenta la entrada a Propuesta entregada del embudo Ventas, de un lead
     ev = {"entity_type": "lead", "entity_id": 7, "created_at": 55, "value_after": [{"lead_status": {"id": ET_PROPUESTA, "pipeline_id": PIPE_VENTAS}}]}
-    assert entrada_propuesta(ev) == (7, 55)
-    assert entrada_propuesta(dict(ev, value_after=[{"lead_status": {"id": 109436772, "pipeline_id": PIPE_VENTAS}}])) is None
-    assert entrada_propuesta(dict(ev, value_after=[{"lead_status": {"id": ET_PROPUESTA, "pipeline_id": PIPE_HUNTING}}])) is None
-    assert entrada_propuesta(dict(ev, entity_type="contact")) is None and entrada_propuesta(dict(ev, value_after=[])) is None
+    TRES = (ET_PROPUESTA, ET_LEV_AGENDADO, ET_LEV_HECHO)
+    assert entrada_etapa(ev, TRES) == (ET_PROPUESTA, 7, 55)
+    assert entrada_etapa(dict(ev, value_after=[{"lead_status": {"id": ET_LEV_HECHO, "pipeline_id": PIPE_VENTAS}}]), TRES) == (ET_LEV_HECHO, 7, 55)
+    assert entrada_etapa(dict(ev, value_after=[{"lead_status": {"id": ET_LEV_HECHO, "pipeline_id": PIPE_HUNTING}}]), TRES) is None
+    assert entrada_etapa(ev, (ET_PROPUESTA,)) == (ET_PROPUESTA, 7, 55)
+    assert entrada_etapa(dict(ev, value_after=[{"lead_status": {"id": ET_LEV_HECHO, "pipeline_id": PIPE_VENTAS}}]), (ET_PROPUESTA,)) is None
+    assert entrada_etapa(dict(ev, value_after=[{"lead_status": {"id": ET_PROPUESTA, "pipeline_id": PIPE_HUNTING}}]), (ET_PROPUESTA,)) is None
+    assert entrada_etapa(dict(ev, entity_type="contact"), (ET_PROPUESTA,)) is None and entrada_etapa(dict(ev, value_after=[]), (ET_PROPUESTA,)) is None
     print("selftest OK")
 
 

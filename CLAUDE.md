@@ -891,6 +891,15 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   abre su lista. Prueba de punta a punta 9-sep: `POST /cotizador/entregada` escribió las 2 filas
   esperadas en la tabla `cotizaciones` de Supabase y se borró la fila de prueba; la tabla quedó vacía
   porque el registro se estrenó el 8-sep a las 20:00 y nadie había generado una cotización todavía.
+- **De los levantamientos agendados, cuántos ya se hicieron** (Randall 9-sep): agendar y hacer la
+  visita son dos etapas distintas del embudo. `ventas_kommo.entradas_etapas()` lee UNA sola vez el
+  historial de `lead_status_changed` y saca las tres señales (Propuesta entregada, Levantamiento
+  agendado 110266952, Levantamiento hecho 109436772); en HubSpot son
+  `hs_v2_date_entered_1432144491` y `_1409289354`. Cada lead trae `lev_agendado` y `lev_hecho`.
+  `visitas()` en metrics.ts arma agendados / hechos / pendientes / hechos-sin-agendar y los días de
+  agendar a visitar. Widget «Levantamientos agendados y hechos» (tabla por asesor con % y días) más
+  dos medidas del constructor. Corte del 9-sep: 31 agendados, 5 hechos (16 %), mediana 6 días; 21
+  visitas hechas sin pasar por «agendado», casi todas de HubSpot, donde esa etapa no se usa.
 - **De qué ciudad es cada lead** (Randall 8-sep, «me gustaría saber los leads de qué ciudad son»):
   cada lead trae `ciudad`. En Kommo sale del campo «Ciudad» del CONTACTO (1823968, la deja el bot al
   precalificar) y, si viene vacío, del «Municipio» del formulario de levantamiento (1833639); en

@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState, type SyntheticEvent, useEffect } from 'react'
 import type { Corte, Evento, Lead, Sanciones, Usuario } from './types'
 import { CRM_LABEL } from './types'
-import { BUCKETS, PERFIL_LABEL, actividad, cotizado, dias, embudo, entrada, ep, eventosFiltrados, fechaCotizado, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, metaDe, metaEnRango, pasaCrm, periodoTexto, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, type Fila, type FilaAsesor, type Filtros, type Perfil , type PuntoPerfil, ventasReales, filasDeVentasReales, comparativaVentas, rolDestacado, rolNombre, cotizacionesGeneradas, filasDeCotizaciones } from './metrics'
+import { BUCKETS, PERFIL_LABEL, actividad, cotizado, dias, embudo, entrada, ep, eventosFiltrados, fechaCotizado, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, metaDe, metaEnRango, pasaCrm, periodoTexto, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, type Fila, type FilaAsesor, type Filtros, type Perfil , type PuntoPerfil, ventasReales, filasDeVentasReales, comparativaVentas, rolDestacado, rolNombre, cotizacionesGeneradas, filasDeCotizaciones, visitas } from './metrics'
 import { BarDetailPopup, BubbleChart, Bullet, DonutChart, FunnelChart, Gauge, Info, LlamadasBar, MiniAreaChart, Scatter, SortTh, StackedBar, activar, useEscape, useOutside, type DetRow, type Sort, type BubbleCol, useFocoDialogo } from './components'
 import { DrillModal, type Drill } from './drill'
 import { aplicarSancion, cargarSanciones } from './data'
@@ -32,17 +32,34 @@ const PC_TRAMOS = [
   { l: 'de 4 a 24 horas', ok: (h: number) => h > 4 && h <= 24 }, { l: 'más de un día', ok: (h: number) => h > 24 },
 ]
 /** Orden de colocación por defecto del Dashboard: pares de igual alto (bandas) para que la rejilla libre no deje huecos. */
-const ORDEN_ADMIN = ['t-leads', 't-ventas', 't-vendido', 't-conversion', 't-perdida', 't-tareas', 't-cotizaciones', 't-descartes', 't-levantamientos', 'llamadas', 'salud', 'pipeline', 'ranking', 'reales', 'cotiz-metodos', 'entrada', 'embudo', 'etapas', 'contacto', 'razones', 'perfiles', 'perfiles-tabla']
+const ORDEN_ADMIN = ['t-leads', 't-ventas', 't-vendido', 't-conversion', 't-perdida', 't-tareas', 't-cotizaciones', 't-descartes', 't-levantamientos', 'llamadas', 'salud', 'pipeline', 'ranking', 'reales', 'cotiz-metodos', 'visitas', 'entrada', 'embudo', 'etapas', 'contacto', 'razones', 'perfiles', 'perfiles-tabla']
 const fLeads = (ls: Lead[]) => filasDeLeads(ls, () => '', undefined, { label: 'Días sin cambio', de: (l) => l.dias_sin_cambio })
 const fVentas = (ls: Lead[]) => filasDeLeads(ls, () => 'Ganado', (l) => l.cerrado)
 const fCotizado = (ls: Lead[]) => filasDeLeads(ls, () => '', (l) => fechaCotizado(l), { label: 'Días desde la cotización', de: (l) => diasDesde(fechaCotizado(l)) })
 const fEntrada = (ls: Lead[]) => filasDeLeads(ls, (l) => l.funnel_label, (l) => l.creado)
+/** Detalle de visitas: la fecha es cuándo se agendó y el número, los días que tardó en hacerse. */
+const fVisitas = (ls: Lead[]) => filasDeLeads(ls, (l) => (l.lev_hecho ? 'Visita hecha' : 'Sin hacer todavía'), (l) => l.lev_agendado || l.lev_hecho || 0,
+  { label: 'Días de agendar a visitar', de: (l) => (l.lev_hecho && l.lev_agendado ? Math.round((l.lev_hecho - l.lev_agendado) / 86400) : undefined) })
+/** Las visitas de cada asesor, de más agendadas a menos. */
+function porAsesorVisitas(v: { agendados: Lead[]; hechos: Lead[] }) {
+  const m = new Map<string, { label: string; agendados: Lead[]; hechos: Lead[]; dias: number[] }>()
+  const fila = (n: string) => { let x = m.get(n); if (!x) { x = { label: n, agendados: [], hechos: [], dias: [] }; m.set(n, x) } return x }
+  for (const l of v.agendados) fila(l.asesor || 'Sin asesor').agendados.push(l)
+  for (const l of v.hechos) { const x = fila(l.asesor || 'Sin asesor'); x.hechos.push(l); x.dias.push((l.lev_hecho! - l.lev_agendado!) / 86400) }
+  return [...m.values()].sort((a, b) => b.agendados.length - a.agendados.length || a.label.localeCompare(b.label, 'es'))
+}
 /** La combinación de métodos que un asesor repite más, para la tabla de cotizaciones generadas. */
 function masUsada(cots: { combo: string }[]): { label: string; n: number } {
   const m = new Map<string, number>()
   for (const c of cots) m.set(c.combo, (m.get(c.combo) || 0) + 1)
   const mejor = [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'es'))[0]
   return mejor ? { label: mejor[0] || '—', n: mejor[1] } : { label: '—', n: 0 }
+}
+/** Mediana de una lista de números ya ordenada o no; 0 si está vacía. */
+function mediana(xs: number[]): number {
+  if (!xs.length) return 0
+  const o = [...xs].sort((a, b) => a - b), m = Math.floor(o.length / 2)
+  return o.length % 2 ? o[m] : (o[m - 1] + o[m]) / 2
 }
 /** Mediana de paneles: una sola cotización enorme no debe mover el número típico del asesor. */
 function medianaPaneles(cots: { paneles: number }[]): number {
@@ -123,6 +140,7 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
   const perf = useMemo(() => perfiles(filas), [filas])
   const vr = ventasReales(corte, filtros)
   const cg = useMemo(() => cotizacionesGeneradas(corte, filtros), [corte, filtros])
+  const vis = useMemo(() => visitas(corte, filtros), [corte, filtros])
   const [drill, setDrill] = useState<Drill | null>(null)
   const ver = (titulo: string, filas: Fila[], sub?: string) => setDrill({ titulo, filas, sub })
   const s = salud(leads)
@@ -292,6 +310,33 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
         <div className="small muted" style={{ marginTop: 8 }}>Un método suma en cada cotización donde aparece; la combinación cuenta el conjunto exacto de métodos del flyer. «La que más usa» es la combinación que ese asesor repite más veces. Fuente: cotizador (al generar la imagen), últimos {corte.cotizaciones.dias} días · corte {(corte.cotizaciones.generado || '').slice(0, 16).replace('T', ' ')}.{corte.cotizaciones.error ? ` Error al leer la tabla: ${corte.cotizaciones.error}` : ''}</div>
       </>
     ), { info: ['Cotizaciones generadas'], alto: 10 })] : []),
+    // De las visitas que se agendaron, cuántas ya se hicieron (Randall 9-sep). Agendar y hacer son
+    // dos etapas distintas del embudo: aquí se mide si la visita agendada se concretó.
+    W('visitas', 'Levantamientos agendados y hechos', (
+      <>
+        <div className="brow" style={{ marginBottom: 8 }}>
+          <Cifra label={`${fmtN(vis.agendados.length)} levantamientos agendados`} onClick={() => ver('Levantamientos agendados', fVisitas(vis.agendados), rango + ' · fecha = cuando se agendó')}><span className="v">{fmtN(vis.agendados.length)}</span></Cifra>
+          <span className="small muted">agendados · <b>{fmtN(vis.hechos.length)} ya se hicieron ({pct(vis.hechos.length, vis.agendados.length)}%)</b> · {fmtN(vis.pendientes.length)} sin hacer todavía{vis.dias.length ? ` · ${dias(Math.round(mediana(vis.dias)))} de agendar a visitar` : ''}</span>
+        </div>
+        {vis.agendados.length > 0 && (
+          <div className="scrollx crece"><table className="ftable">
+            <thead><tr><th scope="col">Asesor</th><th scope="col" className="num">Agendados</th><th scope="col" className="num">Hechos</th><th scope="col" className="num">%</th><th scope="col" className="num">Días típicos</th></tr></thead>
+            <tbody>
+              {porAsesorVisitas(vis).map((r) => (
+                <tr key={r.label}>
+                  <td><button type="button" className="nbtn" aria-label={`${r.label}: ${fmtN(r.agendados.length)} levantamientos agendados. Ver la lista`} onClick={() => ver(`Levantamientos agendados · ${r.label}`, fVisitas(r.agendados), rango)}>{r.label}</button></td>
+                  <td className="num">{fmtN(r.agendados.length)}</td>
+                  <td className="num">{r.hechos.length ? <button type="button" className="nbtn" aria-label={`${r.label}: ${fmtN(r.hechos.length)} levantamientos hechos. Ver la lista`} onClick={() => ver(`Levantamientos hechos · ${r.label}`, fVisitas(r.hechos), rango)}>{fmtN(r.hechos.length)}</button> : '—'}</td>
+                  <td className="num">{pct(r.hechos.length, r.agendados.length)}%</td>
+                  <td className="num">{r.dias.length ? Math.round(mediana(r.dias)) : '—'}</td>
+                </tr>))}
+            </tbody>
+          </table></div>
+        )}
+        {!vis.agendados.length && <div className="vacio"><b>Sin levantamientos agendados</b><span>Nadie movió un lead a «Levantamiento agendado» en este periodo{filtros.asesor || filtros.equipo ? ' con este filtro' : ''}.</span></div>}
+        <div className="small muted" style={{ marginTop: 8 }}>Agendado = el lead entró a la etapa «Levantamiento agendado»; hecho = después llegó a «Levantamiento hecho», aunque haya sido fuera de estas fechas. {vis.sinAgendar.length ? <>Además hay <button type="button" className="nbtn" onClick={() => ver('Levantamientos hechos sin agendar antes', fVisitas(vis.sinAgendar), rango + ' · fecha = la visita')}>{fmtN(vis.sinAgendar.length)} visitas hechas que nunca pasaron por «agendado»</button>: el asesor movió el lead directo a «hecho»{vis.sinAgendar.filter((l) => l.crm === 'hubspot').length > vis.sinAgendar.length / 2 ? ', casi todas en HubSpot, donde la etapa «Levantamiento agendado» prácticamente no se usa' : ''}. </> : null}Fuente: historial de etapas de Kommo y HubSpot.</div>
+      </>
+    ), { alto: 9 }),
     W('pipeline', 'Cotizado vs vendido vs meta', (
       <>
         <div className="brow">
