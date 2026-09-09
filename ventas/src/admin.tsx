@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState, type SyntheticEvent, useEffect } from 'react'
 import type { Corte, Evento, Lead, Sanciones, Usuario } from './types'
 import { CRM_LABEL } from './types'
-import { BUCKETS, PERFIL_LABEL, actividad, cotizado, dias, embudo, entrada, ep, eventosFiltrados, fechaCotizado, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, metaDe, metaEnRango, pasaCrm, periodoTexto, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, type Fila, type FilaAsesor, type Filtros, type Perfil , type PuntoPerfil, ventasReales, filasDeVentasReales, comparativaVentas, rolDestacado, rolNombre } from './metrics'
+import { BUCKETS, PERFIL_LABEL, actividad, cotizado, dias, embudo, entrada, ep, eventosFiltrados, fechaCotizado, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, metaDe, metaEnRango, pasaCrm, periodoTexto, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, type Fila, type FilaAsesor, type Filtros, type Perfil , type PuntoPerfil, ventasReales, filasDeVentasReales, comparativaVentas, rolDestacado, rolNombre, cotizacionesGeneradas, filasDeCotizaciones } from './metrics'
 import { BarDetailPopup, BubbleChart, Bullet, DonutChart, FunnelChart, Gauge, Info, LlamadasBar, MiniAreaChart, Scatter, SortTh, StackedBar, activar, useEscape, useOutside, type DetRow, type Sort, type BubbleCol, useFocoDialogo } from './components'
 import { DrillModal, type Drill } from './drill'
 import { aplicarSancion, cargarSanciones } from './data'
@@ -32,7 +32,7 @@ const PC_TRAMOS = [
   { l: 'de 4 a 24 horas', ok: (h: number) => h > 4 && h <= 24 }, { l: 'más de un día', ok: (h: number) => h > 24 },
 ]
 /** Orden de colocación por defecto del Dashboard: pares de igual alto (bandas) para que la rejilla libre no deje huecos. */
-const ORDEN_ADMIN = ['t-leads', 't-ventas', 't-vendido', 't-conversion', 't-perdida', 't-tareas', 't-cotizaciones', 't-descartes', 't-levantamientos', 'llamadas', 'salud', 'pipeline', 'ranking', 'reales', 'entrada', 'embudo', 'etapas', 'contacto', 'razones', 'perfiles', 'perfiles-tabla']
+const ORDEN_ADMIN = ['t-leads', 't-ventas', 't-vendido', 't-conversion', 't-perdida', 't-tareas', 't-cotizaciones', 't-descartes', 't-levantamientos', 'llamadas', 'salud', 'pipeline', 'ranking', 'reales', 'cotiz-metodos', 'entrada', 'embudo', 'etapas', 'contacto', 'razones', 'perfiles', 'perfiles-tabla']
 const fLeads = (ls: Lead[]) => filasDeLeads(ls, () => '', undefined, { label: 'Días sin cambio', de: (l) => l.dias_sin_cambio })
 const fVentas = (ls: Lead[]) => filasDeLeads(ls, () => 'Ganado', (l) => l.cerrado)
 const fCotizado = (ls: Lead[]) => filasDeLeads(ls, () => '', (l) => fechaCotizado(l), { label: 'Días desde la cotización', de: (l) => diasDesde(fechaCotizado(l)) })
@@ -107,6 +107,7 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
   const rz = useMemo(() => razones(corte, ev), [corte, ev])
   const perf = useMemo(() => perfiles(filas), [filas])
   const vr = ventasReales(corte, filtros)
+  const cg = useMemo(() => cotizacionesGeneradas(corte, filtros), [corte, filtros])
   const [drill, setDrill] = useState<Drill | null>(null)
   const ver = (titulo: string, filas: Fila[], sub?: string) => setDrill({ titulo, filas, sub })
   const s = salud(leads)
@@ -232,6 +233,36 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
         <div className="small muted" style={{ marginTop: 8 }}>Clic en el asesor abre la comparativa venta por venta: cuáles faltan en el CRM y cuáles en la app. Fuente: app de comisiones, por mes de venta y sin canceladas · corte {(corte.comisiones.generado || '').slice(0, 16).replace('T', ' ')}.{vr.sinAsesor.length ? ` Vendedores sin asesor en el CRM: ${vr.sinAsesor.join(', ')}.` : ''}{corte.comisiones.error ? ` Error al leer la app: ${corte.comisiones.error}` : ''}</div>
       </>
     ), { info: ['Ventas reales'], alto: 10 })] : []),
+    ...(corte.cotizaciones ? [W('cotiz-metodos', 'Cotizaciones generadas · métodos de pago', (
+      <>
+        <div className="brow" style={{ marginBottom: 8 }}>
+          <Cifra label={`${fmtN(cg.cots.length)} cotizaciones generadas`} onClick={() => ver('Cotizaciones generadas', filasDeCotizaciones(cg.cots), rango)}><span className="v">{fmtN(cg.cots.length)}</span></Cifra>
+          <span className="small muted">cotizaciones generadas · {fmtN(cg.multi)} con 2 o más métodos · {fmtN(cg.conLead)} ligadas a un lead de Kommo</span>
+        </div>
+        {cg.cots.length > 0 && (
+          <div className="scrollx crece"><table className="ftable">
+            <thead><tr><th scope="col">Método de pago</th><th scope="col" className="num">Cotizaciones</th><th scope="col" className="num">%</th></tr></thead>
+            <tbody>
+              {cg.porPlan.map((r) => (
+                <tr key={'p' + r.label}>
+                  <td><button type="button" className="nbtn" aria-label={`${r.label}: ${fmtN(r.n)} cotizaciones. Ver la lista`} onClick={() => ver(`Cotizaciones con ${r.label}`, filasDeCotizaciones(r.cots), rango)}>{r.label}</button></td>
+                  <td className="num">{fmtN(r.n)}</td><td className="num">{pct(r.n, cg.cots.length)}%</td>
+                </tr>))}
+            </tbody>
+            <thead><tr><th scope="col">Combinación exacta</th><th scope="col" className="num">Cotizaciones</th><th scope="col" className="num">%</th></tr></thead>
+            <tbody>
+              {cg.porCombo.map((r) => (
+                <tr key={'c' + r.label}>
+                  <td><button type="button" className="nbtn" aria-label={`${r.label}: ${fmtN(r.n)} cotizaciones. Ver la lista`} onClick={() => ver(`Cotizaciones · ${r.label}`, filasDeCotizaciones(r.cots), rango)}>{r.label}</button></td>
+                  <td className="num">{fmtN(r.n)}</td><td className="num">{pct(r.n, cg.cots.length)}%</td>
+                </tr>))}
+            </tbody>
+          </table></div>
+        )}
+        {!cg.cots.length && <div className="vacio"><b>Sin cotizaciones generadas</b><span>Nadie generó una imagen de cotización en este periodo{filtros.asesor || filtros.equipo ? ' con este filtro' : ''}. Se cuentan desde el 8 de septiembre de 2026.</span></div>}
+        <div className="small muted" style={{ marginTop: 8 }}>Un método suma en cada cotización donde aparece; la combinación cuenta el conjunto exacto de métodos del flyer. Fuente: cotizador (al generar la imagen), últimos {corte.cotizaciones.dias} días · corte {(corte.cotizaciones.generado || '').slice(0, 16).replace('T', ' ')}.{corte.cotizaciones.error ? ` Error al leer la tabla: ${corte.cotizaciones.error}` : ''}</div>
+      </>
+    ), { info: ['Cotizaciones generadas'], alto: 10 })] : []),
     W('pipeline', 'Cotizado vs vendido vs meta', (
       <>
         <div className="brow">

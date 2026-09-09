@@ -36,12 +36,17 @@ export interface VendedorCom { id: string; nombre: string; zona: string; rol: st
 export interface VentaReal { id: string; vendedor_id: string | null; asesor_id: string | null; vendedor: string; cliente: string; zona: string; mes: string | null; mes_texto: string; fecha: number | null; monto: number; comisionable: number; cancelada: boolean; liga: string; origen: string; compartida_con: string
   /** Analítica (7-sep); opcionales porque un corte viejo no los trae. */
   paneles?: number; forma_pago?: string; enganche?: boolean; referido_por?: string; bidireccional?: boolean; extras?: number; comision_pagada?: boolean; zona_app?: string; captura?: 'completa' | 'incompleta' }
+/** Una opción de pago de una cotización generada; `cot` agrupa las opciones del mismo flyer. */
+export interface CotFila { ts: number; cot: string; lead: number | null; asesor: string; suc: string; paneles: number; micro: boolean; ptr: boolean; n: number; plan: string; plazo: number; ppanel: number; total: number }
+export interface Cotizaciones { generado?: string; error?: string; dias: number; filas: CotFila[] }
 export interface Comisiones { generado?: string; error?: string; vendedores: VendedorCom[]; ventas: VentaReal[] }
 
 export interface Corte {
   generado: string; dias_historia: number; desde: number
   fuentes: Fuente[]
   comisiones?: Comisiones
+  /** Cotizaciones generadas en /cotizador (tabla cotizaciones de Supabase): una fila por método de pago del flyer. */
+  cotizaciones?: Cotizaciones
   /** Configuración: nombre en la app de comisiones -> slug del CRM ('' = sin asesor). */
   comisiones_map?: Record<string, string>
   usuarios: Usuario[]; equipos: Equipo[]; etapas: Etapa[]
@@ -68,8 +73,8 @@ export interface Acceso { id: string; usuario: string; nombre: string; rol: 'adm
 /** Rango [ini, fin) en epoch segundos. */
 export interface Rango { ini: number; fin: number; label: string }
 
-export type Origen = Crm | 'comisiones'
-export const CRM_LABEL: Record<Origen, string> = { kommo: 'Kommo', hubspot: 'HubSpot', comisiones: 'Comisiones' }
+export type Origen = Crm | 'comisiones' | 'cotizador'
+export const CRM_LABEL: Record<Origen, string> = { kommo: 'Kommo', hubspot: 'HubSpot', comisiones: 'Comisiones', cotizador: 'Cotizador' }
 
 /** Estado de «quitar de la asignación» (GET sanciones.json): Kommo = filas de la pestaña «Sanciones 24h»
  *  (por user_id numérico de Kommo); HubSpot = a quién sacó el tablero de su equipo, por asesor. */

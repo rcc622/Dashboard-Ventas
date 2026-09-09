@@ -216,6 +216,44 @@ def agregar_comisiones(corte):
 HIST = os.path.join(os.path.dirname(OUT), "ventas_hist.jsonl")
 
 
+COTIZACIONES_DIAS = 120   # cuántos días de cotizaciones generadas viajan en el corte
+
+
+def agregar_cotizaciones(corte):
+    """Cotizaciones GENERADAS en /cotizador (tabla `cotizaciones` de Supabase, la escribe
+    Kommo-ia al generar el JPG; una fila por opción de pago, cot_id agrupa la cotización).
+    El dashboard cuenta cotizaciones por método y por combinación de métodos (dirección
+    8-sep). Sin SUPABASE_* no entra; si falla, `cotizaciones.error` lo dice."""
+    if not (os.environ.get("SUPABASE_URL") and os.environ.get("SUPABASE_SERVICE_KEY")):
+        return corte
+    try:
+        import ventas_comisiones
+        desde = time.time() - COTIZACIONES_DIAS * 86400
+        filas = ventas_comisiones.get("cotizaciones",
+                                      "creado,cot_id,lead_id,asesor,sucursal,paneles,micro,ptr,n_opciones,plan,plazo,ppanel,total")
+        out = []
+        for r in filas:   # ponytail: se baja toda la tabla y se filtra aquí; paginar por fecha cuando pase de ~50k filas
+            try:
+                ts = int(datetime.fromisoformat(r["creado"].replace("Z", "+00:00")).timestamp())
+            except (KeyError, ValueError, TypeError):
+                continue
+            if ts < desde:
+                continue
+            out.append({"ts": ts, "cot": r.get("cot_id"), "lead": r.get("lead_id"), "asesor": r.get("asesor") or "",
+                        "suc": (r.get("sucursal") or "").upper(), "paneles": r.get("paneles") or 0,
+                        "micro": bool(r.get("micro")), "ptr": bool(r.get("ptr")), "n": r.get("n_opciones") or 1,
+                        "plan": r.get("plan") or "", "plazo": r.get("plazo") or 0,
+                        "ppanel": r.get("ppanel") or 0, "total": r.get("total") or 0})
+        corte["cotizaciones"] = {"generado": datetime.now().isoformat(timespec="seconds"),
+                                 "dias": COTIZACIONES_DIAS, "filas": out}
+        print("cotizaciones generadas: %d filas · %d cotizaciones (últimos %d días)"
+              % (len(out), len({r["cot"] for r in out}), COTIZACIONES_DIAS))
+    except Exception as e:
+        aviso("cotizaciones falló: %r" % e)
+        corte["cotizaciones"] = {"error": str(e)[:200], "dias": COTIZACIONES_DIAS, "filas": []}
+    return corte
+
+
 def foto_pipeline(corte, ahora=None):
     """Foto de HOY del embudo Ventas, sin filtro de rango: leads y monto por etapa, total y
     por asesor. Randall quiere ver el pipeline «como estaba hace 7 días» y su liquidez; el
@@ -284,7 +322,7 @@ if __name__ == "__main__":
     partes = fuentes()
     if not partes:
         sys.exit("ningún CRM entregó corte: se conserva el ventas.json anterior")
-    corte = agregar_comisiones(mezclar(partes))
+    corte = agregar_cotizaciones(agregar_comisiones(mezclar(partes)))
     print("corte: %s · %d asesores · %d leads · %d actividades · %d tareas abiertas"
           % (" + ".join(f["crm"] for f in corte["fuentes"]), len(corte["usuarios"]),
              len(corte["leads"]), len(corte["eventos"]), len(corte["tareas_abiertas"])))

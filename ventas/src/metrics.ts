@@ -5,7 +5,7 @@
 // Reglas de Alejandro (consultor, juntas jul-ago 2026) que viven aquí: meta en pesos
 // prorrateada al rango, cotizado vigente (≤ 90 d) contra 10× la meta mensual, tasa de
 // asignación como KPI de entrada, primer contacto en horas y perfiles actividad × venta.
-import type { Corte, Crm, Etapa, Evento, Lead, Rango, Tarea, Usuario, VentaReal, Origen } from './types'
+import type { CotFila, Corte, Crm, Etapa, Evento, Lead, Rango, Tarea, Usuario, VentaReal, Origen } from './types'
 
 /** crm = qué CRM entran (botones Kommo · HubSpot de la barra del Admin); al menos uno encendido. */
 export interface Filtros { rango: Rango; equipo: string | null; asesor: string | null; crm: Record<Crm, boolean> }
@@ -608,4 +608,50 @@ export function analiticaReales(c: Corte, f: Filtros, region: Region | null, cap
     panelAsesor: top(series(sel.filter((v) => (v.paneles || 0) > 0), (v) => v.vendedor || '(sin asignar)', porPanel)),
     panelMes: series(linea.filter((v) => (v.paneles || 0) > 0), mesLabel, porPanel).sort((a, b) => (a.ventas[0].fecha || 0) - (b.ventas[0].fecha || 0)),
   }
+}
+
+
+// ---- Cotizaciones generadas en /cotizador (tabla cotizaciones de Supabase; dirección 8-sep) ----
+export const PLAN_LABEL: Record<string, string> = {
+  contado_rig: 'Contado riguroso', contado_par: 'Contado parcial', mejoravit: 'Mejoravit', fide: 'FIDE', msi: 'MSI', msi_se: 'MSI sin enganche',
+  mix_mej_msi: 'Mejoravit + MSI', mix_mej_cp: 'Mejoravit + contado parcial', mix_fide_msi: 'FIDE + MSI', mix_fide_cp: 'FIDE + contado parcial',
+  c1090: 'Contado parcial (rápido)', buen: 'Buen enganche (rápido)', algo: 'Algo de enganche (rápido)',
+}
+export const planLabel = (p: string, plazo?: number) => (PLAN_LABEL[p] || p || '(sin método)') + (plazo && /msi|buen|algo/.test(p) ? ` ${plazo}` : '')
+export interface CotGrupo { cot: string; ts: number; asesor: string; asesorId: string | null; suc: string; lead: number | null; paneles: number; planes: string[]; combo: string; total: number }
+export interface Conteo { label: string; n: number; cots: CotGrupo[] }
+export interface CotResumen { cots: CotGrupo[]; porPlan: Conteo[]; porCombo: Conteo[]; porAsesor: Conteo[]; conLead: number; multi: number }
+const sinAcentos = (s: string) => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
+/** Cotizaciones generadas dentro de las fechas elegidas, agrupadas por flyer (cot) y contadas por método y por combinación. */
+export function cotizacionesGeneradas(c: Corte, f: Filtros): CotResumen {
+  const filas: CotFila[] = c.cotizaciones?.filas || []
+  const users = mapaUsuarios(c), oc = ocultosDe(c)
+  const porNombre = new Map<string, string>()
+  for (const u of c.usuarios) porNombre.set(sinAcentos(u.nombre), u.id)
+  const grupos = new Map<string, CotGrupo>()
+  for (const r of filas) {
+    if (!enRango(r.ts, f.rango)) continue
+    const asesorId = porNombre.get(sinAcentos(r.asesor)) || null
+    if (f.equipo && r.suc !== f.equipo && !(asesorId && users.get(asesorId)?.zona === f.equipo)) continue
+    if (f.asesor && asesorId !== f.asesor) continue
+    if (asesorId && !pasaPersona(asesorId, f, users, oc)) continue
+    const g: CotGrupo = grupos.get(r.cot) || { cot: r.cot, ts: r.ts, asesor: r.asesor || '(sin nombre)', asesorId, suc: r.suc, lead: r.lead, paneles: r.paneles, planes: [], combo: '', total: 0 }
+    g.planes.push(planLabel(r.plan, r.plazo)); g.total = g.total ? Math.min(g.total, r.total) : r.total
+    grupos.set(r.cot, g)
+  }
+  const cots = [...grupos.values()].sort((a, b) => b.ts - a.ts)
+  for (const g of cots) g.combo = [...new Set(g.planes)].sort().join(' + ')
+  const cuenta = (key: (g: CotGrupo) => string[]) => {
+    const mp = new Map<string, Conteo>()
+    for (const g of cots) for (const k of new Set(key(g))) { const x = mp.get(k) || { label: k, n: 0, cots: [] }; x.n++; x.cots.push(g); mp.set(k, x) }
+    return [...mp.values()].sort((a, b) => b.n - a.n || a.label.localeCompare(b.label))
+  }
+  return {
+    cots, porPlan: cuenta((g) => g.planes), porCombo: cuenta((g) => [g.combo]), porAsesor: cuenta((g) => [g.asesor]),
+    conLead: cots.filter((g) => g.lead != null).length, multi: cots.filter((g) => new Set(g.planes).size > 1).length,
+  }
+}
+export function filasDeCotizaciones(cots: CotGrupo[]): Fila[] {
+  return cots.map((g) => ({ id: g.cot, nombre: `${g.paneles} paneles · ${g.combo}`, crm: 'cotizador', asesor: g.asesor, detalle: g.lead != null ? `Lead ${g.lead}` : 'Sin lead (link suelto)',
+    ciudad: g.suc, num: g.total, numLabel: 'Total (opción más baja)', cuando: g.ts }))
 }

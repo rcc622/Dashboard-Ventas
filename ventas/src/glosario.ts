@@ -11,6 +11,7 @@ export const GLOSARIO = {
   'Sin tarea': 'Lead asignado que no tiene ninguna tarea pendiente: se terminó la última y no se programó el siguiente paso.',
   'Cumplimiento': 'Qué parte de la meta ya se vendió: lo vendido en las fechas elegidas contra la parte de la meta que toca a esas fechas.',
   'Conversión': 'De cada 100 leads asignados en las fechas elegidas, cuántos terminaron en venta cerrada dentro de esas mismas fechas.',
+  'Cotizaciones generadas': 'Imágenes de cotización que los asesores generaron en el cotizador en las fechas elegidas, con y sin lead en Kommo. Cada cotización puede llevar hasta 3 métodos de pago: la tabla de métodos cuenta en cuántas cotizaciones aparece cada uno y la de combinaciones cuenta cotizaciones por el conjunto exacto de métodos que llevaban.',
   'Ventas reales': 'Ventas que sí se cobraron según la app de comisiones (sin canceladas), por el mes en que se vendieron y unidas al asesor por su nombre. El CRM a veces marca la venta antes o después, y con otro monto.',
   'Tasa de pérdida': 'De cada 100 leads asignados en las fechas elegidas, cuántos se descartaron. Un lead ganado o descartado deja de ser activo: ya no se le revisa actividad ni tareas.',
   'Salud operativa': 'Leads asignados en las fechas elegidas dentro de los embudos Ventas y Hunting, separados entre los que ya tienen precio cotizado y los que todavía no.',
