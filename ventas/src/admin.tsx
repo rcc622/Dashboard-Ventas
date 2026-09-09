@@ -1,9 +1,11 @@
-import { useLayoutEffect, useMemo, useRef, useState, type SyntheticEvent, useEffect } from 'react'
+import { Fragment, useLayoutEffect, useMemo, useRef, useState, type SyntheticEvent, useEffect } from 'react'
 import type { Corte, Evento, Lead, LevFila, Sanciones, Usuario } from './types'
 import { CRM_LABEL } from './types'
 import { BUCKETS, PERFIL_LABEL, actividad, cotizado, dias, embudo, entrada, ep, eventosFiltrados, fechaCotizado, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, metaDe, metaEnRango, pasaCrm, periodoTexto, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, type Fila, type FilaAsesor, type Filtros, type Perfil , type PuntoPerfil, ventasReales, filasDeVentasReales, comparativaVentas, rolDestacado, rolNombre, cotizacionesGeneradas, filasDeCotizaciones, visitas, levantados, filasDeLevantamientos } from './metrics'
 import { BarDetailPopup, BubbleChart, Bullet, DonutChart, FunnelChart, Gauge, Info, LlamadasBar, MiniAreaChart, Scatter, SortTh, StackedBar, activar, useEscape, useOutside, type DetRow, type Sort, type BubbleCol, useFocoDialogo } from './components'
 import { DrillModal, type Drill } from './drill'
+import { EditarColumnas, anchos, useColumnas, type ColDef } from './columnas'
+import type { Termino } from './glosario'
 import { aplicarSancion, cargarSanciones } from './data'
 import { WidgetGrid, type Widget } from './widgets'
 import { Galeria, GraficaLibre, Editor, type Grafica } from './constructor'
@@ -37,6 +39,10 @@ const fLeads = (ls: Lead[]) => filasDeLeads(ls, () => '', undefined, { label: 'D
 const fVentas = (ls: Lead[]) => filasDeLeads(ls, () => 'Ganado', (l) => l.cerrado)
 const fCotizado = (ls: Lead[]) => filasDeLeads(ls, () => '', (l) => fechaCotizado(l), { label: 'Días desde la cotización', de: (l) => diasDesde(fechaCotizado(l)) })
 const fEntrada = (ls: Lead[]) => filasDeLeads(ls, (l) => l.funnel_label, (l) => l.creado)
+/** Las actividades de un asesor de ciertos tipos; antes era un ayudante dentro del renglón. */
+const evDe = (f: FilaAsesor, ...tipos: string[]) => f.actividad.filter((e) => tipos.includes(e.tipo))
+/** Tareas totales del asesor: completadas + vencidas + leads sin tarea. */
+const totTareas = (f: FilaAsesor) => f.tareasCompletadas + f.tareasVencidas + f.sinTarea
 /** Un renglón de la tabla de levantamientos: pedidos, hechos, porcentaje y días típicos. */
 function FilaLev({ r, ver, rango, que }: { r: { label: string; solicitados: LevFila[]; hechos: LevFila[]; dias: number[] }; ver: (t: string, f: Fila[], s?: string) => void; rango: string; que: string }) {
   return (
@@ -539,11 +545,12 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
 // ---------------------------------------------------------------- Asesores
 interface Pop { fila: FilaAsesor; x: number; y: number }
 interface Det { title: string; total: number; rows: DetRow[]; anchor: DOMRect }
-type Key = 'nombre' | 'vendido' | 'cotizado' | 'leads' | 'llamadas' | 'tareas' | 'pc' | 'cotiz' | 'desc' | 'lev'
+type Key = 'nombre' | 'vendido' | 'cotizado' | 'leads' | 'llamadas' | 'tareas' | 'pc' | 'cotiz' | 'desc' | 'lev' | 'equipo' | 'ventas' | 'estanc' | 'sintarea'
 const valor = (f: FilaAsesor, k: Key): number | string =>
   k === 'nombre' ? f.u.nombre : k === 'vendido' ? f.montoVentas : k === 'cotizado' ? f.cotizado.vigente : k === 'leads' ? f.leadsActivos.length
     : k === 'llamadas' ? f.llamadas : k === 'tareas' ? f.tareasCompletadas + f.tareasVencidas + f.sinTarea : k === 'pc' ? f.pcVencidas
-      : k === 'cotiz' ? f.cotizaciones : k === 'desc' ? f.descartes : f.levantamientos
+      : k === 'cotiz' ? f.cotizaciones : k === 'desc' ? f.descartes : k === 'lev' ? f.levantamientos
+        : k === 'equipo' ? f.u.zona : k === 'ventas' ? f.ventas : k === 'estanc' ? f.estancados : f.sinTarea
 
 export function Asesores({ corte, filtros, onFicha }: { corte: Corte; filtros: Filtros; onFicha: (uid: string) => void }) {
   const [sort, setSort] = useState<Sort<Key>>({ key: 'vendido', dir: 'desc' })
@@ -626,82 +633,100 @@ export function Asesores({ corte, filtros, onFicha }: { corte: Corte; filtros: F
 
   if (!filas.length) return <div className="panel muted">Sin asesores con leads o actividad en el rango. Amplía el rango de fechas o quita el filtro de equipo.</div>
   const th = { sort, onSort }
+  const COLS: ColDef<FilaAsesor>[] = useMemo(() => [
+    { id: 'nombre', label: 'Asesor', peso: 11.5, fija: true,
+      celda: (f) => (<td><div className="who"><div className={avatarCls(f.u)} title={subAsesor(corte, f.u)} aria-hidden="true">{iniciales(f.u.nombre)}</div><div><div className="nm"><button type="button" className="nbtn" aria-haspopup="dialog" aria-label={`Ver resumen de ${f.u.nombre}`} onClick={(e) => { e.stopPropagation(); const r = e.currentTarget.getBoundingClientRect(); abrir(f, r.right, r.bottom) }}>{f.u.nombre}</button>{rolDestacado(f.u.rol) && <span className="tag rol" title="Rol en Kommo">{rolNombre(f.u.rol)}</span>}</div><div className="sub">{f.ventas} venta{f.ventas === 1 ? '' : 's'} · meta {fmtMoney0(f.metaMes)}/mes</div></div></div></td>) },
+    { id: 'vendido', label: 'Vendido', peso: 11.5, info: 'Vendido',
+      celda: (f) => (<td><div className="mc">
+                          <div className="v">{fmtMoney0(f.montoVentas)}</div>
+                          <Bullet sm value={f.montoVentas} target={f.metaRango} expected={f.esperado} label={'Vendido de ' + f.u.nombre} fmt={fmtMoney0} />
+                          <div className="c" title={`${pct(f.montoVentas, f.metaRango)}% de la meta de ${fmtMoney0(f.metaRango)}`}>{pct(f.montoVentas, f.metaRango)}% de {fmtMoney0(f.metaRango)}</div>
+                          <div className={'c rt ' + f.ritmo.estado} title={f.ritmo.corto}>{f.ritmo.corto}</div>
+                        </div></td>) },
+    { id: 'cotizado', label: 'Cotizado vigente', peso: 11.5, info: 'Cotizado vigente',
+      celda: (f) => (<td><div className="mc">
+                          {/* Avance contra el objetivo 10× (Randall 6-sep): «si lleva 1.4 M, qué tanto le falta para el factor 10×». */}
+                          <div className="v">{fmtMoney0(f.cotizado.vigente)}</div>
+                          <Bullet sm value={f.cotizado.vigente} target={f.metaMes * corte.cotizado_x} label={'Cotizado vigente de ' + f.u.nombre + ' contra el objetivo ' + corte.cotizado_x + '×'} color="var(--c2)" fmt={fmtMoney0} />
+                          <div className="c" title={`${pct(f.cotizado.vigente, f.metaMes * corte.cotizado_x)}% del objetivo ${corte.cotizado_x}× la meta mensual (${fmtMoney0(f.metaMes * corte.cotizado_x)})`}>{pct(f.cotizado.vigente, f.metaMes * corte.cotizado_x)}% de {fmtMoney0(f.metaMes * corte.cotizado_x)} ({corte.cotizado_x}×)</div>
+                          <div className="c" title={f.cotizado.viejo > 0 ? `${fmtMoney(f.cotizado.viejo)} cotizados hace más de ${corte.cotizado_dias} días: ya no cuentan` : `Objetivo: ${corte.cotizado_x} veces la meta mensual`}>{f.cotizado.viejo > 0 ? `+${fmtMoney(f.cotizado.viejo)} viejo` : `objetivo ${corte.cotizado_x}× la meta`}</div>
+                        </div></td>) },
+    { id: 'leads', label: 'Leads activos', peso: 9.5, info: 'Leads activos',
+      celda: (f) => (<td><div className="mc">
+                          <div className="v">{fmtN(f.leadsActivos.length)}</div>
+                          <div className="minibar" aria-hidden="true"><i style={{ width: pct(f.leadsActivos.length, maxLeads) + '%' }} /></div>
+                          <div className="c">{f.estancados > 0 ? `${fmtN(f.estancados)} estancado${f.estancados === 1 ? '' : 's'}` : 'sin estancados'}</div>
+                          <div className="c" title="Suma del precio cotizado a sus leads activos">{f.presupuesto > 0 ? `${fmtMoney0(f.presupuesto)} en presupuesto` : 'sin presupuesto'}</div>
+                        </div></td>) },
+    { id: 'llamadas', label: 'Llamadas', peso: 10.0, info: 'Llamadas',
+      celda: (f) => (<td><div className="mc">
+                          <div className="v">{fmtN(f.llamadas)}</div>
+                          <StackedBar segs={[{ val: f.contestadas, cls: 'seg-comp' }, { val: f.sinContestar, cls: 'seg-warn' }]} total={f.llamadas} max={maxLlam}
+                            title={`Llamadas de ${f.u.nombre}: ${f.contestadas} contestadas, ${f.sinContestar} sin contestar. Abrir detalle`}
+                            onClick={(e) => detalle(e, 'Llamadas · ' + f.u.nombre, f.llamadas, [
+                              { label: 'Contestadas', val: f.contestadas, onVer: () => ver(`Llamadas contestadas · ${f.u.nombre}`, filasDeEventos(corte, evDe(f, 'llamada_ok')), rango) },
+                              { label: 'Sin contestar', val: f.sinContestar, onVer: () => ver(`Llamadas sin contestar · ${f.u.nombre}`, filasDeEventos(corte, evDe(f, 'llamada_no')), rango) }])} />
+                          <div className="c">{fmtN(f.contestadas)} contestadas</div>
+                          <div className="c">{fmtN(f.sinContestar)} sin contestar</div>
+                        </div></td>) },
+    { id: 'tareas', label: 'Tareas', peso: 11.5, info: 'Tareas',
+      celda: (f) => (<td><div className="mc">
+                          <div className="v">{fmtN(totTareas(f))}</div>
+                          <StackedBar segs={[{ val: f.tareasCompletadas, cls: 'seg-comp' }, { val: f.tareasVencidas, cls: 'seg-alert' }, { val: f.sinTarea, cls: 'seg-empty' }]} total={totTareas(f)} max={maxTar}
+                            title={`Tareas de ${f.u.nombre}: ${f.tareasCompletadas} completadas, ${f.tareasVencidas} vencidas, ${f.sinTarea} leads sin tarea. Abrir detalle`}
+                            onClick={(e) => detalle(e, 'Tareas · ' + f.u.nombre, totTareas(f), [
+                              { label: 'Completadas', val: f.tareasCompletadas, onVer: () => ver(`Tareas completadas · ${f.u.nombre}`, filasDeEventos(corte, evDe(f, 'tarea')), rango) },
+                              { label: 'Vencidas', val: f.tareasVencidas, onVer: () => ver(`Leads con tareas vencidas · ${f.u.nombre}`, filasDeLeads(f.leadsActivos.filter((l) => l.tareas_vencidas > 0), () => '', undefined, { label: 'Tareas vencidas', de: (l) => l.tareas_vencidas }), rango) },
+                              { label: 'Leads sin tarea', val: f.sinTarea, onVer: () => ver(`Leads sin tarea · ${f.u.nombre}`, fLeads(f.leadsActivos.filter((l) => l.sin_tarea)), rango) }])} />
+                          <div className="c">{fmtN(f.tareasCompletadas)} completadas</div>
+                          <div className="c" title={`${fmtN(f.tareasVencidas)} tareas vencidas · ${fmtN(f.sinTarea)} leads sin tarea`}>{fmtN(f.tareasVencidas)} vencidas · {fmtN(f.sinTarea)} sin tarea</div>
+                        </div></td>) },
+    { id: 'pc', label: 'Primer contacto vencido', peso: 5.5, cnt: true, info: 'Primer contacto vencido',
+      celda: (f) => (<td className="cnt">{f.pcVencidas > 0 ? <button type="button" className="nbtn celln" aria-haspopup="dialog" aria-label={`${f.pcVencidas} leads con primer contacto vencido de ${f.u.nombre}. Abrir desglose`} onClick={(e) => detalle(e, 'Primer contacto vencido · ' + f.u.nombre, f.pcVencidas, filasPc(f))}><span className="tag warn">{f.pcVencidas}</span></button> : '0'}</td>) },
+    { id: 'cotiz', label: 'Cotiza­ciones', peso: 6.0, cnt: true,
+      celda: (f) => (<td className="cnt">{f.cotizaciones > 0 ? <button type="button" className="nbtn celln" aria-haspopup="dialog" aria-label={`${f.cotizaciones} cotizaciones de ${f.u.nombre}. Abrir desglose`} onClick={(e) => detalle(e, 'Cotizaciones · ' + f.u.nombre, f.cotizaciones, porEstado('Cotizaciones', evDe(f, 'cotizacion'), f, (l) => l.cotizacion || l.asignacion))}>{f.cotizaciones}</button> : '0'}</td>) },
+    { id: 'desc', label: 'Descartes', peso: 6.0, cnt: true,
+      celda: (f) => (<td className="cnt">{f.descartes > 0 ? <button type="button" className="nbtn celln" aria-haspopup="dialog" aria-label={`${f.descartes} descartes de ${f.u.nombre}. Abrir desglose`} onClick={(e) => detalle(e, 'Descartes · ' + f.u.nombre, f.descartes, filasDescartes(f, evDe(f, 'descarte')))}>{f.descartes}</button> : '0'}</td>) },
+    { id: 'lev', label: 'Levanta­mientos', peso: 6.5, cnt: true,
+      celda: (f) => (<td className="cnt">{f.levantamientos > 0 ? <button type="button" className="nbtn celln" aria-haspopup="dialog" aria-label={`${f.levantamientos} levantamientos de ${f.u.nombre}. Abrir desglose`} onClick={(e) => detalle(e, 'Levantamientos · ' + f.u.nombre, f.levantamientos, porEstado('Levantamientos', evDe(f, 'levantamiento'), f, (l) => l.levantamiento || l.asignacion))}>{f.levantamientos}</button> : '0'}</td>) },
+    { id: 'equipo', label: 'Equipo', peso: 6.0, oculta: true,
+      celda: (f) => (<td>{zonaNombre(corte, f.u.zona) || <span className="muted">Sin equipo</span>}</td>) },
+    { id: 'ventas', label: 'Ventas cerradas', peso: 5.5, cnt: true, oculta: true,
+      celda: (f) => (<td className="cnt">{f.ventas > 0 ? <button type="button" className="nbtn celln" aria-label={`${f.ventas} ventas cerradas de ${f.u.nombre}. Ver la lista`} onClick={() => ver(`Ventas cerradas · ${f.u.nombre}`, fVentas(ventasFiltradas(corte, { ...filtros, asesor: f.u.id })), rango)}>{f.ventas}</button> : '0'}</td>) },
+    { id: 'estanc', label: 'Estancados', peso: 5.5, cnt: true, oculta: true,
+      celda: (f) => (<td className="cnt">{f.estancados > 0 ? <button type="button" className="nbtn celln" aria-label={`${f.estancados} leads estancados de ${f.u.nombre}. Ver la lista`} onClick={() => ver(`Leads estancados · ${f.u.nombre}`, fLeads(f.leadsActivos.filter((l) => l.dias_sin_cambio >= 7)), rango)}>{f.estancados}</button> : '0'}</td>) },
+    { id: 'sintarea', label: 'Leads sin tarea', peso: 5.5, cnt: true, oculta: true,
+      celda: (f) => (<td className="cnt">{f.sinTarea > 0 ? <button type="button" className="nbtn celln" aria-label={`${f.sinTarea} leads sin tarea de ${f.u.nombre}. Ver la lista`} onClick={() => ver(`Leads sin tarea · ${f.u.nombre}`, fLeads(f.leadsActivos.filter((l) => l.sin_tarea)), rango)}>{f.sinTarea}</button> : '0'}</td>) },
+    { id: 'asig', label: 'Asignación', peso: 10.5, info: 'Asignación',
+      celda: (f) => (<td className="asig">
+                          <Asignacion u={f.u} sanc={sanc} ocupado={ocupado === f.u.id} msg={msg[f.u.id]} onAccion={(a) => accionar(f.u, a)} />
+                        </td>) },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [corte, filtros, maxLeads, maxLlam, maxTar, sanc, ocupado, msg])
+  const { visibles: vis, ordenadas, ocultas, tocado: tocadoCols, fijar: fijarCols, restablecer: restablecerCols } = useColumnas('asesores', COLS)
+  const [edCols, setEdCols] = useState(false)
   return (
     <>
+      <div className="tbltools">
+        <button type="button" className="btn sm" onClick={() => setEdCols(true)} aria-haspopup="dialog">
+          <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><rect x="3" y="4" width="14" height="12" rx="1.5" /><path d="M8.5 4v12M13 4v12" /></svg>
+          Columnas ({vis.length} de {COLS.length})
+        </button>
+        {tocadoCols && <button type="button" className="btn sm" onClick={restablecerCols}>Restablecer columnas</button>}
+      </div>
       <div className="tblwrap">
         <table className="tbl asesores">
-          {/* Anchos fijos (Randall 6-sep, «está todo muy amontonado»): cada columna mide lo mismo en todos los renglones y la tabla cabe sin scroll desde 1280 px. */}
-          <colgroup>{['11.5%', '11.5%', '11.5%', '9.5%', '10%', '11.5%', '5.5%', '6%', '6%', '6.5%', '10.5%'].map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
-          <thead><tr>
-            <SortTh k="nombre" label="Asesor" {...th} />
-            <SortTh k="vendido" label="Vendido" {...th}><Info termino="Vendido" /></SortTh>
-            <SortTh k="cotizado" label="Cotizado vigente" {...th}><Info termino="Cotizado vigente" /></SortTh>
-            <SortTh k="leads" label="Leads activos" {...th}><Info termino="Leads activos" /></SortTh>
-            <SortTh k="llamadas" label="Llamadas" {...th}><Info termino="Llamadas" /></SortTh>
-            <SortTh k="tareas" label="Tareas" {...th}><Info termino="Tareas" /></SortTh>
-            <SortTh k="pc" label="Primer contacto vencido" className="cnt" {...th}><Info termino="Primer contacto vencido" /></SortTh>
-            <SortTh k="cotiz" label={"Cotiza­ciones"} className="cnt" {...th} />
-            <SortTh k="desc" label="Descartes" className="cnt" {...th} />
-            <SortTh k="lev" label={"Levanta­mientos"} className="cnt" {...th} />
-            <th scope="col" className="asig-th">Asignación<Info termino="Asignación" /></th>
-          </tr></thead>
+          {/* Anchos fijos (Randall 6-sep, «está todo muy amontonado»): el 100 % se reparte entre las
+              columnas que estén visibles, así la tabla nunca queda desbalanceada al quitar una. */}
+          <colgroup>{anchos(vis).map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
+          <thead><tr>{vis.map((c) => (c.id === 'asig'
+            ? <th key={c.id} scope="col" className="asig-th">Asignación<Info termino="Asignación" /></th>
+            : <SortTh key={c.id} k={c.id as Key} label={c.label} className={c.cnt ? 'cnt' : ''} {...th}>{c.info ? <Info termino={c.info as Termino} /> : null}</SortTh>))}</tr></thead>
           <tbody>
-            {filas.map((f) => {
-              const tar = f.tareasCompletadas + f.tareasVencidas + f.sinTarea
-              const evDe = (...tipos: string[]) => f.actividad.filter((e) => tipos.includes(e.tipo))
-              return (
-                <tr key={f.u.id}>   {/* el resumen del asesor se abre solo desde el nombre (Randall 6-sep); cada cifra abre su propio desglose */}
-                  <td><div className="who"><div className={avatarCls(f.u)} title={subAsesor(corte, f.u)} aria-hidden="true">{iniciales(f.u.nombre)}</div><div><div className="nm"><button type="button" className="nbtn" aria-haspopup="dialog" aria-label={`Ver resumen de ${f.u.nombre}`} onClick={(e) => { e.stopPropagation(); const r = e.currentTarget.getBoundingClientRect(); abrir(f, r.right, r.bottom) }}>{f.u.nombre}</button>{rolDestacado(f.u.rol) && <span className="tag rol" title="Rol en Kommo">{rolNombre(f.u.rol)}</span>}</div><div className="sub">{f.ventas} venta{f.ventas === 1 ? '' : 's'} · meta {fmtMoney0(f.metaMes)}/mes</div></div></div></td>
-                  <td><div className="mc">
-                    <div className="v">{fmtMoney0(f.montoVentas)}</div>
-                    <Bullet sm value={f.montoVentas} target={f.metaRango} expected={f.esperado} label={'Vendido de ' + f.u.nombre} fmt={fmtMoney0} />
-                    <div className="c" title={`${pct(f.montoVentas, f.metaRango)}% de la meta de ${fmtMoney0(f.metaRango)}`}>{pct(f.montoVentas, f.metaRango)}% de {fmtMoney0(f.metaRango)}</div>
-                    <div className={'c rt ' + f.ritmo.estado} title={f.ritmo.corto}>{f.ritmo.corto}</div>
-                  </div></td>
-                  <td><div className="mc">
-                    {/* Avance contra el objetivo 10× (Randall 6-sep): «si lleva 1.4 M, qué tanto le falta para el factor 10×». */}
-                    <div className="v">{fmtMoney0(f.cotizado.vigente)}</div>
-                    <Bullet sm value={f.cotizado.vigente} target={f.metaMes * corte.cotizado_x} label={'Cotizado vigente de ' + f.u.nombre + ' contra el objetivo ' + corte.cotizado_x + '×'} color="var(--c2)" fmt={fmtMoney0} />
-                    <div className="c" title={`${pct(f.cotizado.vigente, f.metaMes * corte.cotizado_x)}% del objetivo ${corte.cotizado_x}× la meta mensual (${fmtMoney0(f.metaMes * corte.cotizado_x)})`}>{pct(f.cotizado.vigente, f.metaMes * corte.cotizado_x)}% de {fmtMoney0(f.metaMes * corte.cotizado_x)} ({corte.cotizado_x}×)</div>
-                    <div className="c" title={f.cotizado.viejo > 0 ? `${fmtMoney(f.cotizado.viejo)} cotizados hace más de ${corte.cotizado_dias} días: ya no cuentan` : `Objetivo: ${corte.cotizado_x} veces la meta mensual`}>{f.cotizado.viejo > 0 ? `+${fmtMoney(f.cotizado.viejo)} viejo` : `objetivo ${corte.cotizado_x}× la meta`}</div>
-                  </div></td>
-                  <td><div className="mc">
-                    <div className="v">{fmtN(f.leadsActivos.length)}</div>
-                    <div className="minibar" aria-hidden="true"><i style={{ width: pct(f.leadsActivos.length, maxLeads) + '%' }} /></div>
-                    <div className="c">{f.estancados > 0 ? `${fmtN(f.estancados)} estancado${f.estancados === 1 ? '' : 's'}` : 'sin estancados'}</div>
-                    <div className="c" title="Suma del precio cotizado a sus leads activos">{f.presupuesto > 0 ? `${fmtMoney0(f.presupuesto)} en presupuesto` : 'sin presupuesto'}</div>
-                  </div></td>
-                  <td><div className="mc">
-                    <div className="v">{fmtN(f.llamadas)}</div>
-                    <StackedBar segs={[{ val: f.contestadas, cls: 'seg-comp' }, { val: f.sinContestar, cls: 'seg-warn' }]} total={f.llamadas} max={maxLlam}
-                      title={`Llamadas de ${f.u.nombre}: ${f.contestadas} contestadas, ${f.sinContestar} sin contestar. Abrir detalle`}
-                      onClick={(e) => detalle(e, 'Llamadas · ' + f.u.nombre, f.llamadas, [
-                        { label: 'Contestadas', val: f.contestadas, onVer: () => ver(`Llamadas contestadas · ${f.u.nombre}`, filasDeEventos(corte, evDe('llamada_ok')), rango) },
-                        { label: 'Sin contestar', val: f.sinContestar, onVer: () => ver(`Llamadas sin contestar · ${f.u.nombre}`, filasDeEventos(corte, evDe('llamada_no')), rango) }])} />
-                    <div className="c">{fmtN(f.contestadas)} contestadas</div>
-                    <div className="c">{fmtN(f.sinContestar)} sin contestar</div>
-                  </div></td>
-                  <td><div className="mc">
-                    <div className="v">{fmtN(tar)}</div>
-                    <StackedBar segs={[{ val: f.tareasCompletadas, cls: 'seg-comp' }, { val: f.tareasVencidas, cls: 'seg-alert' }, { val: f.sinTarea, cls: 'seg-empty' }]} total={tar} max={maxTar}
-                      title={`Tareas de ${f.u.nombre}: ${f.tareasCompletadas} completadas, ${f.tareasVencidas} vencidas, ${f.sinTarea} leads sin tarea. Abrir detalle`}
-                      onClick={(e) => detalle(e, 'Tareas · ' + f.u.nombre, tar, [
-                        { label: 'Completadas', val: f.tareasCompletadas, onVer: () => ver(`Tareas completadas · ${f.u.nombre}`, filasDeEventos(corte, evDe('tarea')), rango) },
-                        { label: 'Vencidas', val: f.tareasVencidas, onVer: () => ver(`Leads con tareas vencidas · ${f.u.nombre}`, filasDeLeads(f.leadsActivos.filter((l) => l.tareas_vencidas > 0), () => '', undefined, { label: 'Tareas vencidas', de: (l) => l.tareas_vencidas }), rango) },
-                        { label: 'Leads sin tarea', val: f.sinTarea, onVer: () => ver(`Leads sin tarea · ${f.u.nombre}`, fLeads(f.leadsActivos.filter((l) => l.sin_tarea)), rango) }])} />
-                    <div className="c">{fmtN(f.tareasCompletadas)} completadas</div>
-                    <div className="c" title={`${fmtN(f.tareasVencidas)} tareas vencidas · ${fmtN(f.sinTarea)} leads sin tarea`}>{fmtN(f.tareasVencidas)} vencidas · {fmtN(f.sinTarea)} sin tarea</div>
-                  </div></td>
-                  <td className="cnt">{f.pcVencidas > 0 ? <button type="button" className="nbtn celln" aria-haspopup="dialog" aria-label={`${f.pcVencidas} leads con primer contacto vencido de ${f.u.nombre}. Abrir desglose`} onClick={(e) => detalle(e, 'Primer contacto vencido · ' + f.u.nombre, f.pcVencidas, filasPc(f))}><span className="tag warn">{f.pcVencidas}</span></button> : '0'}</td>
-                  <td className="cnt">{f.cotizaciones > 0 ? <button type="button" className="nbtn celln" aria-haspopup="dialog" aria-label={`${f.cotizaciones} cotizaciones de ${f.u.nombre}. Abrir desglose`} onClick={(e) => detalle(e, 'Cotizaciones · ' + f.u.nombre, f.cotizaciones, porEstado('Cotizaciones', evDe('cotizacion'), f, (l) => l.cotizacion || l.asignacion))}>{f.cotizaciones}</button> : '0'}</td>
-                  <td className="cnt">{f.descartes > 0 ? <button type="button" className="nbtn celln" aria-haspopup="dialog" aria-label={`${f.descartes} descartes de ${f.u.nombre}. Abrir desglose`} onClick={(e) => detalle(e, 'Descartes · ' + f.u.nombre, f.descartes, filasDescartes(f, evDe('descarte')))}>{f.descartes}</button> : '0'}</td>
-                  <td className="cnt">{f.levantamientos > 0 ? <button type="button" className="nbtn celln" aria-haspopup="dialog" aria-label={`${f.levantamientos} levantamientos de ${f.u.nombre}. Abrir desglose`} onClick={(e) => detalle(e, 'Levantamientos · ' + f.u.nombre, f.levantamientos, porEstado('Levantamientos', evDe('levantamiento'), f, (l) => l.levantamiento || l.asignacion))}>{f.levantamientos}</button> : '0'}</td>
-                  <td className="asig">
-                    <Asignacion u={f.u} sanc={sanc} ocupado={ocupado === f.u.id} msg={msg[f.u.id]} onAccion={(a) => accionar(f.u, a)} />
-                  </td>
-                </tr>
-              )
-            })}
+            {filas.map((f) => (
+              /* el resumen del asesor se abre solo desde el nombre (Randall 6-sep); cada cifra abre su propio desglose */
+              <tr key={f.u.id}>{vis.map((c) => <Fragment key={c.id}>{c.celda(f)}</Fragment>)}</tr>
+            ))}
           </tbody>
         </table>
       </div>
@@ -709,6 +734,7 @@ export function Asesores({ corte, filtros, onFicha }: { corte: Corte; filtros: F
       {pop && <AsesorPopup corte={corte} filtros={filtros} fila={pop.fila} x={pop.x} y={pop.y} onClose={() => setPop(null)} onFicha={() => { setPop(null); onFicha(pop.fila.u.id) }} />}
       {det && <BarDetailPopup anchor={det.anchor} title={det.title} total={det.total} rows={det.rows} onClose={() => setDet(null)} />}
       {drill && <DrillModal d={drill} onClose={() => setDrill(null)} />}
+      {edCols && <EditarColumnas todas={COLS} ordenadas={ordenadas} ocultas={ocultas} onFijar={fijarCols} onRestablecer={restablecerCols} onClose={() => setEdCols(false)} />}
     </>
   )
 }

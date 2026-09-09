@@ -74,7 +74,9 @@ def validar_tablero(body):
     layout = body.get("layout")
     if layout is None:
         return clave, None
-    if not isinstance(layout, dict) or "pos" not in layout:
+    # Cualquier ajuste chico de la vista: el acomodo de widgets («admin», «ficha») o las columnas
+    # elegidas de una tabla («cols-asesores»). El servidor solo lo acota; la forma la valida quien lo usa.
+    if not isinstance(layout, dict):
         raise ValueError("layout inválido")
     if len(json.dumps(layout)) > TABLERO_MAX:
         raise ValueError("layout demasiado grande")

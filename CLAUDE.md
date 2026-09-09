@@ -891,6 +891,17 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   abre su lista. Prueba de punta a punta 9-sep: `POST /cotizador/entregada` escribió las 2 filas
   esperadas en la tabla `cotizaciones` de Supabase y se borró la fila de prueba; la tabla quedó vacía
   porque el registro se estrenó el 8-sep a las 20:00 y nadie había generado una cotización todavía.
+- **Columnas de la tabla de Asesores: se eligen y se ordenan** (Randall 9-sep: «poder agregar y
+  quitar columnas, como en el tablero podía quitar y agregar gráficas»). `columnas.tsx` es el
+  elegidor reutilizable: `ColDef` describe cada columna (id, etiqueta, `peso` de ancho, `fija`,
+  `cnt`, `info` del glosario, `oculta` si no se muestra hasta que la pidan, y `celda(f)`), el hook
+  `useColumnas(clave, todas)` resuelve orden y visibilidad, y `EditarColumnas` es el modal con
+  casilla y flechas ▲▼ por columna, «Restablecer» y «Listo». Los anchos ya no son once porcentajes
+  fijos: `anchos()` reparte el 100 % entre las visibles, así quitar una no desbalancea la tabla.
+  Se guarda **en la cuenta** con el mismo endpoint del tablero, bajo la clave `cols-asesores`
+  (por eso `validar_tablero` ya no exige `pos`: acepta cualquier ajuste chico de la vista).
+  Columnas nuevas, ocultas hasta que se pidan: Equipo, Ventas cerradas, Estancados y Leads sin
+  tarea; las cuatro se pueden ordenar y las tres de conteo abren su lista. Asesor es fija.
 - **El acomodo del tablero viaja con la CUENTA** (Randall 9-sep: «al ser una cuenta de usuario se
   sobreentiende que web y móvil deben mostrar la misma información»): antes vivía solo en el
   `localStorage` del navegador, así que el teléfono empezaba de cero, sin su orden ni sus

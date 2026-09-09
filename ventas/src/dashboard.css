@@ -958,3 +958,21 @@ h3 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: 0; t
 .colocando .btn { background: transparent; color: #fff; border-color: rgba(255, 255, 255, .45); }
 .colocando .btn:hover { background: rgba(255, 255, 255, .14); }
 .wgrid.editing .wghost { transition: none; }
+
+/* Elegir y ordenar columnas de una tabla (Randall 9-sep, «como en el tablero podía quitar y agregar
+   gráficas»). Mismo lenguaje que la galería: lista con casilla, flechas para mover, y se guarda en
+   la cuenta. La fila marcada se tiñe suave para que se lea de un vistazo qué está visible. */
+.tbltools { display: flex; gap: 8px; align-items: center; margin: 0 0 10px; flex-wrap: wrap; }
+.modal.cols { max-width: 560px; }
+.collist { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.collist li { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.collist li.on { background: var(--c1-soft); border-color: var(--c1); }
+.collist li label { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; cursor: pointer; font-size: 13px; }
+.collist li label span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.collist li input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--c1); flex: none; }
+.collist li input[type="checkbox"]:disabled { opacity: .55; cursor: default; }
+.colmov { display: flex; gap: 4px; flex: none; }
+.colmov .ib.sm { width: 26px; height: 26px; display: inline-grid; place-items: center; font-size: 11px; line-height: 1; }
+.colmov .ib.sm:disabled { opacity: .35; cursor: default; }
+.modal.cols .mf { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.cols-btns { display: flex; gap: 8px; }
