@@ -902,6 +902,11 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   (`.sortbtn` pasa a `display: inline` en esta tabla) y el título no se parte en tres líneas;
   (d) **las cifras grandes abren su detalle**: Vendido (ventas del rango), Cotizado vigente (los
   leads que sí cuentan, con `vigentesDe`) y Leads activos, además de las de conteo que ya lo hacían.
+- **⚠️ Un `return` temprano en un componente con hooks tumba la página en blanco.** `Asesores`
+  salía con «Sin asesores…» ANTES de correr `useColumnas`, `useMemo` y `useState`; al filtrar por una
+  zona sin asesores (Saltillo en Kommo) React corría menos hooks que en el render anterior y la
+  pantalla quedaba vacía. Regla: en estos componentes el aviso de «no hay datos» va **después** de
+  todos los hooks. Reportado por Randall 9-sep.
 - **Qué le hacen las fechas a cada columna, dicho en su encabezado** (Randall 9-sep: «es peligroso
   no saber si lo que veo es de leads asignados o de actividad»; en el Sheet había DOS selectores de
   fecha y se veía feo). Cada `ColDef` declara `fecha: 'asignacion' | 'actividad' | 'cierre' |
