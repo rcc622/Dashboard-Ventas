@@ -883,6 +883,14 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   las posiciones ya se ignoraban < 1000 px); la «i» se queda. El detalle ya era pantalla completa
   ≤ 640 y el menú de columna cabe (300 px). Medido con `medir_i.py` a 390 × 844: sin desborde en
   Dashboard, Asesores (la tabla se desplaza adentro), Ventas reales, Mi día y el detalle.
+- **Cotizaciones generadas · quién manda qué** (Randall 9-sep: «qué combinación de cotizaciones están
+  enviando los asesores»): al widget de métodos de pago se le agregó una tercera tabla, por asesor, con
+  cuántas cotizaciones generó, la combinación de métodos que más repite y sus paneles típicos (mediana,
+  para que una cotización enorme no mueva el número). `masUsada()` y `medianaPaneles()` en `admin.tsx`;
+  los datos ya venían en `cotizacionesGeneradas().porAsesor`, solo no se dibujaban. Clic en el asesor
+  abre su lista. Prueba de punta a punta 9-sep: `POST /cotizador/entregada` escribió las 2 filas
+  esperadas en la tabla `cotizaciones` de Supabase y se borró la fila de prueba; la tabla quedó vacía
+  porque el registro se estrenó el 8-sep a las 20:00 y nadie había generado una cotización todavía.
 - **De qué ciudad es cada lead** (Randall 8-sep, «me gustaría saber los leads de qué ciudad son»):
   cada lead trae `ciudad`. En Kommo sale del campo «Ciudad» del CONTACTO (1823968, la deja el bot al
   precalificar) y, si viene vacío, del «Municipio» del formulario de levantamiento (1833639); en

@@ -37,6 +37,21 @@ const fLeads = (ls: Lead[]) => filasDeLeads(ls, () => '', undefined, { label: 'D
 const fVentas = (ls: Lead[]) => filasDeLeads(ls, () => 'Ganado', (l) => l.cerrado)
 const fCotizado = (ls: Lead[]) => filasDeLeads(ls, () => '', (l) => fechaCotizado(l), { label: 'Días desde la cotización', de: (l) => diasDesde(fechaCotizado(l)) })
 const fEntrada = (ls: Lead[]) => filasDeLeads(ls, (l) => l.funnel_label, (l) => l.creado)
+/** La combinación de métodos que un asesor repite más, para la tabla de cotizaciones generadas. */
+function masUsada(cots: { combo: string }[]): { label: string; n: number } {
+  const m = new Map<string, number>()
+  for (const c of cots) m.set(c.combo, (m.get(c.combo) || 0) + 1)
+  const mejor = [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'es'))[0]
+  return mejor ? { label: mejor[0] || '—', n: mejor[1] } : { label: '—', n: 0 }
+}
+/** Mediana de paneles: una sola cotización enorme no debe mover el número típico del asesor. */
+function medianaPaneles(cots: { paneles: number }[]): number {
+  const xs = cots.map((c) => c.paneles || 0).filter((n) => n > 0).sort((a, b) => a - b)
+  if (!xs.length) return 0
+  const m = Math.floor(xs.length / 2)
+  return xs.length % 2 ? xs[m] : Math.round((xs[m - 1] + xs[m]) / 2)
+}
+
 /** Botón que se ve como la cifra: el tile entero no puede ser botón porque adentro va el «i» del glosario. */
 function Cifra({ children, onClick, label }: { children: React.ReactNode; onClick: () => void; label: string }) {
   return <button type="button" className="n nbtn" onClick={onClick} title="Ver el detalle" aria-label={label + '. Ver el detalle'}>{children}</button>
@@ -257,10 +272,24 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
                   <td className="num">{fmtN(r.n)}</td><td className="num">{pct(r.n, cg.cots.length)}%</td>
                 </tr>))}
             </tbody>
+            {/* Quién manda qué (Randall 9-sep): la pregunta es qué combinación usa cada asesor, no solo el total. */}
+            <thead><tr><th scope="col">Asesor</th><th scope="col" className="num">Cotizaciones</th><th scope="col">La que más usa</th><th scope="col" className="num">Paneles típicos</th></tr></thead>
+            <tbody>
+              {cg.porAsesor.map((r) => {
+                const top = masUsada(r.cots)
+                return (
+                  <tr key={'a' + r.label}>
+                    <td><button type="button" className="nbtn" aria-label={`${r.label}: ${fmtN(r.n)} cotizaciones. Ver la lista`} onClick={() => ver(`Cotizaciones de ${r.label}`, filasDeCotizaciones(r.cots), rango)}>{r.label}</button></td>
+                    <td className="num">{fmtN(r.n)}</td>
+                    <td>{top.label}{top.n < r.n ? <span className="muted"> · {fmtN(top.n)} de {fmtN(r.n)}</span> : null}</td>
+                    <td className="num">{medianaPaneles(r.cots) || '—'}</td>
+                  </tr>)
+              })}
+            </tbody>
           </table></div>
         )}
         {!cg.cots.length && <div className="vacio"><b>Sin cotizaciones generadas</b><span>Nadie generó una imagen de cotización en este periodo{filtros.asesor || filtros.equipo ? ' con este filtro' : ''}. Se cuentan desde el 8 de septiembre de 2026.</span></div>}
-        <div className="small muted" style={{ marginTop: 8 }}>Un método suma en cada cotización donde aparece; la combinación cuenta el conjunto exacto de métodos del flyer. Fuente: cotizador (al generar la imagen), últimos {corte.cotizaciones.dias} días · corte {(corte.cotizaciones.generado || '').slice(0, 16).replace('T', ' ')}.{corte.cotizaciones.error ? ` Error al leer la tabla: ${corte.cotizaciones.error}` : ''}</div>
+        <div className="small muted" style={{ marginTop: 8 }}>Un método suma en cada cotización donde aparece; la combinación cuenta el conjunto exacto de métodos del flyer. «La que más usa» es la combinación que ese asesor repite más veces. Fuente: cotizador (al generar la imagen), últimos {corte.cotizaciones.dias} días · corte {(corte.cotizaciones.generado || '').slice(0, 16).replace('T', ' ')}.{corte.cotizaciones.error ? ` Error al leer la tabla: ${corte.cotizaciones.error}` : ''}</div>
       </>
     ), { info: ['Cotizaciones generadas'], alto: 10 })] : []),
     W('pipeline', 'Cotizado vs vendido vs meta', (
