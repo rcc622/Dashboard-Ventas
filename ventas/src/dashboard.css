@@ -751,7 +751,12 @@ h3 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: 0; t
    si no caben todas, `.tblwrap` las desplaza con su barra en vez de aplastarlas. Antes el 100 % se
    repartía entre las visibles y agregar una columna angostaba a todas las demás. */
 .tbl.asesores th, .tbl.asesores td { overflow: hidden; }
-/* El «i» del glosario nunca cae solo en su renglón: el título y el icono fluyen como un solo texto. */
+/* Encabezados parejos (Randall 9-sep): TODOS a la izquierda y en UN SOLO renglón, nada centrado y
+   ningún título partido en dos. El ancho de cada columna se eligió para que su título quepa; si un
+   título nuevo no cabe, se le sube el ancho a la columna, no se parte el texto. Las columnas de
+   conteo también alinean su cifra a la izquierda, para que número y título formen una misma línea. */
+.tbl.asesores th, .tbl.asesores th.cnt { text-align: left; white-space: nowrap; vertical-align: top; }
+.tbl.asesores td.cnt { text-align: left; }
 .tbl.asesores th .sortbtn { display: inline; }
 .tbl.asesores th .ibtn, .tbl.asesores th .info { vertical-align: middle; }
 .tbl.asesores th { letter-spacing: .01em; }

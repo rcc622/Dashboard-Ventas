@@ -902,6 +902,16 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   (`.sortbtn` pasa a `display: inline` en esta tabla) y el título no se parte en tres líneas;
   (d) **las cifras grandes abren su detalle**: Vendido (ventas del rango), Cotizado vigente (los
   leads que sí cuentan, con `vigentesDe`) y Leads activos, además de las de conteo que ya lo hacían.
+- **Encabezados de la tabla de Asesores: todos a la izquierda y en UN renglón** (Randall 9-sep: «los
+  headlines simétricos y alineados, sin saltos de fila, nada centrado»). `.tbl.asesores th` y
+  `th.cnt` llevan `text-align: left` y `white-space: nowrap`, y las celdas de conteo también alinean
+  a la izquierda para que la cifra caiga bajo su título. El ancho de cada columna se eligió para que
+  su título quepa completo; **si un título nuevo no cabe, se le sube el ancho a la columna o se
+  acorta la etiqueta, nunca se parte el texto**. Por eso «Primer contacto vencido» pasó a
+  **«1er cont. vencido»** (lo dictó Randall textualmente) y «Cumplimiento de la meta» a
+  «Cumplimiento»; también se quitaron los guiones suaves de «Cotizaciones» y «Levantamientos», que
+  con `nowrap` ya no servían. ⚠️ Esto convive con la regla vieja de no abreviar: manda lo que pida
+  Randall para el caso concreto.
 - **⚠️ Un `return` temprano en un componente con hooks tumba la página en blanco.** `Asesores`
   salía con «Sin asesores…» ANTES de correr `useColumnas`, `useMemo` y `useState`; al filtrar por una
   zona sin asesores (Saltillo en Kommo) React corría menos hooks que en el render anterior y la
