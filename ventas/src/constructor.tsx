@@ -631,6 +631,8 @@ export function Editor({ corte, filtros, g, onGuardar, onClose }: { corte: Corte
     // Al pasar a un eje de tiempo, las barras verticales son lo natural (el tiempo corre a lo ancho).
     if (x.dim && dimensionDe(n.dim).tiempo && !dimensionDe(c.dim).tiempo && n.tipo === 'hbar') n.tipo = 'vbar'
     if (n.meta && (n.tipo !== 'cifra' || !conMeta(medidaDe(n.medida)))) n.meta = undefined
+    // Una meta no se APILA con lo vendido (sumarlas no significa nada): va al lado, para comparar.
+    if (nids.includes('meta') && nids.length > 1 && !c.modo) n.modo = 'lado'
     if (!manual) n.titulo = autoTitulo(n)
     return n
   })
