@@ -943,6 +943,25 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   al constructor un `FechasCtor` (`de` / `filtros` / `fijar`) porque solo ella sabe traducir un periodo
   a fechas. Además, toda gráfica propia dice ahora «Fechas por cierre / por actividad / por
   asignación» (antes solo en ejes de tiempo).
+- **Arreglos de lectura en las gráficas** (Randall 10-sep: «nombres empalmados y etiquetas invisibles
+  de cada punto»). (a) Una **línea sobre categorías** (asesor, ciudad…) ya no se dibuja: `GraficaLibre`
+  la convierte a **barras horizontales**, donde el nombre tiene renglón completo — así se arreglan
+  también las gráficas viejas guardadas con ese tipo. (b) En una línea con muchos puntos, el eje
+  dibuja **una etiqueta de cada `paso`** (primera y última siempre) y cada una se recorta a su ancho:
+  24 semanas → 9 etiquetas sin encimarse. (c) Las cifras sobre los puntos **vuelven a verse** en las
+  líneas mixtas cuando caben (`n × series ≤ 20`), alternando arriba/abajo por serie. (d) En barras
+  verticales con más de 10 columnas, el nombre se pone **de canto** en vez de recortarse a tres letras.
+  (e) La **meta nunca se apila**: aunque la gráfica guardada no lo diga, si una de las medidas es
+  «Meta de venta» el modo es «lado a lado».
+- **Las medidas apagadas dicen por qué** (Randall 10-sep: «¿por qué se bloquean ciertos datos?»): en el
+  segundo desplegable, una medida que no se puede combinar aparece con el motivo pegado al nombre
+  — «otra unidad» (piezas contra pesos) o «es un promedio, no se suma».
+- **Medida «Cumplimiento de la meta»** (Randall 10-sep: «ver la evolución de los asesores respecto a
+  sus ventas vs la meta establecida»). Es una **razón**: `sum(vendido) / sum(meta)` con `agg: 'razon'`,
+  formateada en %; 100 % es meta cumplida. Sus items son las ventas (`v`) y las metas mes a mes (`v2`),
+  así que sirve por asesor, por equipo o mes a mes (no por semana ni por día, porque la meta es
+  mensual). El **total de una razón** ya no era la suma: `serie()` lo calcula como razón de los
+  totales. Tres plantillas: por mes, por asesor y por equipo.
 - **La ficha del asesor también trae el constructor**, fijado a esa persona (`{...filtros, asesor: uid}`);
   Mi día usa una galería simple con lo que se quitó de ese tablero (no tiene medidas propias).
 - **La página «Ventas reales» desapareció** (Randall 7-sep: «no quiero otra sección, lo quiero todo en

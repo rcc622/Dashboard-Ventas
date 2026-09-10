@@ -338,7 +338,7 @@ export function BarChart({ items, fmt, color = 'var(--c1)', label, onBar, modo =
   const max = Math.max(1, ...items.map((it) => (it.partes && modo === 'lado' ? Math.max(...it.partes.map((p) => p.val)) : it.value)))
   const alto = (v: number) => Math.max(2, (v / max) * 100) + '%'
   return (
-    <div className="vbars" role={onBar ? 'group' : 'img'} aria-label={label + ': ' + items.map((i) => `${i.label} ${i.texto || fmt(i.value)}${i.sub ? ' (' + i.sub + ')' : ''}`).join(', ')}>
+    <div className={'vbars' + (items.length > 10 ? ' apretado' : '')} role={onBar ? 'group' : 'img'} aria-label={label + ': ' + items.map((i) => `${i.label} ${i.texto || fmt(i.value)}${i.sub ? ' (' + i.sub + ')' : ''}`).join(', ')}>
       {items.map((it, i) => {
         const inner = (
           <>
@@ -402,6 +402,11 @@ export function LineChart({ items, fmt, color = 'var(--c1)', label, onPoint, ser
   const n = sers[0].items.length
   const y = (v: number) => 100 - ((v - min) / (max - min || 1)) * 100
   const x = (i: number) => (n === 1 ? 50 : (i / (n - 1)) * 100)
+  // Con muchos puntos las etiquetas del eje se encimaban: se dibuja una de cada `paso` (siempre la
+  // primera y la última) y cada una se recorta al ancho que le toca. Las cifras sobre los puntos solo
+  // aparecen cuando caben; si no, viven en el tooltip (Randall 10-sep: «nombres empalmados»).
+  const paso = Math.max(1, Math.ceil(n / 10))
+  const cifras = !multi || n * sers.length <= 20
   return (
     <div className="linebox" role={onPoint ? 'group' : 'img'} aria-label={label + ': ' + sers.map((s) => `${s.label} — ` + s.items.map((i) => `${i.label} ${fmt(i.value)}`).join(', ')).join(' · ')}>
       <div className="larea">
@@ -414,11 +419,13 @@ export function LineChart({ items, fmt, color = 'var(--c1)', label, onPoint, ser
           const est = { left: x(i) + '%', top: y(it.value) + '%' }
           const t = `${multi ? s.label + ' · ' : ''}${it.label}: ${fmt(it.value)}`
           return onPoint
-            ? <button type="button" key={s.label + it.label + i} className="lpt drill" style={est} title={t + '. Ver registros'} onClick={(e) => onPoint(i, e.currentTarget.getBoundingClientRect(), si)}><i style={{ background: s.color }} />{!multi && <span>{fmt(it.value)}</span>}</button>
-            : <div key={s.label + it.label + i} className="lpt" style={est} title={t}><i style={{ background: s.color }} />{!multi && <span>{fmt(it.value)}</span>}</div>
+            ? <button type="button" key={s.label + it.label + i} className="lpt drill" style={est} title={t + '. Ver registros'} onClick={(e) => onPoint(i, e.currentTarget.getBoundingClientRect(), si)}><i style={{ background: s.color }} />{cifras && <span style={si % 2 ? { bottom: 'auto', top: 12 } : undefined}>{fmt(it.value)}</span>}</button>
+            : <div key={s.label + it.label + i} className="lpt" style={est} title={t}><i style={{ background: s.color }} />{cifras && <span style={si % 2 ? { bottom: 'auto', top: 12 } : undefined}>{fmt(it.value)}</span>}</div>
         }))}
       </div>
-      <div className="llabels" aria-hidden="true">{sers[0].items.map((it, i) => <span key={it.label + i} style={{ left: x(i) + '%' }}>{it.label}</span>)}</div>
+      <div className="llabels" aria-hidden="true" style={{ ['--paso' as string]: (100 / Math.max(1, Math.ceil(n / paso))) + '%' }}>
+        {sers[0].items.map((it, i) => (i % paso === 0 || i === n - 1 ? <span key={it.label + i} style={{ left: x(i) + '%' }} title={it.label}>{it.label}</span> : null))}
+      </div>
     </div>
   )
 }

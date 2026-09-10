@@ -96,6 +96,7 @@ function realesDe(c: Corte, f: Filtros, captura?: 'completa' | 'incompleta'): Ve
     && (f.asesor != null ? v.asesor_id === f.asesor : f.equipo == null || v.zona === f.equipo || (v.asesor_id != null && users.get(v.asesor_id)?.zona === f.equipo))
     && (!captura || (v.captura || 'incompleta') === captura))
 }
+const fmtPct = (n: number) => Math.round(n * 100) + '%'
 const uno = <T,>(xs: T[], k: (x: T) => Item): Item[] => xs.map(k)
 /** La meta cortada mes a mes dentro del rango, prorrateada por días en los meses incompletos: así la
  *  misma medida sirve para una cifra («la meta del periodo») y para una serie de tiempo («la meta de
@@ -142,6 +143,13 @@ export const MEDIDAS: Medida[] = [
   // La meta no sale de ningun lead: es lo que cada asesor tiene puesto en Configuracion, repartido al
   // periodo elegido. Sirve para graficarla y, sobre todo, para ponerla junto a lo vendido.
   { id: 'meta', label: 'Meta de venta', grupo: 'Ventas', fmt: fmtMoney0, dims: DIMS_META, ayuda: 'La meta en pesos del periodo elegido, por asesor (se configura en Configuración). Los asesores sin leads, actividad ni ventas en el periodo no suman meta, igual que en la tarjeta «Avance contra la meta». Como la meta es mensual, no se puede partir por semana ni por día.', items: (c, f) => metasPorMes(c, f), fecha: (i) => i.ts },
+  // Vendido ÷ meta: la evolución contra la meta en una sola línea (Randall 10-sep: «ver la evolución
+  // de los asesores respecto a sus ventas vs la meta establecida»). Es una razón, así que no se apila
+  // ni se combina con otras medidas: 100 % es meta cumplida.
+  { id: 'cumplimiento', label: 'Cumplimiento de la meta', grupo: 'Ventas', fmt: fmtPct, agg: 'razon', base: 'cierre', dims: DIMS_META, ayuda: 'Lo vendido entre la meta del periodo: 100 % es meta cumplida. Se puede ver por asesor, por equipo o mes a mes. La meta es mensual, por eso no se parte por semana ni por día.', items: (c, f) => [
+    ...ventasDe(c, f).map((l) => ({ v: l.presupuesto, v2: 0, lead: l })),
+    ...metasPorMes(c, f).map((i) => ({ v: 0, v2: i.v, u: i.u, ts: i.ts })),
+  ], fecha: (i) => i.lead?.cerrado ?? i.ts },
   { id: 'ticket_crm', label: 'Ticket promedio del CRM', grupo: 'Ventas', fmt: fmtMoney0, agg: 'promedio', dims: DIMS_CRM, base: 'cierre', ayuda: 'Precio promedio de cada venta cerrada en el CRM.', items: (c, f) => uno(ventasDe(c, f), (l) => ({ v: l.presupuesto, lead: l })), fecha: (i) => i.lead?.cerrado },
   // Ventas reales (app de comisiones)
   { id: 'r_ventas', label: 'Ventas reales', grupo: 'Ventas reales', fmt: fmtN, dims: DIMS_COM, base: 'cierre', ayuda: 'Ventas registradas en la app de comisiones, sin canceladas. El mes de la venta manda, no el día.', items: (c, f) => uno(realesDe(c, f), (v) => ({ v: 1, vr: v })), fecha: (i) => i.vr?.fecha ?? undefined },
@@ -274,7 +282,10 @@ export function serie(c: Corte, f: Filtros, g: Grafica): { grupos: Grupo[]; tota
   })
   const dim = dimensionDe(g.dim)
   grupos.sort((a, b) => (dim.tiempo || a.orden != null ? (a.orden ?? 0) - (b.orden ?? 0) : b.valor - a.valor))
-  const total = agg === 'suma' ? grupos.reduce((a, x) => a + x.valor, 0) : filtrados.reduce((a, i) => a + i.v, 0)
+  const sumaV = filtrados.reduce((a, i) => a + i.v, 0)
+  const sumaV2 = filtrados.reduce((a, i) => a + (i.v2 || 0), 0)
+  // En una razón el total NO es la suma: es la razón de los totales (vendido ÷ meta de todo el rango).
+  const total = agg === 'suma' ? grupos.reduce((a, x) => a + x.valor, 0) : agg === 'razon' ? (sumaV2 ? sumaV / sumaV2 : 0) : sumaV
   return { grupos, total, m }
 }
 export interface SerieM { m: Medida; por: Map<string, Grupo>; total: number }
@@ -334,9 +345,13 @@ function AvisoFechas({ medidas }: { medidas: Medida[] }) {
   )
 }
 export function GraficaLibre(props: { corte: Corte; filtros: Filtros; g: Grafica; onDrill?: (d: Drill) => void; mini?: boolean }) {
+  // Una línea une puntos en el tiempo: sobre asesores o ciudades no significa nada y las etiquetas se
+  // encimaban (Randall 10-sep). Las gráficas viejas guardadas así se dibujan como barras.
+  const g = props.g.tipo === 'linea' && !dimensionDe(props.g.dim).tiempo ? { ...props.g, tipo: 'hbar' as TipoGrafica } : props.g
+  const p = { ...props, g }
   // Con dos o mas medidas la grafica es MIXTA; si el tipo no sabe dibujarlas (cifra, dona) manda la primera.
-  const mixta = idsMedidas(props.g).length > 1 && MULTI_OK.includes(props.g.tipo)
-  return mixta ? <GraficaMixta {...props} /> : <GraficaUna {...props} />
+  const mixta = idsMedidas(g).length > 1 && MULTI_OK.includes(g.tipo)
+  return mixta ? <GraficaMixta {...p} /> : <GraficaUna {...p} />
 }
 
 function GraficaUna({ corte, filtros, g, onDrill, mini = false }: { corte: Corte; filtros: Filtros; g: Grafica; onDrill?: (d: Drill) => void; mini?: boolean }) {
@@ -411,7 +426,7 @@ function GraficaMixta({ corte, filtros, g, onDrill, mini = false }: { corte: Cor
   const { labels, series } = useMemo(() => multiserie(corte, filtros, g), [corte, filtros, g])
   const [det, setDet] = useState<{ anchor: DOMRect; label: string } | null>(null)
   const m0 = series[0].m
-  const modo: Modo = g.modo || 'apilado'
+  const modo: Modo = g.modo || (idsMedidas(g).includes('meta') ? 'lado' : 'apilado')
   const clicable = !!onDrill && !mini
   const val = (si: number, l: string) => series[si].por.get(l)?.valor || 0
   const verSerie = (si: number, l?: string) => onDrill?.({
@@ -517,6 +532,9 @@ export const PLANTILLAS: Grafica[] = [
   P('p-leads-equipo', 'Leads asignados por equipo', 'leads', 'equipo', 'vbar'),
   P('p-vendido-mes', 'Monto vendido por mes', 'vendido', 'mes', 'vbar'),
   P('p-vendido-trim', 'Monto vendido por trimestre', 'vendido', 'trimestre', 'vbar'),
+  P('p-cumpl-mes', 'Cumplimiento de la meta por mes', 'cumplimiento', 'mes', 'vbar'),
+  P('p-cumpl-asesor', 'Cumplimiento de la meta por asesor', 'cumplimiento', 'asesor', 'hbar'),
+  P('p-cumpl-equipo', 'Cumplimiento de la meta por equipo', 'cumplimiento', 'equipo', 'vbar'),
   P('p-ventas-anio', 'Clientes cerrados por año', 'ventas', 'anio', 'vbar'),
   P('p-leads-semana', 'Leads asignados por semana', 'leads', 'semana', 'linea'),
   P('p-vendido-asesor', 'Monto vendido por asesor', 'vendido', 'asesor', 'hbar'),
@@ -682,7 +700,9 @@ export function Editor({ corte, filtros, g, onGuardar, onClose, rango, onRango }
                       {Object.entries(grupos).map(([gr, ms]) => (
                         <optgroup key={gr} label={gr}>
                           {ms.filter((x) => corte.comisiones || !x.id.startsWith('r_')).map((x) => (
-                            <option key={x.id} value={x.id} disabled={x.id !== id && (ids.includes(x.id) || (ids.length > 1 && !combinable(i === 0 ? medidaDe(ids[1]) : m, x)))}>{x.label}</option>
+                            <option key={x.id} value={x.id} disabled={x.id !== id && (ids.includes(x.id) || (ids.length > 1 && !combinable(i === 0 ? medidaDe(ids[1]) : m, x)))}>
+                              {x.label}{ids.length > 1 && x.id !== id && !ids.includes(x.id) && !combinable(i === 0 ? medidaDe(ids[1]) : m, x) ? ((x.agg || 'suma') !== 'suma' ? ' — es un promedio, no se suma' : ' — otra unidad') : ''}
+                            </option>
                           ))}
                         </optgroup>
                       ))}

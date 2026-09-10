@@ -824,7 +824,7 @@ h3 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: 0; t
 .lpt span { position: absolute; bottom: 12px; font-size: 11px; font-weight: 700; white-space: nowrap; }
 .lpt.drill { cursor: pointer; border-radius: 8px; padding: 4px; }
 .llabels { position: relative; height: 18px; margin: 0 30px; }
-.llabels span { position: absolute; transform: translateX(-50%); font-size: 11px; color: var(--g2); white-space: nowrap; }
+.llabels span { position: absolute; transform: translateX(-50%); font-size: 11px; color: var(--g2); white-space: nowrap; max-width: var(--paso, 90px); overflow: hidden; text-overflow: ellipsis; text-align: center; }
 .pills-row { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin-bottom: 12px; }
 .pills-row label { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--g2); }
 .widget.hset .wbody > .vbars, .widget.hset .wbody > .linebox, .widget.hset .wbody > .donut-legend, .widget.hset .wbody > .gmulti { flex: 1 1 0; min-height: 0; }
@@ -1067,3 +1067,6 @@ h3 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: 0; t
 .wmenu-cab b { font-size: 12.5px; }
 .wmenu-cab span { font-size: 11.5px; color: var(--g2); }
 .wmenu-cab .wmenu-base { color: var(--c1-ink); font-weight: 600; margin-top: 3px; }
+/* Muchas columnas: el nombre se pone de canto en vez de recortarse a tres letras (Randall 10-sep). */
+.vbars.apretado .vcol .vl { writing-mode: vertical-rl; transform: rotate(180deg); max-height: 86px; text-align: right; padding: 4px 0 0; border-top: 0; border-right: 1px solid var(--line); width: auto; }
+.vbars.apretado { align-items: end; }
