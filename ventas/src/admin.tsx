@@ -1076,7 +1076,7 @@ export function Ficha({ corte, filtros, uid, onBack }: { corte: Corte; filtros: 
     // La evolución abre la ficha: cómo va mes a mes contra su meta (Randall 10-sep, diseño del PDF).
     wg('ev', 'Monto vendido y Meta de venta por mes', (
       <GraficaLibre corte={corte} filtros={filtrosDe('ev')} onDrill={setDrill}
-        g={{ id: 'ev', titulo: 'Monto vendido y Meta de venta por mes', medida: 'vendido', medidas: ['meta'], dim: 'mes', tipo: 'vbar', modo: 'lado', top: 12 }} />
+        g={{ id: 'ev', titulo: 'Monto vendido y Meta de venta por mes', medida: 'vendido', medidas: ['meta'], dim: 'mes', tipo: 'linea', modo: 'lado', top: 12 }} />
     ), { span: 3, alto: 9, base: 'cierre' }),
     wg('ev-tabla', `${corte.comisiones ? 'Contrato total' : 'Monto vendido'} y Meta de venta por mes`, (
       <GraficaLibre corte={corte} filtros={filtrosDe('ev-tabla')} onDrill={setDrill}
