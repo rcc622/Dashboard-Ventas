@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent as RPointerEvent, type ReactNode } from 'react'
-import { IconoInfo, Info } from './components'
+import { createPortal } from 'react-dom'
+import { IconoInfo, Info, useEscape } from './components'
 import type { Termino } from './glosario'
 import type { Grafica } from './constructor'
+import { PRESETS, nombrePreset, type Preset } from './metrics'
 import { cargarTableros, guardarTablero } from './data'
 
 // Rejilla LIBRE de widgets (Randall 6-sep: «colocar libremente las gráficas en el lugar que yo
@@ -146,7 +148,67 @@ interface Estiro { id: string; ghost: Pos }
 /** Gráfica elegida en la galería que todavía no aterriza: sigue al puntero hasta que se suelta. */
 interface Colocando { titulo: string; w: number; h: number; pos: Pos | null; poner: (p: Pos | null) => void }
 
-export function WidgetGrid({ clave, widgets, taller: ctor }: { clave: string; widgets: Widget[]; taller?: Constructor }) {
+/** Fechas propias por widget: qué widget tiene cuáles y cómo cambiarlas. */
+export interface Fechas { por: Record<string, Preset>; fijar: (id: string, p: Preset | null) => void }
+
+function IconoCalendario() {
+  return <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true"><rect x="3" y="4.5" width="14" height="12.5" rx="2" /><path d="M3 8.5h14M7 3v3M13 3v3" /></svg>
+}
+
+/** El widget sigue las fechas del tablero salvo que aquí se le fijen otras (Randall 10-sep). Cuando
+ *  las tiene propias, el encabezado lo DICE con un chip: si no, se leería el número creyendo que es
+ *  del periodo de arriba. */
+function BotonFechas({ id, titulo, actual, onFijar }: { id: string; titulo: string; actual?: Preset; onFijar: (id: string, p: Preset | null) => void }) {
+  const [caja, setCaja] = useState<{ top: number; left: number } | null>(null)
+  const btn = useRef<HTMLButtonElement>(null)
+  const menu = useRef<HTMLDivElement>(null)
+  useEscape(() => { if (caja) setCaja(null) })
+  // El menú se dibuja pegado al botón pero COLGADO DEL BODY: dentro del widget lo recortaba el borde
+  // de la tarjeta y solo se veían los dos primeros renglones.
+  useEffect(() => {
+    if (!caja) return
+    const fuera = (e: Event) => {
+      const t = e.target as Node
+      if (!btn.current?.contains(t) && !menu.current?.contains(t)) setCaja(null)
+    }
+    const mover = () => setCaja(null)
+    document.addEventListener('pointerdown', fuera)
+    window.addEventListener('resize', mover)
+    window.addEventListener('scroll', mover, true)
+    return () => { document.removeEventListener('pointerdown', fuera); window.removeEventListener('resize', mover); window.removeEventListener('scroll', mover, true) }
+  }, [caja])
+  const abrir = () => {
+    if (caja) return setCaja(null)
+    const r = btn.current!.getBoundingClientRect()
+    const ancho = 225, alto = 340
+    setCaja({
+      top: r.bottom + 6 + alto > window.innerHeight ? Math.max(8, r.top - 6 - alto) : r.bottom + 6,
+      left: Math.max(8, Math.min(r.left, window.innerWidth - ancho - 8)),
+    })
+  }
+  const label = actual ? nombrePreset(actual) : ''
+  const elegir = (p: Preset | null) => { onFijar(id, p); setCaja(null) }
+  return (
+    <span className={'wfechas' + (actual ? ' on' : '')}>
+      <button type="button" className="wrango" ref={btn} aria-haspopup="menu" aria-expanded={!!caja}
+        title={actual ? `«${titulo}» usa ${label}, no las fechas del tablero` : `Ponerle fechas propias a «${titulo}» (ahora sigue las del tablero)`}
+        aria-label={actual ? `Fechas de «${titulo}»: ${label}, distintas a las del tablero. Cambiar` : `Fechas de «${titulo}»: las del tablero. Cambiar`}
+        onClick={abrir}>
+        <IconoCalendario />{label && <span>{label}</span>}
+      </button>
+      {caja && createPortal(
+        <div className="wmenu" role="menu" ref={menu} style={{ top: caja.top, left: caja.left }} aria-label={`Fechas de «${titulo}»`}>
+          <button type="button" role="menuitemradio" aria-checked={!actual} className={!actual ? 'on' : ''} onClick={() => elegir(null)}>Las fechas del tablero</button>
+          <div className="wmenu-sec">Solo para esta gráfica</div>
+          {PRESETS.map((p) => (
+            <button type="button" key={p.id} role="menuitemradio" aria-checked={actual === p.id} className={actual === p.id ? 'on' : ''} onClick={() => elegir(p.id)}>{p.label}</button>
+          ))}
+        </div>, document.body)}
+    </span>
+  )
+}
+
+export function WidgetGrid({ clave, widgets, taller: ctor, fechas }: { clave: string; widgets: Widget[]; taller?: Constructor; fechas?: Fechas }) {
   const [layout, setLayout] = useState<Layout>(() => inicial(clave, widgets))
   const [galeria, setGaleria] = useState(false)
   const [ajustando, setAjustando] = useState<Grafica | null>(null)
@@ -406,6 +468,7 @@ export function WidgetGrid({ clave, widgets, taller: ctor }: { clave: string; wi
               <div className="whead">
                 <button type="button" className="grip" title="Arrastra para mover (o usa las flechas)" aria-label={`Mover «${w.titulo}»: flechas mueven una celda, Home y End a los bordes. Ahora en columna ${p.x}, fila ${p.y}`} onPointerDown={onGrip(id)} onKeyDown={onGripKey(id)}><IconoGrip /></button>
                 <h3><span className="wt">{w.titulo}</span>{w.info?.length ? <Info termino={w.info} /> : null}{w.ayuda ? <button type="button" className="ibtn" data-tip={w.ayuda} aria-label={w.ayuda} onClick={(e) => e.stopPropagation()}><IconoInfo /></button> : null}</h3>
+                {fechas && <BotonFechas id={id} titulo={w.titulo} actual={fechas.por[id]} onFijar={fechas.fijar} />}
                 <span className="wctl">
                   {w.grafica && <button type="button" className="wbtn" aria-label={`Ajustar «${w.titulo}»`} title="Ajustar esta gráfica" onClick={() => setAjustando(w.grafica!)}><IconoLapiz /></button>}
                   <button type="button" className="wbtn" aria-label={w.grafica ? `Borrar «${w.titulo}»` : `Quitar «${w.titulo}» del tablero`} title={w.grafica ? 'Borrar esta gráfica' : 'Quitar del tablero'} onClick={() => quitar(id)}><IconoX /></button>

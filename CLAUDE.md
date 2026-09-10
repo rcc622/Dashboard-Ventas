@@ -887,6 +887,24 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   que la de fábrica, así que dan el MISMO número (medido: $2.4M, 13 % de $18M, mismo texto de ritmo).
   Sin metas configuradas lo dice («sin meta configurada») en vez de inventar un 0 %. Dos plantillas en
   la galería: «Vendido contra la meta» y «Cotizado vigente contra la meta».
+- **«Meta de venta» es una MEDIDA más del constructor** (Randall 10-sep: «agrega el concepto de Meta
+  venta al constructor para poderlo usar en las gráficas»). No sale de ningún lead: son las metas de
+  Configuración repartidas al periodo (`porAsesor().metaRango`), con dimensiones asesor, equipo y sin
+  partir. Como es dinero que se suma, **se combina con «Monto vendido»** en una mixta lado a lado:
+  plantillas «Vendido contra la meta por asesor» y «por equipo». Detrás de una meta no hay registros
+  del CRM, así que su detalle es la lista de asesores con su meta del periodo (`Item.u`, `filasDe()`).
+- **Cada widget puede tener SUS fechas** (Randall 10-sep: «si un widget siempre debe mostrar la info
+  histórica, que la muestre y no conflictúe con el date range del tablero», como los widgets de
+  HubSpot). `rangos.ts` guarda `{widgetId: Preset}` bajo la clave `rangos-<clave>` **en la cuenta**
+  (mismo patrón que el acomodo y las columnas: gana el `ts` más nuevo contra el localStorage), así que
+  el teléfono ve lo mismo. En el encabezado de cada widget hay un icono de calendario; cuando el
+  widget NO sigue al tablero se vuelve un **chip con el nombre del periodo** («Máximo») — visible
+  también en móvil, porque si no se leería el número creyendo que es del periodo de arriba. El menú
+  (portal al `body`, si no lo recortaba la tarjeta) ofrece «Las fechas del tablero» + los 15 periodos.
+  Para que funcione en los widgets de fábrica, `AdminDashboard` extrajo su derivación a `datosDe(corte,
+  filtros)` y arma el tablero con `construir(filtros, datos)`: una vez con las fechas de arriba y una
+  vez **por cada periodo distinto** que alguien haya fijado (no una por widget). Las gráficas propias
+  lo resuelven en `taller.render`, con `filtrosDe('g:' + g.id)`.
 - **La ficha del asesor también trae el constructor**, fijado a esa persona (`{...filtros, asesor: uid}`);
   Mi día usa una galería simple con lo que se quitó de ese tablero (no tiene medidas propias).
 - **La página «Ventas reales» desapareció** (Randall 7-sep: «no quiero otra sección, lo quiero todo en

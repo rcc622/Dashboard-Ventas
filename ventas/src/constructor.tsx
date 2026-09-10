@@ -3,7 +3,7 @@ import type { Corte, Evento, Lead, Tarea, Usuario, VentaReal } from './types'
 import { CRM_LABEL } from './types'
 import {
   cotizadoVigenteDe, enRango, etapaDe, fechaDe, filasDeEventos, filasDeLeads, filasDeVentasReales, fmtCorta, fmtMoney0, fmtN,
-  inicioDia, mapaUsuarios, metaTotal, ocultosDe, pasaCrm, pct, periodoTexto, primerContacto, ritmo, visitas, vivo, zonaNombre, type Filtros,
+  inicioDia, mapaUsuarios, metaTotal, ocultosDe, pasaCrm, pct, periodoTexto, porAsesor, primerContacto, ritmo, visitas, vivo, zonaNombre, type Filtros,
 } from './metrics'
 import { BarChart, BarDetailPopup, Bullet, DonutChart, HBarList, LineChart, useEscape, useFocoDialogo, type BarItem, type DetRow, type Modo } from './components'
 import type { Drill } from './drill'
@@ -28,7 +28,7 @@ export const idsMedidas = (g: Grafica) => [g.medida, ...(g.medidas || [])]
 export const MULTI_OK: TipoGrafica[] = ['hbar', 'vbar', 'linea', 'tabla']
 export const MAX_MEDIDAS = 4
 /** Solo el dinero que se suma se puede comparar contra una meta en pesos (un ticket promedio, no). */
-export const conMeta = (m: Medida) => m.fmt === fmtMoney0 && !m.agg
+export const conMeta = (m: Medida) => m.fmt === fmtMoney0 && !m.agg && m.id !== 'meta'
 export const MODOS: { id: Modo; label: string; ayuda: string }[] = [
   { id: 'apilado', label: 'Apiladas', ayuda: 'una sobre otra: se lee el total' },
   { id: 'lado', label: 'Lado a lado', ayuda: 'una junto a otra: se comparan' },
@@ -39,7 +39,7 @@ export const TIPOS: { id: TipoGrafica; label: string }[] = [
 ]
 
 // ---------------------------------------------------------------- medidas
-interface Item { v: number; v2?: number; lead?: Lead; ev?: Evento; tar?: Tarea; vr?: VentaReal }
+interface Item { v: number; v2?: number; lead?: Lead; ev?: Evento; tar?: Tarea; vr?: VentaReal; u?: Usuario }
 type Agg = 'suma' | 'promedio' | 'razon'
 interface Medida {
   id: string; label: string; grupo: 'Actividad' | 'Seguimiento' | 'Ventas' | 'Ventas reales'
@@ -108,6 +108,9 @@ export const MEDIDAS: Medida[] = [
   // Ventas del CRM
   { id: 'ventas', label: 'Clientes cerrados', grupo: 'Ventas', fmt: fmtN, dims: DIMS_CRM, ayuda: 'Ventas que el CRM marcó como ganadas dentro de las fechas elegidas.', items: (c, f) => uno(ventasDe(c, f), (l) => ({ v: 1, lead: l })), fecha: (i) => i.lead?.cerrado },
   { id: 'vendido', label: 'Monto vendido', grupo: 'Ventas', fmt: fmtMoney0, dims: DIMS_CRM, ayuda: 'Suma del precio de las ventas cerradas en las fechas elegidas.', items: (c, f) => uno(ventasDe(c, f), (l) => ({ v: l.presupuesto, lead: l })), fecha: (i) => i.lead?.cerrado },
+  // La meta no sale de ningun lead: es lo que cada asesor tiene puesto en Configuracion, repartido al
+  // periodo elegido. Sirve para graficarla y, sobre todo, para ponerla junto a lo vendido.
+  { id: 'meta', label: 'Meta de venta', grupo: 'Ventas', fmt: fmtMoney0, dims: ['asesor', 'equipo', 'ninguna'], ayuda: 'La meta en pesos del periodo elegido, por asesor (se configura en Configuración). Los asesores sin leads, actividad ni ventas en el periodo no suman meta, igual que en la tarjeta «Avance contra la meta».', items: (c, f) => porAsesor(c, f).map((x) => ({ v: x.metaRango, u: x.u })) },
   { id: 'ticket_crm', label: 'Ticket promedio del CRM', grupo: 'Ventas', fmt: fmtMoney0, agg: 'promedio', dims: DIMS_CRM, ayuda: 'Precio promedio de cada venta cerrada en el CRM.', items: (c, f) => uno(ventasDe(c, f), (l) => ({ v: l.presupuesto, lead: l })), fecha: (i) => i.lead?.cerrado },
   // Ventas reales (app de comisiones)
   { id: 'r_ventas', label: 'Ventas reales', grupo: 'Ventas reales', fmt: fmtN, dims: DIMS_COM, ayuda: 'Ventas registradas en la app de comisiones, sin canceladas. El mes de la venta manda, no el día.', items: (c, f) => uno(realesDe(c, f), (v) => ({ v: 1, vr: v })), fecha: (i) => i.vr?.fecha ?? undefined },
@@ -145,7 +148,7 @@ function leadDeItem(it: Item, ctx: Ctx): Lead | undefined {
 }
 function valorDim(it: Item, dim: string, m: Medida, ctx: Ctx): { clave: string; orden?: number } {
   const l = leadDeItem(it, ctx)
-  const asesorId = it.lead?.asesor_id ?? it.ev?.asesor_id ?? it.tar?.asesor_id ?? it.vr?.asesor_id ?? null
+  const asesorId = it.lead?.asesor_id ?? it.ev?.asesor_id ?? it.tar?.asesor_id ?? it.vr?.asesor_id ?? it.u?.id ?? null
   switch (dim) {
     case 'asesor': {
       if (it.vr && !it.vr.asesor_id) return { clave: it.vr.vendedor || 'Sin asesor' }
@@ -223,6 +226,11 @@ export function multiserie(c: Corte, f: Filtros, g: Grafica): { labels: { label:
 
 /** Los registros detrás de un grupo, para el detalle. */
 function filasDe(c: Corte, items: Item[]) {
+  // La meta no tiene registros atras: el detalle es la lista de asesores con su meta del periodo.
+  if (items[0]?.u) return items.map((i) => ({
+    id: 'meta:' + i.u!.id, nombre: i.u!.nombre, crm: i.u!.crm[0] || 'kommo', asesor: i.u!.nombre,
+    detalle: 'Meta del periodo elegido', monto: i.v,
+  }))
   if (items[0]?.vr) return filasDeVentasReales(items.map((i) => i.vr!))
   if (items[0]?.ev) return filasDeEventos(c, items.map((i) => i.ev!))
   if (items[0]?.tar) return items.map((i) => i.tar!).map((t) => ({
@@ -380,6 +388,8 @@ export const MIXTAS: Grafica[] = [
   X('x-actividad', 'Actividad por asesor', ['tareas_hechas', 'llamadas', 'cotizaciones'], 'asesor', 'hbar'),
   X('x-riesgo', 'Riesgo de seguimiento por asesor', ['tareas_vencidas', 'sin_tarea', 'pc_vencido'], 'asesor', 'hbar'),
   X('x-juego', 'Leads en juego y descartados', ['activos', 'descartes'], 'asesor', 'hbar'),
+  X('x-meta-asesor', 'Vendido contra la meta por asesor', ['vendido', 'meta'], 'asesor', 'hbar', 'lado'),
+  X('x-meta-equipo', 'Vendido contra la meta por equipo', ['vendido', 'meta'], 'equipo', 'vbar', 'lado'),
   X('x-cot-ventas', 'Cotizaciones y ventas por mes', ['cotizaciones', 'ventas'], 'mes', 'linea'),
   X('x-ciudad', 'Cotizaciones y ventas por ciudad', ['cotizaciones', 'ventas'], 'ciudad', 'vbar', 'lado'),
 ]

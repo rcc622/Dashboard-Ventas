@@ -1,7 +1,7 @@
 import { Fragment, useLayoutEffect, useMemo, useRef, useState, type SyntheticEvent, useEffect } from 'react'
 import type { Corte, Evento, Lead, LevFila, Sanciones, Usuario } from './types'
 import { CRM_LABEL } from './types'
-import { BUCKETS, PERFIL_LABEL, actividad, actividadDe, cotizado, dias, embudo, entrada, ep, eventosFiltrados, fechaCotizado, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, metaDe, metaEnRango, pasaCrm, periodoTexto, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, type Fila, type FilaAsesor, type Filtros, type Perfil , type PuntoPerfil, ventasReales, filasDeVentasReales, comparativaVentas, rolDestacado, rolNombre, cotizacionesGeneradas, filasDeCotizaciones, visitas, levantados, filasDeLevantamientos } from './metrics'
+import { BUCKETS, PERFIL_LABEL, actividad, actividadDe, cotizado, dias, embudo, entrada, ep, eventosFiltrados, fechaCotizado, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, metaDe, metaEnRango, pasaCrm, periodoTexto, preset, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, type Fila, type FilaAsesor, type Filtros, type Perfil , type Preset, type PuntoPerfil, ventasReales, filasDeVentasReales, comparativaVentas, rolDestacado, rolNombre, cotizacionesGeneradas, filasDeCotizaciones, visitas, levantados, filasDeLevantamientos } from './metrics'
 import { BarDetailPopup, BubbleChart, Bullet, DonutChart, FunnelChart, Gauge, Info, LlamadasBar, MiniAreaChart, Scatter, SortTh, StackedBar, activar, useEscape, useOutside, type DetRow, type Sort, type BubbleCol, useFocoDialogo } from './components'
 import { DrillModal, type Drill } from './drill'
 import { BASE_FECHA, EditarColumnas, anchos, anchoTotal, useColumnas, type ColDef } from './columnas'
@@ -9,6 +9,7 @@ import type { Termino } from './glosario'
 import { aplicarSancion, cargarSanciones } from './data'
 import { WidgetGrid, type Widget } from './widgets'
 import { Galeria, GraficaLibre, Editor, type Grafica } from './constructor'
+import { useRangos } from './rangos'
 
 const mixto = (c: Corte) => (c.fuentes || []).length > 1
 const crmCorto = (l: { crm: Lead['crm'] }) => CRM_LABEL[l.crm]
@@ -148,24 +149,36 @@ function LeadsTabla({ corte, leads, max = 40 }: { corte: Corte; leads: Lead[]; m
 }
 
 // ---------------------------------------------------------------- Dashboard
+/** Todo lo que el tablero deriva de un corte y unas fechas. Está aparte porque el tablero se arma
+ *  DOS veces cuando algún widget tiene fechas propias: una con las del tablero y otra con las suyas. */
+function datosDe(corte: Corte, f: Filtros) {
+  const leads = leadsFiltrados(corte, f)
+  const ev = eventosFiltrados(corte, f)
+  const ventas = ventasFiltradas(corte, f)
+  const filas = porAsesor(corte, f)
+  return {
+    leads, ev, ventas, filas,
+    ent: entrada(corte, f.rango, f), pc: primerContacto(corte, leads), rz: razones(corte, ev), perf: perfiles(filas),
+    vr: ventasReales(corte, f), cg: cotizacionesGeneradas(corte, f), vis: visitas(corte, f), lev: levantados(corte, f),
+  }
+}
+type Datos = ReturnType<typeof datosDe>
+
 export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filtros: Filtros; onFicha: (uid: string) => void }) {
   // Punto agrupado («×n») de la dispersión: lista inline para elegir a quién abrir; se limpia al cambiar filtros.
   const [grupo, setGrupo] = useState<PuntoPerfil[] | null>(null)
   useEffect(() => setGrupo(null), [filtros])
-  const leads = useMemo(() => leadsFiltrados(corte, filtros), [corte, filtros])
-  const ev = useMemo(() => eventosFiltrados(corte, filtros), [corte, filtros])
-  const ventas = useMemo(() => ventasFiltradas(corte, filtros), [corte, filtros])
-  const filas = useMemo(() => porAsesor(corte, filtros), [corte, filtros])
-  const ent = useMemo(() => entrada(corte, filtros.rango, filtros), [corte, filtros])
-  const pc = useMemo(() => primerContacto(corte, leads), [corte, leads])
-  const rz = useMemo(() => razones(corte, ev), [corte, ev])
-  const perf = useMemo(() => perfiles(filas), [filas])
-  const vr = ventasReales(corte, filtros)
-  const cg = useMemo(() => cotizacionesGeneradas(corte, filtros), [corte, filtros])
-  const vis = useMemo(() => visitas(corte, filtros), [corte, filtros])
-  const lev = useMemo(() => levantados(corte, filtros), [corte, filtros])
   const [drill, setDrill] = useState<Drill | null>(null)
   const ver = (titulo: string, filas: Fila[], sub?: string) => setDrill({ titulo, filas, sub })
+  // Fechas propias por widget (Randall 10-sep: «si un widget siempre debe mostrar la info histórica,
+  // que la muestre y no conflictúe con el date range del tablero»). Sin fechas propias se sigue al tablero.
+  const { rangos, fijarRango } = useRangos('admin')
+  const desdeMaximo = useMemo(() => { let m = corte.desde; for (const l of corte.leads) { if (l.asignacion && l.asignacion < m) m = l.asignacion; if (l.creado && l.creado < m) m = l.creado } return m }, [corte])
+  const conRango = (p: Preset): Filtros => ({ ...filtros, rango: preset(p, new Date(), desdeMaximo) })
+  const filtrosDe = (id: string): Filtros => (rangos[id] ? conRango(rangos[id]) : filtros)
+
+  const construir = (filtros: Filtros, d: Datos): Widget[] => {
+  const { leads, ev, ventas, filas, ent, pc, rz, perf, vr, cg, vis, lev } = d
   const s = salud(leads)
   const con = s.ventasCon + s.huntCon, sin = s.ventasSin + s.huntSin, tot = con + sin
   const hayHunting = s.huntCon + s.huntSin > 0
@@ -532,12 +545,29 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
       )
     ), { info: ['Perfil'], cls: 'wperf', span: 3, alto: 10, desde: 'perfiles' }),
   ]
+  return widgets
+  }
+
+  // El tablero, con las fechas de arriba. Los widgets que tienen fechas propias se sacan de un
+  // segundo armado con SUS fechas: uno por periodo distinto, no uno por widget.
+  const base = useMemo(() => construir(filtros, datosDe(corte, filtros)), [corte, filtros, grupo])   // eslint-disable-line react-hooks/exhaustive-deps
+  const aparte = useMemo(() => {
+    const m = new Map<string, Widget[]>()
+    for (const p of new Set(Object.values(rangos))) { const f = conRango(p); m.set(p, construir(f, datosDe(corte, f))) }
+    return m
+  }, [corte, filtros, rangos, grupo])   // eslint-disable-line react-hooks/exhaustive-deps
+  const widgets = useMemo(() => base.map((w) => {
+    const p = rangos[w.id]
+    return (p && aparte.get(p)?.find((x) => x.id === w.id)) || w
+  }), [base, aparte, rangos])
+
   return (
     <>
       <div className="hint" style={{ marginBottom: 8 }}>Clic en cualquier cifra, barra o renglón abre la lista de registros detrás, con liga a Kommo o HubSpot.</div>
       <WidgetGrid clave="admin" widgets={ORDEN_ADMIN.map((id) => widgets.find((w) => w.id === id)).filter((w): w is Widget => !!w).concat(widgets.filter((w) => !ORDEN_ADMIN.includes(w.id)))}
+        fechas={{ por: rangos, fijar: fijarRango }}
         taller={{
-          render: (g: Grafica) => <GraficaLibre corte={corte} filtros={filtros} g={g} onDrill={setDrill} />,
+          render: (g: Grafica) => <GraficaLibre corte={corte} filtros={filtrosDe('g:' + g.id)} g={g} onDrill={setDrill} />,
           galeria: (p) => <Galeria corte={corte} filtros={filtros} quitados={p.quitados} onAgregar={p.onAgregar} onCrear={p.onCrear} onClose={p.onClose} />,
           editor: (p) => <Editor corte={corte} filtros={filtros} g={p.g} onGuardar={p.onGuardar} onClose={p.onClose} />,
         }} />
