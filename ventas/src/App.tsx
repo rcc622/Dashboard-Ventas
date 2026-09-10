@@ -114,6 +114,7 @@ function Shell({ yo, corte, origen, error, onRetry, onConfig, onLogout }: { yo: 
 
   // Solo los activos: los desactivados en Configuración no salen en ningún menú.
   const usuariosOrden = useMemo(() => usuariosVisibles(corte).sort((a, b) => a.nombre.localeCompare(b.nombre)), [corte])
+  const uFicha = ficha ? corte.usuarios.find((u) => u.id === ficha) : null
   const fuentes = (corte.fuentes || []).map((f) => CRM_LABEL[f.crm]).join(' + ')
 
   const nFiltros = (filtros.asesor ? 1 : 0) + (filtros.equipo ? 1 : 0) + (!filtros.crm.kommo || !filtros.crm.hubspot ? 1 : 0)
@@ -180,6 +181,25 @@ function Shell({ yo, corte, origen, error, onRetry, onConfig, onLogout }: { yo: 
             {hoja && <button type="button" className="tb-fondo solo-movil" aria-label="Cerrar filtros" onClick={() => setHoja(false)} />}
             <div id="tb-controles" className={'tb-controles' + (hoja ? ' abierta' : '')}>
             <div className="tb-titulo solo-movil"><b>Filtros</b><button type="button" className="ib" aria-label="Cerrar" onClick={() => setHoja(false)}>×</button></div>
+            {/* En la ficha de una persona los filtros de equipo y CRM no pintan nada: su zona y su CRM
+                son los que son (Randall 10-sep). Ahí la barra solo sirve para SALTAR a otro asesor, y
+                la zona y el CRM quedan como dato, no como botón. */}
+            {uFicha ? (
+              <>
+                <select className="sel sel-as" aria-label="Asesor que estás viendo" value={uFicha.id} onChange={(e) => setFicha(e.target.value || null)}>
+                  <option value="">← Ver a todos los propietarios</option>
+                  {corte.equipos.map((q) => {
+                    const suyos = usuariosOrden.filter((u) => u.zona === q.id)
+                    return suyos.length ? <optgroup key={q.id} label={q.nombre}>{suyos.map((u) => <option key={u.id} value={u.id}>{u.nombre}</option>)}</optgroup> : null
+                  })}
+                  {(() => { const otros = usuariosOrden.filter((u) => !corte.equipos.some((q) => q.id === u.zona)); return otros.length
+                    ? <optgroup label="Sin equipo">{otros.map((u) => <option key={u.id} value={u.id}>{u.nombre}</option>)}</optgroup> : null })()}
+                </select>
+                <span className="tb-info" title={`${uFicha.nombre} es de ${zonaNombre(corte, uFicha.zona)} y su data vive en ${uFicha.crm.map((k) => CRM_LABEL[k]).join(' y ')}. En su ficha se ven TODOS sus datos: los filtros de equipo y CRM no aplican.`}>
+                  {zonaNombre(corte, uFicha.zona)} · {uFicha.crm.map((k) => CRM_LABEL[k]).join(' y ')}
+                </span>
+              </>
+            ) : (<>
             <select className="sel sel-as" aria-label="Propietario" value={filtros.asesor ?? ''} onChange={(e) => setFiltros({ ...filtros, asesor: e.target.value || null })}>
               <option value="">Todos los propietarios</option>
               {usuariosOrden.filter((u) => (filtros.equipo == null || u.zona === filtros.equipo) && u.crm.some((x) => filtros.crm[x])).map((u) => <option key={u.id} value={u.id}>{u.nombre}</option>)}
@@ -199,6 +219,7 @@ function Shell({ yo, corte, origen, error, onRetry, onConfig, onLogout }: { yo: 
                   </button>) })}
               </span>
             )}
+            </>)}
             <button type="button" className="btn on solo-movil tb-listo" onClick={() => setHoja(false)}>Listo</button>
             </div>
             <span className="spacer" />

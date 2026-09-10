@@ -906,7 +906,9 @@ const wg = (id: string, titulo: string, nodo: React.ReactNode, opts: Partial<Wid
  *  clic para abrir la semana). */
 export function Ficha({ corte, filtros, uid, onBack }: { corte: Corte; filtros: Filtros; uid: string; onBack: () => void }) {
   const u = corte.usuarios.find((x) => x.id === uid)
-  const f: Filtros = { ...filtros, asesor: uid, equipo: null }
+  // Su ficha muestra TODO lo suyo: el equipo y el CRM elegidos arriba no la recortan (si el tablero
+  // estaba en Kommo y la persona trabaja en HubSpot, su ficha salía vacía).
+  const f: Filtros = { ...filtros, asesor: uid, equipo: null, crm: { kommo: true, hubspot: true } }
   const leads = useMemo(() => leadsFiltrados(corte, f), [corte, filtros, uid])   // eslint-disable-line react-hooks/exhaustive-deps
   const ventas = useMemo(() => ventasFiltradas(corte, f), [corte, filtros, uid]) // eslint-disable-line react-hooks/exhaustive-deps
   const [zoom, setZoom] = useState<{ ini: Date; dias: number; texto: string } | null>(null)   // semana o mes abierto en Actividad por día; null = vista del rango

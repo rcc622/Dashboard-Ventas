@@ -1070,3 +1070,5 @@ h3 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: 0; t
 /* Muchas columnas: el nombre se pone de canto en vez de recortarse a tres letras (Randall 10-sep). */
 .vbars.apretado .vcol .vl { writing-mode: vertical-rl; transform: rotate(180deg); max-height: 86px; text-align: right; padding: 4px 0 0; border-top: 0; border-right: 1px solid var(--line); width: auto; }
 .vbars.apretado { align-items: end; }
+/* Zona y CRM de la persona en la barra de su ficha: dato, no botón (Randall 10-sep). */
+.tb-info { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--g2); background: var(--track); border-radius: 999px; padding: 5px 12px; white-space: nowrap; }

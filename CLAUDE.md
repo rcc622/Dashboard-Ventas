@@ -962,6 +962,14 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   así que sirve por asesor, por equipo o mes a mes (no por semana ni por día, porque la meta es
   mensual). El **total de una razón** ya no era la suma: `serie()` lo calcula como razón de los
   totales. Tres plantillas: por mes, por asesor y por equipo.
+- **En la ficha de una persona la barra de arriba deja de filtrar** (Randall 10-sep: «no tiene mucho
+  sentido que aparezcan esas opciones como botones si estamos viendo la info específica de ese
+  asesor»). Ahí el selector de propietario cambia de «filtrar el tablero» a **saltar de asesor**:
+  lista a todos agrupados por equipo (`optgroup`) y elegir a alguien abre SU ficha; la primera opción
+  («← Ver a todos los propietarios») sale de la ficha. Los botones de equipo y los de Kommo/HubSpot
+  se reemplazan por un dato: «Monterrey · Kommo y HubSpot» (`.tb-info`). Y la ficha ya **ignora
+  también el filtro de CRM** (antes solo el de equipo): si el tablero estaba en Kommo y la persona
+  trabaja en HubSpot, su ficha salía vacía.
 - **La ficha del asesor también trae el constructor**, fijado a esa persona (`{...filtros, asesor: uid}`);
   Mi día usa una galería simple con lo que se quitó de ese tablero (no tiene medidas propias).
 - **La página «Ventas reales» desapareció** (Randall 7-sep: «no quiero otra sección, lo quiero todo en
