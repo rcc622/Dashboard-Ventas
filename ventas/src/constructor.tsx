@@ -1,12 +1,13 @@
 import { useMemo, useRef, useState } from 'react'
-import type { Corte, Evento, Lead, Tarea, Usuario, VentaReal } from './types'
+import type { Corte, Evento, Lead, Rango, Tarea, Usuario, VentaReal } from './types'
 import { CRM_LABEL } from './types'
 import {
   cotizadoVigenteDe, enRango, etapaDe, fechaDe, filasDeEventos, filasDeLeads, filasDeVentasReales, fmtCorta, fmtMoney0, fmtN,
-  inicioDia, mapaUsuarios, metaTotal, ocultosDe, pasaCrm, pct, periodoTexto, porAsesor, primerContacto, ritmo, visitas, vivo, zonaNombre, type Filtros,
+  ep, inicioDia, mapaUsuarios, metaDe, metaEnRango, metaTotal, ocultosDe, pasaCrm, pct, periodoTexto, porAsesor, primerContacto, ritmo, visitas, vivo, zonaNombre, type Filtros,
 } from './metrics'
 import { BarChart, BarDetailPopup, Bullet, DonutChart, HBarList, LineChart, useEscape, useFocoDialogo, type BarItem, type DetRow, type Modo } from './components'
 import type { Drill } from './drill'
+import { BASE_FECHA, type BaseFecha } from './columnas'
 
 // Constructor de gráficas (Randall 7-sep: «un graph modifier/builder para que ya no dependamos tanto de ti»).
 // Una gráfica = QUÉ se mide (medida) × CÓMO se parte (dimensión) × CÓMO se dibuja (tipo). El mismo motor
@@ -39,17 +40,23 @@ export const TIPOS: { id: TipoGrafica; label: string }[] = [
 ]
 
 // ---------------------------------------------------------------- medidas
-interface Item { v: number; v2?: number; lead?: Lead; ev?: Evento; tar?: Tarea; vr?: VentaReal; u?: Usuario }
+interface Item { v: number; v2?: number; lead?: Lead; ev?: Evento; tar?: Tarea; vr?: VentaReal; u?: Usuario; ts?: number }
 type Agg = 'suma' | 'promedio' | 'razon'
 interface Medida {
   id: string; label: string; grupo: 'Actividad' | 'Seguimiento' | 'Ventas' | 'Ventas reales'
   fmt: (n: number) => string; agg?: Agg; ayuda: string
   items: (c: Corte, f: Filtros) => Item[]
   fecha?: (it: Item) => number | undefined
+  base?: BaseFecha              // contra QUE fecha cae cada registro en su periodo
   dims: string[]
 }
-const DIMS_CRM = ['asesor', 'equipo', 'ciudad', 'crm', 'etapa', 'mes', 'semana', 'dia', 'ninguna']
-const DIMS_COM = ['asesor', 'zona_app', 'origen', 'forma_pago', 'tamano', 'mes', 'ninguna']
+// Los cortes de tiempo que sirven de eje X (Randall 10-sep: «que se pueda partir por semana, mes,
+// bimestre, cuarto, semestre o año»). El día va aparte: solo tiene sentido en rangos cortos.
+const TIEMPOS = ['semana', 'quincena', 'mes', 'bimestre', 'trimestre', 'semestre', 'anio']
+const DIMS_CRM = ['asesor', 'equipo', 'ciudad', 'crm', 'etapa', ...TIEMPOS, 'dia', 'ninguna']
+const DIMS_COM = ['asesor', 'zona_app', 'origen', 'forma_pago', 'tamano', ...TIEMPOS, 'ninguna']
+/** La meta se configura POR MES: no se puede partir más fino que el mes sin inventar datos. */
+const DIMS_META = ['asesor', 'equipo', 'mes', 'bimestre', 'trimestre', 'semestre', 'anio', 'ninguna']
 const activos = (c: Corte, f: Filtros) => leadsDe(c, f).filter(vivo)
 /** Leads del rango con los filtros de la barra (misma regla que el resto del tablero). */
 function leadsDe(c: Corte, f: Filtros): Lead[] {
@@ -84,41 +91,59 @@ function realesDe(c: Corte, f: Filtros, captura?: 'completa' | 'incompleta'): Ve
     && (!captura || (v.captura || 'incompleta') === captura))
 }
 const uno = <T,>(xs: T[], k: (x: T) => Item): Item[] => xs.map(k)
+/** La meta cortada mes a mes dentro del rango, prorrateada por días en los meses incompletos: así la
+ *  misma medida sirve para una cifra («la meta del periodo») y para una serie de tiempo («la meta de
+ *  cada mes»), sin inventar reparto dentro del mes. */
+function metasPorMes(c: Corte, f: Filtros): Item[] {
+  const out: Item[] = []
+  const a0 = fechaDe(f.rango.ini)
+  for (const x of porAsesor(c, f)) {
+    const mensual = metaDe(c, x.u)
+    let d = new Date(a0.getFullYear(), a0.getMonth(), 1)
+    for (let i = 0; i < 200 && ep(d) < f.rango.fin; i++) {
+      const sig = new Date(d.getFullYear(), d.getMonth() + 1, 1)
+      const ini = Math.max(ep(d), f.rango.ini), fin = Math.min(ep(sig), f.rango.fin)
+      if (fin > ini) out.push({ v: metaEnRango(mensual, { ini, fin, label: '' }), u: x.u, ts: ini })
+      d = sig
+    }
+  }
+  return out
+}
 export const MEDIDAS: Medida[] = [
   // Actividad registrada en el rango
-  { id: 'llamadas', label: 'Llamadas realizadas', grupo: 'Actividad', fmt: fmtN, dims: DIMS_CRM, ayuda: 'Llamadas registradas en el CRM dentro de las fechas elegidas.', items: (c, f) => uno(eventosDe(c, f, ['llamada_ok', 'llamada_no']), (e) => ({ v: 1, ev: e })), fecha: (i) => i.ev?.ts },
-  { id: 'contestadas', label: 'Llamadas contestadas', grupo: 'Actividad', fmt: fmtN, dims: DIMS_CRM, ayuda: 'Llamadas con duración mayor que cero.', items: (c, f) => uno(eventosDe(c, f, ['llamada_ok']), (e) => ({ v: 1, ev: e })), fecha: (i) => i.ev?.ts },
-  { id: 'sin_contestar', label: 'Llamadas sin contestar', grupo: 'Actividad', fmt: fmtN, dims: DIMS_CRM, ayuda: 'Llamadas que duraron cero.', items: (c, f) => uno(eventosDe(c, f, ['llamada_no']), (e) => ({ v: 1, ev: e })), fecha: (i) => i.ev?.ts },
-  { id: 'tareas_hechas', label: 'Tareas completadas', grupo: 'Actividad', fmt: fmtN, dims: DIMS_CRM, ayuda: 'Tareas que el asesor marcó como terminadas dentro de las fechas elegidas.', items: (c, f) => uno(eventosDe(c, f, ['tarea']), (e) => ({ v: 1, ev: e })), fecha: (i) => i.ev?.ts },
-  { id: 'cotizaciones', label: 'Cotizaciones entregadas', grupo: 'Actividad', fmt: fmtN, dims: DIMS_CRM, ayuda: 'Primera vez que el lead pasó a «Propuesta entregada» dentro de las fechas elegidas.', items: (c, f) => uno(eventosDe(c, f, ['cotizacion']), (e) => ({ v: 1, ev: e })), fecha: (i) => i.ev?.ts },
-  { id: 'lev_agendados', label: 'Levantamientos agendados', grupo: 'Actividad', fmt: fmtN, dims: DIMS_CRM, ayuda: 'Leads que entraron a la etapa «Levantamiento agendado» dentro de las fechas elegidas.', items: (c, f) => uno(visitas(c, f).agendados, (l) => ({ v: 1, lead: l })), fecha: (i) => i.lead?.lev_agendado || 0 },
-  { id: 'lev_hechos', label: 'Levantamientos hechos', grupo: 'Actividad', fmt: fmtN, dims: DIMS_CRM, ayuda: 'De los agendados en las fechas elegidas, los que llegaron a «Levantamiento hecho».', items: (c, f) => uno(visitas(c, f).hechos, (l) => ({ v: 1, lead: l })), fecha: (i) => i.lead?.lev_agendado || 0 },
-  { id: 'levantamientos', label: 'Levantamientos solicitados', grupo: 'Actividad', fmt: fmtN, dims: DIMS_CRM, ayuda: 'Visitas técnicas solicitadas dentro de las fechas elegidas.', items: (c, f) => uno(eventosDe(c, f, ['levantamiento']), (e) => ({ v: 1, ev: e })), fecha: (i) => i.ev?.ts },
-  { id: 'descartes', label: 'Descartados', grupo: 'Actividad', fmt: fmtN, dims: [...DIMS_CRM, 'razon'], ayuda: 'Leads descartados dentro de las fechas elegidas, por la fecha del descarte.', items: (c, f) => uno(eventosDe(c, f, ['descarte']), (e) => ({ v: 1, ev: e })), fecha: (i) => i.ev?.ts },
-  { id: 'pc_hecho', label: 'Primer contacto completado', grupo: 'Actividad', fmt: fmtN, dims: DIMS_CRM, ayuda: 'Leads asignados en las fechas elegidas a los que ya se les hizo la primera llamada o tarea. Solo Kommo.', items: (c, f) => uno(primerContacto(c, leadsDe(c, f)).con, (x) => ({ v: 1, lead: x.lead })), fecha: (i) => i.lead?.asignacion },
+  { id: 'llamadas', label: 'Llamadas realizadas', grupo: 'Actividad', fmt: fmtN, dims: DIMS_CRM, base: 'actividad', ayuda: 'Llamadas registradas en el CRM dentro de las fechas elegidas.', items: (c, f) => uno(eventosDe(c, f, ['llamada_ok', 'llamada_no']), (e) => ({ v: 1, ev: e })), fecha: (i) => i.ev?.ts },
+  { id: 'contestadas', label: 'Llamadas contestadas', grupo: 'Actividad', fmt: fmtN, dims: DIMS_CRM, base: 'actividad', ayuda: 'Llamadas con duración mayor que cero.', items: (c, f) => uno(eventosDe(c, f, ['llamada_ok']), (e) => ({ v: 1, ev: e })), fecha: (i) => i.ev?.ts },
+  { id: 'sin_contestar', label: 'Llamadas sin contestar', grupo: 'Actividad', fmt: fmtN, dims: DIMS_CRM, base: 'actividad', ayuda: 'Llamadas que duraron cero.', items: (c, f) => uno(eventosDe(c, f, ['llamada_no']), (e) => ({ v: 1, ev: e })), fecha: (i) => i.ev?.ts },
+  { id: 'tareas_hechas', label: 'Tareas completadas', grupo: 'Actividad', fmt: fmtN, dims: DIMS_CRM, base: 'actividad', ayuda: 'Tareas que el asesor marcó como terminadas dentro de las fechas elegidas.', items: (c, f) => uno(eventosDe(c, f, ['tarea']), (e) => ({ v: 1, ev: e })), fecha: (i) => i.ev?.ts },
+  { id: 'cotizaciones', label: 'Cotizaciones entregadas', grupo: 'Actividad', fmt: fmtN, dims: DIMS_CRM, base: 'actividad', ayuda: 'Primera vez que el lead pasó a «Propuesta entregada» dentro de las fechas elegidas.', items: (c, f) => uno(eventosDe(c, f, ['cotizacion']), (e) => ({ v: 1, ev: e })), fecha: (i) => i.ev?.ts },
+  { id: 'lev_agendados', label: 'Levantamientos agendados', grupo: 'Actividad', fmt: fmtN, dims: DIMS_CRM, base: 'actividad', ayuda: 'Leads que entraron a la etapa «Levantamiento agendado» dentro de las fechas elegidas.', items: (c, f) => uno(visitas(c, f).agendados, (l) => ({ v: 1, lead: l })), fecha: (i) => i.lead?.lev_agendado || 0 },
+  { id: 'lev_hechos', label: 'Levantamientos hechos', grupo: 'Actividad', fmt: fmtN, dims: DIMS_CRM, base: 'actividad', ayuda: 'De los agendados en las fechas elegidas, los que llegaron a «Levantamiento hecho».', items: (c, f) => uno(visitas(c, f).hechos, (l) => ({ v: 1, lead: l })), fecha: (i) => i.lead?.lev_agendado || 0 },
+  { id: 'levantamientos', label: 'Levantamientos solicitados', grupo: 'Actividad', fmt: fmtN, dims: DIMS_CRM, base: 'actividad', ayuda: 'Visitas técnicas solicitadas dentro de las fechas elegidas.', items: (c, f) => uno(eventosDe(c, f, ['levantamiento']), (e) => ({ v: 1, ev: e })), fecha: (i) => i.ev?.ts },
+  { id: 'descartes', label: 'Descartados', grupo: 'Actividad', fmt: fmtN, dims: [...DIMS_CRM, 'razon'], base: 'actividad', ayuda: 'Leads descartados dentro de las fechas elegidas, por la fecha del descarte.', items: (c, f) => uno(eventosDe(c, f, ['descarte']), (e) => ({ v: 1, ev: e })), fecha: (i) => i.ev?.ts },
+  { id: 'pc_hecho', label: 'Primer contacto completado', grupo: 'Actividad', fmt: fmtN, dims: DIMS_CRM, base: 'asignacion', ayuda: 'Leads asignados en las fechas elegidas a los que ya se les hizo la primera llamada o tarea. Solo Kommo.', items: (c, f) => uno(primerContacto(c, leadsDe(c, f)).con, (x) => ({ v: 1, lead: x.lead })), fecha: (i) => i.lead?.asignacion },
   // Seguimiento: foto de hoy
-  { id: 'tareas_vencidas', label: 'Tareas vencidas', grupo: 'Seguimiento', fmt: fmtN, dims: ['asesor', 'equipo', 'ciudad', 'crm', 'etapa', 'ninguna'], ayuda: 'Tareas abiertas cuya fecha ya pasó, contadas hoy (no dependen de las fechas de arriba).', items: (c, f) => uno(tareasDe(c, f, true), (t) => ({ v: 1, tar: t })) },
-  { id: 'tareas_abiertas', label: 'Tareas agendadas', grupo: 'Seguimiento', fmt: fmtN, dims: ['asesor', 'equipo', 'ciudad', 'crm', 'etapa', 'ninguna'], ayuda: 'Tareas abiertas hoy en leads que siguen en juego, vencidas o por vencer.', items: (c, f) => uno(tareasDe(c, f, false), (t) => ({ v: 1, tar: t })) },
-  { id: 'sin_tarea', label: 'Leads sin tarea', grupo: 'Seguimiento', fmt: fmtN, dims: DIMS_CRM, ayuda: 'Leads en juego sin ninguna tarea pendiente: nadie los está siguiendo.', items: (c, f) => uno(activos(c, f).filter((l) => l.sin_tarea), (l) => ({ v: 1, lead: l })), fecha: (i) => i.lead?.asignacion },
-  { id: 'pc_vencido', label: 'Primer contacto vencido', grupo: 'Seguimiento', fmt: fmtN, dims: DIMS_CRM, ayuda: 'Leads en juego a los que se les pasó la fecha de la tarea de primer contacto. Solo Kommo.', items: (c, f) => uno(activos(c, f).filter((l) => l.pc_vencida), (l) => ({ v: 1, lead: l })), fecha: (i) => i.lead?.asignacion },
-  { id: 'estancados', label: 'Leads estancados', grupo: 'Seguimiento', fmt: fmtN, dims: DIMS_CRM, ayuda: 'Leads en juego con más de 7 días sin ningún cambio en el CRM.', items: (c, f) => uno(activos(c, f).filter((l) => l.dias_sin_cambio > 7), (l) => ({ v: 1, lead: l })), fecha: (i) => i.lead?.asignacion },
-  { id: 'leads', label: 'Leads asignados', grupo: 'Seguimiento', fmt: fmtN, dims: DIMS_CRM, ayuda: 'Leads que se repartieron a los asesores en las fechas elegidas.', items: (c, f) => uno(leadsDe(c, f), (l) => ({ v: 1, lead: l })), fecha: (i) => i.lead?.asignacion },
-  { id: 'activos', label: 'Leads en juego', grupo: 'Seguimiento', fmt: fmtN, dims: DIMS_CRM, ayuda: 'Leads asignados en las fechas elegidas que no se han cerrado ni descartado.', items: (c, f) => uno(activos(c, f), (l) => ({ v: 1, lead: l })), fecha: (i) => i.lead?.asignacion },
-  { id: 'cotizado', label: 'Cotizado vigente', grupo: 'Seguimiento', fmt: fmtMoney0, dims: DIMS_CRM, ayuda: 'Dinero en juego: precio de los leads activos cuya cotización tiene 90 días o menos.', items: (c, f) => uno(cotizadoVigenteDe(activos(c, f), c.cotizado_dias), (l) => ({ v: l.presupuesto, lead: l })), fecha: (i) => i.lead?.asignacion },
+  { id: 'tareas_vencidas', label: 'Tareas vencidas', grupo: 'Seguimiento', fmt: fmtN, dims: ['asesor', 'equipo', 'ciudad', 'crm', 'etapa', 'ninguna'], base: 'ninguna', ayuda: 'Tareas abiertas cuya fecha ya pasó, contadas hoy (no dependen de las fechas de arriba).', items: (c, f) => uno(tareasDe(c, f, true), (t) => ({ v: 1, tar: t })) },
+  { id: 'tareas_abiertas', label: 'Tareas agendadas', grupo: 'Seguimiento', fmt: fmtN, dims: ['asesor', 'equipo', 'ciudad', 'crm', 'etapa', 'ninguna'], base: 'ninguna', ayuda: 'Tareas abiertas hoy en leads que siguen en juego, vencidas o por vencer.', items: (c, f) => uno(tareasDe(c, f, false), (t) => ({ v: 1, tar: t })) },
+  { id: 'sin_tarea', label: 'Leads sin tarea', grupo: 'Seguimiento', fmt: fmtN, dims: DIMS_CRM, base: 'asignacion', ayuda: 'Leads en juego sin ninguna tarea pendiente: nadie los está siguiendo.', items: (c, f) => uno(activos(c, f).filter((l) => l.sin_tarea), (l) => ({ v: 1, lead: l })), fecha: (i) => i.lead?.asignacion },
+  { id: 'pc_vencido', label: 'Primer contacto vencido', grupo: 'Seguimiento', fmt: fmtN, dims: DIMS_CRM, base: 'asignacion', ayuda: 'Leads en juego a los que se les pasó la fecha de la tarea de primer contacto. Solo Kommo.', items: (c, f) => uno(activos(c, f).filter((l) => l.pc_vencida), (l) => ({ v: 1, lead: l })), fecha: (i) => i.lead?.asignacion },
+  { id: 'estancados', label: 'Leads estancados', grupo: 'Seguimiento', fmt: fmtN, dims: DIMS_CRM, base: 'asignacion', ayuda: 'Leads en juego con más de 7 días sin ningún cambio en el CRM.', items: (c, f) => uno(activos(c, f).filter((l) => l.dias_sin_cambio > 7), (l) => ({ v: 1, lead: l })), fecha: (i) => i.lead?.asignacion },
+  { id: 'leads', label: 'Leads asignados', grupo: 'Seguimiento', fmt: fmtN, dims: DIMS_CRM, base: 'asignacion', ayuda: 'Leads que se repartieron a los asesores en las fechas elegidas.', items: (c, f) => uno(leadsDe(c, f), (l) => ({ v: 1, lead: l })), fecha: (i) => i.lead?.asignacion },
+  { id: 'activos', label: 'Leads en juego', grupo: 'Seguimiento', fmt: fmtN, dims: DIMS_CRM, base: 'asignacion', ayuda: 'Leads asignados en las fechas elegidas que no se han cerrado ni descartado.', items: (c, f) => uno(activos(c, f), (l) => ({ v: 1, lead: l })), fecha: (i) => i.lead?.asignacion },
+  { id: 'cotizado', label: 'Cotizado vigente', grupo: 'Seguimiento', fmt: fmtMoney0, dims: DIMS_CRM, base: 'asignacion', ayuda: 'Dinero en juego: precio de los leads activos cuya cotización tiene 90 días o menos.', items: (c, f) => uno(cotizadoVigenteDe(activos(c, f), c.cotizado_dias), (l) => ({ v: l.presupuesto, lead: l })), fecha: (i) => i.lead?.asignacion },
   // Ventas del CRM
-  { id: 'ventas', label: 'Clientes cerrados', grupo: 'Ventas', fmt: fmtN, dims: DIMS_CRM, ayuda: 'Ventas que el CRM marcó como ganadas dentro de las fechas elegidas.', items: (c, f) => uno(ventasDe(c, f), (l) => ({ v: 1, lead: l })), fecha: (i) => i.lead?.cerrado },
-  { id: 'vendido', label: 'Monto vendido', grupo: 'Ventas', fmt: fmtMoney0, dims: DIMS_CRM, ayuda: 'Suma del precio de las ventas cerradas en las fechas elegidas.', items: (c, f) => uno(ventasDe(c, f), (l) => ({ v: l.presupuesto, lead: l })), fecha: (i) => i.lead?.cerrado },
+  { id: 'ventas', label: 'Clientes cerrados', grupo: 'Ventas', fmt: fmtN, dims: DIMS_CRM, base: 'cierre', ayuda: 'Ventas que el CRM marcó como ganadas dentro de las fechas elegidas.', items: (c, f) => uno(ventasDe(c, f), (l) => ({ v: 1, lead: l })), fecha: (i) => i.lead?.cerrado },
+  { id: 'vendido', label: 'Monto vendido', grupo: 'Ventas', fmt: fmtMoney0, dims: DIMS_CRM, base: 'cierre', ayuda: 'Suma del precio de las ventas cerradas en las fechas elegidas.', items: (c, f) => uno(ventasDe(c, f), (l) => ({ v: l.presupuesto, lead: l })), fecha: (i) => i.lead?.cerrado },
   // La meta no sale de ningun lead: es lo que cada asesor tiene puesto en Configuracion, repartido al
   // periodo elegido. Sirve para graficarla y, sobre todo, para ponerla junto a lo vendido.
-  { id: 'meta', label: 'Meta de venta', grupo: 'Ventas', fmt: fmtMoney0, dims: ['asesor', 'equipo', 'ninguna'], ayuda: 'La meta en pesos del periodo elegido, por asesor (se configura en Configuración). Los asesores sin leads, actividad ni ventas en el periodo no suman meta, igual que en la tarjeta «Avance contra la meta».', items: (c, f) => porAsesor(c, f).map((x) => ({ v: x.metaRango, u: x.u })) },
-  { id: 'ticket_crm', label: 'Ticket promedio del CRM', grupo: 'Ventas', fmt: fmtMoney0, agg: 'promedio', dims: DIMS_CRM, ayuda: 'Precio promedio de cada venta cerrada en el CRM.', items: (c, f) => uno(ventasDe(c, f), (l) => ({ v: l.presupuesto, lead: l })), fecha: (i) => i.lead?.cerrado },
+  { id: 'meta', label: 'Meta de venta', grupo: 'Ventas', fmt: fmtMoney0, dims: DIMS_META, ayuda: 'La meta en pesos del periodo elegido, por asesor (se configura en Configuración). Los asesores sin leads, actividad ni ventas en el periodo no suman meta, igual que en la tarjeta «Avance contra la meta». Como la meta es mensual, no se puede partir por semana ni por día.', items: (c, f) => metasPorMes(c, f), fecha: (i) => i.ts },
+  { id: 'ticket_crm', label: 'Ticket promedio del CRM', grupo: 'Ventas', fmt: fmtMoney0, agg: 'promedio', dims: DIMS_CRM, base: 'cierre', ayuda: 'Precio promedio de cada venta cerrada en el CRM.', items: (c, f) => uno(ventasDe(c, f), (l) => ({ v: l.presupuesto, lead: l })), fecha: (i) => i.lead?.cerrado },
   // Ventas reales (app de comisiones)
-  { id: 'r_ventas', label: 'Ventas reales', grupo: 'Ventas reales', fmt: fmtN, dims: DIMS_COM, ayuda: 'Ventas registradas en la app de comisiones, sin canceladas. El mes de la venta manda, no el día.', items: (c, f) => uno(realesDe(c, f), (v) => ({ v: 1, vr: v })), fecha: (i) => i.vr?.fecha ?? undefined },
-  { id: 'r_contrato', label: 'Contrato total', grupo: 'Ventas reales', fmt: fmtMoney0, dims: DIMS_COM, ayuda: 'Suma del monto de contrato de la app de comisiones.', items: (c, f) => uno(realesDe(c, f), (v) => ({ v: v.monto, vr: v })), fecha: (i) => i.vr?.fecha ?? undefined },
-  { id: 'r_ticket', label: 'Ticket promedio', grupo: 'Ventas reales', fmt: fmtMoney0, agg: 'promedio', dims: DIMS_COM, ayuda: 'Contrato entre número de ventas: cuánto vale en promedio cada venta.', items: (c, f) => uno(realesDe(c, f), (v) => ({ v: v.monto, vr: v })), fecha: (i) => i.vr?.fecha ?? undefined },
-  { id: 'r_paneles', label: 'Paneles vendidos', grupo: 'Ventas reales', fmt: fmtN, dims: DIMS_COM, ayuda: 'Suma de los paneles de las ventas de la app.', items: (c, f) => uno(realesDe(c, f), (v) => ({ v: v.paneles || 0, vr: v })), fecha: (i) => i.vr?.fecha ?? undefined },
-  { id: 'r_panel', label: 'Precio por panel', grupo: 'Ventas reales', fmt: fmtMoney0, agg: 'razon', dims: DIMS_COM, ayuda: 'Contrato entre paneles vendidos: cuánto se cobra por cada panel.', items: (c, f) => uno(realesDe(c, f).filter((v) => (v.paneles || 0) > 0), (v) => ({ v: v.monto, v2: v.paneles || 0, vr: v })), fecha: (i) => i.vr?.fecha ?? undefined },
-  { id: 'r_enganches', label: 'Enganches pagados', grupo: 'Ventas reales', fmt: fmtN, dims: DIMS_COM, ayuda: 'Ventas de la app que ya tienen el enganche pagado.', items: (c, f) => uno(realesDe(c, f).filter((v) => v.enganche), (v) => ({ v: 1, vr: v })), fecha: (i) => i.vr?.fecha ?? undefined },
+  { id: 'r_ventas', label: 'Ventas reales', grupo: 'Ventas reales', fmt: fmtN, dims: DIMS_COM, base: 'cierre', ayuda: 'Ventas registradas en la app de comisiones, sin canceladas. El mes de la venta manda, no el día.', items: (c, f) => uno(realesDe(c, f), (v) => ({ v: 1, vr: v })), fecha: (i) => i.vr?.fecha ?? undefined },
+  { id: 'r_contrato', label: 'Contrato total', grupo: 'Ventas reales', fmt: fmtMoney0, dims: DIMS_COM, base: 'cierre', ayuda: 'Suma del monto de contrato de la app de comisiones.', items: (c, f) => uno(realesDe(c, f), (v) => ({ v: v.monto, vr: v })), fecha: (i) => i.vr?.fecha ?? undefined },
+  { id: 'r_ticket', label: 'Ticket promedio', grupo: 'Ventas reales', fmt: fmtMoney0, agg: 'promedio', dims: DIMS_COM, base: 'cierre', ayuda: 'Contrato entre número de ventas: cuánto vale en promedio cada venta.', items: (c, f) => uno(realesDe(c, f), (v) => ({ v: v.monto, vr: v })), fecha: (i) => i.vr?.fecha ?? undefined },
+  { id: 'r_paneles', label: 'Paneles vendidos', grupo: 'Ventas reales', fmt: fmtN, dims: DIMS_COM, base: 'cierre', ayuda: 'Suma de los paneles de las ventas de la app.', items: (c, f) => uno(realesDe(c, f), (v) => ({ v: v.paneles || 0, vr: v })), fecha: (i) => i.vr?.fecha ?? undefined },
+  { id: 'r_panel', label: 'Precio por panel', grupo: 'Ventas reales', fmt: fmtMoney0, agg: 'razon', dims: DIMS_COM, base: 'cierre', ayuda: 'Contrato entre paneles vendidos: cuánto se cobra por cada panel.', items: (c, f) => uno(realesDe(c, f).filter((v) => (v.paneles || 0) > 0), (v) => ({ v: v.monto, v2: v.paneles || 0, vr: v })), fecha: (i) => i.vr?.fecha ?? undefined },
+  { id: 'r_enganches', label: 'Enganches pagados', grupo: 'Ventas reales', fmt: fmtN, dims: DIMS_COM, base: 'cierre', ayuda: 'Ventas de la app que ya tienen el enganche pagado.', items: (c, f) => uno(realesDe(c, f).filter((v) => v.enganche), (v) => ({ v: 1, vr: v })), fecha: (i) => i.vr?.fecha ?? undefined },
 ]
 export const medidaDe = (id: string) => MEDIDAS.find((m) => m.id === id) || MEDIDAS[0]
 /** Dos medidas solo se juntan si se miden igual: piezas con piezas, pesos con pesos, y las dos se suman
@@ -130,7 +155,10 @@ export const combinable = (a: Medida, b: Medida) => (a.agg || 'suma') === 'suma'
 interface Dimension { id: string; label: string; tiempo?: boolean }
 export const DIMENSIONES: Dimension[] = [
   { id: 'asesor', label: 'Asesor' }, { id: 'equipo', label: 'Equipo' }, { id: 'ciudad', label: 'Ciudad del cliente' }, { id: 'crm', label: 'CRM' }, { id: 'etapa', label: 'Etapa del embudo' },
-  { id: 'razon', label: 'Razón de descarte' }, { id: 'mes', label: 'Mes', tiempo: true }, { id: 'semana', label: 'Semana', tiempo: true }, { id: 'dia', label: 'Día', tiempo: true },
+  { id: 'razon', label: 'Razón de descarte' },
+  { id: 'semana', label: 'Semana', tiempo: true }, { id: 'quincena', label: 'Quincena', tiempo: true }, { id: 'mes', label: 'Mes', tiempo: true },
+  { id: 'bimestre', label: 'Bimestre', tiempo: true }, { id: 'trimestre', label: 'Trimestre', tiempo: true }, { id: 'semestre', label: 'Semestre', tiempo: true },
+  { id: 'anio', label: 'Año', tiempo: true }, { id: 'dia', label: 'Día', tiempo: true },
   { id: 'origen', label: 'Origen de la venta' }, { id: 'forma_pago', label: 'Forma de pago' }, { id: 'zona_app', label: 'Zona de la app' }, { id: 'tamano', label: 'Tamaño en paneles' },
   { id: 'ninguna', label: 'Sin partir (total)' },
 ]
@@ -138,6 +166,44 @@ export const dimensionDe = (id: string) => DIMENSIONES.find((d) => d.id === id) 
 /** Las formas de partir que sirven para TODAS las medidas elegidas. */
 export const dimsComunes = (ids: string[]) => DIMENSIONES.filter((d) => ids.map(medidaDe).every((m) => m.dims.includes(d.id)))
 const MESES_C = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+/** El cubo de tiempo donde cae una fecha: su etiqueta, su orden y su inicio. Un solo lugar, para que
+ *  agrupar y rellenar los periodos vacíos nunca digan cosas distintas. Bimestres, trimestres y
+ *  semestres son de CALENDARIO (empiezan en enero). */
+function cubo(dim: string, d: Date): { clave: string; orden: number; ini: Date } {
+  const y = d.getFullYear(), M = d.getMonth()
+  const con = (p: Date, clave: string) => ({ clave, orden: p.getTime(), ini: p })
+  switch (dim) {
+    case 'anio': return con(new Date(y, 0, 1), String(y))
+    case 'semestre': { const i = M < 6 ? 0 : 6; return con(new Date(y, i, 1), `${MESES_C[i]}\u2013${MESES_C[i + 5]} ${y}`) }
+    case 'trimestre': { const i = Math.floor(M / 3) * 3; return con(new Date(y, i, 1), `${MESES_C[i]}\u2013${MESES_C[i + 2]} ${y}`) }
+    case 'bimestre': { const i = Math.floor(M / 2) * 2; return con(new Date(y, i, 1), `${MESES_C[i]}\u2013${MESES_C[i + 1]} ${y}`) }
+    case 'mes': return con(new Date(y, M, 1), `${MESES_C[M]} ${y}`)
+    case 'quincena': { const q = d.getDate() <= 15 ? 1 : 16; const ultimo = new Date(y, M + 1, 0).getDate(); return con(new Date(y, M, q), `${q}\u2013${q === 1 ? 15 : ultimo} ${MESES_C[M]}`) }
+    case 'semana': { const x = inicioDia(d); const lun = new Date(x); lun.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return con(lun, fmtCorta(lun)) }
+    default: { const x = inicioDia(d); return con(x, fmtCorta(x)) }
+  }
+}
+const siguienteCubo = (dim: string, d: Date): Date => {
+  const y = d.getFullYear(), M = d.getMonth()
+  switch (dim) {
+    case 'anio': return new Date(y + 1, 0, 1)
+    case 'semestre': return new Date(y, M + 6, 1)
+    case 'trimestre': return new Date(y, M + 3, 1)
+    case 'bimestre': return new Date(y, M + 2, 1)
+    case 'mes': return new Date(y, M + 1, 1)
+    case 'quincena': return d.getDate() === 1 ? new Date(y, M, 16) : new Date(y, M + 1, 1)
+    case 'semana': { const x = new Date(d); x.setDate(x.getDate() + 7); return x }
+    default: { const x = new Date(d); x.setDate(x.getDate() + 1); return x }
+  }
+}
+/** Todos los periodos del rango, incluso los que no tuvieron ni un registro: en una serie de tiempo
+ *  un hueco es información («ese mes no se vendió»), no un periodo que se salta. Tope de 400. */
+function cubosDe(dim: string, r: Rango): { clave: string; orden: number }[] {
+  const out: { clave: string; orden: number }[] = []
+  let d = cubo(dim, fechaDe(r.ini)).ini
+  for (let i = 0; i < 400 && ep(d) < r.fin; i++) { const c = cubo(dim, d); out.push({ clave: c.clave, orden: c.orden }); d = siguienteCubo(dim, d) }
+  return out
+}
 const TAMANOS: [string, number, number][] = [['1 a 4 paneles', 1, 4], ['5 a 8 paneles', 5, 8], ['9 a 12 paneles', 9, 12], ['13 a 16 paneles', 13, 16], ['17 a 20 paneles', 17, 20], ['21 paneles o más', 21, Infinity]]
 interface Ctx { corte: Corte; leads: Map<string, Lead>; users: Map<string, Usuario> }
 function leadDeItem(it: Item, ctx: Ctx): Lead | undefined {
@@ -168,13 +234,11 @@ function valorDim(it: Item, dim: string, m: Medida, ctx: Ctx): { clave: string; 
     case 'forma_pago': return { clave: it.vr?.forma_pago || 'Sin forma de pago' }
     case 'zona_app': return { clave: it.vr?.zona_app || 'Sin zona' }
     case 'tamano': { const p = it.vr?.paneles || 0; const t = TAMANOS.find(([, lo, hi]) => p >= lo && p <= hi); return { clave: t ? t[0] : 'Sin paneles', orden: t ? TAMANOS.indexOf(t) : 99 } }
-    case 'mes': case 'semana': case 'dia': {
+    case 'semana': case 'quincena': case 'mes': case 'bimestre': case 'trimestre': case 'semestre': case 'anio': case 'dia': {
       const ts = m.fecha?.(it)
       if (!ts) return { clave: 'Sin fecha', orden: Infinity }
-      const d = fechaDe(ts)
-      if (dim === 'mes') { const p = new Date(d.getFullYear(), d.getMonth(), 1); return { clave: `${MESES_C[p.getMonth()]} ${p.getFullYear()}`, orden: p.getTime() } }
-      if (dim === 'semana') { const x = inicioDia(d); const lun = new Date(x); lun.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return { clave: fmtCorta(lun), orden: lun.getTime() } }
-      const x = inicioDia(d); return { clave: fmtCorta(x), orden: x.getTime() }
+      const c = cubo(dim, fechaDe(ts))
+      return { clave: c.clave, orden: c.orden }
     }
     default: return { clave: 'Total' }
   }
@@ -193,6 +257,9 @@ export function serie(c: Corte, f: Filtros, g: Grafica): { grupos: Grupo[]; tota
     const gr = map.get(clave) || { label: clave, valor: 0, n: 0, items: [], orden }
     gr.n++; gr.items.push(it); map.set(clave, gr)
   }
+  // En tiempo, los periodos sin registros entran con cero para que la línea no mienta.
+  const dimT = dimensionDe(g.dim)
+  if (dimT.tiempo) for (const c of cubosDe(g.dim, f.rango)) if (!map.has(c.clave)) map.set(c.clave, { label: c.clave, valor: 0, n: 0, items: [], orden: c.orden })
   const agg = m.agg || 'suma'
   const grupos = [...map.values()].map((gr) => {
     const s = gr.items.reduce((a, i) => a + i.v, 0)
@@ -242,6 +309,25 @@ function filasDe(c: Corte, items: Item[]) {
 
 // ---------------------------------------------------------------- la gráfica
 const COLORES = ['var(--c1)', 'var(--c2)', 'var(--c4)', 'var(--c3)', 'var(--neutral)', 'var(--warn)', 'var(--f3)', 'var(--f5)']
+/** En una serie de tiempo lo que importa es lo RECIENTE: se cortan los últimos N periodos, no los N
+ *  más altos. Fuera del tiempo se corta por tamaño, como siempre. */
+function recortar<T>(xs: T[], dim: string, tope: number): T[] {
+  return dimensionDe(dim).tiempo ? xs.slice(-tope) : xs.slice(0, tope)
+}
+/** «Fechas por cierre»: contra qué fecha cae cada registro en su periodo. Solo aparece cuando el eje
+ *  es tiempo, que es donde la duda muerde (Randall: el conflicto entre fecha de actividad y de
+ *  asignación). Si las medidas de una mixta usan bases distintas, se dicen todas. */
+function AvisoFechas({ medidas, dim }: { medidas: Medida[]; dim: string }) {
+  if (!dimensionDe(dim).tiempo) return null
+  const bases = [...new Set(medidas.map((m) => m.base).filter((b): b is BaseFecha => !!b && b !== 'ninguna'))]
+  if (!bases.length) return null
+  const uno = bases.length === 1
+  return (
+    <div className="gbase" title={bases.map((b) => BASE_FECHA[b].largo).join('\n\n')}>
+      {uno ? `Fechas ${BASE_FECHA[bases[0]].corto}` : medidas.filter((m) => m.base && m.base !== 'ninguna').map((m) => `${m.label} ${BASE_FECHA[m.base as BaseFecha].corto}`).join(' · ')}
+    </div>
+  )
+}
 export function GraficaLibre(props: { corte: Corte; filtros: Filtros; g: Grafica; onDrill?: (d: Drill) => void; mini?: boolean }) {
   // Con dos o mas medidas la grafica es MIXTA; si el tipo no sabe dibujarlas (cifra, dona) manda la primera.
   const mixta = idsMedidas(props.g).length > 1 && MULTI_OK.includes(props.g.tipo)
@@ -254,7 +340,8 @@ function GraficaUna({ corte, filtros, g, onDrill, mini = false }: { corte: Corte
   const meta = useMemo(() => (g.meta && g.tipo === 'cifra' && conMeta(medidaDe(g.medida)) ? metaTotal(corte, filtros) : 0), [corte, filtros, g.meta, g.tipo, g.medida])
   if (!grupos.length) return <div className={'vacio' + (mini ? ' mini' : '')}><span className="muted">Sin datos con estos filtros.</span></div>
   const tope = mini ? 5 : (g.top || 12)
-  const vistos = g.tipo === 'linea' || g.tipo === 'vbar' ? grupos : grupos.slice(0, tope)
+  const vistos = dimensionDe(g.dim).tiempo ? recortar(grupos, g.dim, tope)
+    : g.tipo === 'linea' || g.tipo === 'vbar' ? grupos : grupos.slice(0, tope)
   const sub = (x: Grupo) => (m.agg ? `${fmtN(x.n)} venta${x.n === 1 ? '' : 's'}` : undefined)
   const ver = (x: Grupo) => onDrill?.({ titulo: `${m.label} \u00b7 ${x.label}`, filas: filasDe(corte, x.items), sub: filtros.rango.label })
   const items = vistos.map((x) => ({ label: x.label, value: x.valor, sub: sub(x) }))
@@ -305,9 +392,11 @@ function GraficaUna({ corte, filtros, g, onDrill, mini = false }: { corte: Corte
       </tbody>
     </table></div>
   )
-  if (g.tipo === 'vbar') return <BarChart label={m.label} fmt={m.fmt} color={COLORES[0]} items={items} onBar={clic} />
-  if (g.tipo === 'linea') return <LineChart label={m.label} fmt={m.fmt} color={COLORES[3]} items={items} onPoint={clic} />
-  return <HBarList label={m.label} fmt={m.fmt} color={COLORES[0]} items={items} onBar={clic} />
+  const cuerpo = g.tipo === 'vbar' ? <BarChart label={m.label} fmt={m.fmt} color={COLORES[0]} items={items} onBar={clic} />
+    : g.tipo === 'linea' ? <LineChart label={m.label} fmt={m.fmt} color={COLORES[3]} items={items} onPoint={clic} />
+    : <HBarList label={m.label} fmt={m.fmt} color={COLORES[0]} items={items} onBar={clic} />
+  if (mini || !dimensionDe(g.dim).tiempo) return cuerpo
+  return <div className="gmulti"><AvisoFechas medidas={[m]} dim={g.dim} /><div className="gmbody">{cuerpo}</div></div>
 }
 
 /** Grafica mixta: dos o mas medidas contra la misma dimension y en la misma escala. Apiladas se lee el
@@ -327,7 +416,8 @@ function GraficaMixta({ corte, filtros, g, onDrill, mini = false }: { corte: Cor
   })
   if (!labels.length) return <div className={'vacio' + (mini ? ' mini' : '')}><span className="muted">Sin datos con estos filtros.</span></div>
   const tope = mini ? 4 : (g.top || 12)
-  const vistos = g.tipo === 'linea' || g.tipo === 'vbar' ? labels.slice(0, mini ? 6 : 24) : labels.slice(0, tope)
+  const vistos = dimensionDe(g.dim).tiempo ? recortar(labels, g.dim, mini ? 6 : tope)
+    : g.tipo === 'linea' || g.tipo === 'vbar' ? labels.slice(0, mini ? 6 : 24) : labels.slice(0, tope)
   const items: BarItem[] = vistos.map((l) => {
     const partes = series.map((s, i) => ({ label: s.m.label, val: val(i, l.label), color: COLORES[i % COLORES.length] }))
     const suma = partes.reduce((a, p) => a + p.val, 0)
@@ -363,13 +453,17 @@ function GraficaMixta({ corte, filtros, g, onDrill, mini = false }: { corte: Cor
     <div className="gmulti">
       <div className="gleyenda">
         {series.map((s, i) => {
-          const dentro = <><i style={{ background: COLORES[i % COLORES.length] }} aria-hidden="true" /><span>{s.m.label}</span><b>{m0.fmt(s.total)}</b></>
+          // El total de la leyenda es el de lo que SE VE: con 12 meses dibujados de un rango de tres
+          // años, poner la suma de los 39 meses hacía leer mal la gráfica.
+          const suma = vistos.reduce((a, l) => a + val(i, l.label), 0)
+          const dentro = <><i style={{ background: COLORES[i % COLORES.length] }} aria-hidden="true" /><span>{s.m.label}</span><b>{m0.fmt(suma)}</b></>
           return clicable
-            ? <button type="button" key={s.m.id} className="chip" onClick={() => verSerie(i)} aria-label={`${s.m.label}: ${m0.fmt(s.total)}. Ver todos sus registros`}>{dentro}</button>
+            ? <button type="button" key={s.m.id} className="chip" onClick={() => verSerie(i)} aria-label={`${s.m.label}: ${m0.fmt(suma)}. Ver todos sus registros`}>{dentro}</button>
             : <span key={s.m.id} className="chip">{dentro}</span>
         })}
         {!mini && <span className="chip modo">{modo === 'apilado' ? 'apiladas: suman el total' : 'lado a lado: para comparar'}</span>}
       </div>
+      {!mini && <AvisoFechas medidas={series.map((x) => x.m)} dim={g.dim} />}
       <div className="gmbody">{cuerpo}</div>
       {det && <BarDetailPopup anchor={det.anchor} title={det.label} total={filasPop.reduce((a, r) => a + r.val, 0)} rows={filasPop} fmt={m0.fmt} onClose={() => setDet(null)} />}
     </div>
@@ -389,6 +483,8 @@ export const MIXTAS: Grafica[] = [
   X('x-riesgo', 'Riesgo de seguimiento por asesor', ['tareas_vencidas', 'sin_tarea', 'pc_vencido'], 'asesor', 'hbar'),
   X('x-juego', 'Leads en juego y descartados', ['activos', 'descartes'], 'asesor', 'hbar'),
   X('x-meta-asesor', 'Vendido contra la meta por asesor', ['vendido', 'meta'], 'asesor', 'hbar', 'lado'),
+  X('x-meta-mes', 'Vendido contra la meta por mes', ['vendido', 'meta'], 'mes', 'vbar', 'lado'),
+  X('x-meta-trim', 'Vendido contra la meta por trimestre', ['vendido', 'meta'], 'trimestre', 'vbar', 'lado'),
   X('x-meta-equipo', 'Vendido contra la meta por equipo', ['vendido', 'meta'], 'equipo', 'vbar', 'lado'),
   X('x-cot-ventas', 'Cotizaciones y ventas por mes', ['cotizaciones', 'ventas'], 'mes', 'linea'),
   X('x-ciudad', 'Cotizaciones y ventas por ciudad', ['cotizaciones', 'ventas'], 'ciudad', 'vbar', 'lado'),
@@ -415,6 +511,9 @@ export const PLANTILLAS: Grafica[] = [
   P('p-leads-mes', 'Leads asignados por mes', 'leads', 'mes', 'vbar'),
   P('p-leads-equipo', 'Leads asignados por equipo', 'leads', 'equipo', 'vbar'),
   P('p-vendido-mes', 'Monto vendido por mes', 'vendido', 'mes', 'vbar'),
+  P('p-vendido-trim', 'Monto vendido por trimestre', 'vendido', 'trimestre', 'vbar'),
+  P('p-ventas-anio', 'Clientes cerrados por año', 'ventas', 'anio', 'vbar'),
+  P('p-leads-semana', 'Leads asignados por semana', 'leads', 'semana', 'linea'),
   P('p-vendido-asesor', 'Monto vendido por asesor', 'vendido', 'asesor', 'hbar'),
   P('p-activos-etapa', 'Leads en juego por etapa', 'activos', 'etapa', 'hbar'),
   P('p-cotizado-asesor', 'Cotizado vigente por asesor', 'cotizado', 'asesor', 'hbar'),
@@ -520,11 +619,17 @@ export function Editor({ corte, filtros, g, onGuardar, onClose }: { corte: Corte
   const ids = idsMedidas(cfg)
   const m = medidaDe(cfg.medida)
   const dims = dimsComunes(ids)
+  const esTiempo = dimensionDe(cfg.dim).tiempo
   const set = (x: Partial<Grafica>) => setCfg((c) => {
     const n = { ...c, ...x }
     const nids = idsMedidas(n)
     if (!dimsComunes(nids).some((d) => d.id === n.dim)) n.dim = (dimsComunes(nids)[0] || DIMENSIONES[0]).id
     if (nids.length > 1 && !MULTI_OK.includes(n.tipo)) n.tipo = 'hbar'
+    // Una línea une puntos en el tiempo; con asesores o ciudades no hay nada que unir (Randall 10-sep
+    // hizo una línea por asesor y salió un punto suelto).
+    if (n.tipo === 'linea' && !dimensionDe(n.dim).tiempo) n.tipo = 'vbar'
+    // Al pasar a un eje de tiempo, las barras verticales son lo natural (el tiempo corre a lo ancho).
+    if (x.dim && dimensionDe(n.dim).tiempo && !dimensionDe(c.dim).tiempo && n.tipo === 'hbar') n.tipo = 'vbar'
     if (n.meta && (n.tipo !== 'cifra' || !conMeta(medidaDe(n.medida)))) n.meta = undefined
     if (!manual) n.titulo = autoTitulo(n)
     return n
@@ -588,9 +693,12 @@ export function Editor({ corte, filtros, g, onGuardar, onClose }: { corte: Corte
               <span className="ed-lbl">Cómo dibujarlo</span>
               <span className="ed-tipos" role="radiogroup" aria-label="Tipo de gráfica">
                 {TIPOS.map((t) => {
-                  const no = ids.length > 1 && !MULTI_OK.includes(t.id)
+                  const noMulti = ids.length > 1 && !MULTI_OK.includes(t.id)
+                  const noLinea = t.id === 'linea' && !dimensionDe(cfg.dim).tiempo
+                  const no = noMulti || noLinea
+                  const porque = noMulti ? `${t.label}: solo con una medida` : noLinea ? 'La línea une puntos en el tiempo: parte por semana, mes, trimestre…' : t.label
                   return (
-                    <button type="button" key={t.id} role="radio" aria-checked={cfg.tipo === t.id} disabled={no} className={'ed-tipo' + (cfg.tipo === t.id ? ' on' : '')} onClick={() => set({ tipo: t.id })} title={no ? `${t.label}: solo con una medida` : t.label}>
+                    <button type="button" key={t.id} role="radio" aria-checked={cfg.tipo === t.id} disabled={no} className={'ed-tipo' + (cfg.tipo === t.id ? ' on' : '')} onClick={() => set({ tipo: t.id })} title={porque}>
                       <IconoTipo id={t.id} /><span>{t.label}</span>
                     </button>
                   )
@@ -616,9 +724,9 @@ export function Editor({ corte, filtros, g, onGuardar, onClose }: { corte: Corte
               </div>
             )}
             <label>Título<input className="inp" value={cfg.titulo} onChange={(e) => { setManual(true); setCfg((c) => ({ ...c, titulo: e.target.value })) }} /></label>
-            <label>Cuántos mostrar
+            <label>{esTiempo ? 'Cuántos periodos' : 'Cuántos mostrar'}
               <select className="sel" value={cfg.top || 12} onChange={(e) => set({ top: Number(e.target.value) })}>
-                {[5, 10, 12, 20, 50].map((n) => <option key={n} value={n}>{n === 50 ? 'Todos' : `Los ${n} más altos`}</option>)}
+                {(esTiempo ? [6, 12, 24, 50] : [5, 10, 12, 20, 50]).map((n) => <option key={n} value={n}>{n === 50 ? 'Todos' : esTiempo ? `Los ${n} más recientes` : `Los ${n} más altos`}</option>)}
               </select>
             </label>
             {cfg.medida.startsWith('r_') && (

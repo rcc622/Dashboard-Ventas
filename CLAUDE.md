@@ -905,6 +905,27 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   filtros)` y arma el tablero con `construir(filtros, datos)`: una vez con las fechas de arriba y una
   vez **por cada periodo distinto** que alguien haya fijado (no una por widget). Las gráficas propias
   lo resuelven en `taller.render`, con `filtrosDe('g:' + g.id)`.
+- **El eje X puede ser el TIEMPO** (Randall 10-sep: «que se pueda partir por semana, mes, bimestre,
+  cuarto, semestre o año… el X la partida y el Y el monto»). Dimensiones nuevas: Semana, Quincena,
+  Mes, Bimestre, Trimestre, Semestre, Año (más el Día que ya existía). `cubo()` decide en qué periodo
+  cae una fecha y `cubosDe()` genera TODOS los periodos del rango, así que **un periodo sin registros
+  entra con cero** en vez de desaparecer (una línea con huecos miente). Bimestres, trimestres y
+  semestres son de **calendario** (arrancan en enero). Reglas que trae el cambio:
+  - En tiempo se muestran los **más recientes**, no los más altos (`recortar()`), y el selector dice
+    «Cuántos periodos · Los 12 más recientes».
+  - **La línea solo existe con una dimensión de tiempo** (Randall hizo una línea por asesor y salió un
+    punto suelto); al elegir un eje de tiempo, unas barras horizontales pasan solas a verticales.
+  - La gráfica **dice contra qué fecha** cae cada registro en su periodo: «Fechas por cierre / por
+    actividad / por asignación» (`Medida.base` + `BASE_FECHA`, el mismo diccionario que las columnas
+    de Asesores). Solo aparece cuando el eje es tiempo, que es donde la duda muerde.
+  - **La meta también se parte por tiempo**: `metasPorMes()` corta la meta mensual de cada asesor mes a
+    mes dentro del rango y prorratea los meses incompletos por días. Por eso la meta acepta mes,
+    bimestre, trimestre, semestre y año, pero **no semana ni día** (repartir una meta mensual dentro
+    del mes sería inventar dato).
+  - El total de la leyenda de una mixta es el de **lo que se ve**: con 12 meses dibujados de un rango
+    de tres años, poner la suma de los 39 hacía leer mal la gráfica.
+  - Plantillas nuevas: «Vendido contra la meta por mes» y «por trimestre», «Monto vendido por
+    trimestre», «Clientes cerrados por año», «Leads asignados por semana».
 - **La ficha del asesor también trae el constructor**, fijado a esa persona (`{...filtros, asesor: uid}`);
   Mi día usa una galería simple con lo que se quitó de ese tablero (no tiene medidas propias).
 - **La página «Ventas reales» desapareció** (Randall 7-sep: «no quiero otra sección, lo quiero todo en
