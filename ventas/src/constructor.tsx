@@ -1,4 +1,5 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { cargarTableros, guardarTablero } from './data'
 import type { Corte, Evento, Lead, Rango, Tarea, Usuario, VentaReal } from './types'
 import { CRM_LABEL } from './types'
 import {
@@ -571,6 +572,7 @@ export function Galeria({ corte, filtros, quitados, onAgregar, onCrear, onClose,
   useEscape(onClose)
   const [q, setQ] = useState('')
   const [editar, setEditar] = useState<Grafica | null>(null)
+  const mias = useMisGraficas()
   const hayComisiones = !!corte.comisiones
   // Arrastrar una tarjeta hace lo mismo que tocarla: cierra la galería y la deja pegada al puntero.
   const arrastrar = (accion: () => void) => (e: React.PointerEvent) => {
@@ -584,6 +586,7 @@ export function Galeria({ corte, filtros, quitados, onAgregar, onCrear, onClose,
   const busca = (p: Grafica) => !nq || p.titulo.toLowerCase().includes(nq) || idsMedidas(p).some((id) => medidaDe(id).label.toLowerCase().includes(nq))
   const plantillas = PLANTILLAS.filter((p) => (hayComisiones || !p.medida.startsWith('r_')) && busca(p))
   const mixtas = MIXTAS.filter(busca)
+  const guardadas = mias.lista.filter(busca)
   const tarjeta = (p: Grafica) => (
     <span className="gcard-wrap" key={p.id}>
       <button type="button" className="gcard" onClick={() => { onCrear({ ...p, id: 'g' + Date.now().toString(36) }); onClose() }} onPointerDown={arrastrar(() => { onCrear({ ...p, id: 'g' + Date.now().toString(36) }); onClose() })} title={`Arrastra «${p.titulo}» a la celda del tablero donde la quieras`}>
@@ -596,7 +599,7 @@ export function Galeria({ corte, filtros, quitados, onAgregar, onCrear, onClose,
   const dev = quitados.filter((w) => !nq || w.titulo.toLowerCase().includes(nq))
   if (editar) return <Editor corte={corte} filtros={fechas ? fechas.filtros(editar.id) : filtros} g={editar}
     rango={fechas?.de(editar.id)} onRango={fechas ? (p) => fechas.fijar(editar.id, p) : undefined}
-    onGuardar={(x) => { onCrear(x); onClose() }} onClose={() => setEditar(null)} />
+    onMia={mias.guardar} onGuardar={(x) => { onCrear(x); onClose() }} onClose={() => setEditar(null)} />
   return (
     <div className="modal-bg" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div className="modal galeria" role="dialog" aria-modal="true" aria-label="Agregar una gráfica" ref={ref}>
@@ -618,6 +621,21 @@ export function Galeria({ corte, filtros, quitados, onAgregar, onCrear, onClose,
               </button>
             ))}
           </div>
+          {guardadas.length > 0 && <>
+            <h3 className="gsec">Mis gráficas · las que tú guardaste</h3>
+            <div className="ggrid">{guardadas.map((p) => (
+              <span className="gcard-wrap" key={p.id}>
+                <button type="button" className="gcard" onClick={() => { onCrear({ ...p, id: 'g' + Date.now().toString(36) }); onClose() }} onPointerDown={arrastrar(() => { onCrear({ ...p, id: 'g' + Date.now().toString(36) }); onClose() })} title={`Arrastra «${p.titulo}» a la celda del tablero donde la quieras`}>
+                  <span className="gt">{p.titulo}</span>
+                  <span className="gprev" aria-hidden="true"><GraficaLibre corte={corte} filtros={filtros} g={p} mini /></span>
+                </button>
+                <span className="gcard-pie">
+                  <button type="button" className="nbtn gedit" onClick={() => setEditar({ ...p, id: 'g' + Date.now().toString(36) })}>Ajustar antes de agregar</button>
+                  <button type="button" className="nbtn gborrar" onClick={() => mias.quitar(p.id)} title={`Quitar «${p.titulo}» de mis gráficas`}>Quitar de mis gráficas</button>
+                </span>
+              </span>
+            ))}</div>
+          </>}
           {mixtas.length > 0 && <h3 className="gsec">Mixtas · comparan dos o más medidas</h3>}
           <div className="ggrid">{mixtas.map(tarjeta)}</div>
           <h3 className="gsec">Gráficas listas</h3>
@@ -632,17 +650,41 @@ export function Galeria({ corte, filtros, quitados, onAgregar, onCrear, onClose,
 }
 
 /** El nombre que se pone solo: «Llamadas contestadas y Llamadas sin contestar por asesor». */
+/** Las gráficas que alguien guardó para reusarlas, en su cuenta (Randall 10-sep: «que las gráficas
+ *  que cree las pueda guardar para que se queden en la galería»). Viven aparte del tablero: una
+ *  gráfica guardada se puede agregar a cualquier tablero, o borrarse sin tocar los tableros. */
+const CLAVE_MIAS = 'mis-graficas'
+export function useMisGraficas() {
+  const [lista, setLista] = useState<Grafica[]>([])
+  useEffect(() => {
+    let vivo = true
+    cargarTableros().then((t) => {
+      const g = t[CLAVE_MIAS] as { lista?: Grafica[] } | undefined
+      if (vivo && g && Array.isArray(g.lista)) setLista(g.lista)
+    }).catch(() => { /* sin sesión */ })
+    return () => { vivo = false }
+  }, [])
+  const fijar = (v: Grafica[]) => { setLista(v); guardarTablero(CLAVE_MIAS, { lista: v, ts: Date.now() }).catch(() => { /* sin sesión */ }) }
+  return {
+    lista,
+    guardar: (g: Grafica) => fijar([{ ...g, id: 'm' + Date.now().toString(36) }, ...lista.filter((x) => x.titulo !== g.titulo)].slice(0, 40)),
+    quitar: (id: string) => fijar(lista.filter((x) => x.id !== id)),
+    yaEsta: (g: Grafica) => lista.some((x) => x.titulo === g.titulo),
+  }
+}
+
 export function autoTitulo(g: Grafica): string {
   const ls = idsMedidas(g).map((id) => medidaDe(id).label)
   const medidas = ls.length > 1 ? ls.slice(0, -1).join(', ') + ' y ' + ls[ls.length - 1] : ls[0]
   return medidas + (g.dim === 'ninguna' ? '' : ' por ' + dimensionDe(g.dim).label.toLowerCase())
 }
 
-export function Editor({ corte, filtros, g, onGuardar, onClose, rango, onRango }: { corte: Corte; filtros: Filtros; g: Grafica; onGuardar: (g: Grafica) => void; onClose: () => void; rango?: Preset; onRango?: (p: Preset | null) => void }) {
+export function Editor({ corte, filtros, g, onGuardar, onClose, rango, onRango, onMia }: { corte: Corte; filtros: Filtros; g: Grafica; onGuardar: (g: Grafica) => void; onClose: () => void; rango?: Preset; onRango?: (p: Preset | null) => void; onMia?: (g: Grafica) => void }) {
   const ref = useRef<HTMLDivElement>(null)
   useFocoDialogo(ref)
   useEscape(onClose)
   const [cfg, setCfg] = useState<Grafica>(g)
+  const [guardada, setGuardada] = useState(false)
   // El titulo se escribe solo hasta que alguien lo escribe a mano; asi cambiar de medida no borra un nombre propio.
   const [manual, setManual] = useState(() => !!g.titulo && g.titulo !== 'Mi gráfica' && g.titulo !== autoTitulo(g))
   const ids = idsMedidas(cfg)
@@ -788,6 +830,9 @@ export function Editor({ corte, filtros, g, onGuardar, onClose, rango, onRango }
         </div>
         <div className="mf ed-pie">
           <button type="button" className="btn ghost" onClick={onClose}>Cancelar</button>
+          {onMia && <button type="button" className="btn" onClick={() => { onMia(cfg); setGuardada(true) }} disabled={guardada}>
+            {guardada ? '✓ Guardada en mis gráficas' : 'Guardar en mis gráficas'}
+          </button>}
           <button type="button" className="btn on" onClick={() => onGuardar(cfg)}>Agregar al tablero</button>
         </div>
       </div>

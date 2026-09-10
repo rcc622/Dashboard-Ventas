@@ -1075,3 +1075,5 @@ h3 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: 0; t
 /* Con muchas columnas las cifras de encima se pisan entre sí (peor aún si son dos por columna en
    «lado a lado»): se quitan y el valor vive en el tooltip y en la altura de la barra. */
 .vbars.apretado .vcol .vv, .vbars.apretado .vcol .vs { display: none; }
+.gcard-pie { display: flex; justify-content: space-between; gap: 8px; }
+.gborrar { font-size: 12px; color: var(--warn-ink); }

@@ -123,3 +123,15 @@ export async function cargarTableros(): Promise<Record<string, unknown>> {
 export async function guardarTablero(clave: string, layout: unknown | null): Promise<void> {
   await post('tablero', { clave, layout })
 }
+
+/** Las cuentas de /ventas (solo administrador): para aplicarles un acomodo. */
+export interface Cuenta { id: string; usuario: string; nombre: string; rol: string; activo: boolean }
+export async function cargarCuentas(): Promise<Cuenta[]> {
+  const r = await fetch('usuarios.json', { cache: 'no-store' })
+  if (!r.ok) throw new Error('HTTP ' + r.status)
+  return ((await r.json()) as { usuarios?: Cuenta[] }).usuarios || []
+}
+/** Copiarle a otras cuentas las mismas claves que cada quien guarda (acomodo, fechas, columnas). */
+export async function compartirTablero(destinos: string[], datos: Record<string, unknown>): Promise<void> {
+  await post('tablero/compartir', { destinos, datos })
+}

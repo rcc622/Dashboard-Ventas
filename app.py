@@ -1009,6 +1009,43 @@ class H(BaseHTTPRequestHandler):
             todos[ses["uid"]] = mios
             self._escribir(VENTAS_TABLEROS, todos)
             return self._send(200, json.dumps({"ok": True}), "application/json")
+        if ruta == "/ventas/tablero/compartir":
+            # Aplicarle MI acomodo a otras cuentas (Randall 10-sep: «el orden y acomodo que haga lo
+            # pueda aplicar para ciertos usuarios o roles… para acomodarle la vista a los demás»).
+            # Solo el administrador, solo a cuentas que existen, y lo que se copia son las mismas
+            # claves que ya guarda cada quien (el acomodo, sus fechas, sus columnas).
+            if ses["rol"] != "admin":
+                return err(403, "solo administradores")
+            try:
+                cuerpo = self._json_body(TABLERO_MAX * 4)
+                destinos = cuerpo.get("destinos") or []
+                datos = cuerpo.get("datos") or {}
+                if not isinstance(destinos, list) or not destinos:
+                    raise ValueError("faltan las cuentas destino")
+                if not isinstance(datos, dict) or not datos:
+                    raise ValueError("no hay nada que aplicar")
+                for clave in datos:
+                    if not CLAVE_TABLERO.match(str(clave)):
+                        raise ValueError("clave inválida: %s" % clave)
+                if len(json.dumps(datos)) > TABLERO_MAX * 3:
+                    raise ValueError("el acomodo es demasiado grande")
+            except (ValueError, TypeError) as e:
+                return err(400, str(e))
+            validos = {u.get("id") for u in leer_usuarios()} | {"admin"}
+            faltan = [d for d in destinos if d not in validos]
+            if faltan:
+                return err(400, "cuentas que no existen: " + ", ".join(map(str, faltan[:5])))
+            todos = leer_tableros()
+            for uid in destinos:
+                suyo = dict(todos.get(uid) or {})
+                for clave, valor in datos.items():
+                    if valor is None:
+                        suyo.pop(clave, None)
+                    else:
+                        suyo[clave] = valor
+                todos[uid] = suyo
+            self._escribir(VENTAS_TABLEROS, todos)
+            return self._send(200, json.dumps({"ok": True, "cuentas": len(destinos)}), "application/json")
         if ses["rol"] != "admin":
             return err(403, "solo administradores")
         if ruta == "/ventas/config":

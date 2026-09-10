@@ -986,6 +986,20 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
     estrenen el diseño sin tener que restablecer el tablero.
   - La ficha también estrena la **etiqueta de fechas por widget** (`useRangos('ficha')`), que es lo
     que faltaba: 22 widgets, 22 etiquetas. La elección se comparte entre fichas.
+- **«Mis gráficas»: guardar una gráfica para reusarla** (Randall 10-sep: «que las gráficas que cree
+  las pueda guardar para que se queden en la galería»). En el constructor, el botón «Guardar en mis
+  gráficas» la deja en la CUENTA (clave `mis-graficas`, `useMisGraficas()`), y la galería abre con la
+  sección «Mis gráficas · las que tú guardaste», cada tarjeta con «Ajustar antes de agregar» y
+  «Quitar de mis gráficas». Viven aparte de los tableros: la misma gráfica se agrega al Dashboard, a
+  la ficha o a donde sea, y borrarla de la galería no toca los tableros donde ya esté.
+- **Aplicarle tu acomodo a otras cuentas** (Randall 10-sep: «el orden y acomodo que haga lo pueda
+  aplicar para ciertos usuarios o roles… para acomodarle la vista a los demás»). Botón «Aplicar a
+  otras cuentas» en la barra del tablero (solo administrador). El modal lista las cuentas activas de
+  `usuarios.json`, con atajos por rol, y `POST /ventas/tablero/compartir {destinos, datos}` —admin,
+  cuentas que existan, mismo tope de tamaño— les escribe las mismas claves que cada quien guarda: el
+  acomodo (`admin`, `ficha2`, `midia-<uid>`) y sus fechas por widget (`rangos-<clave>`). El modal
+  avisa a quién le sirve cada vista: el Dashboard y la ficha solo los abren las cuentas de
+  administrador; «Mi día» es de esa persona, así que se le aplica a SU cuenta.
 - **La ficha del asesor también trae el constructor**, fijado a esa persona (`{...filtros, asesor: uid}`);
   Mi día usa una galería simple con lo que se quitó de ese tablero (no tiene medidas propias).
 - **La página «Ventas reales» desapareció** (Randall 7-sep: «no quiero otra sección, lo quiero todo en

@@ -5,7 +5,7 @@ import type { Termino } from './glosario'
 import { baseDe, type Grafica } from './constructor'
 import { BASE_FECHA, type BaseFecha } from './columnas'
 import { PRESETS, nombrePreset, type Preset } from './metrics'
-import { cargarTableros, guardarTablero } from './data'
+import { cargarCuentas, cargarTableros, compartirTablero, guardarTablero, type Cuenta } from './data'
 
 // Rejilla LIBRE de widgets (Randall 6-sep: «colocar libremente las gráficas en el lugar que yo
 // quiera, con un sistema de grids», como los editores de tablero de Kommo y HubSpot). Seis
@@ -222,9 +222,77 @@ function BotonFechas({ id, titulo, actual, base, fechas }: { id: string; titulo:
   )
 }
 
-export function WidgetGrid({ clave, widgets, taller: ctor, fechas }: { clave: string; widgets: Widget[]; taller?: Constructor; fechas?: Fechas }) {
+/** Aplicarle este acomodo a otras cuentas (Randall 10-sep: «poderle acomodar la vista a los demás,
+ *  de gráficas que no encuentren o no sepan cómo hacer»). Copia el acomodo y las fechas propias de
+ *  los widgets; no toca nada más de la cuenta destino. */
+function Compartir({ clave, datos, onClose }: { clave: string; datos: Record<string, unknown>; onClose: () => void }) {
+  const ref = useRef<HTMLDivElement>(null)
+  useEscape(onClose)
+  const [cuentas, setCuentas] = useState<Cuenta[] | null>(null)
+  const [error, setError] = useState('')
+  const [elegidas, setElegidas] = useState<Set<string>>(new Set())
+  const [ocupado, setOcupado] = useState(false)
+  const [listo, setListo] = useState(0)
+  useEffect(() => { cargarCuentas().then((c) => setCuentas(c.filter((x) => x.activo))).catch((e) => setError(String(e.message || e))) }, [])
+  const alternar = (id: string) => setElegidas((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })
+  const porRol = (rol: string) => {
+    const ids = (cuentas || []).filter((c) => c.rol === rol).map((c) => c.id)
+    setElegidas((s) => { const n = new Set(s); const todas = ids.every((i) => n.has(i)); ids.forEach((i) => (todas ? n.delete(i) : n.add(i))); return n })
+  }
+  const aplicar = () => {
+    setOcupado(true); setError('')
+    compartirTablero([...elegidas], datos)
+      .then(() => { setListo(elegidas.size); setOcupado(false) })
+      .catch((e) => { setError(String(e.message || e)); setOcupado(false) })
+  }
+  const roles = [...new Set((cuentas || []).map((c) => c.rol))]
+  // Cada vista la ve un tipo de cuenta: no tiene caso aplicarle el tablero de administrador a un
+  // vendedor, que abre en «Mi día».
+  const soloAdmin = clave === 'admin' || clave === 'ficha2'
+  const deQuien = soloAdmin ? (clave === 'admin' ? 'Es la vista Dashboard, que solo abren las cuentas de administrador.' : 'Es la ficha del asesor, que solo abren las cuentas de administrador.')
+    : clave.startsWith('midia-') ? 'Es la vista «Mi día» de ese asesor: aplícasela a SU cuenta.' : ''
+  return (
+    <div className="modal-bg" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="modal cols" role="dialog" aria-modal="true" aria-label="Aplicar este acomodo a otras cuentas" ref={ref}>
+        <div className="mh">
+          <div className="mt"><h2>Aplicar este acomodo</h2><div className="small muted">Le deja a quien elijas el mismo orden, las mismas gráficas y las mismas fechas por widget que tú tienes aquí. Pisa el acomodo que esa cuenta tuviera en esta vista; no toca sus otras vistas.{deQuien ? ' ' + deQuien : ''}</div></div>
+          <button type="button" className="ib" aria-label="Cerrar" onClick={onClose}>×</button>
+        </div>
+        <div className="mb">
+          {error && <div className="aviso">{error}</div>}
+          {listo > 0 && <div className="aviso">Listo: se aplicó a {listo} cuenta{listo === 1 ? '' : 's'}. La verán al recargar.</div>}
+          {!cuentas && !error && <div className="muted">Cargando cuentas…</div>}
+          {cuentas && !cuentas.length && <div className="muted">No hay cuentas de /ventas dadas de alta. Se crean en Configuración.</div>}
+          {roles.length > 1 && <div className="cols-btns" style={{ marginBottom: 8 }}>
+            {roles.map((r) => <button type="button" key={r} className="btn sm" onClick={() => porRol(r)}>Todos los {r === 'admin' ? 'administradores' : r + 'es'}</button>)}
+          </div>}
+          <ul className="collist">
+            {(cuentas || []).map((c) => (
+              <li key={c.id} className={elegidas.has(c.id) ? 'on' : ''}>
+                <label>
+                  <input type="checkbox" checked={elegidas.has(c.id)} onChange={() => alternar(c.id)} />
+                  <span>{c.nombre || c.usuario}</span><span className="muted"> · {c.rol}{soloAdmin && c.rol !== 'admin' ? ' · no abre esta vista' : ''}</span>
+                </label>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="mf">
+          <span className="small muted">{elegidas.size} cuenta{elegidas.size === 1 ? '' : 's'} elegida{elegidas.size === 1 ? '' : 's'} · vista «{clave}»</span>
+          <span className="cols-btns">
+            <button type="button" className="btn ghost" onClick={onClose}>Cerrar</button>
+            <button type="button" className="btn on" disabled={!elegidas.size || ocupado} onClick={aplicar}>{ocupado ? 'Aplicando…' : 'Aplicar a los elegidos'}</button>
+          </span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export function WidgetGrid({ clave, widgets, taller: ctor, fechas, compartible }: { clave: string; widgets: Widget[]; taller?: Constructor; fechas?: Fechas; compartible?: boolean }) {
   const [layout, setLayout] = useState<Layout>(() => inicial(clave, widgets))
   const [galeria, setGaleria] = useState(false)
+  const [compartir, setCompartir] = useState(false)
   const [ajustando, setAjustando] = useState<Grafica | null>(null)
   // Las gráficas propias son widgets como los demás: se mueven, se estiran y se quitan igual.
   const todos = useMemo(() => [...widgets, ...(layout.graficas || []).map((g): Widget => ({
@@ -451,6 +519,10 @@ export function WidgetGrid({ clave, widgets, taller: ctor, fechas }: { clave: st
           <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M10 12V4M7 7l3-3 3 3M4 16h12" /></svg>
           Quitar espacios
         </button>}
+        {compartible && <button type="button" className="btn sm" onClick={() => setCompartir(true)} aria-haspopup="dialog" title="Dejarle este mismo acomodo a otras cuentas">
+          <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="15" cy="5" r="2" /><circle cx="5" cy="10" r="2" /><circle cx="15" cy="15" r="2" /><path d="M6.8 9 13.2 6M6.8 11l6.4 3" /></svg>
+          Aplicar a otras cuentas
+        </button>}
         {tocado && <button type="button" className="btn sm wreset-btn" onClick={restablecer}>
           <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 10a6 6 0 1 0 1.8-4.2M4 4v3h3" /></svg>
           Restablecer tablero
@@ -499,6 +571,8 @@ export function WidgetGrid({ clave, widgets, taller: ctor, fechas }: { clave: st
       </div>
       <div className="wreset">Arrastra el asa ⋮⋮ a la celda que quieras (o enfócala y usa ← → ↑ ↓); estira la esquina inferior derecha para cambiar ancho y alto (← → ↑ ↓ sobre ella; Supr regresa el tamaño por defecto). Nada se encima: lo que choca se empuja hacia abajo. × quita la gráfica del tablero y arriba, en «Agregar gráfica», la regresas. Se guarda en este navegador.</div>
 
+      {compartir && <Compartir clave={clave} onClose={() => setCompartir(false)}
+        datos={{ [clave]: layout, ...(fechas ? { ['rangos-' + clave]: { por: fechas.por, ts: Date.now() } } : {}) }} />}
       {colocando && (
         <div className="colocando" role="status">
           <span>Sueltas <b>{colocando.titulo}</b> donde toques el tablero.</span>

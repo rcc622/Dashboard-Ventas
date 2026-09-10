@@ -140,7 +140,7 @@ function Shell({ yo, corte, origen, error, onRetry, onConfig, onLogout }: { yo: 
     contenido = pagina === 'ventas' ? <MisVentas corte={corte} uid={asesorActual} />
       : pagina === 'prospectos' ? <Prospectos corte={corte} uid={asesorActual} />
       : pagina === 'calendario' ? <Calendario corte={corte} uid={asesorActual} />
-      : <MiDia corte={corte} uid={asesorActual} />
+      : <MiDia corte={corte} uid={asesorActual}  compartible={esAdmin} />
   }
 
   return (

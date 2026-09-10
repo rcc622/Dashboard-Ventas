@@ -583,7 +583,7 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
   return (
     <>
       <div className="hint" style={{ marginBottom: 8 }}>Clic en cualquier cifra, barra o renglón abre la lista de registros detrás, con liga a Kommo o HubSpot.</div>
-      <WidgetGrid clave="admin" widgets={ORDEN_ADMIN.map((id) => widgets.find((w) => w.id === id)).filter((w): w is Widget => !!w).concat(widgets.filter((w) => !ORDEN_ADMIN.includes(w.id)))}
+      <WidgetGrid clave="admin" compartible widgets={ORDEN_ADMIN.map((id) => widgets.find((w) => w.id === id)).filter((w): w is Widget => !!w).concat(widgets.filter((w) => !ORDEN_ADMIN.includes(w.id)))}
         fechas={{ por: rangos, fijar: fijarRango, tablero: nombreTablero, fechas: fechasDe }}
         taller={{
           render: (g: Grafica) => <GraficaLibre corte={corte} filtros={filtrosDe('g:' + g.id)} g={g} onDrill={setDrill} />,
@@ -1103,7 +1103,7 @@ export function Ficha({ corte, filtros, uid, onBack }: { corte: Corte; filtros: 
         <span className="tag dark">{activos.length} leads activos</span>
       </div>
       {/* La ficha usa el mismo constructor, pero fijado a este asesor. */}
-      <WidgetGrid clave="ficha2" widgets={ORDEN_FICHA.map((id) => widgets.find((w) => w.id === id)).filter((w): w is Widget => !!w).concat(widgets.filter((w) => !ORDEN_FICHA.includes(w.id)))}
+      <WidgetGrid clave="ficha2" compartible widgets={ORDEN_FICHA.map((id) => widgets.find((w) => w.id === id)).filter((w): w is Widget => !!w).concat(widgets.filter((w) => !ORDEN_FICHA.includes(w.id)))}
         fechas={{ por: rangos, fijar: fijarRango, tablero: nombreTablero, fechas: fechasDe }}
         taller={{
         render: (g: Grafica) => <GraficaLibre corte={corte} filtros={filtrosDe('g:' + g.id)} g={g} onDrill={setDrill} />,
