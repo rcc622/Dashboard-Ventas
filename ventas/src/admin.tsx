@@ -164,26 +164,18 @@ function datosDe(corte: Corte, f: Filtros) {
 }
 type Datos = ReturnType<typeof datosDe>
 
-export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filtros: Filtros; onFicha: (uid: string) => void }) {
-  // Punto agrupado («×n») de la dispersión: lista inline para elegir a quién abrir; se limpia al cambiar filtros.
-  const [grupo, setGrupo] = useState<PuntoPerfil[] | null>(null)
-  useEffect(() => setGrupo(null), [filtros])
-  const [drill, setDrill] = useState<Drill | null>(null)
-  const ver = (titulo: string, filas: Fila[], sub?: string) => setDrill({ titulo, filas, sub })
-  // Fechas propias por widget (Randall 10-sep: «si un widget siempre debe mostrar la info histórica,
-  // que la muestre y no conflictúe con el date range del tablero»). Sin fechas propias se sigue al tablero.
-  const { rangos, fijarRango } = useRangos('admin')
-  const desdeMaximo = useMemo(() => { let m = corte.desde; for (const l of corte.leads) { if (l.asignacion && l.asignacion < m) m = l.asignacion; if (l.creado && l.creado < m) m = l.creado } return m }, [corte])
-  const conRango = (p: Preset): Filtros => ({ ...filtros, rango: preset(p, new Date(), desdeMaximo) })
-  // «Este mes» / «Máximo»: el nombre del periodo de arriba, para que la etiqueta de cada widget diga
-  // qué está mirando aunque siga al tablero (Randall 10-sep, como los widgets de HubSpot).
-  const nombreTablero = filtros.rango.label.includes(': ') ? filtros.rango.label.split(': ')[0] : 'Fechas elegidas'
-  const fechasDe = (p?: Preset) => { const r = p ? conRango(p).rango : filtros.rango; return etiquetaRango(null, r.ini, r.fin) }
-  const filtrosDe = (id: string): Filtros => (rangos[id] ? conRango(rangos[id]) : filtros)
-  // Lo que el constructor necesita para dejar elegir las fechas de la gráfica que se está creando.
-  const fechasCtor = { de: (id: string) => rangos['g:' + id], filtros: (id: string) => filtrosDe('g:' + id), fijar: (id: string, p: Preset | null) => fijarRango('g:' + id, p) }
-
-  const construir = (filtros: Filtros, d: Datos): Widget[] => {
+/** Quién responde a los clics de los widgets: la página que los dibuja. */
+interface Acciones {
+  ver: (titulo: string, filas: Fila[], sub?: string) => void
+  onFicha: (uid: string) => void
+  grupo: PuntoPerfil[] | null
+  setGrupo: (g: PuntoPerfil[] | null) => void
+}
+/** Todos los widgets del tablero. Vive fuera del componente porque el tablero se arma varias veces:
+ *  con las fechas de arriba, con las fechas propias de un widget, y —desde la ficha— fijado a UNA
+ *  persona (Randall 10-sep: «que la vista por defecto del asesor sea como el diseño del PDF»). */
+function widgetsTablero(corte: Corte, filtros: Filtros, d: Datos, ax: Acciones): Widget[] {
+  const { ver, onFicha, grupo, setGrupo } = ax
   const { leads, ev, ventas, filas, ent, pc, rz, perf, vr, cg, vis, lev } = d
   const s = salud(leads)
   const con = s.ventasCon + s.huntCon, sin = s.ventasSin + s.huntSin, tot = con + sin
@@ -552,7 +544,28 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
     ), { info: ['Perfil'], cls: 'wperf', span: 3, alto: 10, desde: 'perfiles' }),
   ]
   return widgets
-  }
+}
+
+export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filtros: Filtros; onFicha: (uid: string) => void }) {
+  // Punto agrupado («×n») de la dispersión: lista inline para elegir a quién abrir; se limpia al cambiar filtros.
+  const [grupo, setGrupo] = useState<PuntoPerfil[] | null>(null)
+  useEffect(() => setGrupo(null), [filtros])
+  const [drill, setDrill] = useState<Drill | null>(null)
+  const ver = (titulo: string, filas: Fila[], sub?: string) => setDrill({ titulo, filas, sub })
+  // Fechas propias por widget (Randall 10-sep: «si un widget siempre debe mostrar la info histórica,
+  // que la muestre y no conflictúe con el date range del tablero»). Sin fechas propias se sigue al tablero.
+  const { rangos, fijarRango } = useRangos('admin')
+  const desdeMaximo = useMemo(() => { let m = corte.desde; for (const l of corte.leads) { if (l.asignacion && l.asignacion < m) m = l.asignacion; if (l.creado && l.creado < m) m = l.creado } return m }, [corte])
+  const conRango = (p: Preset): Filtros => ({ ...filtros, rango: preset(p, new Date(), desdeMaximo) })
+  // «Este mes» / «Máximo»: el nombre del periodo de arriba, para que la etiqueta de cada widget diga
+  // qué está mirando aunque siga al tablero (Randall 10-sep, como los widgets de HubSpot).
+  const nombreTablero = filtros.rango.label.includes(': ') ? filtros.rango.label.split(': ')[0] : 'Fechas elegidas'
+  const fechasDe = (p?: Preset) => { const r = p ? conRango(p).rango : filtros.rango; return etiquetaRango(null, r.ini, r.fin) }
+  const filtrosDe = (id: string): Filtros => (rangos[id] ? conRango(rangos[id]) : filtros)
+  // Lo que el constructor necesita para dejar elegir las fechas de la gráfica que se está creando.
+  const fechasCtor = { de: (id: string) => rangos['g:' + id], filtros: (id: string) => filtrosDe('g:' + id), fijar: (id: string, p: Preset | null) => fijarRango('g:' + id, p) }
+
+  const construir = (f: Filtros, dd: Datos): Widget[] => widgetsTablero(corte, f, dd, { ver, onFicha, grupo, setGrupo })
 
   // El tablero, con las fechas de arriba. Los widgets que tienen fechas propias se sacan de un
   // segundo armado con SUS fechas: uno por periodo distinto, no uno por widget.
@@ -899,6 +912,22 @@ function AsesorPopup({ corte, filtros, fila, x, y, onClose, onFicha }: { corte: 
 const lunes = (d: Date) => sumar(inicioDia(d), -((d.getDay() + 6) % 7))
 
 const wg = (id: string, titulo: string, nodo: React.ReactNode, opts: Partial<Widget> = {}): Widget => ({ id, titulo, nodo, ...opts })
+/** Los widgets del tablero general que TAMBIÉN tienen sentido para una persona: los mismos números,
+ *  fijados a ella (Randall 10-sep, diseño del PDF). Fuera quedan los de equipo (salud, ranking,
+ *  perfiles) y los que la ficha ya cuenta a su manera (avance contra la meta, ventas reales). */
+const FICHA_COMPARTIDOS = ['t-cotizaciones', 't-descartes', 't-levantamientos', 't-leads', 't-ventas', 't-conversion', 't-perdida', 't-tareas', 'embudo', 'etapas', 'contacto', 'llamadas']
+/** El orden con el que abre la ficha: evolución, el resumen de la persona, sus cifras, el embudo,
+ *  cómo atiende, su actividad y sus pendientes. */
+const ORDEN_FICHA = [
+  'ev', 'ev-tabla',
+  'ventas', 'cumplimiento', 'cierre',
+  't-cotizaciones', 'cotizado', 't-descartes', 't-levantamientos',
+  't-leads', 't-ventas', 't-conversion', 't-perdida', 't-tareas',
+  'reales', 'embudo', 'etapas', 'contacto', 'llamadas',
+  'actividad', 'leads', 'tareas',
+]
+/** La meta de porcentaje de cierre mientras no viva en Configuración (Randall la puso en el PDF). */
+const META_CIERRE = 0.10
 
 /** Ficha del asesor. Es un WidgetGrid (clave «ficha», compartida entre asesores): cada tarjeta se
  *  mueve, estira o quita igual que en el Dashboard. Cotizado vigente y su antigüedad van en UNA
@@ -914,6 +943,27 @@ export function Ficha({ corte, filtros, uid, onBack }: { corte: Corte; filtros: 
   const [zoom, setZoom] = useState<{ ini: Date; dias: number; texto: string } | null>(null)   // semana o mes abierto en Actividad por día; null = vista del rango
   const [drill, setDrill] = useState<Drill | null>(null)
   useEffect(() => setZoom(null), [filtros.rango.ini, filtros.rango.fin, uid])
+  // Fechas propias por widget, igual que en el tablero general (Randall 10-sep: «en la vista del
+  // asesor no está lo del date range del widget»). La elección se comparte entre fichas: si dejas
+  // «Ventas» en Máximo, se ve en Máximo para cualquier asesor.
+  const { rangos, fijarRango } = useRangos('ficha')
+  const desdeMaximo = useMemo(() => { let m = corte.desde; for (const l of corte.leads) { if (l.asignacion && l.asignacion < m) m = l.asignacion; if (l.creado && l.creado < m) m = l.creado } return m }, [corte])
+  const conRango = (pz: Preset): Filtros => ({ ...f, rango: preset(pz, new Date(), desdeMaximo) })
+  const filtrosDe = (id: string): Filtros => (rangos[id] ? conRango(rangos[id]) : f)
+  const fechasCtor = { de: (id: string) => rangos['g:' + id], filtros: (id: string) => filtrosDe('g:' + id), fijar: (id: string, pz: Preset | null) => fijarRango('g:' + id, pz) }
+  const nombreTablero = filtros.rango.label.includes(': ') ? filtros.rango.label.split(': ')[0] : 'Fechas elegidas'
+  const fechasDe = (pz?: Preset) => { const r = pz ? conRango(pz).rango : f.rango; return etiquetaRango(null, r.ini, r.fin) }
+  // Los mismos widgets del tablero, pero de esta persona. Se arman una vez con las fechas de arriba
+  // y una por cada periodo que alguien haya fijado, como en el tablero general.
+  const acciones = useMemo(() => ({ ver: (titulo: string, filas: Fila[], sub?: string) => setDrill({ titulo, filas, sub }), onFicha: () => {}, grupo: null, setGrupo: () => {} }), [])
+  const compartidos = (ff: Filtros) => widgetsTablero(corte, ff, datosDe(corte, ff), acciones).filter((w) => FICHA_COMPARTIDOS.includes(w.id))
+  const baseCompartidos = useMemo(() => compartidos(f), [corte, filtros, uid])   // eslint-disable-line react-hooks/exhaustive-deps
+  const otrosCompartidos = useMemo(() => {
+    const m = new Map<string, Widget[]>()
+    for (const pz of new Set(Object.values(rangos))) m.set(pz, compartidos(conRango(pz)))
+    return m
+  }, [corte, filtros, uid, rangos])   // eslint-disable-line react-hooks/exhaustive-deps
+  const delTablero = baseCompartidos.map((w) => (rangos[w.id] && otrosCompartidos.get(rangos[w.id])?.find((x) => x.id === w.id)) || w)
   if (!u) return <div className="panel">Asesor no encontrado. <button type="button" className="btn" onClick={onBack}>← Volver</button></div>
   const rango = filtros.rango.label, periodo = periodoTexto(filtros.rango)
   const metaMes = metaDe(corte, u), metaRango = metaEnRango(metaMes, filtros.rango)
@@ -1023,6 +1073,27 @@ export function Ficha({ corte, filtros, uid, onBack }: { corte: Corte; filtros: 
         </div>
       </>
     ), { span: 6, info: ['Tareas'] }),
+    // La evolución abre la ficha: cómo va mes a mes contra su meta (Randall 10-sep, diseño del PDF).
+    wg('ev', 'Monto vendido y Meta de venta por mes', (
+      <GraficaLibre corte={corte} filtros={filtrosDe('ev')} onDrill={setDrill}
+        g={{ id: 'ev', titulo: 'Monto vendido y Meta de venta por mes', medida: 'vendido', medidas: ['meta'], dim: 'mes', tipo: 'vbar', modo: 'lado', top: 12 }} />
+    ), { span: 3, alto: 9, base: 'cierre' }),
+    wg('ev-tabla', `${corte.comisiones ? 'Contrato total' : 'Monto vendido'} y Meta de venta por mes`, (
+      <GraficaLibre corte={corte} filtros={filtrosDe('ev-tabla')} onDrill={setDrill}
+        g={{ id: 'ev-tabla', titulo: 'Por mes', medida: corte.comisiones ? 'r_contrato' : 'vendido', medidas: ['meta'], dim: 'mes', tipo: 'tabla', top: 12 }} />
+    ), { span: 3, alto: 9, base: 'cierre' }),
+    // Porcentaje de cierre contra su meta: el número que Randall puso a mano en el PDF.
+    wg('cierre', 'Porcentaje de cierre', (
+      <button type="button" className={'tile tbtn t4 ritmo-' + (leads.length && ventas.length / leads.length >= META_CIERRE ? 'cumplida' : 'atras')}
+        aria-label={`Porcentaje de cierre ${leads.length ? pct(ventas.length, leads.length) : 0}%, meta ${Math.round(META_CIERRE * 100)}%. Ver las ventas`}
+        onClick={() => setDrill({ titulo: `Ventas de ${u.nombre}`, filas: fVentas(ventas), sub: rango + ' · fecha = cierre' })}>
+        <div className="n">{leads.length ? pct(ventas.length, leads.length) : 0}%</div>
+        <div className="l">{fmtN(ventas.length)} cerrados de {fmtN(leads.length)} leads asignados {periodo}</div>
+        <Bullet value={leads.length ? ventas.length / leads.length : 0} target={META_CIERRE} label="Porcentaje de cierre" fmt={(n) => Math.round(n * 100) + '%'} />
+        <div className="rt">Meta: {Math.round(META_CIERRE * 100)}%</div>
+      </button>
+    ), { plain: true, span: 2, alto: 5, cls: 'wtile', info: ['Conversión'], base: 'cierre' }),
+    ...delTablero,
   ]
   return (
     <>
@@ -1032,10 +1103,12 @@ export function Ficha({ corte, filtros, uid, onBack }: { corte: Corte; filtros: 
         <span className="tag dark">{activos.length} leads activos</span>
       </div>
       {/* La ficha usa el mismo constructor, pero fijado a este asesor. */}
-      <WidgetGrid clave="ficha" widgets={widgets} taller={{
-        render: (g: Grafica) => <GraficaLibre corte={corte} filtros={{ ...filtros, asesor: uid }} g={g} onDrill={setDrill} />,
-        galeria: (p) => <Galeria corte={corte} filtros={{ ...filtros, asesor: uid }} quitados={p.quitados} onAgregar={p.onAgregar} onCrear={p.onCrear} onClose={p.onClose} />,
-        editor: (p) => <Editor corte={corte} filtros={{ ...filtros, asesor: uid }} g={p.g} onGuardar={p.onGuardar} onClose={p.onClose} />,
+      <WidgetGrid clave="ficha2" widgets={ORDEN_FICHA.map((id) => widgets.find((w) => w.id === id)).filter((w): w is Widget => !!w).concat(widgets.filter((w) => !ORDEN_FICHA.includes(w.id)))}
+        fechas={{ por: rangos, fijar: fijarRango, tablero: nombreTablero, fechas: fechasDe }}
+        taller={{
+        render: (g: Grafica) => <GraficaLibre corte={corte} filtros={filtrosDe('g:' + g.id)} g={g} onDrill={setDrill} />,
+        galeria: (p) => <Galeria corte={corte} filtros={f} quitados={p.quitados} onAgregar={p.onAgregar} onCrear={p.onCrear} onClose={p.onClose} fechas={fechasCtor} />,
+        editor: (p) => <Editor corte={corte} filtros={filtrosDe('g:' + p.g.id)} g={p.g} rango={rangos['g:' + p.g.id]} onRango={(x) => fijarRango('g:' + p.g.id, x)} onGuardar={p.onGuardar} onClose={p.onClose} />,
       }} />
       {drill && <DrillModal d={drill} onClose={() => setDrill(null)} />}
     </>

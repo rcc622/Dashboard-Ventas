@@ -970,6 +970,22 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   se reemplazan por un dato: «Monterrey · Kommo y HubSpot» (`.tb-info`). Y la ficha ya **ignora
   también el filtro de CRM** (antes solo el de equipo): si el tablero estaba en Kommo y la persona
   trabaja en HubSpot, su ficha salía vacía.
+- **La ficha es ahora el tablero de UNA persona** (Randall 10-sep, PDF «Dashboard por vendedor»:
+  «que la vista por defecto sea como el diseño del PDF, solo antes pones lo de la gráfica y tabla de
+  evolución»). Los widgets del tablero general salieron de `AdminDashboard` a una función suelta,
+  `widgetsTablero(corte, filtros, datos, acciones)`, y la ficha la llama con `asesor` fijado: así los
+  mismos números (cotizaciones, descartados, levantamientos, leads asignados, clientes cerrados,
+  conversión, tasa de pérdida, tareas completadas, embudo, monto por etapa, primer contacto,
+  llamadas) se ven de esa persona sin duplicar una línea de código (`FICHA_COMPARTIDOS`). Quedan
+  fuera los de equipo (salud, ranking, perfiles) y los que la ficha ya cuenta a su manera.
+  - **Arriba, la evolución**: «Monto vendido y Meta de venta por mes» (barras lado a lado) y la misma
+    tabla con el contrato de la app de comisiones. Son widgets de fábrica, no gráficas del usuario.
+  - **«Porcentaje de cierre»** con su medidor y «Meta: 10 %» (`META_CIERRE`, constante mientras no
+    viva en Configuración): clientes cerrados ÷ leads asignados del periodo.
+  - `ORDEN_FICHA` fija el orden del PDF y la clave del acomodo pasó a `ficha2`, para que todos
+    estrenen el diseño sin tener que restablecer el tablero.
+  - La ficha también estrena la **etiqueta de fechas por widget** (`useRangos('ficha')`), que es lo
+    que faltaba: 22 widgets, 22 etiquetas. La elección se comparte entre fichas.
 - **La ficha del asesor también trae el constructor**, fijado a esa persona (`{...filtros, asesor: uid}`);
   Mi día usa una galería simple con lo que se quitó de ese tablero (no tiene medidas propias).
 - **La página «Ventas reales» desapareció** (Randall 7-sep: «no quiero otra sección, lo quiero todo en
