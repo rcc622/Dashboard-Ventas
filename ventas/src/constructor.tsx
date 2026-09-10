@@ -5,7 +5,7 @@ import {
   cotizadoVigenteDe, enRango, etapaDe, fechaDe, filasDeEventos, filasDeLeads, filasDeVentasReales, fmtCorta, fmtMoney0, fmtN,
   inicioDia, mapaUsuarios, ocultosDe, pasaCrm, primerContacto, visitas, vivo, zonaNombre, type Filtros,
 } from './metrics'
-import { BarChart, DonutChart, HBarList, LineChart, useEscape, useFocoDialogo } from './components'
+import { BarChart, BarDetailPopup, DonutChart, HBarList, LineChart, useEscape, useFocoDialogo, type BarItem, type DetRow, type Modo } from './components'
 import type { Drill } from './drill'
 
 // Constructor de gráficas (Randall 7-sep: «un graph modifier/builder para que ya no dependamos tanto de ti»).
@@ -17,8 +17,19 @@ import type { Drill } from './drill'
 export type TipoGrafica = 'hbar' | 'vbar' | 'linea' | 'dona' | 'cifra' | 'tabla'
 export interface Grafica {
   id: string; titulo: string; medida: string; dim: string; tipo: TipoGrafica
+  medidas?: string[]        // medidas extra: la grafica se vuelve MIXTA (Randall 10-sep)
+  modo?: Modo               // mixta en barras: apiladas (suman) o lado a lado (comparan)
   top?: number; captura?: 'completa' | 'incompleta'; span?: number; alto?: number
 }
+/** Todas las medidas de la grafica, la principal primero. */
+export const idsMedidas = (g: Grafica) => [g.medida, ...(g.medidas || [])]
+/** Tipos que saben dibujar varias medidas. Una cifra o una dona miden UNA cosa. */
+export const MULTI_OK: TipoGrafica[] = ['hbar', 'vbar', 'linea', 'tabla']
+export const MAX_MEDIDAS = 4
+export const MODOS: { id: Modo; label: string; ayuda: string }[] = [
+  { id: 'apilado', label: 'Apiladas', ayuda: 'una sobre otra: se lee el total' },
+  { id: 'lado', label: 'Lado a lado', ayuda: 'una junto a otra: se comparan' },
+]
 export const TIPOS: { id: TipoGrafica; label: string }[] = [
   { id: 'hbar', label: 'Barras horizontales' }, { id: 'vbar', label: 'Barras verticales' },
   { id: 'linea', label: 'Línea' }, { id: 'dona', label: 'Dona' }, { id: 'cifra', label: 'Cifra' }, { id: 'tabla', label: 'Tabla' },
@@ -104,6 +115,10 @@ export const MEDIDAS: Medida[] = [
   { id: 'r_enganches', label: 'Enganches pagados', grupo: 'Ventas reales', fmt: fmtN, dims: DIMS_COM, ayuda: 'Ventas de la app que ya tienen el enganche pagado.', items: (c, f) => uno(realesDe(c, f).filter((v) => v.enganche), (v) => ({ v: 1, vr: v })), fecha: (i) => i.vr?.fecha ?? undefined },
 ]
 export const medidaDe = (id: string) => MEDIDAS.find((m) => m.id === id) || MEDIDAS[0]
+/** Dos medidas solo se juntan si se miden igual: piezas con piezas, pesos con pesos, y las dos se suman
+ *  (un promedio o una razon no se pueden apilar). Asi la grafica siempre tiene UNA sola escala, que es
+ *  la regla que evita las comparaciones tramposas de dos ejes. */
+export const combinable = (a: Medida, b: Medida) => (a.agg || 'suma') === 'suma' && (b.agg || 'suma') === 'suma' && a.fmt === b.fmt
 
 // ---------------------------------------------------------------- dimensiones
 interface Dimension { id: string; label: string; tiempo?: boolean }
@@ -114,6 +129,8 @@ export const DIMENSIONES: Dimension[] = [
   { id: 'ninguna', label: 'Sin partir (total)' },
 ]
 export const dimensionDe = (id: string) => DIMENSIONES.find((d) => d.id === id) || DIMENSIONES[0]
+/** Las formas de partir que sirven para TODAS las medidas elegidas. */
+export const dimsComunes = (ids: string[]) => DIMENSIONES.filter((d) => ids.map(medidaDe).every((m) => m.dims.includes(d.id)))
 const MESES_C = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
 const TAMANOS: [string, number, number][] = [['1 a 4 paneles', 1, 4], ['5 a 8 paneles', 5, 8], ['9 a 12 paneles', 9, 12], ['13 a 16 paneles', 13, 16], ['17 a 20 paneles', 17, 20], ['21 paneles o más', 21, Infinity]]
 interface Ctx { corte: Corte; leads: Map<string, Lead>; users: Map<string, Usuario> }
@@ -181,6 +198,26 @@ export function serie(c: Corte, f: Filtros, g: Grafica): { grupos: Grupo[]; tota
   const total = agg === 'suma' ? grupos.reduce((a, x) => a + x.valor, 0) : filtrados.reduce((a, i) => a + i.v, 0)
   return { grupos, total, m }
 }
+export interface SerieM { m: Medida; por: Map<string, Grupo>; total: number }
+/** Una grafica mixta: las mismas etiquetas (asesor, mes, ciudad...) medidas con dos o mas medidas.
+ *  Cada medida trae su propio grupo por etiqueta; las etiquetas se ordenan por la suma de todas
+ *  (o por tiempo si la dimension es de tiempo), asi el orden no cambia al prender y apagar medidas. */
+export function multiserie(c: Corte, f: Filtros, g: Grafica): { labels: { label: string; orden?: number }[]; series: SerieM[] } {
+  const series = idsMedidas(g).map((id) => {
+    const s = serie(c, f, { ...g, medida: id })
+    return { m: s.m, por: new Map(s.grupos.map((x) => [x.label, x])), total: s.total }
+  })
+  const suma = new Map<string, number>(), orden = new Map<string, number>()
+  for (const s of series) for (const gr of s.por.values()) {
+    suma.set(gr.label, (suma.get(gr.label) || 0) + gr.valor)
+    if (gr.orden != null) orden.set(gr.label, gr.orden)
+  }
+  const dim = dimensionDe(g.dim)
+  const labels = [...suma.keys()].map((l) => ({ label: l, orden: orden.get(l) }))
+  labels.sort((a, b) => (dim.tiempo || a.orden != null ? (a.orden ?? 0) - (b.orden ?? 0) : (suma.get(b.label) || 0) - (suma.get(a.label) || 0)))
+  return { labels, series }
+}
+
 /** Los registros detrás de un grupo, para el detalle. */
 function filasDe(c: Corte, items: Item[]) {
   if (items[0]?.vr) return filasDeVentasReales(items.map((i) => i.vr!))
@@ -194,25 +231,31 @@ function filasDe(c: Corte, items: Item[]) {
 
 // ---------------------------------------------------------------- la gráfica
 const COLORES = ['var(--c1)', 'var(--c2)', 'var(--c4)', 'var(--c3)', 'var(--neutral)', 'var(--warn)', 'var(--f3)', 'var(--f5)']
-export function GraficaLibre({ corte, filtros, g, onDrill, mini = false }: { corte: Corte; filtros: Filtros; g: Grafica; onDrill?: (d: Drill) => void; mini?: boolean }) {
+export function GraficaLibre(props: { corte: Corte; filtros: Filtros; g: Grafica; onDrill?: (d: Drill) => void; mini?: boolean }) {
+  // Con dos o mas medidas la grafica es MIXTA; si el tipo no sabe dibujarlas (cifra, dona) manda la primera.
+  const mixta = idsMedidas(props.g).length > 1 && MULTI_OK.includes(props.g.tipo)
+  return mixta ? <GraficaMixta {...props} /> : <GraficaUna {...props} />
+}
+
+function GraficaUna({ corte, filtros, g, onDrill, mini = false }: { corte: Corte; filtros: Filtros; g: Grafica; onDrill?: (d: Drill) => void; mini?: boolean }) {
   const { grupos, total, m } = useMemo(() => serie(corte, filtros, g), [corte, filtros, g])
   if (!grupos.length) return <div className={'vacio' + (mini ? ' mini' : '')}><span className="muted">Sin datos con estos filtros.</span></div>
   const tope = mini ? 5 : (g.top || 12)
   const vistos = g.tipo === 'linea' || g.tipo === 'vbar' ? grupos : grupos.slice(0, tope)
   const sub = (x: Grupo) => (m.agg ? `${fmtN(x.n)} venta${x.n === 1 ? '' : 's'}` : undefined)
-  const ver = (x: Grupo) => onDrill?.({ titulo: `${m.label} · ${x.label}`, filas: filasDe(corte, x.items), sub: filtros.rango.label })
+  const ver = (x: Grupo) => onDrill?.({ titulo: `${m.label} \u00b7 ${x.label}`, filas: filasDe(corte, x.items), sub: filtros.rango.label })
   const items = vistos.map((x) => ({ label: x.label, value: x.valor, sub: sub(x) }))
   const clic = onDrill && !mini ? (i: number) => ver(vistos[i]) : undefined
-  // Una cifra propia usa la misma tarjeta `.tile` que las cifras de fábrica: así crece con el
-  // widget (la tipografía va en unidades del contenedor) y trae su fondo y su punto de color, en vez
-  // de quedar chiquita en una esquina (Randall 10-sep: «el diseño no es proporcional al tamaño»).
-  // En la vista previa de la galería va sin tarjeta, para no meter un recuadro dentro de otro.
-  if (g.tipo === 'cifra') return (
-    <div className={'gcifra' + (mini ? '' : ' tile')}>
-      <div className="n">{m.fmt(m.agg === 'promedio' && grupos.length === 1 ? grupos[0].valor : total)}</div>
-      <div className="l">{m.label}</div>
-    </div>
-  )
+  // Una cifra propia usa la misma tarjeta `.tile` que las cifras de fabrica: crece con el widget y, como
+  // ellas, se puede tocar para ver los registros de atras (Randall 10-sep: «las graficas que yo creo no
+  // me dejan darle clic»). En la vista previa de la galeria va sin tarjeta y sin clic.
+  if (g.tipo === 'cifra') {
+    const cifra = m.fmt(m.agg === 'promedio' && grupos.length === 1 ? grupos[0].valor : total)
+    const dentro = <><div className="n">{cifra}</div><div className="l">{m.label}</div></>
+    return onDrill && !mini
+      ? <button type="button" className="gcifra tile tbtn" aria-label={`${m.label}: ${cifra}. Ver detalle`} onClick={() => onDrill({ titulo: m.label, filas: filasDe(corte, grupos.flatMap((x) => x.items)), sub: filtros.rango.label })}>{dentro}</button>
+      : <div className={'gcifra' + (mini ? '' : ' tile')}>{dentro}</div>
+  }
   if (g.tipo === 'dona') return (
     <div className="donut-legend">
       <DonutChart partes={vistos.map((x, i) => ({ val: x.valor, color: COLORES[i % COLORES.length], label: x.label }))} total={total} label={m.fmt(total)} size={mini ? 110 : 170} />
@@ -242,8 +285,87 @@ export function GraficaLibre({ corte, filtros, g, onDrill, mini = false }: { cor
   return <HBarList label={m.label} fmt={m.fmt} color={COLORES[0]} items={items} onBar={clic} />
 }
 
+/** Grafica mixta: dos o mas medidas contra la misma dimension y en la misma escala. Apiladas se lee el
+ *  total; lado a lado se comparan. Un clic en la barra abre el desglose por medida y de ahi a los
+ *  registros; un clic en la leyenda abre todos los registros de esa medida. */
+function GraficaMixta({ corte, filtros, g, onDrill, mini = false }: { corte: Corte; filtros: Filtros; g: Grafica; onDrill?: (d: Drill) => void; mini?: boolean }) {
+  const { labels, series } = useMemo(() => multiserie(corte, filtros, g), [corte, filtros, g])
+  const [det, setDet] = useState<{ anchor: DOMRect; label: string } | null>(null)
+  const m0 = series[0].m
+  const modo: Modo = g.modo || 'apilado'
+  const clicable = !!onDrill && !mini
+  const val = (si: number, l: string) => series[si].por.get(l)?.valor || 0
+  const verSerie = (si: number, l?: string) => onDrill?.({
+    titulo: series[si].m.label + (l ? ' \u00b7 ' + l : ''),
+    filas: filasDe(corte, l ? (series[si].por.get(l)?.items || []) : [...series[si].por.values()].flatMap((x) => x.items)),
+    sub: filtros.rango.label,
+  })
+  if (!labels.length) return <div className={'vacio' + (mini ? ' mini' : '')}><span className="muted">Sin datos con estos filtros.</span></div>
+  const tope = mini ? 4 : (g.top || 12)
+  const vistos = g.tipo === 'linea' || g.tipo === 'vbar' ? labels.slice(0, mini ? 6 : 24) : labels.slice(0, tope)
+  const items: BarItem[] = vistos.map((l) => {
+    const partes = series.map((s, i) => ({ label: s.m.label, val: val(i, l.label), color: COLORES[i % COLORES.length] }))
+    const suma = partes.reduce((a, p) => a + p.val, 0)
+    return { label: l.label, value: suma, partes, texto: modo === 'lado' ? partes.map((p) => m0.fmt(p.val)).join(' \u00b7 ') : m0.fmt(suma) }
+  })
+  const abrir = clicable ? (i: number, r: DOMRect) => setDet({ anchor: r, label: vistos[i].label }) : undefined
+  const filasPop: DetRow[] = det ? series.map((s, i) => ({ label: s.m.label, val: val(i, det.label), color: COLORES[i % COLORES.length], onVer: () => { setDet(null); verSerie(i, det.label) } })) : []
+  const etiqueta = series.map((s) => s.m.label).join(' y ')
+  const cuerpo = g.tipo === 'tabla' ? (
+    <div className="scrollx"><table className="ftable" aria-label={etiqueta}>
+      <thead><tr><th scope="col">{dimensionDe(g.dim).label}</th>{series.map((s) => <th key={s.m.id} scope="col" className="num">{s.m.label}</th>)}</tr></thead>
+      <tbody>{vistos.map((l) => (
+        <tr key={l.label}>
+          <td>{l.label}</td>
+          {series.map((s, i) => (
+            <td key={s.m.id} className="num">
+              {clicable ? <button type="button" className="nbtn celln" onClick={() => verSerie(i, l.label)} title={`${s.m.label} \u00b7 ${l.label}. Ver registros`}>{m0.fmt(val(i, l.label))}</button> : m0.fmt(val(i, l.label))}
+            </td>
+          ))}
+        </tr>))}
+      </tbody>
+    </table></div>
+  ) : g.tipo === 'vbar' ? (
+    <BarChart label={etiqueta} fmt={m0.fmt} items={items} modo={modo} onBar={abrir} />
+  ) : g.tipo === 'linea' ? (
+    <LineChart label={etiqueta} fmt={m0.fmt} items={items}
+      series={series.map((s, i) => ({ label: s.m.label, color: COLORES[i % COLORES.length], items: vistos.map((l) => ({ label: l.label, value: val(i, l.label) })) }))}
+      onPoint={clicable ? (i, _r, si) => verSerie(si || 0, vistos[i].label) : undefined} />
+  ) : (
+    <HBarList label={etiqueta} fmt={m0.fmt} items={items} modo={modo} onBar={abrir} />
+  )
+  return (
+    <div className="gmulti">
+      <div className="gleyenda">
+        {series.map((s, i) => {
+          const dentro = <><i style={{ background: COLORES[i % COLORES.length] }} aria-hidden="true" /><span>{s.m.label}</span><b>{m0.fmt(s.total)}</b></>
+          return clicable
+            ? <button type="button" key={s.m.id} className="chip" onClick={() => verSerie(i)} aria-label={`${s.m.label}: ${m0.fmt(s.total)}. Ver todos sus registros`}>{dentro}</button>
+            : <span key={s.m.id} className="chip">{dentro}</span>
+        })}
+        {!mini && <span className="chip modo">{modo === 'apilado' ? 'apiladas: suman el total' : 'lado a lado: para comparar'}</span>}
+      </div>
+      <div className="gmbody">{cuerpo}</div>
+      {det && <BarDetailPopup anchor={det.anchor} title={det.label} total={filasPop.reduce((a, r) => a + r.val, 0)} rows={filasPop} fmt={m0.fmt} onClose={() => setDet(null)} />}
+    </div>
+  )
+}
+
 // ---------------------------------------------------------------- plantillas de la galería
 const P = (id: string, titulo: string, medida: string, dim: string, tipo: TipoGrafica, extra: Partial<Grafica> = {}): Grafica => ({ id, titulo, medida, dim, tipo, ...extra })
+/** Mixta: varias medidas en la misma grafica. `apilado` cuando las medidas suman un total, `lado` cuando se comparan. */
+const X = (id: string, titulo: string, medidas: string[], dim: string, tipo: TipoGrafica, modo: Modo = 'apilado'): Grafica =>
+  ({ id, titulo, medida: medidas[0], medidas: medidas.slice(1), dim, tipo, modo })
+export const MIXTAS: Grafica[] = [
+  X('x-llamadas', 'Llamadas: contestadas y sin contestar', ['contestadas', 'sin_contestar'], 'asesor', 'hbar'),
+  X('x-lev', 'Levantamientos: agendados contra hechos', ['lev_agendados', 'lev_hechos'], 'asesor', 'hbar', 'lado'),
+  X('x-embudo', 'Del lead a la venta por asesor', ['leads', 'cotizaciones', 'ventas'], 'asesor', 'hbar', 'lado'),
+  X('x-actividad', 'Actividad por asesor', ['tareas_hechas', 'llamadas', 'cotizaciones'], 'asesor', 'hbar'),
+  X('x-riesgo', 'Riesgo de seguimiento por asesor', ['tareas_vencidas', 'sin_tarea', 'pc_vencido'], 'asesor', 'hbar'),
+  X('x-juego', 'Leads en juego y descartados', ['activos', 'descartes'], 'asesor', 'hbar'),
+  X('x-cot-ventas', 'Cotizaciones y ventas por mes', ['cotizaciones', 'ventas'], 'mes', 'linea'),
+  X('x-ciudad', 'Cotizaciones y ventas por ciudad', ['cotizaciones', 'ventas'], 'ciudad', 'vbar', 'lado'),
+]
 export const PLANTILLAS: Grafica[] = [
   P('p-lev-agendados', 'Levantamientos agendados por asesor', 'lev_agendados', 'asesor', 'hbar'),
   P('p-lev-hechos', 'Levantamientos hechos por asesor', 'lev_hechos', 'asesor', 'hbar'),
@@ -304,7 +426,18 @@ export function Galeria({ corte, filtros, quitados, onAgregar, onCrear, onClose 
     window.addEventListener('pointermove', mover); window.addEventListener('pointerup', soltar)
   }
   const nq = q.trim().toLowerCase()
-  const plantillas = PLANTILLAS.filter((p) => (hayComisiones || !p.medida.startsWith('r_')) && (!nq || p.titulo.toLowerCase().includes(nq) || medidaDe(p.medida).label.toLowerCase().includes(nq)))
+  const busca = (p: Grafica) => !nq || p.titulo.toLowerCase().includes(nq) || idsMedidas(p).some((id) => medidaDe(id).label.toLowerCase().includes(nq))
+  const plantillas = PLANTILLAS.filter((p) => (hayComisiones || !p.medida.startsWith('r_')) && busca(p))
+  const mixtas = MIXTAS.filter(busca)
+  const tarjeta = (p: Grafica) => (
+    <span className="gcard-wrap" key={p.id}>
+      <button type="button" className="gcard" onClick={() => { onCrear({ ...p, id: 'g' + Date.now().toString(36) }); onClose() }} onPointerDown={arrastrar(() => { onCrear({ ...p, id: 'g' + Date.now().toString(36) }); onClose() })} title={`Arrastra «${p.titulo}» a la celda del tablero donde la quieras`}>
+        <span className="gt">{p.titulo}</span>
+        <span className="gprev" aria-hidden="true"><GraficaLibre corte={corte} filtros={filtros} g={p} mini /></span>
+      </button>
+      <button type="button" className="nbtn gedit" onClick={() => setEditar({ ...p, id: 'g' + Date.now().toString(36) })}>Ajustar antes de agregar</button>
+    </span>
+  )
   const dev = quitados.filter((w) => !nq || w.titulo.toLowerCase().includes(nq))
   if (editar) return <Editor corte={corte} filtros={filtros} g={editar} onGuardar={(x) => { onCrear(x); onClose() }} onClose={() => setEditar(null)} />
   return (
@@ -317,7 +450,7 @@ export function Galeria({ corte, filtros, quitados, onAgregar, onCrear, onClose 
         </div>
         <div className="mb">
           <button type="button" className="gcrear" onClick={() => setEditar({ id: 'g' + Date.now().toString(36), titulo: 'Mi gráfica', medida: 'llamadas', dim: 'asesor', tipo: 'hbar' })}>
-            <span className="gc-mas" aria-hidden="true">+</span><span><b>Crear una gráfica</b><br /><span className="muted">Elige qué medir, cómo partirlo y cómo dibujarlo</span></span>
+            <span className="gc-mas" aria-hidden="true">+</span><span><b>Crear una gráfica</b><br /><span className="muted">Elige qué medir (una medida o varias juntas), cómo partirlo y cómo dibujarlo</span></span>
           </button>
           {dev.length > 0 && <h3 className="gsec">Quitadas del tablero</h3>}
           <div className="ggrid">
@@ -328,18 +461,12 @@ export function Galeria({ corte, filtros, quitados, onAgregar, onCrear, onClose 
               </button>
             ))}
           </div>
+          {mixtas.length > 0 && <h3 className="gsec">Mixtas · comparan dos o más medidas</h3>}
+          <div className="ggrid">{mixtas.map(tarjeta)}</div>
           <h3 className="gsec">Gráficas listas</h3>
           <div className="ggrid">
-            {plantillas.map((p) => (
-              <span className="gcard-wrap" key={p.id}>
-                <button type="button" className="gcard" onClick={() => { onCrear({ ...p, id: 'g' + Date.now().toString(36) }); onClose() }} onPointerDown={arrastrar(() => { onCrear({ ...p, id: 'g' + Date.now().toString(36) }); onClose() })} title={`Arrastra «${p.titulo}» a la celda del tablero donde la quieras`}>
-                  <span className="gt">{p.titulo}</span>
-                  <span className="gprev" aria-hidden="true"><GraficaLibre corte={corte} filtros={filtros} g={p} mini /></span>
-                </button>
-                <button type="button" className="nbtn gedit" onClick={() => setEditar({ ...p, id: 'g' + Date.now().toString(36) })}>Ajustar antes de agregar</button>
-              </span>
-            ))}
-            {!plantillas.length && !dev.length && <div className="muted">Nada con «{q}».</div>}
+            {plantillas.map(tarjeta)}
+            {!plantillas.length && !mixtas.length && !dev.length && <div className="muted">Nada con «{q}».</div>}
           </div>
         </div>
       </div>
@@ -347,20 +474,48 @@ export function Galeria({ corte, filtros, quitados, onAgregar, onCrear, onClose 
   )
 }
 
+/** El nombre que se pone solo: «Llamadas contestadas y Llamadas sin contestar por asesor». */
+export function autoTitulo(g: Grafica): string {
+  const ls = idsMedidas(g).map((id) => medidaDe(id).label)
+  const medidas = ls.length > 1 ? ls.slice(0, -1).join(', ') + ' y ' + ls[ls.length - 1] : ls[0]
+  return medidas + (g.dim === 'ninguna' ? '' : ' por ' + dimensionDe(g.dim).label.toLowerCase())
+}
+
 export function Editor({ corte, filtros, g, onGuardar, onClose }: { corte: Corte; filtros: Filtros; g: Grafica; onGuardar: (g: Grafica) => void; onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null)
   useFocoDialogo(ref)
   useEscape(onClose)
   const [cfg, setCfg] = useState<Grafica>(g)
+  // El titulo se escribe solo hasta que alguien lo escribe a mano; asi cambiar de medida no borra un nombre propio.
+  const [manual, setManual] = useState(() => !!g.titulo && g.titulo !== 'Mi gráfica' && g.titulo !== autoTitulo(g))
+  const ids = idsMedidas(cfg)
   const m = medidaDe(cfg.medida)
-  const dims = DIMENSIONES.filter((d) => m.dims.includes(d.id))
+  const dims = dimsComunes(ids)
   const set = (x: Partial<Grafica>) => setCfg((c) => {
     const n = { ...c, ...x }
-    if (x.medida) { const mm = medidaDe(x.medida); if (!mm.dims.includes(n.dim)) n.dim = mm.dims[0]; if (!c.titulo || c.titulo === m.label || c.titulo === 'Mi gráfica' || c.titulo === `${m.label} por ${dimensionDe(c.dim).label.toLowerCase()}`) n.titulo = `${mm.label} por ${dimensionDe(n.dim).label.toLowerCase()}` }
-    if (x.dim && (c.titulo === `${m.label} por ${dimensionDe(c.dim).label.toLowerCase()}` || c.titulo === 'Mi gráfica')) n.titulo = x.dim === 'ninguna' ? medidaDe(n.medida).label : `${m.label} por ${dimensionDe(x.dim).label.toLowerCase()}`
+    const nids = idsMedidas(n)
+    if (!dimsComunes(nids).some((d) => d.id === n.dim)) n.dim = (dimsComunes(nids)[0] || DIMENSIONES[0]).id
+    if (nids.length > 1 && !MULTI_OK.includes(n.tipo)) n.tipo = 'hbar'
+    if (!manual) n.titulo = autoTitulo(n)
     return n
   })
+  // Medidas que se pueden sumar a esta grafica: mismas unidades y que no esten ya puestas.
+  const libres = MEDIDAS.filter((x) => (corte.comisiones || !x.id.startsWith('r_')) && !ids.includes(x.id) && combinable(m, x))
+  const sePuedeSumar = ids.length < MAX_MEDIDAS && libres.length > 0
+  const conMedidas = (v: string[]) => set({ medida: v[0], medidas: v.slice(1) })
+  const sumar = () => conMedidas([...ids, libres[0].id])
+  const quitar = (i: number) => conMedidas(ids.filter((_, j) => j !== i))
+  const cambiar = (i: number, id: string) => conMedidas(ids.map((x, j) => (j === i ? id : x)))
   const grupos = MEDIDAS.reduce((acc, x) => { (acc[x.grupo] = acc[x.grupo] || []).push(x); return acc }, {} as Record<string, Medida[]>)
+  // Una sola escala es honesta, pero si una medida es 20 veces la otra la chica se ve como una raya.
+  // Mejor decirlo aqui que dejar una grafica que no se puede leer.
+  const aviso = useMemo(() => {
+    if (idsMedidas(cfg).length < 2) return ''
+    const ts = multiserie(corte, filtros, cfg).series.map((x) => ({ l: x.m.label, t: x.total })).filter((x) => x.t > 0)
+    if (ts.length < 2) return ''
+    const alto = ts.reduce((a, x) => (x.t > a.t ? x : a)), bajo = ts.reduce((a, x) => (x.t < a.t ? x : a))
+    return alto.t / bajo.t > 20 ? `«${alto.l}» es mucho más grande que «${bajo.l}»: en la misma escala la chica casi no se ve. Se leen mejor en gráficas aparte.` : ''
+  }, [corte, filtros, cfg])
   return (
     <div className="modal-bg" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div className="modal editor" role="dialog" aria-modal="true" aria-label="Constructor de gráficas" ref={ref}>
@@ -370,28 +525,61 @@ export function Editor({ corte, filtros, g, onGuardar, onClose }: { corte: Corte
         </div>
         <div className="mb ed-cuerpo">
           <div className="ed-campos">
-            <label>Qué medir
-              <select className="sel" value={cfg.medida} onChange={(e) => set({ medida: e.target.value })}>
-                {Object.entries(grupos).map(([gr, ms]) => (
-                  <optgroup key={gr} label={gr}>{ms.filter((x) => corte.comisiones || !x.id.startsWith('r_')).map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}</optgroup>
+            <div className="ed-campo">
+              <span className="ed-lbl">Qué medir</span>
+              <div className="ed-medidas">
+                {ids.map((id, i) => (
+                  <div className="ed-medida" key={i}>
+                    <select className="sel" aria-label={i === 0 ? 'Medida' : `Medida ${i + 1}`} value={id} onChange={(e) => cambiar(i, e.target.value)}>
+                      {Object.entries(grupos).map(([gr, ms]) => (
+                        <optgroup key={gr} label={gr}>
+                          {ms.filter((x) => corte.comisiones || !x.id.startsWith('r_')).map((x) => (
+                            <option key={x.id} value={x.id} disabled={x.id !== id && (ids.includes(x.id) || (ids.length > 1 && !combinable(i === 0 ? medidaDe(ids[1]) : m, x)))}>{x.label}</option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                    {i > 0 && <button type="button" className="ib" title="Quitar esta medida" aria-label={`Quitar ${medidaDe(id).label}`} onClick={() => quitar(i)}>×</button>}
+                  </div>
                 ))}
-              </select>
-            </label>
+              </div>
+              {sePuedeSumar && <button type="button" className="nbtn ed-mas" onClick={sumar}>+ Agregar otra medida</button>}
+              <span className="small muted">{ids.length > 1
+                ? 'Van en la misma escala; por eso solo se juntan medidas del mismo tipo (piezas con piezas, pesos con pesos).'
+                : 'Puedes sumar otra medida y compararlas en la misma gráfica.'}</span>
+              {aviso && <span className="small ed-aviso">{aviso}</span>}
+            </div>
             <label>Cómo partirlo
               <select className="sel" value={cfg.dim} onChange={(e) => set({ dim: e.target.value })}>
                 {dims.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
               </select>
             </label>
-            <label>Cómo dibujarlo
+            <div className="ed-campo">
+              <span className="ed-lbl">Cómo dibujarlo</span>
               <span className="ed-tipos" role="radiogroup" aria-label="Tipo de gráfica">
-                {TIPOS.map((t) => (
-                  <button type="button" key={t.id} role="radio" aria-checked={cfg.tipo === t.id} className={'ed-tipo' + (cfg.tipo === t.id ? ' on' : '')} onClick={() => set({ tipo: t.id })} title={t.label}>
-                    <IconoTipo id={t.id} /><span>{t.label}</span>
-                  </button>
-                ))}
+                {TIPOS.map((t) => {
+                  const no = ids.length > 1 && !MULTI_OK.includes(t.id)
+                  return (
+                    <button type="button" key={t.id} role="radio" aria-checked={cfg.tipo === t.id} disabled={no} className={'ed-tipo' + (cfg.tipo === t.id ? ' on' : '')} onClick={() => set({ tipo: t.id })} title={no ? `${t.label}: solo con una medida` : t.label}>
+                      <IconoTipo id={t.id} /><span>{t.label}</span>
+                    </button>
+                  )
+                })}
               </span>
-            </label>
-            <label>Título<input className="inp" value={cfg.titulo} onChange={(e) => set({ titulo: e.target.value })} /></label>
+            </div>
+            {ids.length > 1 && (cfg.tipo === 'hbar' || cfg.tipo === 'vbar') && (
+              <div className="ed-campo">
+                <span className="ed-lbl">Cómo combinarlas</span>
+                <span className="ed-modo" role="radiogroup" aria-label="Cómo combinar las medidas">
+                  {MODOS.map((x) => (
+                    <button type="button" key={x.id} role="radio" aria-checked={(cfg.modo || 'apilado') === x.id} className={'ed-tipo largo' + ((cfg.modo || 'apilado') === x.id ? ' on' : '')} onClick={() => set({ modo: x.id })}>
+                      <b>{x.label}</b><span>{x.ayuda}</span>
+                    </button>
+                  ))}
+                </span>
+              </div>
+            )}
+            <label>Título<input className="inp" value={cfg.titulo} onChange={(e) => { setManual(true); setCfg((c) => ({ ...c, titulo: e.target.value })) }} /></label>
             <label>Cuántos mostrar
               <select className="sel" value={cfg.top || 12} onChange={(e) => set({ top: Number(e.target.value) })}>
                 {[5, 10, 12, 20, 50].map((n) => <option key={n} value={n}>{n === 50 ? 'Todos' : `Los ${n} más altos`}</option>)}

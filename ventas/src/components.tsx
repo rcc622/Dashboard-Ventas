@@ -71,7 +71,7 @@ export function LlamadasBar({ total, ok, no, onClick }: { total: number; ok: num
   )
 }
 
-export interface DetRow { label: string; val: number; onVer?: () => void }
+export interface DetRow { label: string; val: number; onVer?: () => void; color?: string }
 /** Detalle de una barra de la tabla: aparece debajo del elemento clickeado. Un renglón con
  *  onVer es botón y abre la lista de registros. */
 /** Al abrir un diálogo el foco entra en él y al cerrarlo regresa a donde estaba. Sin esto, con
@@ -84,7 +84,7 @@ export function useFocoDialogo(ref: RefObject<HTMLElement | null>) {
   }, [])   // eslint-disable-line react-hooks/exhaustive-deps
 }
 
-export function BarDetailPopup({ anchor, title, total, rows, onClose }: { anchor: DOMRect; title: string; total: number; rows: DetRow[]; onClose: () => void }) {
+export function BarDetailPopup({ anchor, title, total, rows, onClose, fmt = fmtN }: { anchor: DOMRect; title: string; total: number; rows: DetRow[]; onClose: () => void; fmt?: (n: number) => string }) {
   const ref = useRef<HTMLDivElement>(null)
   useOutside(ref, onClose)
   useEscape(onClose)
@@ -97,9 +97,9 @@ export function BarDetailPopup({ anchor, title, total, rows, onClose }: { anchor
       <div className="ph"><span className="nm">{title}</span><button type="button" className="ib" aria-label="Cerrar" onClick={onClose}>×</button></div>
       <div className="pbody detail-rows">
         {rows.map((r) => r.onVer
-          ? <button type="button" className="r rbtn" key={r.label} onClick={r.onVer} title="Ver registros"><span>{r.label}</span><b>{fmtN(r.val)}</b><span className="muted">{pct(r.val, total)}% ›</span></button>
-          : <div className="r" key={r.label}><span>{r.label}</span><b>{fmtN(r.val)}</b><span className="muted">{pct(r.val, total)}%</span></div>)}
-        <div className="r t"><span>Total</span><b>{fmtN(total)}</b><span>100%</span></div>
+          ? <button type="button" className="r rbtn" key={r.label} onClick={r.onVer} title="Ver registros"><span>{r.color && <i className="sw" style={{ background: r.color }} aria-hidden="true" />}{r.label}</span><b>{fmt(r.val)}</b><span className="muted">{pct(r.val, total)}% ›</span></button>
+          : <div className="r" key={r.label}><span>{r.color && <i className="sw" style={{ background: r.color }} aria-hidden="true" />}{r.label}</span><b>{fmt(r.val)}</b><span className="muted">{pct(r.val, total)}%</span></div>)}
+        <div className="r t"><span>Total</span><b>{fmt(total)}</b><span>100%</span></div>
       </div>
     </div>
   )
@@ -328,67 +328,97 @@ export function SortTh<K extends string>({ k, label, sort, onSort, className, ch
 }
 
 // ---------------------------------------------------------------- Gráficas de la analítica (7-sep)
-export interface BarItem { label: string; value: number; sub?: string; title?: string }
-/** Barras verticales con la cifra encima y una sola escala (nunca dos ejes: el segundo dato va como texto bajo la cifra). */
-export function BarChart({ items, fmt, color = 'var(--c1)', label, onBar }: { items: BarItem[]; fmt: (n: number) => string; color?: string; label: string; onBar?: (i: number) => void }) {
-  const max = Math.max(1, ...items.map((i) => i.value))
+export interface BarItem { label: string; value: number; sub?: string; title?: string; texto?: string; partes?: Parte[] }
+/** Como se dibujan varias medidas en la misma barra: apiladas (suman un total) o lado a lado (para comparar). */
+export type Modo = 'apilado' | 'lado'
+const resumenPartes = (it: BarItem, fmt: (n: number) => string) => (it.partes || []).map((p) => `${p.label} ${fmt(p.val)}`).join(' · ')
+/** Barras verticales con la cifra encima y UNA sola escala (nunca dos ejes: el segundo dato va como texto).
+ *  Con `partes` la barra lleva varias medidas: apiladas suman el total, lado a lado se comparan. */
+export function BarChart({ items, fmt, color = 'var(--c1)', label, onBar, modo = 'apilado' }: { items: BarItem[]; fmt: (n: number) => string; color?: string; label: string; onBar?: (i: number, r: DOMRect) => void; modo?: Modo }) {
+  const max = Math.max(1, ...items.map((it) => (it.partes && modo === 'lado' ? Math.max(...it.partes.map((p) => p.val)) : it.value)))
+  const alto = (v: number) => Math.max(2, (v / max) * 100) + '%'
   return (
-    <div className="vbars" role={onBar ? 'group' : 'img'} aria-label={label + ': ' + items.map((i) => `${i.label} ${fmt(i.value)}${i.sub ? ' (' + i.sub + ')' : ''}`).join(', ')}>
+    <div className="vbars" role={onBar ? 'group' : 'img'} aria-label={label + ': ' + items.map((i) => `${i.label} ${i.texto || fmt(i.value)}${i.sub ? ' (' + i.sub + ')' : ''}`).join(', ')}>
       {items.map((it, i) => {
         const inner = (
           <>
-            <span className="vv">{fmt(it.value)}</span>
+            <span className="vv">{it.texto || fmt(it.value)}</span>
             {it.sub && <span className="vs">{it.sub}</span>}
-            <span className="vtrack"><i style={{ height: Math.max(2, (it.value / max) * 100) + '%', background: color }} /></span>
+            <span className="vtrack">
+              {it.partes
+                ? modo === 'apilado'
+                  ? <span className="vstack" style={{ height: alto(it.value) }}>{it.partes.map((p) => <i key={p.label} style={{ height: (it.value ? (p.val / it.value) * 100 : 0) + '%', background: p.color }} />)}</span>
+                  : <span className="vlado">{it.partes.map((p) => <i key={p.label} style={{ height: alto(p.val), background: p.color }} />)}</span>
+                : <i style={{ height: alto(it.value), background: color }} />}
+            </span>
             <span className="vl" title={it.label}>{it.label}</span>
           </>
         )
+        const t = it.title || `${it.label}: ${it.partes ? resumenPartes(it, fmt) : fmt(it.value)}`
         return onBar
-          ? <button type="button" key={it.label + i} className="vcol drill" title={it.title || `${it.label}: ${fmt(it.value)}. Ver registros`} onClick={() => onBar(i)}>{inner}</button>
-          : <div key={it.label + i} className="vcol" title={it.title || `${it.label}: ${fmt(it.value)}`}>{inner}</div>
+          ? <button type="button" key={it.label + i} className="vcol drill" title={t + '. Ver detalle'} onClick={(e) => onBar(i, e.currentTarget.getBoundingClientRect())}>{inner}</button>
+          : <div key={it.label + i} className="vcol" title={t}>{inner}</div>
       })}
     </div>
   )
 }
-/** Lista de barras horizontales: etiqueta · barra · cifra (y un dato chico opcional). */
-export function HBarList({ items, fmt, color = 'var(--c1)', label, onBar }: { items: BarItem[]; fmt: (n: number) => string; color?: string; label: string; onBar?: (i: number) => void }) {
-  const max = Math.max(1, ...items.map((i) => i.value))
+/** Lista de barras horizontales: etiqueta · barra · cifra (y un dato chico opcional). Con `partes`, varias medidas por renglon. */
+export function HBarList({ items, fmt, color = 'var(--c1)', label, onBar, modo = 'apilado' }: { items: BarItem[]; fmt: (n: number) => string; color?: string; label: string; onBar?: (i: number, r: DOMRect) => void; modo?: Modo }) {
+  const max = Math.max(1, ...items.map((it) => (it.partes && modo === 'lado' ? Math.max(...it.partes.map((p) => p.val)) : it.value)))
+  const ancho = (v: number) => Math.max(1, (v / max) * 100) + '%'
   return (
-    <div className="hbars" role={onBar ? 'group' : 'img'} aria-label={label + ': ' + items.map((i) => `${i.label} ${fmt(i.value)}${i.sub ? ' (' + i.sub + ')' : ''}`).join(', ')}>
+    <div className="hbars" role={onBar ? 'group' : 'img'} aria-label={label + ': ' + items.map((i) => `${i.label} ${i.texto || fmt(i.value)}${i.sub ? ' (' + i.sub + ')' : ''}`).join(', ')}>
       {items.map((it, i) => {
         const inner = (
           <>
             <span className="hl" title={it.label}>{it.label}</span>
-            <span className="htrack"><i style={{ width: Math.max(1, (it.value / max) * 100) + '%', background: color }} /></span>
-            <span className="hv">{fmt(it.value)}{it.sub && <small>{it.sub}</small>}</span>
+            <span className={'htrack' + (it.partes && modo === 'lado' ? ' lado' : '')}>
+              {it.partes
+                ? modo === 'apilado'
+                  ? <span className="hstack" style={{ width: ancho(it.value) }}>{it.partes.map((p) => <i key={p.label} style={{ width: (it.value ? (p.val / it.value) * 100 : 0) + '%', background: p.color }} />)}</span>
+                  : it.partes.map((p) => <i key={p.label} style={{ width: ancho(p.val), background: p.color }} />)
+                : <i style={{ width: ancho(it.value), background: color }} />}
+            </span>
+            <span className="hv">{it.texto || fmt(it.value)}{it.sub && <small>{it.sub}</small>}</span>
           </>
         )
+        const t = it.title || `${it.label}: ${it.partes ? resumenPartes(it, fmt) : fmt(it.value)}`
         return onBar
-          ? <button type="button" key={it.label + i} className="hrow drill" title={it.title || `${it.label}: ${fmt(it.value)}. Ver registros`} onClick={() => onBar(i)}>{inner}</button>
-          : <div key={it.label + i} className="hrow" title={it.title || `${it.label}: ${fmt(it.value)}`}>{inner}</div>
+          ? <button type="button" key={it.label + i} className="hrow drill" title={t + '. Ver detalle'} onClick={(e) => onBar(i, e.currentTarget.getBoundingClientRect())}>{inner}</button>
+          : <div key={it.label + i} className="hrow" title={t}>{inner}</div>
       })}
     </div>
   )
 }
-/** Línea con un punto por periodo y la cifra encima; la línea es SVG y los textos HTML, así nada se estira. */
-export function LineChart({ items, fmt, color = 'var(--c1)', label, onPoint }: { items: BarItem[]; fmt: (n: number) => string; color?: string; label: string; onPoint?: (i: number) => void }) {
-  const vals = items.map((i) => i.value)
+export interface LineSerie { label: string; color: string; items: BarItem[] }
+/** Línea con un punto por periodo y la cifra encima; la línea es SVG y los textos HTML, así nada se estira.
+ *  Con `series` dibuja varias medidas en la MISMA escala (una sola, nunca dos ejes); ahí las cifras se
+ *  quitan de los puntos para que no se encimen y el valor vive en el tooltip y en la leyenda. */
+export function LineChart({ items, fmt, color = 'var(--c1)', label, onPoint, series }: { items: BarItem[]; fmt: (n: number) => string; color?: string; label: string; onPoint?: (i: number, r: DOMRect, s?: number) => void; series?: LineSerie[] }) {
+  const sers: LineSerie[] = series && series.length > 1 ? series : [{ label, color, items }]
+  const multi = sers.length > 1
+  const vals = sers.flatMap((s) => s.items.map((i) => i.value))
   const max = Math.max(1, ...vals), min = Math.min(0, ...vals)
+  const n = sers[0].items.length
   const y = (v: number) => 100 - ((v - min) / (max - min || 1)) * 100
-  const x = (i: number) => (items.length === 1 ? 50 : (i / (items.length - 1)) * 100)
-  const d = items.map((it, i) => `${i ? 'L' : 'M'} ${x(i)} ${y(it.value)}`).join(' ')
+  const x = (i: number) => (n === 1 ? 50 : (i / (n - 1)) * 100)
   return (
-    <div className="linebox" role={onPoint ? 'group' : 'img'} aria-label={label + ': ' + items.map((i) => `${i.label} ${fmt(i.value)}`).join(', ')}>
+    <div className="linebox" role={onPoint ? 'group' : 'img'} aria-label={label + ': ' + sers.map((s) => `${s.label} — ` + s.items.map((i) => `${i.label} ${fmt(i.value)}`).join(', ')).join(' · ')}>
       <div className="larea">
-        <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d={d} fill="none" stroke={color} strokeWidth="2" vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" /></svg>
-        {items.map((it, i) => {
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          {sers.map((s) => (
+            <path key={s.label} d={s.items.map((it, i) => `${i ? 'L' : 'M'} ${x(i)} ${y(it.value)}`).join(' ')} fill="none" stroke={s.color} strokeWidth="2" vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" />
+          ))}
+        </svg>
+        {sers.map((s, si) => s.items.map((it, i) => {
           const est = { left: x(i) + '%', top: y(it.value) + '%' }
+          const t = `${multi ? s.label + ' · ' : ''}${it.label}: ${fmt(it.value)}`
           return onPoint
-            ? <button type="button" key={it.label + i} className="lpt drill" style={est} title={it.title || `${it.label}: ${fmt(it.value)}. Ver registros`} onClick={() => onPoint(i)}><i style={{ background: color }} /><span>{fmt(it.value)}</span></button>
-            : <div key={it.label + i} className="lpt" style={est} title={it.title || `${it.label}: ${fmt(it.value)}`}><i style={{ background: color }} /><span>{fmt(it.value)}</span></div>
-        })}
+            ? <button type="button" key={s.label + it.label + i} className="lpt drill" style={est} title={t + '. Ver registros'} onClick={(e) => onPoint(i, e.currentTarget.getBoundingClientRect(), si)}><i style={{ background: s.color }} />{!multi && <span>{fmt(it.value)}</span>}</button>
+            : <div key={s.label + it.label + i} className="lpt" style={est} title={t}><i style={{ background: s.color }} />{!multi && <span>{fmt(it.value)}</span>}</div>
+        }))}
       </div>
-      <div className="llabels" aria-hidden="true">{items.map((it, i) => <span key={it.label + i} style={{ left: x(i) + '%' }}>{it.label}</span>)}</div>
+      <div className="llabels" aria-hidden="true">{sers[0].items.map((it, i) => <span key={it.label + i} style={{ left: x(i) + '%' }}>{it.label}</span>)}</div>
     </div>
   )
 }

@@ -850,6 +850,33 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   tarjeta: en un widget grande se veía un número diminuto en una esquina. En la galería va SIN
   `.tile`, para no meter un recuadro dentro de otro. Medido: 214 px de widget → 28 px de tipo, igual
   que una cifra de fábrica del mismo ancho; 671 px → 72 px, que es el tope.
+- **Gráficas MIXTAS: varias medidas en la misma gráfica** (Randall 10-sep: «debería poder hacer con el
+  builder las gráficas que me muestras tú… les llamaría mixtas porque combinan dos o más fuentes»;
+  referencia el builder de HubSpot «desde un ángulo más sencillo de operar»). En el editor, «Qué medir»
+  es una LISTA: «+ Agregar otra medida» suma hasta 4 (`Grafica.medidas`), cada una con su × para
+  quitarla. Reglas que hacen que nunca salga una gráfica tramposa:
+  - Solo se combinan medidas **de la misma unidad y sumables** (`combinable()`: mismo `fmt` y `agg`
+    suma). Piezas con piezas, pesos con pesos; un promedio o una razón no se apilan. Las demás salen
+    deshabilitadas en el desplegable. Así la gráfica tiene **una sola escala** y nunca hay dos ejes.
+  - **Cómo combinarlas**: `apilado` (una sobre otra, se lee el total) o `lado` (una junto a otra, para
+    comparar); `Grafica.modo`. En apilado la cifra del renglón es el total; en lado a lado son los
+    valores separados por ·.
+  - Con dos o más medidas, **dona y cifra se apagan** (miden UNA cosa) y quedan barras, línea y tabla
+    (`MULTI_OK`). Si estaba en dona o cifra al sumar la segunda medida, se cambia sola a barras.
+  - Si una medida es **más de 20 veces** la otra, el editor avisa que la chica no se va a ver y sugiere
+    gráficas aparte (era el caso de leads 851 contra ventas 24 por ciudad).
+  - **Leyenda arriba siempre** (identidad nunca por color solo), con el total de cada medida; cada chip
+    abre TODOS los registros de esa medida.
+  - `multiserie()` corre `serie()` por medida y comparte las etiquetas, ordenadas por la suma de todas
+    (o por tiempo), para que el orden no brinque al prender y apagar medidas.
+  - Ocho plantillas mixtas encabezan la galería (`MIXTAS`): llamadas contestadas/sin contestar,
+    levantamientos agendados contra hechos, del lead a la venta, actividad por asesor, riesgo de
+    seguimiento, en juego y descartados, cotizaciones y ventas por mes, y por ciudad.
+- **Toda gráfica propia abre el detalle al clic** (Randall 10-sep: «las gráficas que yo creo no me deja
+  darle clic para ver el detalle»). Faltaba la **cifra**, que era un `div`: ahora es `button.gcifra.tile`
+  y abre los registros de esa medida. En las mixtas, el clic en la barra abre el desglose por medida
+  (`BarDetailPopup`, con su cuadrito de color y su %) y de ahí a los registros; en la tabla mixta cada
+  celda es un botón; en la línea mixta cada punto abre su medida.
 - **La ficha del asesor también trae el constructor**, fijado a esa persona (`{...filtros, asesor: uid}`);
   Mi día usa una galería simple con lo que se quitó de ese tablero (no tiene medidas propias).
 - **La página «Ventas reales» desapareció** (Randall 7-sep: «no quiero otra sección, lo quiero todo en
