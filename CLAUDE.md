@@ -877,6 +877,16 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   y abre los registros de esa medida. En las mixtas, el clic en la barra abre el desglose por medida
   (`BarDetailPopup`, con su cuadrito de color y su %) y de ahí a los registros; en la tabla mixta cada
   celda es un botón; en la línea mixta cada punto abre su medida.
+- **Una cifra propia se puede comparar contra la meta** (Randall 10-sep: «cómo crearía este tipo de
+  widgets con el creador de gráficas», señalando la tarjeta de $320K). Casilla **«Comparar contra la
+  meta»** en el editor, visible solo cuando la gráfica es una **cifra** y la medida es **dinero que se
+  suma** (`conMeta()`: `fmt` de pesos y sin `agg`; un ticket promedio no). Con ella la cifra se pinta
+  igual que la tarjeta de fábrica «Avance contra la meta»: porcentaje, medidor `Bullet` (marca gris =
+  lo que tocaría hoy, negra = la meta) y la frase del ritmo, con `ritmo-<estado>` para el color.
+  `metaTotal(corte, filtros)` suma `metaRango` de los asesores que caben en los filtros — misma regla
+  que la de fábrica, así que dan el MISMO número (medido: $2.4M, 13 % de $18M, mismo texto de ritmo).
+  Sin metas configuradas lo dice («sin meta configurada») en vez de inventar un 0 %. Dos plantillas en
+  la galería: «Vendido contra la meta» y «Cotizado vigente contra la meta».
 - **La ficha del asesor también trae el constructor**, fijado a esa persona (`{...filtros, asesor: uid}`);
   Mi día usa una galería simple con lo que se quitó de ese tablero (no tiene medidas propias).
 - **La página «Ventas reales» desapareció** (Randall 7-sep: «no quiero otra sección, lo quiero todo en

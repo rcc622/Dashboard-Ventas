@@ -3,9 +3,9 @@ import type { Corte, Evento, Lead, Tarea, Usuario, VentaReal } from './types'
 import { CRM_LABEL } from './types'
 import {
   cotizadoVigenteDe, enRango, etapaDe, fechaDe, filasDeEventos, filasDeLeads, filasDeVentasReales, fmtCorta, fmtMoney0, fmtN,
-  inicioDia, mapaUsuarios, ocultosDe, pasaCrm, primerContacto, visitas, vivo, zonaNombre, type Filtros,
+  inicioDia, mapaUsuarios, metaTotal, ocultosDe, pasaCrm, pct, periodoTexto, primerContacto, ritmo, visitas, vivo, zonaNombre, type Filtros,
 } from './metrics'
-import { BarChart, BarDetailPopup, DonutChart, HBarList, LineChart, useEscape, useFocoDialogo, type BarItem, type DetRow, type Modo } from './components'
+import { BarChart, BarDetailPopup, Bullet, DonutChart, HBarList, LineChart, useEscape, useFocoDialogo, type BarItem, type DetRow, type Modo } from './components'
 import type { Drill } from './drill'
 
 // Constructor de gráficas (Randall 7-sep: «un graph modifier/builder para que ya no dependamos tanto de ti»).
@@ -19,6 +19,7 @@ export interface Grafica {
   id: string; titulo: string; medida: string; dim: string; tipo: TipoGrafica
   medidas?: string[]        // medidas extra: la grafica se vuelve MIXTA (Randall 10-sep)
   modo?: Modo               // mixta en barras: apiladas (suman) o lado a lado (comparan)
+  meta?: boolean            // cifra de dinero: medidor contra la meta y frase del ritmo
   top?: number; captura?: 'completa' | 'incompleta'; span?: number; alto?: number
 }
 /** Todas las medidas de la grafica, la principal primero. */
@@ -26,6 +27,8 @@ export const idsMedidas = (g: Grafica) => [g.medida, ...(g.medidas || [])]
 /** Tipos que saben dibujar varias medidas. Una cifra o una dona miden UNA cosa. */
 export const MULTI_OK: TipoGrafica[] = ['hbar', 'vbar', 'linea', 'tabla']
 export const MAX_MEDIDAS = 4
+/** Solo el dinero que se suma se puede comparar contra una meta en pesos (un ticket promedio, no). */
+export const conMeta = (m: Medida) => m.fmt === fmtMoney0 && !m.agg
 export const MODOS: { id: Modo; label: string; ayuda: string }[] = [
   { id: 'apilado', label: 'Apiladas', ayuda: 'una sobre otra: se lee el total' },
   { id: 'lado', label: 'Lado a lado', ayuda: 'una junto a otra: se comparan' },
@@ -239,6 +242,8 @@ export function GraficaLibre(props: { corte: Corte; filtros: Filtros; g: Grafica
 
 function GraficaUna({ corte, filtros, g, onDrill, mini = false }: { corte: Corte; filtros: Filtros; g: Grafica; onDrill?: (d: Drill) => void; mini?: boolean }) {
   const { grupos, total, m } = useMemo(() => serie(corte, filtros, g), [corte, filtros, g])
+  // La meta de los asesores que caben en estos filtros; solo se calcula si la grafica la pide.
+  const meta = useMemo(() => (g.meta && g.tipo === 'cifra' && conMeta(medidaDe(g.medida)) ? metaTotal(corte, filtros) : 0), [corte, filtros, g.meta, g.tipo, g.medida])
   if (!grupos.length) return <div className={'vacio' + (mini ? ' mini' : '')}><span className="muted">Sin datos con estos filtros.</span></div>
   const tope = mini ? 5 : (g.top || 12)
   const vistos = g.tipo === 'linea' || g.tipo === 'vbar' ? grupos : grupos.slice(0, tope)
@@ -251,10 +256,22 @@ function GraficaUna({ corte, filtros, g, onDrill, mini = false }: { corte: Corte
   // me dejan darle clic»). En la vista previa de la galeria va sin tarjeta y sin clic.
   if (g.tipo === 'cifra') {
     const cifra = m.fmt(m.agg === 'promedio' && grupos.length === 1 ? grupos[0].valor : total)
-    const dentro = <><div className="n">{cifra}</div><div className="l">{m.label}</div></>
+    // Con meta, la cifra se pinta como la tarjeta «Avance contra la meta» de fabrica: porcentaje,
+    // medidor con la marca del ritmo (gris lo que tocaria hoy, negra la meta) y la frase del atraso,
+    // con el color del estado. Sin meta configurada lo dice en vez de inventar un 0 %.
+    const rit = meta > 0 ? ritmo(total, meta, filtros.rango) : null
+    const dentro = rit ? (
+      <>
+        <div className="n">{cifra}</div>
+        <div className="l">{pct(total, meta)}% de la meta de {fmtMoney0(meta)} · {m.label.toLowerCase()} {periodoTexto(filtros.rango)}</div>
+        <Bullet value={total} target={meta} expected={rit.esperado} label={m.label} fmt={fmtMoney0} />
+        <div className={'rt ' + rit.estado}>{rit.texto}</div>
+      </>
+    ) : <><div className="n">{cifra}</div><div className="l">{m.label}{g.meta ? ' · sin meta configurada' : ''}</div></>
+    const clases = 'gcifra tile' + (rit ? ' t3 ritmo-' + rit.estado : '')
     return onDrill && !mini
-      ? <button type="button" className="gcifra tile tbtn" aria-label={`${m.label}: ${cifra}. Ver detalle`} onClick={() => onDrill({ titulo: m.label, filas: filasDe(corte, grupos.flatMap((x) => x.items)), sub: filtros.rango.label })}>{dentro}</button>
-      : <div className={'gcifra' + (mini ? '' : ' tile')}>{dentro}</div>
+      ? <button type="button" className={clases + ' tbtn'} aria-label={`${m.label}: ${cifra}${rit ? `. ${pct(total, meta)}% de la meta de ${fmtMoney0(meta)}. ${rit.texto}` : ''}. Ver detalle`} onClick={() => onDrill({ titulo: m.label, filas: filasDe(corte, grupos.flatMap((x) => x.items)), sub: filtros.rango.label })}>{dentro}</button>
+      : <div className={mini ? 'gcifra' : clases}>{dentro}</div>
   }
   if (g.tipo === 'dona') return (
     <div className="donut-legend">
@@ -401,6 +418,8 @@ export const PLANTILLAS: Grafica[] = [
   P('p-r-tamano', 'Tamaño de venta en paneles', 'r_ventas', 'tamano', 'vbar'),
   P('p-r-panel-asesor', 'Precio por panel por asesor', 'r_panel', 'asesor', 'hbar'),
   P('p-r-panel-mes', 'Precio por panel por mes', 'r_panel', 'mes', 'linea'),
+  P('p-meta-vendido', 'Vendido contra la meta', 'vendido', 'ninguna', 'cifra', { meta: true, span: 2, alto: 5 }),
+  P('p-meta-cotizado', 'Cotizado vigente contra la meta', 'cotizado', 'ninguna', 'cifra', { meta: true, span: 2, alto: 5 }),
   P('p-r-contrato', 'Contrato total (cifra)', 'r_contrato', 'ninguna', 'cifra', { span: 1, alto: 4 }),
   P('p-r-paneles', 'Paneles vendidos (cifra)', 'r_paneles', 'ninguna', 'cifra', { span: 1, alto: 4 }),
   P('p-r-ticket-cifra', 'Ticket promedio (cifra)', 'r_ticket', 'ninguna', 'cifra', { span: 1, alto: 4 }),
@@ -496,6 +515,7 @@ export function Editor({ corte, filtros, g, onGuardar, onClose }: { corte: Corte
     const nids = idsMedidas(n)
     if (!dimsComunes(nids).some((d) => d.id === n.dim)) n.dim = (dimsComunes(nids)[0] || DIMENSIONES[0]).id
     if (nids.length > 1 && !MULTI_OK.includes(n.tipo)) n.tipo = 'hbar'
+    if (n.meta && (n.tipo !== 'cifra' || !conMeta(medidaDe(n.medida)))) n.meta = undefined
     if (!manual) n.titulo = autoTitulo(n)
     return n
   })
@@ -567,6 +587,12 @@ export function Editor({ corte, filtros, g, onGuardar, onClose }: { corte: Corte
                 })}
               </span>
             </div>
+            {cfg.tipo === 'cifra' && conMeta(m) && (
+              <label className="ed-check">
+                <input type="checkbox" checked={!!cfg.meta} onChange={(e) => set({ meta: e.target.checked })} />
+                <span>Comparar contra la meta<small>agrega el medidor del ritmo y la frase «▼ $747K abajo del ritmo»</small></span>
+              </label>
+            )}
             {ids.length > 1 && (cfg.tipo === 'hbar' || cfg.tipo === 'vbar') && (
               <div className="ed-campo">
                 <span className="ed-lbl">Cómo combinarlas</span>

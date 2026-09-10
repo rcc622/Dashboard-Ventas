@@ -444,6 +444,13 @@ export interface FilaAsesor {
   cotizaciones: number; descartes: number; levantamientos: number
   actividad: Evento[]
 }
+/** La meta en pesos del rango, sumando la de los asesores que cuentan con estos filtros. Misma regla
+ *  que la tarjeta «Avance contra la meta» de fabrica: quien no tiene leads, actividad ni ventas no suma
+ *  meta, y con un asesor elegido o un equipo elegido la meta es solo la suya. */
+export function metaTotal(c: Corte, f: Filtros): number {
+  return porAsesor(c, f).reduce((s, x) => s + x.metaRango, 0)
+}
+
 export function porAsesor(c: Corte, f: Filtros): FilaAsesor[] {
   const leads = leadsFiltrados(c, f), ev = eventosFiltrados(c, f), ventas = ventasFiltradas(c, f)
   const filas: FilaAsesor[] = []
