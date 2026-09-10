@@ -3,7 +3,7 @@ import type { Corte, Evento, Lead, Rango, Tarea, Usuario, VentaReal } from './ty
 import { CRM_LABEL } from './types'
 import {
   cotizadoVigenteDe, enRango, etapaDe, fechaDe, filasDeEventos, filasDeLeads, filasDeVentasReales, fmtCorta, fmtMoney0, fmtN,
-  ep, inicioDia, mapaUsuarios, metaDe, metaEnRango, metaTotal, ocultosDe, pasaCrm, pct, periodoTexto, porAsesor, primerContacto, ritmo, visitas, vivo, zonaNombre, type Filtros,
+  PRESETS, ep, inicioDia, mapaUsuarios, metaDe, metaEnRango, metaTotal, ocultosDe, pasaCrm, pct, periodoTexto, porAsesor, primerContacto, ritmo, visitas, vivo, zonaNombre, type Filtros, type Preset,
 } from './metrics'
 import { BarChart, BarDetailPopup, Bullet, DonutChart, HBarList, LineChart, useEscape, useFocoDialogo, type BarItem, type DetRow, type Modo } from './components'
 import type { Drill } from './drill'
@@ -29,6 +29,12 @@ export const idsMedidas = (g: Grafica) => [g.medida, ...(g.medidas || [])]
 export const MULTI_OK: TipoGrafica[] = ['hbar', 'vbar', 'linea', 'tabla']
 export const MAX_MEDIDAS = 4
 /** Solo el dinero que se suma se puede comparar contra una meta en pesos (un ticket promedio, no). */
+/** Contra qué fecha cuenta esta gráfica, si todas sus medidas coinciden. Sirve para la etiqueta de
+ *  fechas del widget: saber el periodo sin saber qué fecha se compara contra él no basta. */
+export function baseDe(g: Grafica): BaseFecha | undefined {
+  const bs = [...new Set(idsMedidas(g).map((id) => medidaDe(id).base).filter(Boolean))]
+  return bs.length === 1 ? (bs[0] as BaseFecha) : undefined
+}
 export const conMeta = (m: Medida) => m.fmt === fmtMoney0 && !m.agg && m.id !== 'meta'
 export const MODOS: { id: Modo; label: string; ayuda: string }[] = [
   { id: 'apilado', label: 'Apiladas', ayuda: 'una sobre otra: se lee el total' },
@@ -317,8 +323,7 @@ function recortar<T>(xs: T[], dim: string, tope: number): T[] {
 /** «Fechas por cierre»: contra qué fecha cae cada registro en su periodo. Solo aparece cuando el eje
  *  es tiempo, que es donde la duda muerde (Randall: el conflicto entre fecha de actividad y de
  *  asignación). Si las medidas de una mixta usan bases distintas, se dicen todas. */
-function AvisoFechas({ medidas, dim }: { medidas: Medida[]; dim: string }) {
-  if (!dimensionDe(dim).tiempo) return null
+function AvisoFechas({ medidas }: { medidas: Medida[] }) {
   const bases = [...new Set(medidas.map((m) => m.base).filter((b): b is BaseFecha => !!b && b !== 'ninguna'))]
   if (!bases.length) return null
   const uno = bases.length === 1
@@ -395,8 +400,8 @@ function GraficaUna({ corte, filtros, g, onDrill, mini = false }: { corte: Corte
   const cuerpo = g.tipo === 'vbar' ? <BarChart label={m.label} fmt={m.fmt} color={COLORES[0]} items={items} onBar={clic} />
     : g.tipo === 'linea' ? <LineChart label={m.label} fmt={m.fmt} color={COLORES[3]} items={items} onPoint={clic} />
     : <HBarList label={m.label} fmt={m.fmt} color={COLORES[0]} items={items} onBar={clic} />
-  if (mini || !dimensionDe(g.dim).tiempo) return cuerpo
-  return <div className="gmulti"><AvisoFechas medidas={[m]} dim={g.dim} /><div className="gmbody">{cuerpo}</div></div>
+  if (mini) return cuerpo
+  return <div className="gmulti"><AvisoFechas medidas={[m]} /><div className="gmbody">{cuerpo}</div></div>
 }
 
 /** Grafica mixta: dos o mas medidas contra la misma dimension y en la misma escala. Apiladas se lee el
@@ -463,7 +468,7 @@ function GraficaMixta({ corte, filtros, g, onDrill, mini = false }: { corte: Cor
         })}
         {!mini && <span className="chip modo">{modo === 'apilado' ? 'apiladas: suman el total' : 'lado a lado: para comparar'}</span>}
       </div>
-      {!mini && <AvisoFechas medidas={series.map((x) => x.m)} dim={g.dim} />}
+      {!mini && <AvisoFechas medidas={series.map((x) => x.m)} />}
       <div className="gmbody">{cuerpo}</div>
       {det && <BarDetailPopup anchor={det.anchor} title={det.label} total={filasPop.reduce((a, r) => a + r.val, 0)} rows={filasPop} fmt={m0.fmt} onClose={() => setDet(null)} />}
     </div>
@@ -535,9 +540,13 @@ export const PLANTILLAS: Grafica[] = [
 ]
 
 // ---------------------------------------------------------------- galería y editor
-export function Galeria({ corte, filtros, quitados, onAgregar, onCrear, onClose }: {
+/** Las fechas propias de una gráfica, vistas desde el constructor: cuál tiene, con qué filtros
+ *  dibujarla y cómo cambiarlas. La página es la que sabe traducir un periodo a fechas. */
+export interface FechasCtor { de: (id: string) => Preset | undefined; filtros: (id: string) => Filtros; fijar: (id: string, p: Preset | null) => void }
+
+export function Galeria({ corte, filtros, quitados, onAgregar, onCrear, onClose, fechas }: {
   corte: Corte; filtros: Filtros; quitados: { id: string; titulo: string; nodo: React.ReactNode }[]
-  onAgregar: (id: string) => void; onCrear: (g: Grafica) => void; onClose: () => void
+  onAgregar: (id: string) => void; onCrear: (g: Grafica) => void; onClose: () => void; fechas?: FechasCtor
 }) {
   const ref = useRef<HTMLDivElement>(null)
   useFocoDialogo(ref)
@@ -567,7 +576,9 @@ export function Galeria({ corte, filtros, quitados, onAgregar, onCrear, onClose 
     </span>
   )
   const dev = quitados.filter((w) => !nq || w.titulo.toLowerCase().includes(nq))
-  if (editar) return <Editor corte={corte} filtros={filtros} g={editar} onGuardar={(x) => { onCrear(x); onClose() }} onClose={() => setEditar(null)} />
+  if (editar) return <Editor corte={corte} filtros={fechas ? fechas.filtros(editar.id) : filtros} g={editar}
+    rango={fechas?.de(editar.id)} onRango={fechas ? (p) => fechas.fijar(editar.id, p) : undefined}
+    onGuardar={(x) => { onCrear(x); onClose() }} onClose={() => setEditar(null)} />
   return (
     <div className="modal-bg" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div className="modal galeria" role="dialog" aria-modal="true" aria-label="Agregar una gráfica" ref={ref}>
@@ -609,7 +620,7 @@ export function autoTitulo(g: Grafica): string {
   return medidas + (g.dim === 'ninguna' ? '' : ' por ' + dimensionDe(g.dim).label.toLowerCase())
 }
 
-export function Editor({ corte, filtros, g, onGuardar, onClose }: { corte: Corte; filtros: Filtros; g: Grafica; onGuardar: (g: Grafica) => void; onClose: () => void }) {
+export function Editor({ corte, filtros, g, onGuardar, onClose, rango, onRango }: { corte: Corte; filtros: Filtros; g: Grafica; onGuardar: (g: Grafica) => void; onClose: () => void; rango?: Preset; onRango?: (p: Preset | null) => void }) {
   const ref = useRef<HTMLDivElement>(null)
   useFocoDialogo(ref)
   useEscape(onClose)
@@ -691,6 +702,17 @@ export function Editor({ corte, filtros, g, onGuardar, onClose }: { corte: Corte
                 {dims.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
               </select>
             </label>
+            {onRango && (
+              <label>Fechas de esta gráfica
+                <select className="sel" value={rango || ''} onChange={(e) => onRango((e.target.value || null) as Preset | null)}>
+                  <option value="">Las del tablero</option>
+                  {PRESETS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+                </select>
+                <span className="small muted">{rango
+                  ? 'Esta gráfica NO sigue las fechas de arriba: siempre mira este periodo.'
+                  : 'Sigue el periodo que elijas arriba en el tablero.'}</span>
+              </label>
+            )}
             <div className="ed-campo">
               <span className="ed-lbl">Cómo dibujarlo</span>
               <span className="ed-tipos" role="radiogroup" aria-label="Tipo de gráfica">

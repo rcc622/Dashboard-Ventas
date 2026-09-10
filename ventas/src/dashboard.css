@@ -1051,7 +1051,8 @@ h3 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: 0; t
 /* Fechas propias de un widget (Randall 10-sep): icono discreto cuando sigue al tablero, chip con el
    nombre del periodo cuando NO lo sigue, para que nadie lea el numero creyendo que es del periodo de arriba. */
 .wfechas { position: relative; display: inline-flex; flex: none; }
-.wrango { appearance: none; border: 1px solid transparent; background: none; border-radius: 999px; color: var(--g3); cursor: pointer; display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; font: inherit; font-size: 11.5px; font-weight: 600; min-height: 22px; }
+.wrango { appearance: none; border: 1px solid var(--line); background: var(--card); border-radius: 999px; color: var(--g2); cursor: pointer; display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; font: inherit; font-size: 11.5px; font-weight: 600; min-height: 22px; max-width: 190px; }
+.wrango span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wrango:hover { background: var(--hover); color: var(--ink); }
 .wrango:focus-visible { outline: 2px solid var(--c1); outline-offset: 1px; }
 .wfechas.on .wrango { color: var(--c1-ink); background: var(--c1-soft); border-color: var(--c1); }
@@ -1060,5 +1061,9 @@ h3 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: 0; t
 .wmenu button:hover { background: var(--hover); }
 .wmenu button.on { background: var(--c1-soft); color: var(--c1-ink); font-weight: 700; }
 .wmenu-sec { font-size: 10.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--g3); padding: 8px 9px 3px; }
-@media (max-width: 640px) { .wfechas:not(.on) { display: none; } }
+@media (max-width: 640px) { .wrango { max-width: 120px; } }
 .gbase { font-size: 11.5px; color: var(--g2); margin: -2px 0 2px; }
+.wmenu-cab { display: grid; gap: 1px; padding: 8px 9px 7px; border-bottom: 1px solid var(--line); margin-bottom: 3px; }
+.wmenu-cab b { font-size: 12.5px; }
+.wmenu-cab span { font-size: 11.5px; color: var(--g2); }
+.wmenu-cab .wmenu-base { color: var(--c1-ink); font-weight: 600; margin-top: 3px; }
