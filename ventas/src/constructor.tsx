@@ -203,8 +203,15 @@ export function GraficaLibre({ corte, filtros, g, onDrill, mini = false }: { cor
   const ver = (x: Grupo) => onDrill?.({ titulo: `${m.label} · ${x.label}`, filas: filasDe(corte, x.items), sub: filtros.rango.label })
   const items = vistos.map((x) => ({ label: x.label, value: x.valor, sub: sub(x) }))
   const clic = onDrill && !mini ? (i: number) => ver(vistos[i]) : undefined
+  // Una cifra propia usa la misma tarjeta `.tile` que las cifras de fábrica: así crece con el
+  // widget (la tipografía va en unidades del contenedor) y trae su fondo y su punto de color, en vez
+  // de quedar chiquita en una esquina (Randall 10-sep: «el diseño no es proporcional al tamaño»).
+  // En la vista previa de la galería va sin tarjeta, para no meter un recuadro dentro de otro.
   if (g.tipo === 'cifra') return (
-    <div className="gcifra"><div className="n">{m.fmt(m.agg === 'promedio' && grupos.length === 1 ? grupos[0].valor : total)}</div><div className="l">{m.label}</div></div>
+    <div className={'gcifra' + (mini ? '' : ' tile')}>
+      <div className="n">{m.fmt(m.agg === 'promedio' && grupos.length === 1 ? grupos[0].valor : total)}</div>
+      <div className="l">{m.label}</div>
+    </div>
   )
   if (g.tipo === 'dona') return (
     <div className="donut-legend">

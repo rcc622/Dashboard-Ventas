@@ -842,6 +842,14 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   comisiones) y la vista previa viva a la derecha. Las gráficas propias viven en el layout
   (`kv_orden_<clave>.graficas`, id `g:<n>`), se mueven, estiran, ajustan (lápiz) y se borran (×) como
   cualquier widget, y sobreviven a la recarga.
+- **Una gráfica propia de tipo «cifra» se pinta con la MISMA tarjeta que las de fábrica**
+  (Randall 10-sep: «el diseño no es proporcional al tamaño del widget»). `GraficaLibre` le pone
+  `className="gcifra tile"` fuera de la vista previa, así hereda el fondo, el punto de color y —lo
+  importante— la tipografía fluida `clamp(28px, 13cqw, 72px)` que crece con el ancho del widget
+  (`.widget.wtile` es `container-type: inline-size`). Antes la cifra quedaba clavada en 30 px y sin
+  tarjeta: en un widget grande se veía un número diminuto en una esquina. En la galería va SIN
+  `.tile`, para no meter un recuadro dentro de otro. Medido: 214 px de widget → 28 px de tipo, igual
+  que una cifra de fábrica del mismo ancho; 671 px → 72 px, que es el tope.
 - **La ficha del asesor también trae el constructor**, fijado a esa persona (`{...filtros, asesor: uid}`);
   Mi día usa una galería simple con lo que se quitó de ese tablero (no tiene medidas propias).
 - **La página «Ventas reales» desapareció** (Randall 7-sep: «no quiero otra sección, lo quiero todo en
