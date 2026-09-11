@@ -479,12 +479,18 @@ def validar_config(body):
     for k, v in tipos.items():
         if not (isinstance(k, str) and _SLUG.match(k) and v in ("leads", "cambaceo", "mixto", "otro")):
             raise ValueError("tipo de vendedor inválido: %r" % ((k, v),))
+    crms = body.get("crms") or {}
+    if not isinstance(crms, dict) or len(crms) > 500:
+        raise ValueError("crms debe ser un objeto")
+    for k, v in crms.items():
+        if not (isinstance(k, str) and _SLUG.match(k) and v in ("kommo", "hubspot", "ambos", "ninguno")):
+            raise ValueError("CRM declarado inválido: %r" % ((k, v),))
     return {"meta_mxn": int(round(numero(body.get("meta_mxn", 800000), "meta_mxn", 1))),
             "cotizado_x": round(numero(body.get("cotizado_x", 10), "cotizado_x", 0.1), 2),
             "cotizado_dias": int(round(numero(body.get("cotizado_dias", 90), "cotizado_dias", 1))),
             "metas_zona": tabla(body.get("metas_zona"), "metas_zona", _ZONA),
             "metas": tabla(body.get("metas"), "metas", _SLUG),
-            "ocultos": sorted(set(ocultos)), "equipos": dict(equipos), "comisiones_map": dict(cmap), "tipos": dict(tipos)}
+            "ocultos": sorted(set(ocultos)), "equipos": dict(equipos), "comisiones_map": dict(cmap), "tipos": dict(tipos), "crms": dict(crms)}
 
 
 # ---------------------------------------------------------------- accesos de /ventas

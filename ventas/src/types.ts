@@ -7,6 +7,9 @@ export type Crm = 'kommo' | 'hubspot'
 /** `rol`: el rol de Kommo (KS-VENTAS, KS-TRAINING, KS-SEGUIMIENTO, Administrador); vacío en HubSpot. */
 /** Cómo vende (Randall 11-sep): con leads del CRM, puro cambaceo (sin CRM, solo existe en la app de comisiones) o las dos. */
 export type TipoVendedor = 'leads' | 'cambaceo' | 'mixto' | 'otro'
+/** En qué CRM trabaja el vendedor, dicho a mano (Randall 11-sep: «que el sistema tenga la información correcta»).
+ *  No cambia de dónde se leen los datos: es lo que se muestra al líder de ventas y lo que decide el tipo automático. */
+export type CrmDeclarado = 'kommo' | 'hubspot' | 'ambos' | 'ninguno'
 export interface Usuario { id: string; nombre: string; zona: string; zona_crm?: string; crm: Crm[]; ids: Partial<Record<Crm, number | string>>; rol?: string }
 export interface Equipo { id: string; nombre: string }          // zonas MTY / SLT / TRC / MVA
 export interface Etapa { id: number; nombre: string }           // etapas canónicas del embudo Ventas, en orden
@@ -63,6 +66,8 @@ export interface Corte {
   comisiones_map?: Record<string, string>
   /** Tipo de vendedor fijado a mano (env VENTAS_TIPOS o Configuración); sin entrada = por CRM. */
   tipos?: Record<string, TipoVendedor>
+  /** CRM declarado a mano por vendedor (Configuración); sin entrada = lo que detecta el corte. */
+  crms?: Record<string, CrmDeclarado>
   usuarios: Usuario[]; equipos: Equipo[]; etapas: Etapa[]
   /** Meta mensual de venta en MXN: por asesor (slug), por zona y la general. Prioridad asesor → zona → general. */
   metas: Record<string, number>; metas_zona: Record<string, number>; meta_mxn: number
@@ -75,7 +80,7 @@ export interface Corte {
 
 /** Lo que guarda la página de Configuración en data/ventas_config.json (app.py).
  *  equipos: zona por asesor que manda sobre la del CRM ('-' = sin equipo). */
-export interface Config { meta_mxn: number; cotizado_x: number; cotizado_dias: number; metas_zona: Record<string, number>; metas: Record<string, number>; ocultos: string[]; equipos: Record<string, string>; comisiones_map: Record<string, string>; tipos: Record<string, TipoVendedor> }
+export interface Config { meta_mxn: number; cotizado_x: number; cotizado_dias: number; metas_zona: Record<string, number>; metas: Record<string, number>; ocultos: string[]; equipos: Record<string, string>; comisiones_map: Record<string, string>; tipos: Record<string, TipoVendedor>; crms: Record<string, CrmDeclarado> }
 
 /** Sesión de /ventas (cookie firmada por app.py). uid de un asesor = su slug en el corte. */
 export interface Yo { uid: string; rol: 'admin' | 'asesor'; nombre: string }

@@ -1,7 +1,7 @@
 import { Fragment, useLayoutEffect, useMemo, useRef, useState, type SyntheticEvent, useEffect } from 'react'
 import type { Corte, Evento, Lead, LevFila, Sanciones, Usuario } from './types'
 import { CRM_LABEL } from './types'
-import { BUCKETS, PERFIL_LABEL, actividad, actividadDe, cotizado, dias, embudo, entrada, ep, eventosFiltrados, fechaCotizado, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, metaDe, metaEnRango, pasaCrm, etiquetaRango, periodoTexto, preset, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, type Fila, type FilaAsesor, type Filtros, type Perfil , type Preset, type PuntoPerfil, ventasReales, ventasCrm, tipoDe, VENDEDOR_LABEL, filasDeVentasReales, comparativaVentas, rolDestacado, rolNombre, cotizacionesGeneradas, filasDeCotizaciones, visitas, levantados, filasDeLevantamientos } from './metrics'
+import { BUCKETS, PERFIL_LABEL, actividad, actividadDe, cotizado, dias, embudo, entrada, ep, eventosFiltrados, fechaCotizado, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, metaDe, metaEnRango, pasaCrm, etiquetaRango, periodoTexto, preset, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, type Fila, type FilaAsesor, type Filtros, type Perfil , type Preset, type PuntoPerfil, ventasReales, ventasCrm, tipoDe, crmTexto, VENDEDOR_LABEL, filasDeVentasReales, comparativaVentas, rolDestacado, rolNombre, cotizacionesGeneradas, filasDeCotizaciones, visitas, levantados, filasDeLevantamientos } from './metrics'
 import { BarDetailPopup, BubbleChart, Bullet, DonutChart, FunnelChart, Gauge, Info, LlamadasBar, MiniAreaChart, Scatter, SortTh, StackedBar, activar, useEscape, useOutside, type DetRow, type Sort, type BubbleCol, useFocoDialogo } from './components'
 import { DrillModal, type Drill } from './drill'
 import { BASE_FECHA, EditarColumnas, anchos, anchoTotal, useColumnas, type ColDef } from './columnas'
@@ -13,7 +13,7 @@ import { useRangos } from './rangos'
 
 const mixto = (c: Corte) => (c.fuentes || []).length > 1
 const crmCorto = (l: { crm: Lead['crm'] }) => CRM_LABEL[l.crm]
-const subAsesor = (c: Corte, u: Usuario) => zonaNombre(c, u.zona) + ' · ' + (u.crm.length ? u.crm.map((x) => CRM_LABEL[x]).join(' + ') : 'app de comisiones') + ' · ' + VENDEDOR_LABEL[tipoDe(c, u)] + (u.rol && u.rol !== 'cambaceo' ? ' · ' + rolNombre(u.rol) : '')
+const subAsesor = (c: Corte, u: Usuario) => zonaNombre(c, u.zona) + ' · ' + crmTexto(c, u) + ' · ' + VENDEDOR_LABEL[tipoDe(c, u)] + (u.rol && u.rol !== 'cambaceo' ? ' · ' + rolNombre(u.rol) : '')
 /** Etiqueta junto al nombre cuando el vendedor no es puro leads (grupo cambaceo dentro de su zona, Randall 11-sep). */
 const TagTipo = ({ c, u }: { c: Corte; u: Usuario }) => { const t = tipoDe(c, u); return t === 'leads' ? null : <span className={'tag tipo ' + t} title={t === 'cambaceo' ? 'Vendedor de cambaceo: vende sin CRM, sus ventas vienen de la app de comisiones' : t === 'mixto' ? 'Vende con leads del CRM y también por cambaceo' : 'Otro tipo de vendedor (fijado en Configuración)'}>{VENDEDOR_LABEL[t]}</span> }
 const avatarCls = (u: Usuario) => 'avatar' + (u.zona ? ' z-' + u.zona : '')

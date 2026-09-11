@@ -5,7 +5,7 @@
 // Reglas de Alejandro (consultor, juntas jul-ago 2026) que viven aquí: meta en pesos
 // prorrateada al rango, cotizado vigente (≤ 90 d) contra 10× la meta mensual, tasa de
 // asignación como KPI de entrada, primer contacto en horas y perfiles actividad × venta.
-import type { CotFila, Corte, Crm, Etapa, Evento, Lead, LevFila, Rango, Tarea, Usuario, VentaReal, Origen, TipoVendedor } from './types'
+import type { CotFila, Corte, Crm, Etapa, Evento, Lead, LevFila, Rango, Tarea, Usuario, VentaReal, Origen, TipoVendedor, CrmDeclarado } from './types'
 
 /** crm = qué CRM entran (botones Kommo · HubSpot de la barra del Admin); al menos uno encendido. */
 export interface Filtros { rango: Rango; equipo: string | null; asesor: string | null; crm: Record<Crm, boolean> }
@@ -114,7 +114,14 @@ export function zonaNombre(c: Corte, zona: string): string { return c.equipos.fi
  *  toda cifra atribuida a persona. Un filtro explícito de asesor (por URL) sí los deja ver. */
 export const ocultosDe = (c: Corte) => new Set(c.ocultos || [])
 /** Tipo de vendedor: lo fijado (Configuración / env) y, si no, cambaceo cuando no vive en ningún CRM. */
-export const tipoDe = (c: Corte, u: Usuario): TipoVendedor => c.tipos?.[u.id] ?? (u.crm.length ? 'leads' : 'cambaceo')
+export const CRM_DECLARADO_LABEL: Record<CrmDeclarado, string> = { kommo: 'Kommo', hubspot: 'HubSpot', ambos: 'Kommo + HubSpot', ninguno: 'Sin CRM' }
+/** CRM detectado en el corte, como se declara. */
+export const crmDetectado = (u: Usuario): CrmDeclarado => u.crm.length === 2 ? 'ambos' : u.crm[0] === 'kommo' ? 'kommo' : u.crm[0] === 'hubspot' ? 'hubspot' : 'ninguno'
+/** CRM del vendedor para mostrar: el declarado en Configuración o, si no, el detectado. */
+export const crmDe = (c: Corte, u: Usuario): CrmDeclarado => c.crms?.[u.id] ?? crmDetectado(u)
+export const crmTexto = (c: Corte, u: Usuario) => CRM_DECLARADO_LABEL[crmDe(c, u)]
+/** Tipo de vendedor: lo fijado y, si no, cambaceo cuando no trabaja en ningún CRM (declarado o detectado). */
+export const tipoDe = (c: Corte, u: Usuario): TipoVendedor => c.tipos?.[u.id] ?? (crmDe(c, u) === 'ninguno' ? 'cambaceo' : 'leads')
 export const VENDEDOR_LABEL: Record<TipoVendedor, string> = { leads: 'Leads', cambaceo: 'Cambaceo', mixto: 'Leads + cambaceo', otro: 'Otro' }
 export const usuariosVisibles = (c: Corte) => { const o = ocultosDe(c); return c.usuarios.filter((u) => !o.has(u.id)) }
 function pasaPersona(asesorId: string | null, f: Filtros, users: Map<string, Usuario>, ocultos: Set<string>): boolean {

@@ -3,7 +3,7 @@ import type { Config, Corte, Crm, Rango, Yo } from './types'
 import { CRM_LABEL } from './types'
 import { aplicarConfig, cargar, logout, yo as pedirYo, type Carga } from './data'
 import { Login } from './login'
-import { esPreset, iniciales, preset, tipoDe, rangoManual, usuariosVisibles, vivo, zonaNombre, type Filtros, type Preset } from './metrics'
+import { esPreset, iniciales, preset, tipoDe, crmTexto, rangoManual, usuariosVisibles, vivo, zonaNombre, type Filtros, type Preset } from './metrics'
 
 const CRMS: Crm[] = ['kommo', 'hubspot']
 import { DateRangePicker } from './DateRangePicker'
@@ -195,8 +195,8 @@ function Shell({ yo, corte, origen, error, onRetry, onConfig, onLogout }: { yo: 
                   {(() => { const otros = usuariosOrden.filter((u) => !corte.equipos.some((q) => q.id === u.zona)); return otros.length
                     ? <optgroup label="Sin equipo">{otros.map((u) => <option key={u.id} value={u.id}>{u.nombre}</option>)}</optgroup> : null })()}
                 </select>
-                <span className="tb-info" title={`${uFicha.nombre} es de ${zonaNombre(corte, uFicha.zona)} y su data vive en ${uFicha.crm.map((k) => CRM_LABEL[k]).join(' y ')}. En su ficha se ven TODOS sus datos: los filtros de equipo y CRM no aplican.`}>
-                  {zonaNombre(corte, uFicha.zona)} · {uFicha.crm.map((k) => CRM_LABEL[k]).join(' y ')}
+                <span className="tb-info" title={`${uFicha.nombre} es de ${zonaNombre(corte, uFicha.zona)} y su CRM es ${crmTexto(corte, uFicha)}. En su ficha se ven TODOS sus datos: los filtros de equipo y CRM no aplican.`}>
+                  {zonaNombre(corte, uFicha.zona)} · {crmTexto(corte, uFicha)}
                 </span>
               </>
             ) : (<>
