@@ -262,13 +262,20 @@ def agregar_cotizaciones(corte):
     Kommo-ia al generar el JPG; una fila por opción de pago, cot_id agrupa la cotización).
     El dashboard cuenta cotizaciones por método y por combinación de métodos (dirección
     8-sep). Sin SUPABASE_* no entra; si falla, `cotizaciones.error` lo dice."""
-    if not (os.environ.get("SUPABASE_URL") and os.environ.get("SUPABASE_SERVICE_KEY")):
+    # `cotizaciones` vive en el proyecto Supabase «analitica» (vsoldehmnjhqjfycxvpp),
+    # separado del de comisiones desde el 10-sep: lo que escriben kommo-ia y el
+    # calificador de llamadas no debe compartir llave con la nomina. `sales` y
+    # `profiles` siguen en el de comisiones (ventas_comisiones.py).
+    url = os.environ.get("ANALITICA_SUPABASE_URL") or os.environ.get("SUPABASE_URL")
+    key = os.environ.get("ANALITICA_SUPABASE_KEY") or os.environ.get("SUPABASE_SERVICE_KEY")
+    if not (url and key):
         return corte
     try:
         import ventas_comisiones
         desde = time.time() - COTIZACIONES_DIAS * 86400
         filas = ventas_comisiones.get("cotizaciones",
-                                      "creado,cot_id,lead_id,asesor,sucursal,paneles,micro,ptr,n_opciones,plan,plazo,ppanel,total")
+                                      "creado,cot_id,lead_id,asesor,sucursal,paneles,micro,ptr,n_opciones,plan,plazo,ppanel,total",
+                                      url=url, key=key)
         out = []
         for r in filas:   # ponytail: se baja toda la tabla y se filtra aquí; paginar por fecha cuando pase de ~50k filas
             try:
