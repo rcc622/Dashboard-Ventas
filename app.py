@@ -1036,13 +1036,17 @@ class H(BaseHTTPRequestHandler):
             if faltan:
                 return err(400, "cuentas que no existen: " + ", ".join(map(str, faltan[:5])))
             todos = leer_tableros()
+            # Marca de tiempo NUEVA: el navegador de la cuenta destino solo adopta lo de la cuenta si
+            # es más reciente que lo que él guardó; con la marca vieja del administrador, un tablero que
+            # esa persona hubiera tocado después ganaba y hasta pisaba lo compartido.
+            ahora_ms = int(time.time() * 1000)
             for uid in destinos:
                 suyo = dict(todos.get(uid) or {})
                 for clave, valor in datos.items():
                     if valor is None:
                         suyo.pop(clave, None)
                     else:
-                        suyo[clave] = valor
+                        suyo[clave] = dict(valor, ts=ahora_ms) if isinstance(valor, dict) else valor
                 todos[uid] = suyo
             self._escribir(VENTAS_TABLEROS, todos)
             return self._send(200, json.dumps({"ok": True, "cuentas": len(destinos)}), "application/json")
