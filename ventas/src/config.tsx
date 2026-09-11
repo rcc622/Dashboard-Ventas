@@ -42,6 +42,8 @@ export function Configuracion({ corte, onSaved }: { corte: Corte; onSaved: (cfg:
   const [equipos, setEquipos] = useState<Record<string, string>>(() => Object.fromEntries(corte.usuarios.map((u) => [u.id, u.zona_crm != null && u.zona !== u.zona_crm ? (u.zona || '-') : ''])))
   // Ventas reales: nombre en la app de comisiones -> slug del CRM ('' = sin asesor). Solo lo fijado a mano; lo demás es automático.
   const [comMap, setComMap] = useState<Record<string, string>>(() => ({ ...(corte.comisiones_map || {}) }))
+  // Tipo de vendedor fijado a mano ('' = automático: leads si vive en un CRM, cambaceo si solo está en la app).
+  const [tipos, setTipos] = useState<Record<string, string>>(() => ({ ...(corte.tipos || {}) }))
   const [estado, setEstado] = useState<Estado | null>(null)
   const [guardando, setGuardando] = useState(false)
   const usuarios = useMemo(() => [...corte.usuarios].sort((a, b) => a.nombre.localeCompare(b.nombre)), [corte])
@@ -81,7 +83,7 @@ export function Configuracion({ corte, onSaved }: { corte: Corte; onSaved: (cfg:
     for (const [k, v] of Object.entries(asesores)) { if (v.trim() === '') continue; const n = num(v); if (n == null) return `La meta de ${corte.usuarios.find((u) => u.id === k)?.nombre || k} no es un número.`; metas[k] = n }
     const eq: Record<string, string> = {}
     for (const [k, v] of Object.entries(equipos)) if (v) eq[k] = v
-    return { meta_mxn: g, cotizado_x: x, cotizado_dias: Math.round(d), metas_zona, metas, ocultos: [...ocultos], equipos: eq, comisiones_map: comMap }
+    return { meta_mxn: g, cotizado_x: x, cotizado_dias: Math.round(d), metas_zona, metas, ocultos: [...ocultos], equipos: eq, comisiones_map: comMap, tipos: Object.fromEntries(Object.entries(tipos).filter(([, v]) => v)) as Config['tipos'] }
   }
   const borrador = armar()
   const cfg = typeof borrador === 'string' ? null : borrador
@@ -164,7 +166,7 @@ export function Configuracion({ corte, onSaved }: { corte: Corte; onSaved: (cfg:
             <div className="small muted" style={{ marginBottom: 10 }}>Estos son los vendedores que traen Kommo y HubSpot. Ojo cerrado = desactivado: no sale en el menú de propietarios, en la tabla, en el ranking ni en los perfiles, y sus leads y actividades no cuentan en las cifras del equipo. La entrada de leads de Kommo no cambia. El equipo manda sobre el que trae el CRM. Para que un vendedor pueda ENTRAR al tablero hay que crearle una cuenta en «Usuarios de la plataforma».</div>
             <div className="tblwrap" style={{ boxShadow: 'none' }}>
               <table className="ftable" aria-label="Vendedores del CRM">
-                <thead><tr><th scope="col">Activo</th><th scope="col">Vendedor</th><th scope="col">Rol en Kommo</th><th scope="col">Equipo de ventas</th><th scope="col">Meta propia (MXN)</th><th scope="col" className="num">Meta efectiva</th><th scope="col">Cuenta</th></tr></thead>
+                <thead><tr><th scope="col">Activo</th><th scope="col">Vendedor</th><th scope="col">Rol en Kommo</th><th scope="col">Tipo de vendedor</th><th scope="col">Equipo de ventas</th><th scope="col">Meta propia (MXN)</th><th scope="col" className="num">Meta efectiva</th><th scope="col">Cuenta</th></tr></thead>
                 <tbody>
                   {usuarios.map((u) => {
                     const oculto = ocultos.has(u.id), zcrm = u.zona_crm ?? u.zona
@@ -172,7 +174,15 @@ export function Configuracion({ corte, onSaved }: { corte: Corte; onSaved: (cfg:
                       <tr key={u.id} className={oculto ? 'oculto' : ''}>
                         <td><button type="button" className="eye" aria-pressed={!oculto} aria-label={(oculto ? 'Mostrar a ' : 'Ocultar a ') + u.nombre + ' en el tablero'} title={oculto ? 'Desactivado: clic para mostrarlo' : 'Activo: clic para ocultarlo'} onClick={() => toggleOjo(u.id)}><Ojo abierto={!oculto} /></button></td>
                         <td><span className="nm">{u.nombre}</span><div className="small muted">{u.crm.map((c) => (c === 'hubspot' ? 'HubSpot' : 'Kommo')).join(' + ')}{oculto ? ' · desactivado' : ''}</div></td>
-                        <td>{u.rol ? rolNombre(u.rol) : <span className="muted">—</span>}</td>
+                        <td>{u.rol && u.rol !== 'cambaceo' ? rolNombre(u.rol) : <span className="muted">—</span>}</td>
+                        <td>
+                          <select className="sel" aria-label={'Tipo de vendedor de ' + u.nombre} value={tipos[u.id] || ''} onChange={(ev) => setTipos({ ...tipos, [u.id]: ev.target.value })}>
+                            <option value="">Automático ({u.crm.length ? 'Leads' : 'Cambaceo'})</option>
+                            <option value="leads">Leads</option>
+                            <option value="cambaceo">Cambaceo</option>
+                            <option value="mixto">Leads + cambaceo</option>
+                          </select>
+                        </td>
                         <td>
                           <select className="sel" aria-label={'Equipo de ' + u.nombre} value={equipos[u.id] || ''} onChange={(ev) => setEquipos({ ...equipos, [u.id]: ev.target.value })}>
                             <option value="">Como en el CRM ({zcrm ? zonaNombre(corte, zcrm) : 'sin equipo'})</option>

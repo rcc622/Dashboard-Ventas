@@ -1,7 +1,7 @@
 import { Fragment, useLayoutEffect, useMemo, useRef, useState, type SyntheticEvent, useEffect } from 'react'
 import type { Corte, Evento, Lead, LevFila, Sanciones, Usuario } from './types'
 import { CRM_LABEL } from './types'
-import { BUCKETS, PERFIL_LABEL, actividad, actividadDe, cotizado, dias, embudo, entrada, ep, eventosFiltrados, fechaCotizado, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, metaDe, metaEnRango, pasaCrm, etiquetaRango, periodoTexto, preset, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, type Fila, type FilaAsesor, type Filtros, type Perfil , type Preset, type PuntoPerfil, ventasReales, ventasCrm, filasDeVentasReales, comparativaVentas, rolDestacado, rolNombre, cotizacionesGeneradas, filasDeCotizaciones, visitas, levantados, filasDeLevantamientos } from './metrics'
+import { BUCKETS, PERFIL_LABEL, actividad, actividadDe, cotizado, dias, embudo, entrada, ep, eventosFiltrados, fechaCotizado, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, metaDe, metaEnRango, pasaCrm, etiquetaRango, periodoTexto, preset, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, type Fila, type FilaAsesor, type Filtros, type Perfil , type Preset, type PuntoPerfil, ventasReales, ventasCrm, tipoDe, VENDEDOR_LABEL, filasDeVentasReales, comparativaVentas, rolDestacado, rolNombre, cotizacionesGeneradas, filasDeCotizaciones, visitas, levantados, filasDeLevantamientos } from './metrics'
 import { BarDetailPopup, BubbleChart, Bullet, DonutChart, FunnelChart, Gauge, Info, LlamadasBar, MiniAreaChart, Scatter, SortTh, StackedBar, activar, useEscape, useOutside, type DetRow, type Sort, type BubbleCol, useFocoDialogo } from './components'
 import { DrillModal, type Drill } from './drill'
 import { BASE_FECHA, EditarColumnas, anchos, anchoTotal, useColumnas, type ColDef } from './columnas'
@@ -13,7 +13,9 @@ import { useRangos } from './rangos'
 
 const mixto = (c: Corte) => (c.fuentes || []).length > 1
 const crmCorto = (l: { crm: Lead['crm'] }) => CRM_LABEL[l.crm]
-const subAsesor = (c: Corte, u: Usuario) => zonaNombre(c, u.zona) + ' · ' + u.crm.map((x) => CRM_LABEL[x]).join(' + ') + (u.rol ? ' · ' + rolNombre(u.rol) : '')
+const subAsesor = (c: Corte, u: Usuario) => zonaNombre(c, u.zona) + ' · ' + (u.crm.length ? u.crm.map((x) => CRM_LABEL[x]).join(' + ') : 'app de comisiones') + ' · ' + VENDEDOR_LABEL[tipoDe(c, u)] + (u.rol && u.rol !== 'cambaceo' ? ' · ' + rolNombre(u.rol) : '')
+/** Etiqueta junto al nombre cuando el vendedor no es puro leads (grupo cambaceo dentro de su zona, Randall 11-sep). */
+const TagTipo = ({ c, u }: { c: Corte; u: Usuario }) => { const t = tipoDe(c, u); return t === 'leads' ? null : <span className={'tag tipo ' + t} title={t === 'cambaceo' ? 'Vendedor de cambaceo: vende sin CRM, sus ventas vienen de la app de comisiones' : 'Vende con leads del CRM y también por cambaceo'}>{t === 'cambaceo' ? 'Cambaceo' : 'Mixto'}</span> }
 const avatarCls = (u: Usuario) => 'avatar' + (u.zona ? ' z-' + u.zona : '')
 const RAMPA = ['var(--f1)', 'var(--f2)', 'var(--f3)', 'var(--f4)', 'var(--f5)', 'var(--f6)', 'var(--f6)']
 // HubSpot no trae llamadas ni mensajes por deal: mejor decirlo que pintar «0 llam».
@@ -160,7 +162,7 @@ function datosDe(corte: Corte, f: Filtros) {
   const filas = porAsesor(corte, f)
   return {
     leads, ev, ventas, filas,
-    ent: entrada(corte, f.rango, f), pc: primerContacto(corte, leads), rz: razones(corte, ev), perf: perfiles(filas),
+    ent: entrada(corte, f.rango, f), pc: primerContacto(corte, leads), rz: razones(corte, ev), perf: perfiles(corte, filas),
     vr: ventasReales(corte, f), cg: cotizacionesGeneradas(corte, f), vis: visitas(corte, f), lev: levantados(corte, f),
   }
 }
@@ -277,7 +279,7 @@ function widgetsTablero(corte: Corte, filtros: Filtros, d: Datos, ax: Acciones):
           <div className="lr drill" key={f.u.id} role="button" tabIndex={0} aria-label={`${f.u.nombre}: ${fmtMoney0(f.montoVentas)} en ${f.ventas} ventas. Ver ventas`}
             onClick={() => ver(`Ventas de ${f.u.nombre}`, fVentas(ventas.filter((l) => l.asesor_id === f.u.id)), rango + FUENTE_VENTAS(corte))} onKeyDown={activar(() => ver(`Ventas de ${f.u.nombre}`, fVentas(ventas.filter((l) => l.asesor_id === f.u.id)), rango + FUENTE_VENTAS(corte)))}>
             <span className={'pos' + (i < 3 ? ' top' : '')}>{i + 1}</span>
-            <span className="nm" title={subAsesor(corte, f.u)}>{f.u.nombre}</span>
+            <span className="nm" title={subAsesor(corte, f.u)}>{f.u.nombre}<TagTipo c={corte} u={f.u} /></span>
             <Bullet sm value={f.montoVentas} target={f.metaRango} expected={f.esperado} label={'Vendido de ' + f.u.nombre} fmt={fmtMoney0} />
             <span className="v">{fmtMoney0(f.montoVentas)}<small>{f.ventas} venta{f.ventas === 1 ? '' : 's'} · {pct(f.montoVentas, f.metaRango)}% de la meta · <span className={'rt ' + f.ritmo.estado}>{f.ritmo.corto}</span></small></span>
           </div>
@@ -605,13 +607,13 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
 // ---------------------------------------------------------------- Asesores
 interface Pop { fila: FilaAsesor; x: number; y: number }
 interface Det { title: string; total: number; rows: DetRow[]; anchor: DOMRect }
-type Key = 'nombre' | 'vendido' | 'cotizado' | 'leads' | 'llamadas' | 'tareas' | 'pc' | 'cotiz' | 'desc' | 'lev' | 'equipo' | 'ventas' | 'estanc' | 'sintarea'
+type Key = 'nombre' | 'vendido' | 'cotizado' | 'leads' | 'llamadas' | 'tareas' | 'pc' | 'cotiz' | 'desc' | 'lev' | 'equipo' | 'tipo' | 'ventas' | 'estanc' | 'sintarea'
   | 'asignados' | 'totales' | 'conversion' | 'perdida' | 'ticket' | 'cumpl' | 'actividad'
 const valor = (f: FilaAsesor, k: Key): number | string =>
   k === 'nombre' ? f.u.nombre : k === 'vendido' ? f.montoVentas : k === 'cotizado' ? f.cotizado.vigente : k === 'leads' ? f.leadsActivos.length
     : k === 'llamadas' ? f.llamadas : k === 'tareas' ? f.tareasCompletadas + f.tareasVencidas + f.sinTarea : k === 'pc' ? f.pcVencidas
       : k === 'cotiz' ? f.cotizaciones : k === 'desc' ? f.descartes : k === 'lev' ? f.levantamientos
-        : k === 'equipo' ? f.u.zona : k === 'ventas' ? f.ventas : k === 'estanc' ? f.estancados : k === 'sintarea' ? f.sinTarea
+        : k === 'equipo' ? f.u.zona : k === 'tipo' ? f.tipo : k === 'ventas' ? f.ventas : k === 'estanc' ? f.estancados : k === 'sintarea' ? f.sinTarea
           : k === 'asignados' || k === 'totales' ? f.asignados.length
             : k === 'conversion' ? (f.asignados.length ? f.ganados / f.asignados.length : -1)
               : k === 'perdida' ? (f.asignados.length ? f.perdidos / f.asignados.length : -1)
@@ -702,7 +704,7 @@ export function Asesores({ corte, filtros, onFicha }: { corte: Corte; filtros: F
   const th = { sort, onSort }
   const COLS: ColDef<FilaAsesor>[] = useMemo(() => [
     { id: 'nombre', label: 'Asesor', ancho: 190, fecha: 'ninguna', fija: true,
-      celda: (f) => (<td><div className="who"><div className={avatarCls(f.u)} title={subAsesor(corte, f.u)} aria-hidden="true">{iniciales(f.u.nombre)}</div><div><div className="nm"><button type="button" className="nbtn" aria-haspopup="dialog" aria-label={`Ver resumen de ${f.u.nombre}`} onClick={(e) => { e.stopPropagation(); const r = e.currentTarget.getBoundingClientRect(); abrir(f, r.right, r.bottom) }}>{f.u.nombre}</button>{rolDestacado(f.u.rol) && <span className="tag rol" title="Rol en Kommo">{rolNombre(f.u.rol)}</span>}</div><div className="sub">{f.ventas} venta{f.ventas === 1 ? '' : 's'} · meta {fmtMoney0(f.metaMes)}/mes</div></div></div></td>) },
+      celda: (f) => (<td><div className="who"><div className={avatarCls(f.u)} title={subAsesor(corte, f.u)} aria-hidden="true">{iniciales(f.u.nombre)}</div><div><div className="nm"><button type="button" className="nbtn" aria-haspopup="dialog" aria-label={`Ver resumen de ${f.u.nombre}`} onClick={(e) => { e.stopPropagation(); const r = e.currentTarget.getBoundingClientRect(); abrir(f, r.right, r.bottom) }}>{f.u.nombre}</button><TagTipo c={corte} u={f.u} />{rolDestacado(f.u.rol) && <span className="tag rol" title="Rol en Kommo">{rolNombre(f.u.rol)}</span>}</div><div className="sub">{f.ventas} venta{f.ventas === 1 ? '' : 's'} · meta {fmtMoney0(f.metaMes)}/mes</div></div></div></td>) },
     { id: 'asignados', label: 'Leads asignados', ancho: 155, fecha: 'asignacion', info: 'Leads asignados',
       celda: (f) => (<td><div className="mc">
         <div className="v">{fmtN(f.asignados.length)}</div>
@@ -803,6 +805,8 @@ export function Asesores({ corte, filtros, onFicha }: { corte: Corte; filtros: F
       celda: (f) => (<td className="cnt">{f.levantamientos > 0 ? <button type="button" className="nbtn celln" aria-haspopup="dialog" aria-label={`${f.levantamientos} levantamientos de ${f.u.nombre}. Abrir desglose`} onClick={(e) => detalle(e, 'Levantamientos · ' + f.u.nombre, f.levantamientos, porEstado('Levantamientos', evDe(f, 'levantamiento'), f, (l) => l.levantamiento || l.asignacion))}>{f.levantamientos}</button> : '0'}</td>) },
     { id: 'equipo', label: 'Equipo', ancho: 120, fecha: 'ninguna', oculta: true,
       celda: (f) => (<td>{zonaNombre(corte, f.u.zona) || <span className="muted">Sin equipo</span>}</td>) },
+    { id: 'tipo', label: 'Tipo de vendedor', ancho: 150, fecha: 'ninguna', oculta: true,
+      celda: (f) => (<td>{VENDEDOR_LABEL[tipoDe(corte, f.u)]}</td>) },
     { id: 'ventas', label: 'Ventas cerradas', ancho: 160, fecha: 'cierre', cnt: true, oculta: true,
       celda: (f) => (<td className="cnt">{f.ventas > 0 ? <button type="button" className="nbtn celln" aria-label={`${f.ventas} ventas cerradas de ${f.u.nombre}. Ver la lista`} onClick={() => ver(`Ventas cerradas · ${f.u.nombre}`, fVentas(ventasFiltradas(corte, { ...filtros, asesor: f.u.id })), rango)}>{f.ventas}</button> : '0'}</td>) },
     { id: 'estanc', label: 'Estancados', ancho: 135, fecha: 'asignacion', cnt: true, oculta: true,
@@ -851,7 +855,7 @@ export function Asesores({ corte, filtros, onFicha }: { corte: Corte; filtros: F
           <tbody>
             {filas.map((f) => (
               /* el resumen del asesor se abre solo desde el nombre (Randall 6-sep); cada cifra abre su propio desglose */
-              <tr key={f.u.id}>{vis.map((c) => <Fragment key={c.id}>{c.celda(f)}</Fragment>)}</tr>
+              <tr key={f.u.id}>{vis.map((c) => <Fragment key={c.id}>{f.tipo === 'cambaceo' && (c.fecha === 'asignacion' || c.fecha === 'actividad') ? <td className={c.cnt ? 'cnt muted' : 'muted'} title="Vendedor de cambaceo: no registra en el CRM">—</td> : c.celda(f)}</Fragment>)}</tr>
             ))}
           </tbody>
         </table>
@@ -1106,7 +1110,7 @@ export function Ficha({ corte, filtros, uid, onBack }: { corte: Corte; filtros: 
     <>
       <div className="ficha-tools">
         <button type="button" className="btn" onClick={onBack}>← Volver</button>
-        <div className="who"><div className={avatarCls(u)} aria-hidden="true">{iniciales(u.nombre)}</div><div><h2 className="nm" style={{ margin: 0, fontSize: 14 }}>{u.nombre}</h2><div className="sub">{subAsesor(corte, u)}</div></div></div>
+        <div className="who"><div className={avatarCls(u)} aria-hidden="true">{iniciales(u.nombre)}</div><div><h2 className="nm" style={{ margin: 0, fontSize: 14 }}>{u.nombre}<TagTipo c={corte} u={u} /></h2><div className="sub">{subAsesor(corte, u)}</div></div></div>
         <span className="tag dark">{activos.length} leads activos</span>
       </div>
       {/* La ficha usa el mismo constructor, pero fijado a este asesor. */}

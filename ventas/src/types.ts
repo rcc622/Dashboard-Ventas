@@ -5,6 +5,8 @@
 export type Crm = 'kommo' | 'hubspot'
 /** zona = la efectiva (la de Configuración manda); zona_crm = la que trae el CRM, para poder volver a ella. */
 /** `rol`: el rol de Kommo (KS-VENTAS, KS-TRAINING, KS-SEGUIMIENTO, Administrador); vacío en HubSpot. */
+/** Cómo vende (Randall 11-sep): con leads del CRM, puro cambaceo (sin CRM, solo existe en la app de comisiones) o las dos. */
+export type TipoVendedor = 'leads' | 'cambaceo' | 'mixto'
 export interface Usuario { id: string; nombre: string; zona: string; zona_crm?: string; crm: Crm[]; ids: Partial<Record<Crm, number | string>>; rol?: string }
 export interface Equipo { id: string; nombre: string }          // zonas MTY / SLT / TRC / MVA
 export interface Etapa { id: number; nombre: string }           // etapas canónicas del embudo Ventas, en orden
@@ -59,6 +61,8 @@ export interface Corte {
   levantamientos?: Levantamientos
   /** Configuración: nombre en la app de comisiones -> slug del CRM ('' = sin asesor). */
   comisiones_map?: Record<string, string>
+  /** Tipo de vendedor fijado a mano (env VENTAS_TIPOS o Configuración); sin entrada = por CRM. */
+  tipos?: Record<string, TipoVendedor>
   usuarios: Usuario[]; equipos: Equipo[]; etapas: Etapa[]
   /** Meta mensual de venta en MXN: por asesor (slug), por zona y la general. Prioridad asesor → zona → general. */
   metas: Record<string, number>; metas_zona: Record<string, number>; meta_mxn: number
@@ -71,7 +75,7 @@ export interface Corte {
 
 /** Lo que guarda la página de Configuración en data/ventas_config.json (app.py).
  *  equipos: zona por asesor que manda sobre la del CRM ('-' = sin equipo). */
-export interface Config { meta_mxn: number; cotizado_x: number; cotizado_dias: number; metas_zona: Record<string, number>; metas: Record<string, number>; ocultos: string[]; equipos: Record<string, string>; comisiones_map: Record<string, string> }
+export interface Config { meta_mxn: number; cotizado_x: number; cotizado_dias: number; metas_zona: Record<string, number>; metas: Record<string, number>; ocultos: string[]; equipos: Record<string, string>; comisiones_map: Record<string, string>; tipos: Record<string, TipoVendedor> }
 
 /** Sesión de /ventas (cookie firmada por app.py). uid de un asesor = su slug en el corte. */
 export interface Yo { uid: string; rol: 'admin' | 'asesor'; nombre: string }

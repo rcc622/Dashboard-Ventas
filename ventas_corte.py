@@ -191,6 +191,42 @@ def mezclar(partes):
     }
 
 
+def vendedores_cambaceo(corte):
+    """Vendedores de cambaceo (Randall 11-sep): venden sin CRM y solo existen en la app de
+    comisiones. Cada vendedor de la app con ventas y sin asesor del CRM entra a `usuarios` como
+    `app-<slug>` (zona de la app, crm [], rol 'cambaceo') y sus ventas apuntan a ese id, para que
+    ranking, tabla de asesores, metas y Configuración lo traten como a cualquier vendedor.
+    Si el CRM lo tiene pero sin equipo (Said Ceron en HubSpot), toma la zona de la app.
+    `tipos` = {slug: leads|cambaceo|mixto} desde VENTAS_TIPOS; Configuración manda encima."""
+    com = corte.get("comisiones") or {}
+    por_id = {u["id"]: u for u in corte["usuarios"]}
+    con_ventas = {s["vendedor_id"] for s in com.get("ventas", []) if not s["cancelada"]}
+    for v in com.get("vendedores", []):
+        if v["rol"] != "vendor":
+            continue
+        if v["asesor_id"]:
+            u = por_id.get(v["asesor_id"])
+            if u is not None and not u.get("zona") and v["zona"]:
+                u["zona"] = v["zona"]
+            continue
+        if v["id"] not in con_ventas:
+            continue
+        sid = "app-" + slug(v["nombre"])
+        if sid not in por_id:
+            por_id[sid] = {"id": sid, "nombre": v["nombre"], "zona": v["zona"], "crm": [], "ids": {}, "rol": "cambaceo"}
+            corte["usuarios"].append(por_id[sid])
+        v["asesor_id"] = sid
+    asesor_de = {v["id"]: v["asesor_id"] for v in com.get("vendedores", [])}
+    for s in com.get("ventas", []):
+        if not s["asesor_id"]:
+            s["asesor_id"] = asesor_de.get(s["vendedor_id"])
+    try:
+        corte["tipos"] = json.loads(os.environ.get("VENTAS_TIPOS") or "{}")
+    except ValueError:
+        corte["tipos"] = {}
+    return corte
+
+
 def agregar_comisiones(corte):
     """Ventas reales de la app de comisiones (Supabase). Entra solo con SUPABASE_URL +
     SUPABASE_SERVICE_KEY; si falla, el corte sale igual que antes y `comisiones.error` lo dice."""
@@ -205,6 +241,7 @@ def agregar_comisiones(corte):
         except (OSError, ValueError):
             pass
         corte["comisiones"] = ventas_comisiones.build(corte["usuarios"], forzados)
+        vendedores_cambaceo(corte)
         con = sum(1 for v in corte["comisiones"]["vendedores"] if v["asesor_id"])
         print("comisiones: %d ventas · %d vendedores (%d con asesor del CRM)"
               % (len(corte["comisiones"]["ventas"]), len(corte["comisiones"]["vendedores"]), con))
@@ -353,6 +390,16 @@ def selftest():
     assert [u["id"] for u in c["usuarios"]] == ["mara-galvez", "nuevo-trainee"], c["usuarios"]
     assert c["usuarios"][0]["rol"] == "KS-TRAINING" and c["usuarios"][1]["rol"] == "KS-SEGUIMIENTO"
     assert len(c["equipos"]) == 4, c["equipos"]
+    # Cambaceo: vendedor de la app sin CRM entra como usuario app-<slug>; uno del CRM sin zona toma la de la app.
+    cc = {"usuarios": [{"id": "said-ceron", "nombre": "Said Ceron", "zona": "", "crm": ["hubspot"], "ids": {}, "rol": ""}],
+          "comisiones": {"vendedores": [{"id": "v1", "nombre": "Aaron", "zona": "MTY", "rol": "vendor", "asesor_id": None},
+                                        {"id": "v2", "nombre": "Said Ceron", "zona": "MTY", "rol": "vendor", "asesor_id": "said-ceron"},
+                                        {"id": "v3", "nombre": "Nadie Vende", "zona": "TRC", "rol": "vendor", "asesor_id": None}],
+                         "ventas": [{"vendedor_id": "v1", "asesor_id": None, "cancelada": False}, {"vendedor_id": "v2", "asesor_id": "said-ceron", "cancelada": False}]}}
+    vendedores_cambaceo(cc)
+    assert [u["id"] for u in cc["usuarios"]] == ["said-ceron", "app-aaron"], cc["usuarios"]
+    assert cc["usuarios"][0]["zona"] == "MTY" and cc["usuarios"][1]["rol"] == "cambaceo"
+    assert cc["comisiones"]["ventas"][0]["asesor_id"] == "app-aaron"
     u = c["usuarios"][0]
     assert u["crm"] == ["kommo", "hubspot"] and u["zona"] == "SLT" and u["ids"] == {"kommo": 1, "hubspot": "9"}
     assert all(l["asesor_id"] == "mara-galvez" for l in c["leads"]) and len(c["etapas"]) == 6

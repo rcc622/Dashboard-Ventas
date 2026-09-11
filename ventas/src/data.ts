@@ -29,7 +29,7 @@ export async function cargarAccesos(): Promise<Acceso[]> {
 }
 export async function guardarAccesos(usuarios: Acceso[]): Promise<Acceso[]> { return (await post('usuarios', { usuarios })).usuarios as Acceso[] }
 
-const DEF: Config = { meta_mxn: 800000, cotizado_x: 10, cotizado_dias: 90, metas_zona: {}, metas: {}, ocultos: [], equipos: {}, comisiones_map: {} }
+const DEF: Config = { meta_mxn: 800000, cotizado_x: 10, cotizado_dias: 90, metas_zona: {}, metas: {}, ocultos: [], equipos: {}, comisiones_map: {}, tipos: {} }
 
 /** La configuración guardada desde la página (config.json) manda sobre lo que trae el
  *  corte (env del servicio); y un corte anterior al 4-sep no trae metas: mismos defaults
@@ -56,6 +56,7 @@ export function aplicarConfig(c: Corte, cfg: Partial<Config>): Corte {
     metas_zona: cfg.metas_zona ?? c.metas_zona ?? {},
     metas: cfg.metas ?? c.metas ?? {},
     ocultos: cfg.ocultos ?? c.ocultos ?? [],
+    tipos: { ...(c.tipos || {}), ...(cfg.tipos || {}) },
     usuarios: c.usuarios.map((u) => {
       const crm = u.zona_crm ?? u.zona
       const ov = equipos[u.id]

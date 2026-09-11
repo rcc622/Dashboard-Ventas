@@ -3,7 +3,7 @@ import type { Config, Corte, Crm, Rango, Yo } from './types'
 import { CRM_LABEL } from './types'
 import { aplicarConfig, cargar, logout, yo as pedirYo, type Carga } from './data'
 import { Login } from './login'
-import { esPreset, iniciales, preset, rangoManual, usuariosVisibles, vivo, zonaNombre, type Filtros, type Preset } from './metrics'
+import { esPreset, iniciales, preset, tipoDe, rangoManual, usuariosVisibles, vivo, zonaNombre, type Filtros, type Preset } from './metrics'
 
 const CRMS: Crm[] = ['kommo', 'hubspot']
 import { DateRangePicker } from './DateRangePicker'
@@ -202,7 +202,7 @@ function Shell({ yo, corte, origen, error, onRetry, onConfig, onLogout }: { yo: 
             ) : (<>
             <select className="sel sel-as" aria-label="Propietario" value={filtros.asesor ?? ''} onChange={(e) => setFiltros({ ...filtros, asesor: e.target.value || null })}>
               <option value="">Todos los propietarios</option>
-              {usuariosOrden.filter((u) => (filtros.equipo == null || u.zona === filtros.equipo) && u.crm.some((x) => filtros.crm[x])).map((u) => <option key={u.id} value={u.id}>{u.nombre}</option>)}
+              {usuariosOrden.filter((u) => (filtros.equipo == null || u.zona === filtros.equipo) && (!u.crm.length || u.crm.some((x) => filtros.crm[x]))).map((u) => <option key={u.id} value={u.id}>{u.nombre}{tipoDe(corte, u) === 'cambaceo' ? ' · cambaceo' : tipoDe(corte, u) === 'mixto' ? ' · mixto' : ''}</option>)}
             </select>
             {/* Equipos de venta como botones a la vista (Randall 6-sep, img 11), junto a Kommo/HubSpot: un clic filtra todo el tablero. */}
             <span className="pill sm equipos" role="group" aria-label="Equipo de ventas">

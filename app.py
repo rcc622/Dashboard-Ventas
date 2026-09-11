@@ -473,12 +473,18 @@ def validar_config(body):
     for k, v in cmap.items():
         if not (isinstance(k, str) and 0 < len(k) <= 80 and isinstance(v, str) and (v == "" or _SLUG.match(v))):
             raise ValueError("cruce de comisiones inválido: %r" % ((k, v),))
+    tipos = body.get("tipos") or {}
+    if not isinstance(tipos, dict) or len(tipos) > 500:
+        raise ValueError("tipos debe ser un objeto")
+    for k, v in tipos.items():
+        if not (isinstance(k, str) and _SLUG.match(k) and v in ("leads", "cambaceo", "mixto")):
+            raise ValueError("tipo de vendedor inválido: %r" % ((k, v),))
     return {"meta_mxn": int(round(numero(body.get("meta_mxn", 800000), "meta_mxn", 1))),
             "cotizado_x": round(numero(body.get("cotizado_x", 10), "cotizado_x", 0.1), 2),
             "cotizado_dias": int(round(numero(body.get("cotizado_dias", 90), "cotizado_dias", 1))),
             "metas_zona": tabla(body.get("metas_zona"), "metas_zona", _ZONA),
             "metas": tabla(body.get("metas"), "metas", _SLUG),
-            "ocultos": sorted(set(ocultos)), "equipos": dict(equipos), "comisiones_map": dict(cmap)}
+            "ocultos": sorted(set(ocultos)), "equipos": dict(equipos), "comisiones_map": dict(cmap), "tipos": dict(tipos)}
 
 
 # ---------------------------------------------------------------- accesos de /ventas

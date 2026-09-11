@@ -5,7 +5,7 @@
 // Reglas de Alejandro (consultor, juntas jul-ago 2026) que viven aquí: meta en pesos
 // prorrateada al rango, cotizado vigente (≤ 90 d) contra 10× la meta mensual, tasa de
 // asignación como KPI de entrada, primer contacto en horas y perfiles actividad × venta.
-import type { CotFila, Corte, Crm, Etapa, Evento, Lead, LevFila, Rango, Tarea, Usuario, VentaReal, Origen } from './types'
+import type { CotFila, Corte, Crm, Etapa, Evento, Lead, LevFila, Rango, Tarea, Usuario, VentaReal, Origen, TipoVendedor } from './types'
 
 /** crm = qué CRM entran (botones Kommo · HubSpot de la barra del Admin); al menos uno encendido. */
 export interface Filtros { rango: Rango; equipo: string | null; asesor: string | null; crm: Record<Crm, boolean> }
@@ -113,6 +113,9 @@ export function zonaNombre(c: Corte, zona: string): string { return c.equipos.fi
 /** Asesores desactivados en Configuración (ojo cerrado): fuera del menú, de la tabla y de
  *  toda cifra atribuida a persona. Un filtro explícito de asesor (por URL) sí los deja ver. */
 export const ocultosDe = (c: Corte) => new Set(c.ocultos || [])
+/** Tipo de vendedor: lo fijado (Configuración / env) y, si no, cambaceo cuando no vive en ningún CRM. */
+export const tipoDe = (c: Corte, u: Usuario): TipoVendedor => c.tipos?.[u.id] ?? (u.crm.length ? 'leads' : 'cambaceo')
+export const VENDEDOR_LABEL: Record<TipoVendedor, string> = { leads: 'Leads', cambaceo: 'Cambaceo', mixto: 'Leads + cambaceo' }
 export const usuariosVisibles = (c: Corte) => { const o = ocultosDe(c); return c.usuarios.filter((u) => !o.has(u.id)) }
 function pasaPersona(asesorId: string | null, f: Filtros, users: Map<string, Usuario>, ocultos: Set<string>): boolean {
   if (f.asesor != null) return asesorId === f.asesor
@@ -453,7 +456,7 @@ export function actividad(ev: Evento[]): Actividad {
 
 // ---------------------------------------------------------------- Asesores
 export interface FilaAsesor {
-  u: Usuario; ventas: number; montoVentas: number
+  u: Usuario; tipo: TipoVendedor; ventas: number; montoVentas: number
   /** Los leads que se le asignaron DENTRO del rango, ganados y perdidos incluidos, y cómo acabaron.
    *  `leadsActivos` es otra cosa: los que siguen en juego hoy, se hayan asignado cuando se hayan
    *  asignado. Randall 9-sep quiso ver las dos cifras como columnas distintas. */
@@ -484,7 +487,7 @@ export function porAsesor(c: Corte, f: Filtros): FilaAsesor[] {
     const activos = mios.filter(vivo)
     const metaMes = metaDe(c, u), metaRango = metaEnRango(metaMes, f.rango), montoVentas = vt.reduce((s, l) => s + l.presupuesto, 0)
     filas.push({
-      u, ventas: vt.length, montoVentas,
+      u, tipo: tipoDe(c, u), ventas: vt.length, montoVentas,
       asignados: mios, ganados: mios.filter((l) => l.funnel === 5).length, perdidos: mios.filter((l) => l.funnel === 0).length,
       metaMes, metaRango, esperado: metaEsperada(metaRango, f.rango), ritmo: ritmo(montoVentas, metaRango, f.rango),
       leadsActivos: activos, presupuesto: activos.reduce((s, l) => s + l.presupuesto, 0),
@@ -508,7 +511,9 @@ export const PERFIL_LABEL: Record<Perfil, string> = {
 export interface PuntoPerfil { u: Usuario; actividad: number; vendido: number; perfil: Perfil }
 export const actividadDe = (f: FilaAsesor) => f.llamadas + f.tareasCompletadas + f.cotizaciones + f.levantamientos
 /** Los cuatro perfiles de Samuel (29-jun): la mediana del grupo parte cada eje. */
-export function perfiles(filas: FilaAsesor[]): { pts: PuntoPerfil[]; medAct: number; medVend: number } {
+export function perfiles(c: Corte, todas: FilaAsesor[]): { pts: PuntoPerfil[]; medAct: number; medVend: number } {
+  // Cambaceo puro no registra nada en el CRM: dentro saldría siempre como «salida». Mixto sí entra.
+  const filas = todas.filter((f) => tipoDe(c, f.u) !== 'cambaceo')
   const medAct = mediana(filas.map(actividadDe)) ?? 0, medVend = mediana(filas.map((f) => f.montoVentas)) ?? 0
   const pts = filas.map((f) => {
     const a = actividadDe(f), v = f.montoVentas, altaA = a > medAct, altaV = v > medVend
