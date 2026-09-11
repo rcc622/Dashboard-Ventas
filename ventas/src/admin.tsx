@@ -776,24 +776,23 @@ export function Asesores({ corte, filtros, onFicha }: { corte: Corte; filtros: F
                         </div></td>) },
     { id: 'llamadas', label: 'Llamadas', ancho: 155, fecha: 'actividad', info: 'Llamadas',
       celda: (f) => (<td><div className="mc">
-                          <div className="v">{fmtN(f.llamadas)}</div>
-                          <StackedBar segs={[{ val: f.contestadas, cls: 'seg-comp' }, { val: f.sinContestar, cls: 'seg-warn' }]} total={f.llamadas} max={maxLlam}
-                            title={`Llamadas de ${f.u.nombre}: ${f.contestadas} contestadas, ${f.sinContestar} sin contestar. Abrir detalle`}
+                          <button type="button" className="v nbtn" aria-haspopup="dialog" aria-label={`${fmtN(f.llamadas)} llamadas de ${f.u.nombre}: ${f.contestadas} contestadas, ${f.sinContestar} sin contestar. Abrir detalle`}
                             onClick={(e) => detalle(e, 'Llamadas · ' + f.u.nombre, f.llamadas, [
                               { label: 'Contestadas', val: f.contestadas, onVer: () => ver(`Llamadas contestadas · ${f.u.nombre}`, filasDeEventos(corte, evDe(f, 'llamada_ok')), rango) },
-                              { label: 'Sin contestar', val: f.sinContestar, onVer: () => ver(`Llamadas sin contestar · ${f.u.nombre}`, filasDeEventos(corte, evDe(f, 'llamada_no')), rango) }])} />
+                              { label: 'Sin contestar', val: f.sinContestar, onVer: () => ver(`Llamadas sin contestar · ${f.u.nombre}`, filasDeEventos(corte, evDe(f, 'llamada_no')), rango) }])}>{fmtN(f.llamadas)}</button>
+                          <StackedBar segs={[{ val: f.contestadas, cls: 'seg-comp' }, { val: f.sinContestar, cls: 'seg-warn' }]} total={f.llamadas} max={maxLlam}
+                            title={`Llamadas de ${f.u.nombre}: ${f.contestadas} contestadas, ${f.sinContestar} sin contestar`} />
                           <div className="c">{fmtN(f.contestadas)} contestadas</div>
                           <div className="c">{fmtN(f.sinContestar)} sin contestar</div>
                         </div></td>) },
     { id: 'tareas', label: 'Tareas', ancho: 180, fecha: 'actividad', info: 'Tareas',
       celda: (f) => (<td><div className="mc">
-                          <div className="v">{fmtN(totTareas(f))}</div>
-                          <StackedBar segs={[{ val: f.tareasCompletadas, cls: 'seg-comp' }]} total={totTareas(f)} max={maxTar}
-                            title={`Tareas de ${f.u.nombre}: ${f.tareasCompletadas} completadas, ${f.tareasVencidas} vencidas, ${f.sinTarea} leads sin tarea. Abrir detalle`}
+                          <button type="button" className="v nbtn" aria-haspopup="dialog" aria-label={`${fmtN(f.tareasCompletadas)} tareas completadas de ${f.u.nombre}; hoy ${f.tareasVencidas} vencidas y ${f.sinTarea} leads sin tarea. Abrir detalle`}
                             onClick={(e) => detalle(e, 'Tareas · ' + f.u.nombre, totTareas(f), [
                               { label: 'Completadas', val: f.tareasCompletadas, onVer: () => ver(`Tareas completadas · ${f.u.nombre}`, filasDeEventos(corte, evDe(f, 'tarea')), rango) },
                               { label: 'Vencidas (hoy)', val: f.tareasVencidas, onVer: () => ver(`Leads con tareas vencidas · ${f.u.nombre}`, filasDeLeads(f.leadsActivos.filter((l) => l.tareas_vencidas > 0), () => '', undefined, { label: 'Tareas vencidas', de: (l) => l.tareas_vencidas }), HOY) },
-                              { label: 'Leads sin tarea (hoy)', val: f.sinTarea, onVer: () => ver(`Leads sin tarea · ${f.u.nombre}`, fLeads(f.leadsActivos.filter((l) => l.sin_tarea)), HOY) }])} />
+                              { label: 'Leads sin tarea (hoy)', val: f.sinTarea, onVer: () => ver(`Leads sin tarea · ${f.u.nombre}`, fLeads(f.leadsActivos.filter((l) => l.sin_tarea)), HOY) }])}>{fmtN(totTareas(f))}</button>
+                          <StackedBar segs={[{ val: f.tareasCompletadas, cls: 'seg-comp' }]} total={totTareas(f)} max={maxTar} title={`Tareas completadas de ${f.u.nombre}: ${f.tareasCompletadas}`} />
                           <div className="c">completadas {rango}</div>
                           <div className="c" title={`Foto de hoy, sin importar las fechas: ${fmtN(f.tareasVencidas)} tareas vencidas · ${fmtN(f.sinTarea)} leads sin tarea`}>hoy: {fmtN(f.tareasVencidas)} vencidas · {fmtN(f.sinTarea)} sin tarea</div>
                         </div></td>) },

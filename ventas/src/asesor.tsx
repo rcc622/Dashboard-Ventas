@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Corte } from './types'
 import { CRM_LABEL } from './types'
-import { dias, enRango, todasVentas, activo, fechaDe, fmtCorta, fmtFecha, fmtHora, fmtMoney, fmtMoney0, fmtN, hoyIni, leaderboardHoy, metaDeId, miDia, pct, preset, tipoLead, vivo } from './metrics'
+import { dias, enRango, todasVentas, activo, fechaDe, fmtCorta, fmtFecha, fmtHora, fmtMoney, fmtMoney0, fmtN, hoyIni, leaderboardHoy, metaDeId, miDia, pct, preset, tipoLead } from './metrics'
 import { Bullet, Info } from './components'
 import { WidgetGrid, type Widget } from './widgets'
 
