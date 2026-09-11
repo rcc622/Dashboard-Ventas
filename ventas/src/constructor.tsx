@@ -5,6 +5,7 @@ import { CRM_LABEL } from './types'
 import {
   cotizadoVigenteDe, enRango, etapaDe, fechaDe, filasDeEventos, filasDeLeads, filasDeVentasReales, fmtCorta, fmtMoney0, fmtN,
   PRESETS, ep, inicioDia, mapaUsuarios, metaDe, metaEnRango, metaTotal, ocultosDe, pasaCrm, pct, periodoTexto, porAsesor, primerContacto, ritmo, visitas, vivo, zonaNombre, type Filtros, type Preset,
+  realesDe,
 } from './metrics'
 import { BarChart, BarDetailPopup, Bullet, DonutChart, HBarList, LineChart, useEscape, useFocoDialogo, type BarItem, type DetRow, type Modo } from './components'
 import type { Drill } from './drill'
@@ -87,15 +88,6 @@ const ventasDe = (c: Corte, f: Filtros) => {
   const users = mapaUsuarios(c), oc = ocultosDe(c)
   return c.leads.filter((l) => pasaCrm(l.crm, f) && l.funnel === 5 && enRango(l.cerrado, f.rango)
     && (f.asesor != null ? l.asesor_id === f.asesor : !(l.asesor_id != null && oc.has(l.asesor_id)) && (f.equipo == null || (l.asesor_id != null && users.get(l.asesor_id)?.zona === f.equipo))))
-}
-function realesDe(c: Corte, f: Filtros, captura?: 'completa' | 'incompleta'): VentaReal[] {
-  const com = c.comisiones
-  if (!com) return []
-  const users = mapaUsuarios(c)
-  const fin = (t: number) => { const d = fechaDe(t); return new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime() / 1000 }
-  return com.ventas.filter((v) => !v.cancelada && v.fecha != null && v.fecha < f.rango.fin && fin(v.fecha) > f.rango.ini
-    && (f.asesor != null ? v.asesor_id === f.asesor : f.equipo == null || v.zona === f.equipo || (v.asesor_id != null && users.get(v.asesor_id)?.zona === f.equipo))
-    && (!captura || (v.captura || 'incompleta') === captura))
 }
 const fmtPct = (n: number) => Math.round(n * 100) + '%'
 const uno = <T,>(xs: T[], k: (x: T) => Item): Item[] => xs.map(k)

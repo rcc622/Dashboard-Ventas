@@ -578,6 +578,17 @@ export function ventasReales(c: Corte, f: Filtros): VentasReales {
   const sinAsesor = [...new Set(com.vendedores.filter((v) => v.rol === 'vendor' && !v.asesor_id).map((v) => v.nombre))].sort()
   return { filas, ventas: sel, sinAsesor, total: sel.reduce((s, v) => s + v.monto, 0), n: sel.length }
 }
+/** Ventas de la app de comisiones en el rango (por MES de venta, sin canceladas), con el filtro de
+ *  asesor/equipo de la barra pero SIN quitar vendedores desactivados ni ocultos: es la misma base que
+ *  las cifras «Ventas reales» del constructor (Contrato total, Ticket promedio…). */
+export function realesDe(c: Corte, f: Filtros, captura?: 'completa' | 'incompleta'): VentaReal[] {
+  const com = c.comisiones
+  if (!com) return []
+  const users = mapaUsuarios(c)
+  return com.ventas.filter((v) => !v.cancelada && v.fecha != null && v.fecha < f.rango.fin && finMes(v.fecha) > f.rango.ini
+    && (f.asesor != null ? v.asesor_id === f.asesor : f.equipo == null || v.zona === f.equipo || (v.asesor_id != null && users.get(v.asesor_id)?.zona === f.equipo))
+    && (!captura || (v.captura || 'incompleta') === captura))
+}
 export const filasDeVentasReales = (vs: VentaReal[]): Fila[] => vs.map((v) => ({
   id: 'c:' + v.id, nombre: v.cliente || 'Sin nombre', link: v.liga || undefined, crm: 'comisiones', asesor: v.vendedor,
   detalle: [v.mes_texto, v.origen, v.compartida_con ? 'compartida con ' + v.compartida_con : ''].filter(Boolean).join(' · '),
