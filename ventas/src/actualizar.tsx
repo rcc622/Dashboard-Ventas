@@ -25,9 +25,15 @@ export function Actualizacion({ corte, fuentes, esAdmin, onRecargar }: { corte: 
   // Línea base = la fecha del archivo al cargar; se recarga cuando cambia (por el botón o por el refresh automático).
   // No se compara contra `corte.generado`: un archivo copiado o restaurado tiene otra fecha y eso recargaba en bucle.
   const base = useRef<string | null>(null)
+  // Desde cuándo se está esperando: si el servidor se reinició a media corrida (un deploy, 11-sep) el
+  // botón no debe quedarse en «Actualizando…» para siempre.
+  const desde = useRef(0)
   useEffect(() => {
     let vivo = true, t: number | undefined
     const paso = async () => {
+      if (fase === 'corriendo' && desde.current && Date.now() - desde.current > 12 * 60000) {
+        setFase('aviso'); setMsg('Tardó más de 12 minutos. Recarga la página; si sigue igual, el refresh falló.'); return
+      }
       let e: EstadoCorte
       try { e = await estadoCorte() } catch { if (vivo) t = window.setTimeout(paso, 30000); return }
       if (!vivo) return
@@ -45,7 +51,7 @@ export function Actualizacion({ corte, fuentes, esAdmin, onRecargar }: { corte: 
   const pedir = async () => {
     setMsg(null)
     const r = await pedirRefresco()
-    if (r.ok || r.corriendo) setFase('corriendo')
+    if (r.ok || r.corriendo) { desde.current = Date.now(); setFase('corriendo') }
     else setMsg(r.error || 'No se pudo pedir la actualización.')
   }
   const viejo = !isNaN(genMs) && ahora - genMs > 8 * 36e5

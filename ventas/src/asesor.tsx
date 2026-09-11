@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Corte } from './types'
 import { CRM_LABEL } from './types'
-import { dias, enRango, fechaDe, fmtCorta, fmtFecha, fmtHora, fmtMoney, fmtMoney0, fmtN, hoyIni, leaderboardHoy, metaDeId, miDia, pct, preset, tipoLead, vivo } from './metrics'
+import { dias, enRango, todasVentas, fechaDe, fmtCorta, fmtFecha, fmtHora, fmtMoney, fmtMoney0, fmtN, hoyIni, leaderboardHoy, metaDeId, miDia, pct, preset, tipoLead, vivo } from './metrics'
 import { Bullet, Info } from './components'
 import { WidgetGrid, type Widget } from './widgets'
 
@@ -114,7 +114,7 @@ export function MiDia({ corte, uid, compartible }: { corte: Corte; uid: string; 
 }
 
 export function MisVentas({ corte, uid }: { corte: Corte; uid: string }) {
-  const v = corte.leads.filter((l) => l.asesor_id === uid && l.funnel === 5).sort((a, b) => b.cerrado - a.cerrado)
+  const v = todasVentas(corte).filter((l) => l.asesor_id === uid).sort((a, b) => b.cerrado - a.cerrado)
   const monto = v.reduce((s, l) => s + l.presupuesto, 0)
   const mes = preset('mes'), meta = metaDeId(corte, uid)
   const vendidoMes = v.filter((l) => enRango(l.cerrado, mes)).reduce((s, l) => s + l.presupuesto, 0)

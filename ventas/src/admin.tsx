@@ -1,7 +1,7 @@
 import { Fragment, useLayoutEffect, useMemo, useRef, useState, type SyntheticEvent, useEffect } from 'react'
 import type { Corte, Evento, Lead, LevFila, Sanciones, Usuario } from './types'
 import { CRM_LABEL } from './types'
-import { BUCKETS, PERFIL_LABEL, actividad, actividadDe, cotizado, dias, embudo, entrada, ep, eventosFiltrados, fechaCotizado, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, metaDe, metaEnRango, pasaCrm, etiquetaRango, periodoTexto, preset, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, type Fila, type FilaAsesor, type Filtros, type Perfil , type Preset, type PuntoPerfil, ventasReales, realesDe, filasDeVentasReales, comparativaVentas, rolDestacado, rolNombre, cotizacionesGeneradas, filasDeCotizaciones, visitas, levantados, filasDeLevantamientos } from './metrics'
+import { BUCKETS, PERFIL_LABEL, actividad, actividadDe, cotizado, dias, embudo, entrada, ep, eventosFiltrados, fechaCotizado, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, metaDe, metaEnRango, pasaCrm, etiquetaRango, periodoTexto, preset, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, type Fila, type FilaAsesor, type Filtros, type Perfil , type Preset, type PuntoPerfil, ventasReales, ventasCrm, filasDeVentasReales, comparativaVentas, rolDestacado, rolNombre, cotizacionesGeneradas, filasDeCotizaciones, visitas, levantados, filasDeLevantamientos } from './metrics'
 import { BarDetailPopup, BubbleChart, Bullet, DonutChart, FunnelChart, Gauge, Info, LlamadasBar, MiniAreaChart, Scatter, SortTh, StackedBar, activar, useEscape, useOutside, type DetRow, type Sort, type BubbleCol, useFocoDialogo } from './components'
 import { DrillModal, type Drill } from './drill'
 import { BASE_FECHA, EditarColumnas, anchos, anchoTotal, useColumnas, type ColDef } from './columnas'
@@ -37,7 +37,9 @@ const PC_TRAMOS = [
 /** Orden de colocación por defecto del Dashboard: pares de igual alto (bandas) para que la rejilla libre no deje huecos. */
 const ORDEN_ADMIN = ['t-leads', 't-ventas', 't-vendido', 't-conversion', 't-perdida', 't-tareas', 't-cotizaciones', 't-descartes', 't-levantamientos', 'llamadas', 'salud', 'pipeline', 'ranking', 'reales', 'cotiz-metodos', 'lev-operaciones', 'visitas', 'entrada', 'embudo', 'etapas', 'contacto', 'razones', 'perfiles', 'perfiles-tabla']
 const fLeads = (ls: Lead[]) => filasDeLeads(ls, () => '', undefined, { label: 'Días sin cambio', de: (l) => l.dias_sin_cambio })
-const fVentas = (ls: Lead[]) => filasDeLeads(ls, () => 'Ganado', (l) => l.cerrado)
+const fVentas = (ls: Lead[]) => filasDeLeads(ls, (l) => (l.crm === 'comisiones' ? 'Venta registrada en la app' : 'Ganado'), (l) => l.cerrado)
+/** De dónde salen las ventas, para el pie de cada lista: la app guarda solo el mes de venta. */
+const FUENTE_VENTAS = (c: Corte) => (c.comisiones ? ' · app de comisiones, por mes de venta (día 1 = mes)' : ' · fecha = cierre')
 const fCotizado = (ls: Lead[]) => filasDeLeads(ls, () => '', (l) => fechaCotizado(l), { label: 'Días desde la cotización', de: (l) => diasDesde(fechaCotizado(l)) })
 const fEntrada = (ls: Lead[]) => filasDeLeads(ls, (l) => l.funnel_label, (l) => l.creado)
 /** Los leads del asesor cuyo cotizado sigue contando: activos, con monto y cotizados dentro de la
@@ -185,12 +187,12 @@ function widgetsTablero(corte: Corte, filtros: Filtros, d: Datos, ax: Acciones):
   const perdidos = leads.filter((l) => l.funnel === 0), baseAsignados = leads.filter((l) => l.funnel === 4 || l.funnel === 5 || l.funnel === 0).length
   const et = embudo(leads, corte.etapas || [])
   const a = actividad(ev)
-  // Vendido contra la meta = la app de comisiones (Randall 11-sep: «ya no del CRM»); el CRM solo si no hay app.
-  const reales = realesDe(corte, filtros)
-  const monto = corte.comisiones ? reales.reduce((x, v) => x + v.monto, 0) : ventas.reduce((x, l) => x + l.presupuesto, 0)
-  const verVendido = () => corte.comisiones
-    ? ver('Vendido ' + periodo + ' · app de comisiones', filasDeVentasReales(reales), rango + ' · por mes de venta, sin canceladas')
-    : ver('Vendido ' + periodo, fVentas(ventas), rango + ' · fecha = cierre')
+  // `ventas` = app de comisiones cuando el corte la trae (Randall 11-sep); el CRM solo de respaldo. Ver ventasFiltradas.
+  const monto = ventas.reduce((x, l) => x + l.presupuesto, 0)
+  // Ganados del CRM, solo para la tabla que compara la app contra el CRM.
+  const vCrm = ventasCrm(corte, filtros)
+  const crmDe = (uid: string) => { const xs = vCrm.filter((l) => l.asesor_id === uid); return { n: xs.length, monto: xs.reduce((x, l) => x + l.presupuesto, 0) } }
+  const verVendido = () => ver('Vendido ' + periodo, fVentas(ventas), rango + FUENTE_VENTAS(corte))
   const metaRango = filas.reduce((x, f) => x + f.metaRango, 0)
   const metaMes = filas.reduce((x, f) => x + f.metaMes, 0)
   const cot = cotizado(leads, corte.cotizado_dias)
@@ -221,13 +223,13 @@ function widgetsTablero(corte: Corte, filtros: Filtros, d: Datos, ax: Acciones):
         <button type="button" className="tile tbtn" onClick={() => ver('Leads asignados ' + periodo, fLeads(asignados), rango + ' · fecha = última asignación')} aria-label={`${fmtN(tot)} leads asignados ${periodo}. Ver detalle`}><div className="n">{fmtN(tot)}</div><div className="l">Leads asignados {periodo}</div></button>
     ), { plain: true, span: 1, alto: 4, cls: 'wtile', info: ['Leads asignados'], desde: 'cifras', base: 'asignacion' }),
     W('t-ventas', 'Clientes cerrados', (
-        <button type="button" className="tile tbtn t2" onClick={() => ver('Clientes cerrados ' + periodo, fVentas(ventas), rango + ' · fecha = cierre')} aria-label={`${fmtN(ventas.length)} clientes cerrados ${periodo}. Ver detalle`}><div className="n">{fmtN(ventas.length)}</div><div className="l">Clientes cerrados {periodo}</div></button>
+        <button type="button" className="tile tbtn t2" onClick={() => ver('Clientes cerrados ' + periodo, fVentas(ventas), rango + FUENTE_VENTAS(corte))} aria-label={`${fmtN(ventas.length)} clientes cerrados ${periodo}. Ver detalle`}><div className="n">{fmtN(ventas.length)}</div><div className="l">Clientes cerrados {periodo}</div></button>
     ), { plain: true, span: 1, alto: 4, cls: 'wtile', info: ['Clientes cerrados'], desde: 'cifras', base: 'cierre' }),
     // El número que Alejandro llamó «el más importante» (4-sep): vendido contra la meta con el ritmo del mes y color que grite.
     W('t-vendido', 'Avance contra la meta', (
         <button type="button" className={'tile tbtn t3 ritmo-' + rit.estado} onClick={verVendido} aria-label={`Vendido ${fmtMoney0(monto)} ${periodo}: ${pct(monto, metaRango)}% de la meta de ${fmtMoney0(metaRango)}. ${rit.texto}. Ver detalle`}>
           <div className="n">{fmtMoney0(monto)}</div>
-          <div className="l">{pct(monto, metaRango)}% de la meta de {fmtMoney0(metaRango)} · vendido {periodo}{corte.comisiones ? ' · app de comisiones' : ''}</div>
+          <div className="l">{pct(monto, metaRango)}% de la meta de {fmtMoney0(metaRango)} · vendido {periodo}</div>
           <Bullet value={monto} target={metaRango} expected={rit.esperado} label="Vendido" fmt={fmtMoney0} />
           <div className={'rt ' + rit.estado}>{rit.texto}</div>
         </button>
@@ -273,7 +275,7 @@ function widgetsTablero(corte: Corte, filtros: Filtros, d: Datos, ax: Acciones):
         {!ranking.length && <div className="muted">Sin ventas ni actividad en el rango.</div>}
         {ranking.map((f, i) => (
           <div className="lr drill" key={f.u.id} role="button" tabIndex={0} aria-label={`${f.u.nombre}: ${fmtMoney0(f.montoVentas)} en ${f.ventas} ventas. Ver ventas`}
-            onClick={() => ver(`Ventas de ${f.u.nombre}`, fVentas(ventas.filter((l) => l.asesor_id === f.u.id)), rango + ' · fecha = cierre')} onKeyDown={activar(() => ver(`Ventas de ${f.u.nombre}`, fVentas(ventas.filter((l) => l.asesor_id === f.u.id)), rango + ' · fecha = cierre'))}>
+            onClick={() => ver(`Ventas de ${f.u.nombre}`, fVentas(ventas.filter((l) => l.asesor_id === f.u.id)), rango + FUENTE_VENTAS(corte))} onKeyDown={activar(() => ver(`Ventas de ${f.u.nombre}`, fVentas(ventas.filter((l) => l.asesor_id === f.u.id)), rango + FUENTE_VENTAS(corte)))}>
             <span className={'pos' + (i < 3 ? ' top' : '')}>{i + 1}</span>
             <span className="nm" title={subAsesor(corte, f.u)}>{f.u.nombre}</span>
             <Bullet sm value={f.montoVentas} target={f.metaRango} expected={f.esperado} label={'Vendido de ' + f.u.nombre} fmt={fmtMoney0} />
@@ -289,14 +291,14 @@ function widgetsTablero(corte: Corte, filtros: Filtros, d: Datos, ax: Acciones):
           <div className="scrollx crece"><table className="ftable">
             <thead><tr><th scope="col">Asesor</th><th scope="col" className="num">Ventas reales</th><th scope="col" className="num">Monto real</th><th scope="col" className="num">Ventas CRM</th><th scope="col" className="num">Monto CRM</th></tr></thead>
             <tbody>
-              {vr.filas.map((r) => { const cr = r.u ? filas.find((x) => x.u.id === r.u!.id) : undefined; return (
+              {vr.filas.map((r) => { const cr = r.u ? crmDe(r.u.id) : undefined; return (
                 <tr key={r.nombre}>
                   <td><button type="button" className="nbtn" aria-label={`${r.nombre}: ${fmtN(r.n)} ventas reales, ${fmtMoney0(r.monto)}. Ver la comparativa contra el CRM`}
                     onClick={() => (r.u
-                      ? ver(`Ventas reales contra el CRM · ${r.nombre}`, comparativaVentas(ventas.filter((l) => l.asesor_id === r.u!.id), r.ventas), rango + ' · pareja = mismo cliente y cierre cerca del mes de venta')
+                      ? ver(`Ventas reales contra el CRM · ${r.nombre}`, comparativaVentas(vCrm.filter((l) => l.asesor_id === r.u!.id), r.ventas), rango + ' · pareja = mismo cliente y cierre cerca del mes de venta')
                       : ver(`Ventas reales · ${r.nombre}`, filasDeVentasReales(r.ventas), rango + ' · vendedor sin asesor en el CRM: solo la lista de la app'))}>{r.nombre}</button>{!r.u && <span className="muted"> · sin asesor en el CRM</span>}</td>
                   <td className="num">{fmtN(r.n)}</td><td className="num">{fmtMoney0(r.monto)}</td>
-                  <td className="num">{cr ? fmtN(cr.ventas) : '—'}</td><td className="num">{cr ? fmtMoney0(cr.montoVentas) : '—'}</td>
+                  <td className="num">{cr ? fmtN(cr.n) : '—'}</td><td className="num">{cr ? fmtMoney0(cr.monto) : '—'}</td>
                 </tr>) })}
             </tbody>
           </table></div>
@@ -401,7 +403,7 @@ function widgetsTablero(corte: Corte, filtros: Filtros, d: Datos, ax: Acciones):
         <div className="brow">
           <span className="l">Vendido</span>
           <Bullet value={monto} target={metaRango} expected={rit.esperado} label="Vendido" fmt={fmtMoney0} />
-          <Cifra label={`Vendido ${fmtMoney0(monto)}`} onClick={() => ver('Vendido en el rango', fVentas(ventas), rango + ' · fecha = cierre')}><span className="v">{fmtMoney0(monto)}</span></Cifra>
+          <Cifra label={`Vendido ${fmtMoney0(monto)}`} onClick={() => ver('Vendido en el rango', fVentas(ventas), rango + FUENTE_VENTAS(corte))}><span className="v">{fmtMoney0(monto)}</span></Cifra>
           <span className="sub">meta {periodo} {fmtMoney0(metaRango)} ({filas.length} asesor{filas.length === 1 ? '' : 'es'}) · <span className={'rt ' + rit.estado}>{rit.texto}</span><Info termino="Ritmo" />{monto < metaRango && ` · faltan ${fmtMoney0(metaRango - monto)}`}</span>
         </div>
         <div className="brow">
@@ -748,7 +750,7 @@ export function Asesores({ corte, filtros, onFicha }: { corte: Corte; filtros: F
       </div></td>) },
     { id: 'vendido', label: 'Vendido', ancho: 170, fecha: 'cierre', info: 'Vendido',
       celda: (f) => (<td><div className="mc">
-                          <button type="button" className="v nbtn" aria-label={`${fmtMoney0(f.montoVentas)} vendidos por ${f.u.nombre}. Ver las ventas`} onClick={() => ver(`Vendido · ${f.u.nombre}`, fVentas(ventasFiltradas(corte, { ...filtros, asesor: f.u.id })), rango + ' · fecha = cierre')}>{fmtMoney0(f.montoVentas)}</button>
+                          <button type="button" className="v nbtn" aria-label={`${fmtMoney0(f.montoVentas)} vendidos por ${f.u.nombre}. Ver las ventas`} onClick={() => ver(`Vendido · ${f.u.nombre}`, fVentas(ventasFiltradas(corte, { ...filtros, asesor: f.u.id })), rango + FUENTE_VENTAS(corte))}>{fmtMoney0(f.montoVentas)}</button>
                           <Bullet sm value={f.montoVentas} target={f.metaRango} expected={f.esperado} label={'Vendido de ' + f.u.nombre} fmt={fmtMoney0} />
                           <div className="c" title={`${pct(f.montoVentas, f.metaRango)}% de la meta de ${fmtMoney0(f.metaRango)}`}>{pct(f.montoVentas, f.metaRango)}% de {fmtMoney0(f.metaRango)}</div>
                           <div className={'c rt ' + f.ritmo.estado} title={f.ritmo.corto}>{f.ritmo.corto}</div>
@@ -1025,7 +1027,7 @@ export function Ficha({ corte, filtros, uid, onBack }: { corte: Corte; filtros: 
   const hoy = ep(inicioDia(new Date()))
   const widgets: Widget[] = [
     wg('ventas', 'Ventas · ' + rango, (
-      <div className="kcard hero"><div className="l">Ventas · {rango}</div><div className="n"><Cifra label={`${ventas.length} ventas, ${fmtMoney0(monto)}`} onClick={() => setDrill({ titulo: `Ventas de ${u.nombre}`, filas: fVentas(ventas), sub: rango + ' · fecha = cierre' })}><b>{ventas.length}</b> <span style={{ fontSize: 22 }}>{fmtMoney0(monto)}</span></Cifra></div><MiniAreaChart values={serie} height={56} /><div className="small muted">Conversión {leads.length ? pct(ventas.length, leads.length) + '%' : '—'}: {ventas.length} ventas / {leads.length} leads asignados en el rango<Info termino="Conversión" /></div></div>
+      <div className="kcard hero"><div className="l">Ventas · {rango}</div><div className="n"><Cifra label={`${ventas.length} ventas, ${fmtMoney0(monto)}`} onClick={() => setDrill({ titulo: `Ventas de ${u.nombre}`, filas: fVentas(ventas), sub: rango + FUENTE_VENTAS(corte) })}><b>{ventas.length}</b> <span style={{ fontSize: 22 }}>{fmtMoney0(monto)}</span></Cifra></div><MiniAreaChart values={serie} height={56} /><div className="small muted">Conversión {leads.length ? pct(ventas.length, leads.length) + '%' : '—'}: {ventas.length} ventas / {leads.length} leads asignados en el rango<Info termino="Conversión" /></div></div>
     ), { plain: true, span: 2, cls: 'wcard', info: ['Vendido'] }),
     wg('cumplimiento', 'Cumplimiento', (
       <div className={'kcard k2 ritmo-' + rit.estado}><div className="l">Cumplimiento<Info termino={['Cumplimiento', 'Ritmo']} /></div>
@@ -1091,7 +1093,7 @@ export function Ficha({ corte, filtros, uid, onBack }: { corte: Corte; filtros: 
     wg('cierre', 'Porcentaje de cierre', (
       <button type="button" className={'tile tbtn t4 ritmo-' + (leads.length && ventas.length / leads.length >= META_CIERRE ? 'cumplida' : 'atras')}
         aria-label={`Porcentaje de cierre ${leads.length ? pct(ventas.length, leads.length) : 0}%, meta ${Math.round(META_CIERRE * 100)}%. Ver las ventas`}
-        onClick={() => setDrill({ titulo: `Ventas de ${u.nombre}`, filas: fVentas(ventas), sub: rango + ' · fecha = cierre' })}>
+        onClick={() => setDrill({ titulo: `Ventas de ${u.nombre}`, filas: fVentas(ventas), sub: rango + FUENTE_VENTAS(corte) })}>
         <div className="n">{leads.length ? pct(ventas.length, leads.length) : 0}%</div>
         <div className="l">{fmtN(ventas.length)} cerrados de {fmtN(leads.length)} leads asignados {periodo}</div>
         <Bullet value={leads.length ? ventas.length / leads.length : 0} target={META_CIERRE} label="Porcentaje de cierre" fmt={(n) => Math.round(n * 100) + '%'} />

@@ -5,7 +5,7 @@ import { CRM_LABEL } from './types'
 import {
   cotizadoVigenteDe, enRango, etapaDe, fechaDe, filasDeEventos, filasDeLeads, filasDeVentasReales, fmtCorta, fmtMoney0, fmtN,
   PRESETS, ep, inicioDia, mapaUsuarios, metaDe, metaEnRango, metaTotal, ocultosDe, pasaCrm, pct, periodoTexto, porAsesor, primerContacto, ritmo, visitas, vivo, zonaNombre, type Filtros, type Preset,
-  realesDe,
+  realesDe, ventasFiltradas,
 } from './metrics'
 import { BarChart, BarDetailPopup, Bullet, DonutChart, HBarList, LineChart, useEscape, useFocoDialogo, type BarItem, type DetRow, type Modo } from './components'
 import type { Drill } from './drill'
@@ -84,11 +84,8 @@ function tareasDe(c: Corte, f: Filtros, soloVencidas: boolean): Tarea[] {
   return c.tareas_abiertas.filter((t) => (!soloVencidas || t.vencida) && !cerrados.has(t.lead) && pasaCrm(t.crm, f)
     && (f.asesor != null ? t.asesor_id === f.asesor : !(t.asesor_id != null && oc.has(t.asesor_id)) && (f.equipo == null || (t.asesor_id != null && users.get(t.asesor_id)?.zona === f.equipo))))
 }
-const ventasDe = (c: Corte, f: Filtros) => {
-  const users = mapaUsuarios(c), oc = ocultosDe(c)
-  return c.leads.filter((l) => pasaCrm(l.crm, f) && l.funnel === 5 && enRango(l.cerrado, f.rango)
-    && (f.asesor != null ? l.asesor_id === f.asesor : !(l.asesor_id != null && oc.has(l.asesor_id)) && (f.equipo == null || (l.asesor_id != null && users.get(l.asesor_id)?.zona === f.equipo))))
-}
+/** Ventas del rango: app de comisiones si el corte la trae, si no ganados del CRM (misma regla que el tablero). */
+const ventasDe = ventasFiltradas
 const fmtPct = (n: number) => Math.round(n * 100) + '%'
 const uno = <T,>(xs: T[], k: (x: T) => Item): Item[] => xs.map(k)
 /** La meta cortada mes a mes dentro del rango, prorrateada por días en los meses incompletos: así la
@@ -130,9 +127,9 @@ export const MEDIDAS: Medida[] = [
   { id: 'leads', label: 'Leads asignados', grupo: 'Seguimiento', fmt: fmtN, dims: DIMS_CRM, base: 'asignacion', ayuda: 'Leads que se repartieron a los asesores en las fechas elegidas.', items: (c, f) => uno(leadsDe(c, f), (l) => ({ v: 1, lead: l })), fecha: (i) => i.lead?.asignacion },
   { id: 'activos', label: 'Leads en juego', grupo: 'Seguimiento', fmt: fmtN, dims: DIMS_CRM, base: 'asignacion', ayuda: 'Leads asignados en las fechas elegidas que no se han cerrado ni descartado.', items: (c, f) => uno(activos(c, f), (l) => ({ v: 1, lead: l })), fecha: (i) => i.lead?.asignacion },
   { id: 'cotizado', label: 'Cotizado vigente', grupo: 'Seguimiento', fmt: fmtMoney0, dims: DIMS_CRM, base: 'asignacion', ayuda: 'Dinero en juego: precio de los leads activos cuya cotización tiene 90 días o menos.', items: (c, f) => uno(cotizadoVigenteDe(activos(c, f), c.cotizado_dias), (l) => ({ v: l.presupuesto, lead: l })), fecha: (i) => i.lead?.asignacion },
-  // Ventas del CRM
-  { id: 'ventas', label: 'Clientes cerrados', grupo: 'Ventas', fmt: fmtN, dims: DIMS_CRM, base: 'cierre', ayuda: 'Ventas que el CRM marcó como ganadas dentro de las fechas elegidas.', items: (c, f) => uno(ventasDe(c, f), (l) => ({ v: 1, lead: l })), fecha: (i) => i.lead?.cerrado },
-  { id: 'vendido', label: 'Monto vendido', grupo: 'Ventas', fmt: fmtMoney0, dims: DIMS_CRM, base: 'cierre', ayuda: 'Suma del precio de las ventas cerradas en las fechas elegidas.', items: (c, f) => uno(ventasDe(c, f), (l) => ({ v: l.presupuesto, lead: l })), fecha: (i) => i.lead?.cerrado },
+  // Ventas: app de comisiones (Contrato total / ventas reales) o, sin app, ganados del CRM
+  { id: 'ventas', label: 'Clientes cerrados', grupo: 'Ventas', fmt: fmtN, dims: DIMS_CRM, base: 'cierre', ayuda: 'Ventas registradas en la app de comisiones dentro de las fechas elegidas (por mes de venta, sin canceladas). Si el corte no trae la app, las que el CRM marcó como ganadas.', items: (c, f) => uno(ventasDe(c, f), (l) => ({ v: 1, lead: l })), fecha: (i) => i.lead?.cerrado },
+  { id: 'vendido', label: 'Monto vendido', grupo: 'Ventas', fmt: fmtMoney0, dims: DIMS_CRM, base: 'cierre', ayuda: 'Contrato total de las ventas de la app de comisiones en las fechas elegidas. Si el corte no trae la app, la suma del precio de los ganados del CRM.', items: (c, f) => uno(ventasDe(c, f), (l) => ({ v: l.presupuesto, lead: l })), fecha: (i) => i.lead?.cerrado },
   // La meta no sale de ningun lead: es lo que cada asesor tiene puesto en Configuracion, repartido al
   // periodo elegido. Sirve para graficarla y, sobre todo, para ponerla junto a lo vendido.
   { id: 'meta', label: 'Meta de venta', grupo: 'Ventas', fmt: fmtMoney0, dims: DIMS_META, ayuda: 'La meta en pesos del periodo elegido, por asesor (se configura en Configuración). Los asesores sin leads, actividad ni ventas en el periodo no suman meta, igual que en la tarjeta «Avance contra la meta». Como la meta es mensual, no se puede partir por semana ni por día.', items: (c, f) => metasPorMes(c, f), fecha: (i) => i.ts },
@@ -143,7 +140,7 @@ export const MEDIDAS: Medida[] = [
     ...ventasDe(c, f).map((l) => ({ v: l.presupuesto, v2: 0, lead: l })),
     ...metasPorMes(c, f).map((i) => ({ v: 0, v2: i.v, u: i.u, ts: i.ts })),
   ], fecha: (i) => i.lead?.cerrado ?? i.ts },
-  { id: 'ticket_crm', label: 'Ticket promedio del CRM', grupo: 'Ventas', fmt: fmtMoney0, agg: 'promedio', dims: DIMS_CRM, base: 'cierre', ayuda: 'Precio promedio de cada venta cerrada en el CRM.', items: (c, f) => uno(ventasDe(c, f), (l) => ({ v: l.presupuesto, lead: l })), fecha: (i) => i.lead?.cerrado },
+  { id: 'ticket_crm', label: 'Ticket promedio por venta', grupo: 'Ventas', fmt: fmtMoney0, agg: 'promedio', dims: DIMS_CRM, base: 'cierre', ayuda: 'Contrato promedio de cada venta (app de comisiones; CRM solo si no hay app).', items: (c, f) => uno(ventasDe(c, f), (l) => ({ v: l.presupuesto, lead: l })), fecha: (i) => i.lead?.cerrado },
   // Ventas reales (app de comisiones)
   { id: 'r_ventas', label: 'Ventas reales', grupo: 'Ventas reales', fmt: fmtN, dims: DIMS_COM, base: 'cierre', ayuda: 'Ventas registradas en la app de comisiones, sin canceladas. El mes de la venta manda, no el día.', items: (c, f) => uno(realesDe(c, f), (v) => ({ v: 1, vr: v })), fecha: (i) => i.vr?.fecha ?? undefined },
   { id: 'r_contrato', label: 'Contrato total', grupo: 'Ventas reales', fmt: fmtMoney0, dims: DIMS_COM, base: 'cierre', ayuda: 'Suma del monto de contrato de la app de comisiones.', items: (c, f) => uno(realesDe(c, f), (v) => ({ v: v.monto, vr: v })), fecha: (i) => i.vr?.fecha ?? undefined },

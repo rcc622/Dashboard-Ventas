@@ -10,7 +10,7 @@ import type { CotFila, Corte, Crm, Etapa, Evento, Lead, LevFila, Rango, Tarea, U
 /** crm = qué CRM entran (botones Kommo · HubSpot de la barra del Admin); al menos uno encendido. */
 export interface Filtros { rango: Rango; equipo: string | null; asesor: string | null; crm: Record<Crm, boolean> }
 export const TODOS_CRM: Record<Crm, boolean> = { kommo: true, hubspot: true }
-export const pasaCrm = (crm: Crm, f: Filtros) => f.crm?.[crm] !== false
+export const pasaCrm = (crm: Origen, f: Filtros) => (f.crm as Partial<Record<Origen, boolean>>)?.[crm] !== false
 
 const DIA = 86400
 
@@ -133,9 +133,30 @@ export function eventosFiltrados(c: Corte, f: Filtros): Evento[] {
 }
 export const vivo = (l: Lead) => l.funnel !== 0 && l.funnel !== 5
 /** Ventas = leads ganados cuyo cierre cae en el rango (el cierre manda, no la asignación). */
-export function ventasFiltradas(c: Corte, f: Filtros): Lead[] {
+/** Ganados del CRM cerrados en el rango. Solo para comparar contra la app (tabla «Ventas reales · Comisiones»). */
+export function ventasCrm(c: Corte, f: Filtros): Lead[] {
   const users = mapaUsuarios(c), oc = ocultosDe(c)
   return c.leads.filter((l) => pasaCrm(l.crm, f) && l.funnel === 5 && enRango(l.cerrado, f.rango) && pasaPersona(l.asesor_id, f, users, oc))
+}
+/** Una venta de la app de comisiones con la forma de un lead ganado, para que todo lo que cuenta
+ *  ventas (tiles, ranking, tabla de asesores, constructor) la trate igual que un ganado del CRM.
+ *  La app guarda el MES de venta: `cerrado` es el día 1 de ese mes. */
+export function ventaComoLead(v: VentaReal): Lead {
+  const t = v.fecha ?? 0
+  return { id: 'c:' + v.id, crm: 'comisiones', nombre: v.cliente || 'Sin nombre', creado: t, embudo: 'ventas', pipeline: 'Comisiones', etapa: 'Venta registrada', etapa_id: -1,
+    asesor_id: v.asesor_id, asesor: v.vendedor, presupuesto: v.monto, recibo: true, respondio: true, funnel: 5, funnel_label: 'Ganado',
+    tareas_abiertas: 0, tareas_vencidas: 0, pc_vencida: false, tags: [], dias_sin_cambio: 0, link: v.liga || '', msjs: 0, llamadas_cf: 0, tel: '', sin_tarea: false, razon: '',
+    ciudad: v.zona_app || '', asignacion: t, tareas_completadas: 0, ult_tarea: 0, ult_llamada: 0, cotizacion: 0, levantamiento: 0, ult_actividad: t, cerrado: t }
+}
+/** Ventas del rango: las de la app de comisiones cuando el corte la trae (Randall 11-sep: «el monto
+ *  de venta por defecto es el Contrato total y los clientes cerrados son las ventas reales»); los
+ *  ganados del CRM solo si no hay app. Los botones Kommo/HubSpot no las tocan. */
+export function ventasFiltradas(c: Corte, f: Filtros): Lead[] {
+  return c.comisiones ? realesDe(c, f).map(ventaComoLead) : ventasCrm(c, f)
+}
+/** Todas las ventas del corte sin filtro de fechas (Mi día, Mis ventas): app de comisiones o, sin ella, ganados del CRM. */
+export function todasVentas(c: Corte): Lead[] {
+  return c.comisiones ? c.comisiones.ventas.filter((v) => !v.cancelada && v.fecha != null).map(ventaComoLead) : c.leads.filter((l) => l.funnel === 5)
 }
 
 /** Visitas: de las que se agendaron, cuántas ya se hicieron (Randall 9-sep).
@@ -524,13 +545,14 @@ export function miDia(c: Corte, uid: string): MiDia {
   const cerrados = new Set(c.leads.filter((l) => !vivo(l)).map((l) => l.id))
   const mias = c.tareas_abiertas.filter((t) => t.asesor_id === uid && !cerrados.has(t.lead))
   const metaMes = metaDeId(c, uid)
-  const vendidoMes = c.leads.filter((l) => l.asesor_id === uid && l.funnel === 5 && enRango(l.cerrado, mes)).reduce((s, l) => s + l.presupuesto, 0)
+  const misVentas = todasVentas(c).filter((l) => l.asesor_id === uid)
+  const vendidoMes = misVentas.filter((l) => enRango(l.cerrado, mes)).reduce((s, l) => s + l.presupuesto, 0)
   return {
     tareasHoy: mias.filter((t) => t.vence >= h - 14 * DIA && t.vence < h + DIA).sort((a, b) => a.vence - b.vence),
     vencidasViejas: mias.filter((t) => t.vence < h - 14 * DIA).length,
     hoyN: mias.filter((t) => t.vence >= h && t.vence < h + DIA).length,
     tareasHechasHoy: evHoy.filter((e) => e.tipo === 'tarea').length,
-    ventasHoy: c.leads.filter((l) => l.asesor_id === uid && l.funnel === 5 && esHoy(l.cerrado)).length,
+    ventasHoy: misVentas.filter((l) => esHoy(l.cerrado)).length,
     vendidoMes, metaMes, esperadoMes: metaEsperada(metaMes, mes), ritmoMes: ritmo(vendidoMes, metaMes, mes),
     llamadasHoy: evHoy.filter((e) => e.tipo === 'llamada_ok' || e.tipo === 'llamada_no').length,
     prospectosHoy: c.leads.filter((l) => l.asesor_id === uid && esHoy(l.asignacion)).length,
@@ -541,9 +563,10 @@ export function miDia(c: Corte, uid: string): MiDia {
 export interface Ranking { u: Usuario; ventas: number; puntos: number }
 /** Leaderboard del día: ventas cerradas hoy y actividades registradas hoy. */
 export function leaderboardHoy(c: Corte): Ranking[] {
+  const vs = todasVentas(c)
   return usuariosVisibles(c).map((u) => ({
     u,
-    ventas: c.leads.filter((l) => l.asesor_id === u.id && l.funnel === 5 && esHoy(l.cerrado)).length,
+    ventas: vs.filter((l) => l.asesor_id === u.id && esHoy(l.cerrado)).length,
     puntos: c.eventos.filter((e) => e.asesor_id === u.id && esHoy(e.ts)).length,
   })).filter((r) => r.ventas || r.puntos || c.leads.some((l) => l.asesor_id === r.u.id && vivo(l)))
     .sort((a, b) => b.ventas - a.ventas || b.puntos - a.puntos)
@@ -564,9 +587,8 @@ const finMes = (t: number) => { const d = new Date(t * 1000); return new Date(d.
 export function ventasReales(c: Corte, f: Filtros): VentasReales {
   const com = c.comisiones
   if (!com) return { filas: [], ventas: [], sinAsesor: [], total: 0, n: 0 }
-  const users = mapaUsuarios(c), oc = ocultosDe(c)
-  const sel = com.ventas.filter((v) => !v.cancelada && v.fecha != null && v.fecha < f.rango.fin && finMes(v.fecha) > f.rango.ini
-    && (v.asesor_id ? pasaPersona(v.asesor_id, f, users, oc) : f.asesor == null && f.equipo == null))
+  const users = mapaUsuarios(c)
+  const sel = realesDe(c, f)
   const grupos = new Map<string, VentaRealFila>()
   for (const v of sel) {
     const k = v.asesor_id || 'v:' + v.vendedor

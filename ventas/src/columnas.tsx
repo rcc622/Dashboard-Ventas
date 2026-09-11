@@ -27,7 +27,7 @@ export type BaseFecha = 'asignacion' | 'actividad' | 'cierre' | 'ninguna'
 export const BASE_FECHA: Record<BaseFecha, { corto: string; largo: string }> = {
   asignacion: { corto: 'por asignación', largo: 'Cuenta los leads que se ASIGNARON dentro de las fechas elegidas; el estado (activo, vencido, sin tarea) es el de hoy.' },
   actividad: { corto: 'por actividad', largo: 'Cuenta lo que PASÓ dentro de las fechas elegidas: la llamada, la tarea, la cotización o el descarte, por su propia fecha.' },
-  cierre: { corto: 'por cierre', largo: 'Cuenta las ventas que se CERRARON dentro de las fechas elegidas, sin importar cuándo entró el lead.' },
+  cierre: { corto: 'por cierre', largo: 'Cuenta las ventas cuyo MES DE VENTA (app de comisiones) cae en las fechas elegidas, sin importar cuándo entró el lead. Sin app en el corte, las que el CRM cerró en esas fechas.' },
   ninguna: { corto: 'sin fechas', largo: 'No depende del rango: es el estado de hoy.' },
 }
 export interface Eleccion { orden: string[]; ocultas: string[]; ts?: number }

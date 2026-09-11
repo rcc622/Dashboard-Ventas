@@ -11,7 +11,7 @@ export interface Etapa { id: number; nombre: string }           // etapas canón
 export type Embudo = 'ventas' | 'hunting' | 'cadencia' | 'nuevo'
 
 export interface Lead {
-  id: string; crm: Crm; nombre: string; creado: number
+  id: string; crm: Origen; nombre: string; creado: number
   embudo: Embudo; pipeline: string; etapa: string; etapa_id: number
   asesor_id: string | null; asesor: string
   presupuesto: number; recibo: boolean; respondio: boolean
