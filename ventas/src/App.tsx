@@ -202,7 +202,7 @@ function Shell({ yo, corte, origen, error, onRetry, onConfig, onLogout }: { yo: 
             ) : (<>
             <select className="sel sel-as" aria-label="Propietario" value={filtros.asesor ?? ''} onChange={(e) => setFiltros({ ...filtros, asesor: e.target.value || null })}>
               <option value="">Todos los propietarios</option>
-              {usuariosOrden.filter((u) => (filtros.equipo == null || u.zona === filtros.equipo) && (!u.crm.length || u.crm.some((x) => filtros.crm[x]))).map((u) => <option key={u.id} value={u.id}>{u.nombre}{tipoDe(corte, u) === 'cambaceo' ? ' · cambaceo' : tipoDe(corte, u) === 'mixto' ? ' · mixto' : ''}</option>)}
+              {usuariosOrden.filter((u) => (filtros.equipo == null || u.zona === filtros.equipo) && (!u.crm.length || u.crm.some((x) => filtros.crm[x]))).map((u) => <option key={u.id} value={u.id}>{u.nombre}{tipoDe(corte, u) === 'cambaceo' ? ' · cambaceo' : tipoDe(corte, u) === 'mixto' ? ' · mixto' : tipoDe(corte, u) === 'otro' ? ' · otro' : ''}</option>)}
             </select>
             {/* Equipos de venta como botones a la vista (Randall 6-sep, img 11), junto a Kommo/HubSpot: un clic filtra todo el tablero. */}
             <span className="pill sm equipos" role="group" aria-label="Equipo de ventas">

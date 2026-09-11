@@ -15,7 +15,7 @@ const mixto = (c: Corte) => (c.fuentes || []).length > 1
 const crmCorto = (l: { crm: Lead['crm'] }) => CRM_LABEL[l.crm]
 const subAsesor = (c: Corte, u: Usuario) => zonaNombre(c, u.zona) + ' · ' + (u.crm.length ? u.crm.map((x) => CRM_LABEL[x]).join(' + ') : 'app de comisiones') + ' · ' + VENDEDOR_LABEL[tipoDe(c, u)] + (u.rol && u.rol !== 'cambaceo' ? ' · ' + rolNombre(u.rol) : '')
 /** Etiqueta junto al nombre cuando el vendedor no es puro leads (grupo cambaceo dentro de su zona, Randall 11-sep). */
-const TagTipo = ({ c, u }: { c: Corte; u: Usuario }) => { const t = tipoDe(c, u); return t === 'leads' ? null : <span className={'tag tipo ' + t} title={t === 'cambaceo' ? 'Vendedor de cambaceo: vende sin CRM, sus ventas vienen de la app de comisiones' : 'Vende con leads del CRM y también por cambaceo'}>{t === 'cambaceo' ? 'Cambaceo' : 'Mixto'}</span> }
+const TagTipo = ({ c, u }: { c: Corte; u: Usuario }) => { const t = tipoDe(c, u); return t === 'leads' ? null : <span className={'tag tipo ' + t} title={t === 'cambaceo' ? 'Vendedor de cambaceo: vende sin CRM, sus ventas vienen de la app de comisiones' : t === 'mixto' ? 'Vende con leads del CRM y también por cambaceo' : 'Otro tipo de vendedor (fijado en Configuración)'}>{VENDEDOR_LABEL[t]}</span> }
 const avatarCls = (u: Usuario) => 'avatar' + (u.zona ? ' z-' + u.zona : '')
 const RAMPA = ['var(--f1)', 'var(--f2)', 'var(--f3)', 'var(--f4)', 'var(--f5)', 'var(--f6)', 'var(--f6)']
 // HubSpot no trae llamadas ni mensajes por deal: mejor decirlo que pintar «0 llam».
@@ -855,7 +855,7 @@ export function Asesores({ corte, filtros, onFicha }: { corte: Corte; filtros: F
           <tbody>
             {filas.map((f) => (
               /* el resumen del asesor se abre solo desde el nombre (Randall 6-sep); cada cifra abre su propio desglose */
-              <tr key={f.u.id}>{vis.map((c) => <Fragment key={c.id}>{f.tipo === 'cambaceo' && (c.fecha === 'asignacion' || c.fecha === 'actividad') ? <td className={c.cnt ? 'cnt muted' : 'muted'} title="Vendedor de cambaceo: no registra en el CRM">—</td> : c.celda(f)}</Fragment>)}</tr>
+              <tr key={f.u.id}>{vis.map((c) => <Fragment key={c.id}>{(f.tipo === 'cambaceo' || (f.tipo === 'otro' && !f.u.crm.length)) && (c.fecha === 'asignacion' || c.fecha === 'actividad') ? <td className={c.cnt ? 'cnt muted' : 'muted'} title="Vendedor de cambaceo: no registra en el CRM">—</td> : c.celda(f)}</Fragment>)}</tr>
             ))}
           </tbody>
         </table>

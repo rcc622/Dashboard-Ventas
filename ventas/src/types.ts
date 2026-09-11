@@ -6,7 +6,7 @@ export type Crm = 'kommo' | 'hubspot'
 /** zona = la efectiva (la de Configuración manda); zona_crm = la que trae el CRM, para poder volver a ella. */
 /** `rol`: el rol de Kommo (KS-VENTAS, KS-TRAINING, KS-SEGUIMIENTO, Administrador); vacío en HubSpot. */
 /** Cómo vende (Randall 11-sep): con leads del CRM, puro cambaceo (sin CRM, solo existe en la app de comisiones) o las dos. */
-export type TipoVendedor = 'leads' | 'cambaceo' | 'mixto'
+export type TipoVendedor = 'leads' | 'cambaceo' | 'mixto' | 'otro'
 export interface Usuario { id: string; nombre: string; zona: string; zona_crm?: string; crm: Crm[]; ids: Partial<Record<Crm, number | string>>; rol?: string }
 export interface Equipo { id: string; nombre: string }          // zonas MTY / SLT / TRC / MVA
 export interface Etapa { id: number; nombre: string }           // etapas canónicas del embudo Ventas, en orden

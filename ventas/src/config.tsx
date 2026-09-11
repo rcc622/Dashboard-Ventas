@@ -181,6 +181,7 @@ export function Configuracion({ corte, onSaved }: { corte: Corte; onSaved: (cfg:
                             <option value="leads">Leads</option>
                             <option value="cambaceo">Cambaceo</option>
                             <option value="mixto">Leads + cambaceo</option>
+                            <option value="otro">Otro</option>
                           </select>
                         </td>
                         <td>

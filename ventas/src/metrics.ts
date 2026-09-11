@@ -115,7 +115,7 @@ export function zonaNombre(c: Corte, zona: string): string { return c.equipos.fi
 export const ocultosDe = (c: Corte) => new Set(c.ocultos || [])
 /** Tipo de vendedor: lo fijado (Configuración / env) y, si no, cambaceo cuando no vive en ningún CRM. */
 export const tipoDe = (c: Corte, u: Usuario): TipoVendedor => c.tipos?.[u.id] ?? (u.crm.length ? 'leads' : 'cambaceo')
-export const VENDEDOR_LABEL: Record<TipoVendedor, string> = { leads: 'Leads', cambaceo: 'Cambaceo', mixto: 'Leads + cambaceo' }
+export const VENDEDOR_LABEL: Record<TipoVendedor, string> = { leads: 'Leads', cambaceo: 'Cambaceo', mixto: 'Leads + cambaceo', otro: 'Otro' }
 export const usuariosVisibles = (c: Corte) => { const o = ocultosDe(c); return c.usuarios.filter((u) => !o.has(u.id)) }
 function pasaPersona(asesorId: string | null, f: Filtros, users: Map<string, Usuario>, ocultos: Set<string>): boolean {
   if (f.asesor != null) return asesorId === f.asesor

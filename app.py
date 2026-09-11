@@ -477,7 +477,7 @@ def validar_config(body):
     if not isinstance(tipos, dict) or len(tipos) > 500:
         raise ValueError("tipos debe ser un objeto")
     for k, v in tipos.items():
-        if not (isinstance(k, str) and _SLUG.match(k) and v in ("leads", "cambaceo", "mixto")):
+        if not (isinstance(k, str) and _SLUG.match(k) and v in ("leads", "cambaceo", "mixto", "otro")):
             raise ValueError("tipo de vendedor inválido: %r" % ((k, v),))
     return {"meta_mxn": int(round(numero(body.get("meta_mxn", 800000), "meta_mxn", 1))),
             "cotizado_x": round(numero(body.get("cotizado_x", 10), "cotizado_x", 0.1), 2),
