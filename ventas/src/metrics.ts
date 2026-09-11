@@ -140,7 +140,7 @@ export function leadsFiltrados(c: Corte, f: Filtros): Lead[] {
  *  no depende de las fechas del tablero (Randall 11-sep). Respeta CRM, asesor, equipo y ocultos. */
 export function leadsActivosHoy(c: Corte, f: Filtros): Lead[] {
   const users = mapaUsuarios(c), oc = ocultosDe(c)
-  return c.leads.filter((l) => vivo(l) && pasaCrm(l.crm, f) && pasaPersona(l.asesor_id, f, users, oc))
+  return c.leads.filter((l) => activo(l) && pasaCrm(l.crm, f) && pasaPersona(l.asesor_id, f, users, oc))
 }
 /** Actividades cuya fecha cae en el rango. */
 export function eventosFiltrados(c: Corte, f: Filtros): Evento[] {
@@ -148,6 +148,10 @@ export function eventosFiltrados(c: Corte, f: Filtros): Evento[] {
   return c.eventos.filter((e) => pasaCrm(e.crm, f) && enRango(e.ts, f.rango) && pasaPersona(e.asesor_id, f, users, oc))
 }
 export const vivo = (l: Lead) => l.funnel !== 0 && l.funnel !== 5
+/** Lead ACTIVO (regla Randall 11-sep): ni ganado ni perdido y, en Kommo, fuera del pipeline Hunting
+ *  (ahí el lead está en cadencia automática, no en manos del asesor). Es lo que se mide como foto de hoy:
+ *  días estancado, con o sin tarea, llamadas, levantamiento, cotizado. `vivo` sigue siendo «no cerrado». */
+export const activo = (l: Lead) => vivo(l) && l.embudo !== 'hunting'
 /** Ventas = leads ganados cuyo cierre cae en el rango (el cierre manda, no la asignación). */
 /** Ganados del CRM cerrados en el rango. Solo para comparar contra la app (tabla «Ventas reales · Comisiones»). */
 export function ventasCrm(c: Corte, f: Filtros): Lead[] {
@@ -586,7 +590,7 @@ export function leaderboardHoy(c: Corte): Ranking[] {
     u,
     ventas: vs.filter((l) => l.asesor_id === u.id && esHoy(l.cerrado)).length,
     puntos: c.eventos.filter((e) => e.asesor_id === u.id && esHoy(e.ts)).length,
-  })).filter((r) => r.ventas || r.puntos || c.leads.some((l) => l.asesor_id === r.u.id && vivo(l)))
+  })).filter((r) => r.ventas || r.puntos || c.leads.some((l) => l.asesor_id === r.u.id && activo(l)))
     .sort((a, b) => b.ventas - a.ventas || b.puntos - a.puntos)
 }
 

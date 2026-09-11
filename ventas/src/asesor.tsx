@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Corte } from './types'
 import { CRM_LABEL } from './types'
-import { dias, enRango, todasVentas, fechaDe, fmtCorta, fmtFecha, fmtHora, fmtMoney, fmtMoney0, fmtN, hoyIni, leaderboardHoy, metaDeId, miDia, pct, preset, tipoLead, vivo } from './metrics'
+import { dias, enRango, todasVentas, activo, fechaDe, fmtCorta, fmtFecha, fmtHora, fmtMoney, fmtMoney0, fmtN, hoyIni, leaderboardHoy, metaDeId, miDia, pct, preset, tipoLead, vivo } from './metrics'
 import { Bullet, Info } from './components'
 import { WidgetGrid, type Widget } from './widgets'
 
@@ -133,7 +133,7 @@ const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCa
 
 export function Prospectos({ corte, uid }: { corte: Corte; uid: string }) {
   const [q, setQ] = useState('')
-  const todos = useMemo(() => corte.leads.filter((l) => l.asesor_id === uid && vivo(l)).sort((a, b) => b.dias_sin_cambio - a.dias_sin_cambio), [corte, uid])
+  const todos = useMemo(() => corte.leads.filter((l) => l.asesor_id === uid && activo(l)).sort((a, b) => b.dias_sin_cambio - a.dias_sin_cambio), [corte, uid])
   const nq = norm(q.trim())
   const p = nq ? todos.filter((l) => norm(l.nombre + ' ' + l.etapa + ' ' + tipoLead(l)).includes(nq)) : todos
   return (
