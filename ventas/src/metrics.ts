@@ -136,6 +136,12 @@ export function leadsFiltrados(c: Corte, f: Filtros): Lead[] {
   const users = mapaUsuarios(c), oc = ocultosDe(c)
   return c.leads.filter((l) => pasaCrm(l.crm, f) && enRango(l.asignacion, f.rango) && pasaPersona(l.asesor_id, f, users, oc))
 }
+/** Leads en juego HOY (ni ganados ni perdidos), se hayan asignado cuando se hayan asignado: foto de hoy,
+ *  no depende de las fechas del tablero (Randall 11-sep). Respeta CRM, asesor, equipo y ocultos. */
+export function leadsActivosHoy(c: Corte, f: Filtros): Lead[] {
+  const users = mapaUsuarios(c), oc = ocultosDe(c)
+  return c.leads.filter((l) => vivo(l) && pasaCrm(l.crm, f) && pasaPersona(l.asesor_id, f, users, oc))
+}
 /** Actividades cuya fecha cae en el rango. */
 export function eventosFiltrados(c: Corte, f: Filtros): Evento[] {
   const users = mapaUsuarios(c), oc = ocultosDe(c)
@@ -465,8 +471,8 @@ export function actividad(ev: Evento[]): Actividad {
 export interface FilaAsesor {
   u: Usuario; tipo: TipoVendedor; ventas: number; montoVentas: number
   /** Los leads que se le asignaron DENTRO del rango, ganados y perdidos incluidos, y cómo acabaron.
-   *  `leadsActivos` es otra cosa: los que siguen en juego hoy, se hayan asignado cuando se hayan
-   *  asignado. Randall 9-sep quiso ver las dos cifras como columnas distintas. */
+   *  `leadsActivos` es otra cosa: TODOS los que siguen en juego hoy, sin importar cuándo se asignaron
+   *  (Randall 11-sep: activos, tareas vencidas y sin tarea son foto de hoy, no del rango). */
   asignados: Lead[]; ganados: number; perdidos: number
   metaMes: number; metaRango: number; esperado: number; ritmo: Ritmo
   leadsActivos: Lead[]; presupuesto: number; cotizado: Cotizado; estancados: number
@@ -483,15 +489,15 @@ export function metaTotal(c: Corte, f: Filtros): number {
 }
 
 export function porAsesor(c: Corte, f: Filtros): FilaAsesor[] {
-  const leads = leadsFiltrados(c, f), ev = eventosFiltrados(c, f), ventas = ventasFiltradas(c, f)
+  const leads = leadsFiltrados(c, f), ev = eventosFiltrados(c, f), ventas = ventasFiltradas(c, f), hoy = leadsActivosHoy(c, f)
   const filas: FilaAsesor[] = []
   for (const u of (f.asesor != null ? c.usuarios : usuariosVisibles(c))) {
     const mios = leads.filter((l) => l.asesor_id === u.id)
     const act = ev.filter((e) => e.asesor_id === u.id)
     const vt = ventas.filter((l) => l.asesor_id === u.id)
-    if (!mios.length && !act.length && !vt.length) continue
+    const activos = hoy.filter((l) => l.asesor_id === u.id)
+    if (!mios.length && !act.length && !vt.length && !activos.length) continue
     const a = actividad(act)
-    const activos = mios.filter(vivo)
     const metaMes = metaDe(c, u), metaRango = metaEnRango(metaMes, f.rango), montoVentas = vt.reduce((s, l) => s + l.presupuesto, 0)
     filas.push({
       u, tipo: tipoDe(c, u), ventas: vt.length, montoVentas,

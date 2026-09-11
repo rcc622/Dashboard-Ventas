@@ -5,7 +5,7 @@ import { CRM_LABEL } from './types'
 import {
   cotizadoVigenteDe, enRango, etapaDe, fechaDe, filasDeEventos, filasDeLeads, filasDeVentasReales, fmtCorta, fmtMoney0, fmtN,
   PRESETS, ep, inicioDia, mapaUsuarios, metaDe, metaEnRango, metaTotal, ocultosDe, pasaCrm, pct, periodoTexto, porAsesor, primerContacto, ritmo, visitas, vivo, zonaNombre, type Filtros, type Preset,
-  realesDe, ventasFiltradas,
+  realesDe, ventasFiltradas, leadsActivosHoy,
 } from './metrics'
 import { BarChart, BarDetailPopup, Bullet, DonutChart, HBarList, LineChart, useEscape, useFocoDialogo, type BarItem, type DetRow, type Modo } from './components'
 import type { Drill } from './drill'
@@ -65,7 +65,8 @@ const DIMS_CRM = ['asesor', 'equipo', 'ciudad', 'crm', 'etapa', ...TIEMPOS, 'dia
 const DIMS_COM = ['asesor', 'zona_app', 'origen', 'forma_pago', 'tamano', ...TIEMPOS, 'ninguna']
 /** La meta se configura POR MES: no se puede partir más fino que el mes sin inventar datos. */
 const DIMS_META = ['asesor', 'equipo', 'mes', 'bimestre', 'trimestre', 'semestre', 'anio', 'ninguna']
-const activos = (c: Corte, f: Filtros) => leadsDe(c, f).filter(vivo)
+/** Leads en juego hoy, sin importar las fechas (Randall 11-sep); misma regla que la tabla de Asesores. */
+const activos = (c: Corte, f: Filtros) => leadsActivosHoy(c, f)
 /** Leads del rango con los filtros de la barra (misma regla que el resto del tablero). */
 function leadsDe(c: Corte, f: Filtros): Lead[] {
   const users = mapaUsuarios(c), oc = ocultosDe(c)
@@ -121,12 +122,12 @@ export const MEDIDAS: Medida[] = [
   // Seguimiento: foto de hoy
   { id: 'tareas_vencidas', label: 'Tareas vencidas', grupo: 'Seguimiento', fmt: fmtN, dims: ['asesor', 'equipo', 'ciudad', 'crm', 'etapa', 'ninguna'], base: 'ninguna', ayuda: 'Tareas abiertas cuya fecha ya pasó, contadas hoy (no dependen de las fechas de arriba).', items: (c, f) => uno(tareasDe(c, f, true), (t) => ({ v: 1, tar: t })) },
   { id: 'tareas_abiertas', label: 'Tareas agendadas', grupo: 'Seguimiento', fmt: fmtN, dims: ['asesor', 'equipo', 'ciudad', 'crm', 'etapa', 'ninguna'], base: 'ninguna', ayuda: 'Tareas abiertas hoy en leads que siguen en juego, vencidas o por vencer.', items: (c, f) => uno(tareasDe(c, f, false), (t) => ({ v: 1, tar: t })) },
-  { id: 'sin_tarea', label: 'Leads sin tarea', grupo: 'Seguimiento', fmt: fmtN, dims: DIMS_CRM, base: 'asignacion', ayuda: 'Leads en juego sin ninguna tarea pendiente: nadie los está siguiendo.', items: (c, f) => uno(activos(c, f).filter((l) => l.sin_tarea), (l) => ({ v: 1, lead: l })), fecha: (i) => i.lead?.asignacion },
-  { id: 'pc_vencido', label: 'Primer contacto vencido', grupo: 'Seguimiento', fmt: fmtN, dims: DIMS_CRM, base: 'asignacion', ayuda: 'Leads en juego a los que se les pasó la fecha de la tarea de primer contacto. Solo Kommo.', items: (c, f) => uno(activos(c, f).filter((l) => l.pc_vencida), (l) => ({ v: 1, lead: l })), fecha: (i) => i.lead?.asignacion },
-  { id: 'estancados', label: 'Leads estancados', grupo: 'Seguimiento', fmt: fmtN, dims: DIMS_CRM, base: 'asignacion', ayuda: 'Leads en juego con más de 7 días sin ningún cambio en el CRM.', items: (c, f) => uno(activos(c, f).filter((l) => l.dias_sin_cambio > 7), (l) => ({ v: 1, lead: l })), fecha: (i) => i.lead?.asignacion },
+  { id: 'sin_tarea', label: 'Leads sin tarea', grupo: 'Seguimiento', fmt: fmtN, dims: DIMS_CRM, base: 'ninguna', ayuda: 'Leads en juego hoy sin ninguna tarea pendiente: nadie los está siguiendo. Foto de hoy, no depende de las fechas.', items: (c, f) => uno(activos(c, f).filter((l) => l.sin_tarea), (l) => ({ v: 1, lead: l })), fecha: (i) => i.lead?.asignacion },
+  { id: 'pc_vencido', label: 'Primer contacto vencido', grupo: 'Seguimiento', fmt: fmtN, dims: DIMS_CRM, base: 'ninguna', ayuda: 'Leads en juego hoy a los que se les pasó la fecha de la tarea de primer contacto. Solo Kommo. Foto de hoy.', items: (c, f) => uno(activos(c, f).filter((l) => l.pc_vencida), (l) => ({ v: 1, lead: l })), fecha: (i) => i.lead?.asignacion },
+  { id: 'estancados', label: 'Leads estancados', grupo: 'Seguimiento', fmt: fmtN, dims: DIMS_CRM, base: 'ninguna', ayuda: 'Leads en juego hoy con más de 7 días sin ningún cambio en el CRM. Foto de hoy.', items: (c, f) => uno(activos(c, f).filter((l) => l.dias_sin_cambio > 7), (l) => ({ v: 1, lead: l })), fecha: (i) => i.lead?.asignacion },
   { id: 'leads', label: 'Leads asignados', grupo: 'Seguimiento', fmt: fmtN, dims: DIMS_CRM, base: 'asignacion', ayuda: 'Leads que se repartieron a los asesores en las fechas elegidas.', items: (c, f) => uno(leadsDe(c, f), (l) => ({ v: 1, lead: l })), fecha: (i) => i.lead?.asignacion },
-  { id: 'activos', label: 'Leads en juego', grupo: 'Seguimiento', fmt: fmtN, dims: DIMS_CRM, base: 'asignacion', ayuda: 'Leads asignados en las fechas elegidas que no se han cerrado ni descartado.', items: (c, f) => uno(activos(c, f), (l) => ({ v: 1, lead: l })), fecha: (i) => i.lead?.asignacion },
-  { id: 'cotizado', label: 'Cotizado vigente', grupo: 'Seguimiento', fmt: fmtMoney0, dims: DIMS_CRM, base: 'asignacion', ayuda: 'Dinero en juego: precio de los leads activos cuya cotización tiene 90 días o menos.', items: (c, f) => uno(cotizadoVigenteDe(activos(c, f), c.cotizado_dias), (l) => ({ v: l.presupuesto, lead: l })), fecha: (i) => i.lead?.asignacion },
+  { id: 'activos', label: 'Leads en juego', grupo: 'Seguimiento', fmt: fmtN, dims: DIMS_CRM, base: 'ninguna', ayuda: 'Todos los leads que hoy siguen en juego (ni ganados ni perdidos), sin importar cuándo se asignaron. Foto de hoy.', items: (c, f) => uno(activos(c, f), (l) => ({ v: 1, lead: l })), fecha: (i) => i.lead?.asignacion },
+  { id: 'cotizado', label: 'Cotizado vigente', grupo: 'Seguimiento', fmt: fmtMoney0, dims: DIMS_CRM, base: 'ninguna', ayuda: 'Dinero en juego: precio de los leads activos cuya cotización tiene 90 días o menos.', items: (c, f) => uno(cotizadoVigenteDe(activos(c, f), c.cotizado_dias), (l) => ({ v: l.presupuesto, lead: l })), fecha: (i) => i.lead?.asignacion },
   // Ventas: app de comisiones (Contrato total / ventas reales) o, sin app, ganados del CRM
   { id: 'ventas', label: 'Clientes cerrados', grupo: 'Ventas', fmt: fmtN, dims: DIMS_CRM, base: 'cierre', ayuda: 'Ventas registradas en la app de comisiones dentro de las fechas elegidas (por mes de venta, sin canceladas). Si el corte no trae la app, las que el CRM marcó como ganadas.', items: (c, f) => uno(ventasDe(c, f), (l) => ({ v: 1, lead: l })), fecha: (i) => i.lead?.cerrado },
   { id: 'vendido', label: 'Monto vendido', grupo: 'Ventas', fmt: fmtMoney0, dims: DIMS_CRM, base: 'cierre', ayuda: 'Contrato total de las ventas de la app de comisiones en las fechas elegidas. Si el corte no trae la app, la suma del precio de los ganados del CRM.', items: (c, f) => uno(ventasDe(c, f), (l) => ({ v: l.presupuesto, lead: l })), fecha: (i) => i.lead?.cerrado },

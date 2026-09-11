@@ -231,7 +231,9 @@ def embebido_(path, key, **params):
 
 def leads_(desde):
     """Leads creados en la ventana + los cerrados en la ventana aunque sean más
-    viejos (una venta de hoy suele ser un lead de hace meses). Sin duplicar."""
+    viejos (una venta de hoy suele ser un lead de hace meses) + los ABIERTOS más viejos
+    que la ventana (Randall 11-sep: leads activos, tareas vencidas y sin tarea son foto de
+    hoy, sin importar las fechas del tablero). Sin duplicar."""
     filtro = {"with": "contacts", "filter[pipeline_id][0]": PIPE_CADENCIA, "filter[pipeline_id][1]": PIPE_VENTAS,
               "filter[pipeline_id][2]": PIPE_HUNTING, "filter[pipeline_id][3]": PIPE_LEADSNUEVOS}
     out = {}
@@ -243,7 +245,14 @@ def leads_(desde):
             out.setdefault(l["id"], l)
     except SystemExit as e:
         aviso("leads cerrados: %s" % str(e)[:120])
-    print("leads %dd: %d creados + %d cerrados viejos" % (DIAS_HISTORIA, n, len(out) - n))
+    n2 = len(out)
+    try:
+        for l in k.paged("leads", "leads", **dict(filtro, **{"filter[created_at][to]": desde})):
+            if l.get("status_id") not in (ST_GANADO, ST_PERDIDO):
+                out.setdefault(l["id"], l)
+    except SystemExit as e:
+        aviso("leads abiertos viejos: %s" % str(e)[:120])
+    print("leads %dd: %d creados + %d cerrados viejos + %d abiertos viejos" % (DIAS_HISTORIA, n, n2 - n, len(out) - n2))
     return list(out.values())
 
 

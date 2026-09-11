@@ -147,7 +147,13 @@ def build():
     n_creados = len(deals)
     for d in buscar("deals", "closedate", desde, hoy + 86400, props_d):
         deals.setdefault(d["id"], d["properties"])
-    print("hubspot: deals %d creados + %d cerrados viejos" % (n_creados, len(deals) - n_creados))
+    n_cerr = len(deals)
+    # Abiertos más viejos que la ventana (Randall 11-sep): leads activos, tareas vencidas y sin tarea
+    # son foto de hoy. ~8,400 deals el 11-sep; en su mayoría de owners archivados, que ya se filtran.
+    for d in buscar("deals", "createdate", desde - 6 * 365 * 86400, desde, props_d, paso=365,
+                    extra=[{"propertyName": "hs_is_closed", "operator": "EQ", "value": "false"}]):
+        deals.setdefault(d["id"], d["properties"])
+    print("hubspot: deals %d creados + %d cerrados viejos + %d abiertos viejos" % (n_creados, n_cerr - n_creados, len(deals) - n_cerr))
 
     leads, eventos, usados = [], [], set()
     sin_dueno = 0

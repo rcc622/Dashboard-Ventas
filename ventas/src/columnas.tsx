@@ -22,11 +22,12 @@ export interface ColDef<F> {
   info?: string                // término del glosario para el botón «i»
   celda: (f: F) => React.ReactNode
 }
-export type BaseFecha = 'asignacion' | 'actividad' | 'cierre' | 'ninguna'
+export type BaseFecha = 'asignacion' | 'actividad' | 'cierre' | 'hoy' | 'ninguna'
 /** Lo que se escribe bajo el título de la columna, y la explicación larga del `title`. */
 export const BASE_FECHA: Record<BaseFecha, { corto: string; largo: string }> = {
   asignacion: { corto: 'por asignación', largo: 'Cuenta los leads que se ASIGNARON dentro de las fechas elegidas; el estado (activo, vencido, sin tarea) es el de hoy.' },
   actividad: { corto: 'por actividad', largo: 'Cuenta lo que PASÓ dentro de las fechas elegidas: la llamada, la tarea, la cotización o el descarte, por su propia fecha.' },
+  hoy: { corto: 'foto de hoy', largo: 'No depende de las fechas elegidas: es lo que hay HOY en el CRM (leads en juego, tareas vencidas, leads sin tarea), se hayan asignado cuando se hayan asignado.' },
   cierre: { corto: 'por cierre', largo: 'Cuenta las ventas cuyo MES DE VENTA (app de comisiones) cae en las fechas elegidas, sin importar cuándo entró el lead. Sin app en el corte, las que el CRM cerró en esas fechas.' },
   ninguna: { corto: 'sin fechas', largo: 'No depende del rango: es el estado de hoy.' },
 }
