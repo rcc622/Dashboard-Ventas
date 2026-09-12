@@ -15,7 +15,9 @@ const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCa
 /** La columna numérica: días y horas son enteros; la nota de una llamada (2,57 ⭐) no, y redondearla a 3 la miente. */
 const fmtNum = (n: number) => (Number.isInteger(n) ? fmtN(n) : n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))
 
-type Col = 'estado' | 'nombre' | 'crm' | 'asesor' | 'ciudad' | 'embudo' | 'etapa' | 'detalle' | 'num' | 'monto' | 'cuando'
+type Col = 'estado' | 'nombre' | 'crm' | 'asesor' | 'ciudad' | 'embudo' | 'etapa' | 'detalle' | 'num' | 'monto' | 'cuando' | `x${number}`
+/** 'x3' → 3: índice dentro de `Fila.extras`. */
+const ix = (c: Col) => (c.startsWith('x') ? Number(c.slice(1)) : -1)
 type Tipo = 'texto' | 'monto' | 'fecha' | 'numero'
 interface ColDef { id: Col; label: string; tipo: Tipo }
 const COLS: ColDef[] = [
@@ -29,6 +31,7 @@ const OPCIONALES: Record<string, (f: Fila) => unknown> = { estado: (f) => f.esta
 const texto = (f: Fila, c: Col): string =>
   c === 'crm' ? CRM_LABEL[f.crm] : c === 'estado' ? (f.estado || '—') : c === 'nombre' ? f.nombre : c === 'asesor' ? (f.asesor || '—')
     : c === 'ciudad' ? (f.ciudad || 'Sin ciudad') : c === 'embudo' ? (f.embudo || '—') : c === 'etapa' ? (f.etapa || '—') : c === 'detalle' ? (f.detalle || '—')
+      : ix(c) >= 0 ? (f.extras?.[ix(c)]?.valor || '—')
       : c === 'num' ? (f.num == null ? '—' : fmtNum(f.num)) : c === 'monto' ? (f.monto ? fmtMoney(f.monto) : '—') : (f.cuando ? fmtCorta(fechaDe(f.cuando)) : '—')
 const numero = (f: Fila, c: Col): number | undefined => (c === 'monto' ? f.monto : c === 'cuando' ? f.cuando : c === 'num' ? f.num : undefined)
 
@@ -47,7 +50,7 @@ function pasa(f: Fila, c: Col, x: FiltroCol): boolean {
 }
 function ordenar(filas: Fila[], o: Orden | null): Fila[] {
   if (!o) return filas
-  const tipo = COLS.find((c) => c.id === o.col)!.tipo, s = o.dir === 'asc' ? 1 : -1
+  const tipo = ix(o.col) >= 0 ? 'texto' : COLS.find((c) => c.id === o.col)!.tipo, s = o.dir === 'asc' ? 1 : -1
   return [...filas].sort((a, b) => {
     if (tipo === 'texto') return texto(a, o.col).localeCompare(texto(b, o.col), 'es') * s
     const x = numero(a, o.col), y = numero(b, o.col)
@@ -94,11 +97,15 @@ export function DrillModal({ d, onClose }: { d: Drill; onClose: () => void }) {
   // («Días sin cambio», «Horas al primer contacto»…) para poder ordenarla de mayor a menor de verdad.
   const cols = useMemo(() => {
     const etiqueta = d.filas.find((f) => f.numLabel)?.numLabel
-    return COLS.filter((c) => { const p = OPCIONALES[c.id]; return !p || d.filas.some((f) => { const v = p(f); return v != null && v !== '' }) })
+    const base = COLS.filter((c) => { const p = OPCIONALES[c.id]; return !p || d.filas.some((f) => { const v = p(f); return v != null && v !== '' }) })
       .map((c) => (c.id === 'num' && etiqueta ? { ...c, label: etiqueta } : c))
+    // Columnas propias de la ventana (Fila.extras), después de Etapa.
+    const extras: ColDef[] = (d.filas.find((f) => f.extras)?.extras || []).map((e, i) => ({ id: `x${i}` as Col, label: e.label, tipo: 'texto' as Tipo }))
+    const k = base.findIndex((c) => c.id === 'detalle')
+    return k < 0 ? [...base, ...extras] : [...base.slice(0, k), ...extras, ...base.slice(k)]
   }, [d])
   const nq = norm(q.trim())
-  const buscadas = useMemo(() => (nq ? d.filas.filter((f) => norm([f.nombre, f.asesor, f.ciudad, f.embudo, f.etapa, f.detalle, f.estado].filter(Boolean).join(' ')).includes(nq)) : d.filas), [d, nq])
+  const buscadas = useMemo(() => (nq ? d.filas.filter((f) => norm([f.nombre, f.asesor, f.ciudad, f.embudo, f.etapa, f.detalle, f.estado, ...(f.extras || []).map((e) => e.valor)].filter(Boolean).join(' ')).includes(nq)) : d.filas), [d, nq])
   const filtradas = useMemo(() => {
     const act = (Object.entries(filtros) as [Col, FiltroCol][]).filter(([, x]) => activo(x))
     const base = act.length ? buscadas.filter((f) => act.every(([c, x]) => pasa(f, c, x))) : buscadas
@@ -143,6 +150,7 @@ export function DrillModal({ d, onClose }: { d: Drill; onClose: () => void }) {
       {hay('ciudad') && <td>{f.ciudad || <span className="muted">Sin ciudad</span>}</td>}
       {hay('embudo') && <td>{f.embudo || '—'}</td>}
       {hay('etapa') && <td>{f.etapa || '—'}</td>}
+      {cols.filter((c) => ix(c.id) >= 0).map((c) => <td key={c.id} className="tnum">{f.extras?.[ix(c.id)]?.valor || '—'}</td>)}
       {hay('detalle') && <td>{f.detalle || '—'}</td>}
       {hay('num') && <td className="num">{f.num == null ? '—' : fmtNum(f.num)}</td>}
       <td className="num">{f.monto ? fmtMoney(f.monto) : '—'}</td>

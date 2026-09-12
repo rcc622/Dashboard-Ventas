@@ -398,7 +398,9 @@ export function razones(c: Corte, ev: Evento[]): { razon: string; n: number; lea
 /** `embudo`, `etapa` y `num` son columnas propias del detalle: mezclarlas en el texto de `detalle`
  *  hacía que ordenar «de mayor a menor» ordenara alfabéticamente (Randall 8-sep). `numLabel` es el
  *  encabezado de la columna numérica (días sin cambio, horas al primer contacto…). */
-export interface Fila { id: string; nombre: string; link?: string; crm: Origen; asesor: string; detalle: string; ciudad?: string; embudo?: string; etapa?: string; num?: number; numLabel?: string; monto?: number; cuando?: number; estado?: string; alerta?: boolean }
+export interface Fila { id: string; nombre: string; link?: string; crm: Origen; asesor: string; detalle: string; ciudad?: string; embudo?: string; etapa?: string; num?: number; numLabel?: string; monto?: number; cuando?: number; estado?: string; alerta?: boolean
+  /** Columnas de texto propias de la ventana (mismas etiquetas y orden en todas las filas); van después de Etapa. */
+  extras?: { label: string; valor: string }[] }
 export function mapaLeads(c: Corte): Map<string, Lead> { return new Map(c.leads.map((l) => [l.id, l])) }
 /** «KS-TRAINING» → «Training». Ventas es el rol normal y no se etiqueta; Training y Seguimiento sí (Randall 6-sep). */
 export const rolNombre = (r?: string) => (!r ? '' : /^admin/i.test(r) ? 'Administrador' : r.replace(/^KS-/i, '').toLowerCase().replace(/^\w/, (c) => c.toUpperCase()))
@@ -446,8 +448,14 @@ export function resumenLlamadas(ls: Llamada[]): ResumenLlamadas {
 export const fmtEstrellas = (n: number | null) => (n == null ? '—' : n.toFixed(2).replace('.', ',') + ' ⭐')
 /** Una fila por llamada calificada para el drill: el nombre abre el audio, el número es la nota, el estado dice si dejó fecha. */
 export function filasDeLlamadas(ls: Llamada[], c: Corte): Fila[] {
-  return ls.map((x) => ({ id: x.id, nombre: `${tipoLlamada(x)} · ${Math.round(x.dur / 60)} min${x.tel ? ' · ' + x.tel : ''}`, link: x.audio || undefined, crm: x.crm,
+  // Las 14 notas en tres columnas cortas (Randall 12-sep): primer contacto se lee en 1-5 y 6-10; seguimiento en 6-10 y la objeción. «–» = no aplicaba.
+  const grupo = (x: Llamada, ks: NotaClave[]) => ks.map((k) => { const n = x.notas?.[k]?.[0]; return n ? String(n) : '–' }).join(' ')
+  const E1: NotaClave[] = ['e1_apertura', 'e2_confianza', 'e3_recibo', 'e4_necesidades', 'e5_motivaciones']
+  const E2: NotaClave[] = ['e6_objeciones', 'e7_calificacion', 'e8_propuesta', 'e9_cierre', 'e10_siguiente']
+  const OB: NotaClave[] = ['o1_validar', 'o2_aclarar', 'o3_resolver', 'o4_retomar']
+  return ls.map((x) => ({ id: x.id, nombre: `${Math.round(x.dur / 60)} min${x.tel ? ' · ' + x.tel : ''}`, link: x.audio || undefined, crm: x.crm,
     asesor: nombreAsesor(c, x.asesor_id) === 'Sin asesor' ? x.asesor : nombreAsesor(c, x.asesor_id), etapa: resultadoLlamada(x), detalle: x.resumen,
+    extras: [{ label: 'Tipo', valor: tipoLlamada(x) }, { label: 'Etapas 1-5', valor: grupo(x, E1) }, { label: 'Etapas 6-10', valor: grupo(x, E2) }, { label: 'Objeción 1-4', valor: grupo(x, OB) }],
     num: x.pond == null ? undefined : Math.round(x.pond * 100) / 100, numLabel: '⭐ ponderada', cuando: x.fecha,
     estado: x.sig_paso ? 'Con siguiente paso' : 'Sin siguiente paso', alerta: !x.sig_paso })).sort((a, b) => (b.cuando || 0) - (a.cuando || 0))
 }
