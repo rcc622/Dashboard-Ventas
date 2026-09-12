@@ -150,7 +150,7 @@ export function DrillModal({ d, onClose }: { d: Drill; onClose: () => void }) {
       {hay('ciudad') && <td>{f.ciudad || <span className="muted">Sin ciudad</span>}</td>}
       {hay('embudo') && <td>{f.embudo || '—'}</td>}
       {hay('etapa') && <td>{f.etapa || '—'}</td>}
-      {cols.filter((c) => ix(c.id) >= 0).map((c) => <td key={c.id} className="tnum">{f.extras?.[ix(c.id)]?.valor || '—'}</td>)}
+      {cols.filter((c) => ix(c.id) >= 0).map((c) => { const v = f.extras?.[ix(c.id)]?.valor || '—'; return <td key={c.id} className={/^[\d– ]+$/.test(v) ? 'tnum' : undefined}>{v}</td> })}
       {hay('detalle') && <td>{f.detalle || '—'}</td>}
       {hay('num') && <td className="num">{f.num == null ? '—' : fmtNum(f.num)}</td>}
       <td className="num">{f.monto ? fmtMoney(f.monto) : '—'}</td>
