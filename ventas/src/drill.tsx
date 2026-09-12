@@ -156,7 +156,7 @@ export function DrillModal({ d, onClose }: { d: Drill; onClose: () => void }) {
       {hay('embudo') && <td>{f.embudo || '—'}</td>}
       {hay('etapa') && <td>{f.etapa || '—'}</td>}
       {cols.filter((c) => ix(c.id) >= 0).map((c) => { const e = f.extras?.[ix(c.id)]; return <td key={c.id} className={e?.estrellas !== undefined ? 'cstars' : undefined}>{e?.estrellas !== undefined ? <Estrellas n={e.estrellas} /> : (e?.valor || '—')}</td> })}
-      {hay('detalle') && <td>{f.detalle || '—'}</td>}
+      {hay('detalle') && <td className="det" title={f.detalle || undefined}>{f.detalle || '—'}</td>}
       {hay('num') && <td className="num">{f.num == null ? '—' : fmtNum(f.num)}</td>}
       <td className="num">{f.monto ? fmtMoney(f.monto) : '—'}</td>
       <td className="muted">{cuando(f.cuando)}</td>
