@@ -5,6 +5,7 @@ export const GLOSARIO = {
   'Clientes cerrados': 'Ventas registradas en la app de comisiones en las fechas elegidas (por mes de venta, sin canceladas). Solo si el corte no trae la app se usan los ganados del CRM.',
   'Leads activos': 'Todos los leads del asesor que hoy siguen en juego: ni ganados ni perdidos y, en Kommo, fuera de Hunting (ahí el lead va en cadencia automática). Sin importar cuándo se asignaron ni las fechas elegidas. Foto de hoy. Sobre ellos se miden días estancado, con o sin tarea, llamadas, levantamiento y cotizado.',
   'Presupuesto': 'Suma del precio cotizado a los leads activos del asesor.',
+  'Calidad de llamadas': 'Nota de 1 a 5 ⭐ que el calificador da a cada llamada grabada con la rúbrica de 14 preguntas (10 etapas + 4 pasos de objeción). Ponderada: siguiente paso ×3; cierre, objeciones y calificación ×2. Estándar: 4 o más. Con siguiente paso: la llamada terminó con acción y fecha.',
   'Llamadas': 'Cuántas llamadas se registraron en el CRM en las fechas elegidas. Contestada: la llamada duró algo. Sin contestar: duró cero.',
   'Tareas': 'El número grande son las tareas que el asesor terminó en las fechas elegidas. Abajo, la foto de hoy sin importar las fechas: tareas abiertas ya vencidas y leads activos sin ninguna tarea pendiente (nadie los está siguiendo).',
   'Tareas completadas': 'Tareas que los asesores marcaron como terminadas en el CRM en las fechas elegidas.',

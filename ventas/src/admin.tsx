@@ -1,7 +1,7 @@
 import { Fragment, useLayoutEffect, useMemo, useRef, useState, type SyntheticEvent, useEffect } from 'react'
 import type { Corte, Evento, Lead, LevFila, Sanciones, Usuario } from './types'
 import { CRM_LABEL } from './types'
-import { BUCKETS, PERFIL_LABEL, actividad, actividadDe, cotizado, dias, embudo, entrada, ep, eventosFiltrados, fechaCotizado, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, metaDe, metaEnRango, pasaCrm, etiquetaRango, periodoTexto, preset, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, type Fila, type FilaAsesor, type Filtros, type Perfil , type Preset, type PuntoPerfil, ventasReales, ventasCrm, tipoDe, crmTexto, activo, VENDEDOR_LABEL, filasDeVentasReales, comparativaVentas, rolDestacado, rolNombre, cotizacionesGeneradas, filasDeCotizaciones, visitas, levantados, filasDeLevantamientos, filasDeLlamadas, fmtEstrellas } from './metrics'
+import { BUCKETS, PERFIL_LABEL, actividad, actividadDe, cotizado, dias, embudo, entrada, ep, eventosFiltrados, fechaCotizado, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, metaDe, metaEnRango, pasaCrm, etiquetaRango, periodoTexto, preset, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, type Fila, type FilaAsesor, type Filtros, type Perfil , type Preset, type PuntoPerfil, ventasReales, ventasCrm, tipoDe, crmTexto, activo, VENDEDOR_LABEL, filasDeVentasReales, comparativaVentas, rolDestacado, rolNombre, cotizacionesGeneradas, filasDeCotizaciones, visitas, levantados, filasDeLevantamientos, filasDeLlamadas, fmtEstrellas, llamadasFiltradas, resumenLlamadas } from './metrics'
 import { LlamadaModal } from './llamadas'
 import type { Llamada } from './types'
 import { BarDetailPopup, BubbleChart, Bullet, DonutChart, FunnelChart, Gauge, Info, LlamadasBar, MiniAreaChart, Scatter, SortTh, StackedBar, activar, useEscape, useOutside, type DetRow, type Sort, type BubbleCol, useFocoDialogo } from './components'
@@ -39,7 +39,7 @@ const PC_TRAMOS = [
   { l: 'de 4 a 24 horas', ok: (h: number) => h > 4 && h <= 24 }, { l: 'más de un día', ok: (h: number) => h > 24 },
 ]
 /** Orden de colocación por defecto del Dashboard: pares de igual alto (bandas) para que la rejilla libre no deje huecos. */
-const ORDEN_ADMIN = ['t-leads', 't-ventas', 't-vendido', 't-conversion', 't-perdida', 't-tareas', 't-cotizaciones', 't-descartes', 't-levantamientos', 'llamadas', 'salud', 'pipeline', 'ranking', 'reales', 'cotiz-metodos', 'lev-operaciones', 'visitas', 'entrada', 'embudo', 'etapas', 'contacto', 'razones', 'perfiles', 'perfiles-tabla']
+const ORDEN_ADMIN = ['t-leads', 't-ventas', 't-vendido', 't-conversion', 't-perdida', 't-tareas', 't-cotizaciones', 't-descartes', 't-levantamientos', 'llamadas', 'calidad-llamadas', 'salud', 'pipeline', 'ranking', 'reales', 'cotiz-metodos', 'lev-operaciones', 'visitas', 'entrada', 'embudo', 'etapas', 'contacto', 'razones', 'perfiles', 'perfiles-tabla']
 const fLeads = (ls: Lead[]) => filasDeLeads(ls, () => '', undefined, { label: 'Días sin cambio', de: (l) => l.dias_sin_cambio })
 const HOY = 'foto de hoy, sin importar las fechas del tablero'
 const fVentas = (ls: Lead[]) => filasDeLeads(ls, (l) => (l.crm === 'comisiones' ? 'Venta registrada en la app' : 'Ganado'), (l) => l.cerrado)
@@ -477,6 +477,33 @@ function widgetsTablero(corte: Corte, filtros: Filtros, d: Datos, ax: Acciones):
         <Gauge pct={a.llamadas ? pct(a.contestadas, a.llamadas) : null} label="contestadas" size={180} />
       </div>
     ), { info: ['Llamadas'], alto: 4 , base: 'actividad' }),
+    // Calidad de llamadas (calificador, Fase 3): la vara es la rúbrica de 14 preguntas; estándar = 4 ⭐ o más.
+    // Solo existe cuando el corte trae llamadas calificadas (Supabase analítica).
+    ...(corte.llamadas ? [W('calidad-llamadas', 'Calidad de llamadas', (() => {
+      const cal = resumenLlamadas(llamadasFiltradas(corte, filtros))
+      const porAs = filas.filter((f) => f.calif.n > 0).sort((a, b) => (b.calif.pond ?? 0) - (a.calif.pond ?? 0))
+      const verCal = (titulo: string, ls: typeof cal.llamadas) => ver(titulo, filasDeLlamadas(ls, corte), rango + ' · fecha = la llamada')
+      return cal.n === 0 ? <div className="small muted">Sin llamadas calificadas en estas fechas.</div> : (
+        <>
+          <div className="kpi-row" style={{ marginBottom: 8 }}>
+            <button type="button" className="e1 tbtn" onClick={() => verCal('Llamadas calificadas', cal.llamadas)} aria-label={`${fmtEstrellas(cal.pond)} promedio en ${fmtN(cal.n)} llamadas calificadas. Ver la lista`}><div className="n">{fmtEstrellas(cal.pond)}</div><div className="l">promedio · {fmtN(cal.n)} llamadas</div></button>
+            <button type="button" className="e4 tbtn" onClick={() => verCal('Llamadas en estándar (4 ⭐ o más)', cal.llamadas.filter((x) => x.cumple))} aria-label={`${pct(cal.cumple, 1)}% de las llamadas en estándar. Ver la lista`}><div className="n">{pct(cal.cumple, 1)}%</div><div className="l">en estándar (4 ⭐ o más)</div></button>
+            <button type="button" className="e5 tbtn" onClick={() => verCal('Llamadas con siguiente paso', cal.llamadas.filter((x) => x.sig_paso))} aria-label={`${pct(cal.sigPaso, 1)}% de las llamadas terminaron con siguiente paso. Ver la lista`}><div className="n">{pct(cal.sigPaso, 1)}%</div><div className="l">con siguiente paso</div></button>
+          </div>
+          <div className="small muted" style={{ marginBottom: 6 }}>Nota ponderada: siguiente paso ×3; cierre, objeciones y calificación ×2. Clic en un asesor abre sus llamadas con audio.</div>
+          <div className="scrollx crece"><table className="ftable">
+            <thead><tr><th scope="col">Asesor</th><th scope="col" className="num">⭐</th><th scope="col" className="num">Llamadas</th><th scope="col" className="num">En estándar</th><th scope="col" className="num">Con siguiente paso</th></tr></thead>
+            <tbody>
+              {porAs.map((f) => (
+                <tr key={f.u.id}>
+                  <td><button type="button" className="nbtn" aria-label={`${f.u.nombre}: ${fmtEstrellas(f.calif.pond)} en ${fmtN(f.calif.n)} llamadas. Ver la lista`} onClick={() => verCal(`Llamadas calificadas · ${f.u.nombre}`, f.calif.llamadas)}>{f.u.nombre}</button></td>
+                  <td className="num">{fmtEstrellas(f.calif.pond)}</td><td className="num">{fmtN(f.calif.n)}</td>
+                  <td className="num">{pct(f.calif.cumple, 1)}%</td><td className="num">{pct(f.calif.sigPaso, 1)}%</td>
+                </tr>))}
+            </tbody>
+          </table></div>
+        </>)
+    })(), { info: ['Calidad de llamadas'], alto: 9, base: 'actividad' })] : []),
     // Eran un solo widget y Randall (5-sep) no veía la relación entre los dos: no la hay. Cada uno dice qué mide.
     W('contacto', 'Primer contacto', (
       <>
