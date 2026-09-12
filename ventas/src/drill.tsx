@@ -33,13 +33,18 @@ const texto = (f: Fila, c: Col): string =>
     : c === 'ciudad' ? (f.ciudad || 'Sin ciudad') : c === 'embudo' ? (f.embudo || '—') : c === 'etapa' ? (f.etapa || '—') : c === 'detalle' ? (f.detalle || '—')
       : ix(c) >= 0 ? (f.extras?.[ix(c)]?.valor || '—')
       : c === 'num' ? (f.num == null ? '—' : fmtNum(f.num)) : c === 'monto' ? (f.monto ? fmtMoney(f.monto) : '—') : (f.cuando ? fmtCorta(fechaDe(f.cuando)) : '—')
-const numero = (f: Fila, c: Col): number | undefined => (c === 'monto' ? f.monto : c === 'cuando' ? f.cuando : c === 'num' ? f.num : undefined)
+const numero = (f: Fila, c: Col): number | undefined => (c === 'monto' ? f.monto : c === 'cuando' ? f.cuando : c === 'num' ? f.num : ix(c) >= 0 ? (f.extras?.[ix(c)]?.estrellas ?? undefined) : undefined)
 
 /** Filtro de una columna: valores marcados (null = todos), rango para monto y fecha, «contiene» para texto. */
 interface FiltroCol { valores: Set<string> | null; sin?: string[]; min?: number; max?: number; contiene?: string }   // `sin`: los pocos valores desmarcados, para que el chip diga «sin X» en vez de «21 valores»
 type Filtros = Partial<Record<Col, FiltroCol>>
 interface Orden { col: Col; dir: 'asc' | 'desc' }
 const activo = (x?: FiltroCol) => !!x && (x.valores !== null || x.min != null || x.max != null || !!x.contiene)
+/** Nota 1-5 como cinco estrellas (llenas en ámbar, vacías en gris); null = la etapa no aplicaba. */
+function Estrellas({ n }: { n: number | null }) {
+  if (n == null) return <span className="muted" aria-label="No aplicaba">–</span>
+  return <span className="stars" role="img" aria-label={`${n} de 5 estrellas`} title={`${n} de 5`}>{'★'.repeat(n)}<span className="off" aria-hidden="true">{'★'.repeat(5 - n)}</span></span>
+}
 function pasa(f: Fila, c: Col, x: FiltroCol): boolean {
   if (x.valores && !x.valores.has(texto(f, c))) return false
   const n = numero(f, c)
@@ -50,7 +55,7 @@ function pasa(f: Fila, c: Col, x: FiltroCol): boolean {
 }
 function ordenar(filas: Fila[], o: Orden | null): Fila[] {
   if (!o) return filas
-  const tipo = ix(o.col) >= 0 ? 'texto' : COLS.find((c) => c.id === o.col)!.tipo, s = o.dir === 'asc' ? 1 : -1
+  const tipo = ix(o.col) >= 0 ? (filas.find((f) => f.extras)?.extras?.[ix(o.col)]?.estrellas !== undefined ? 'numero' : 'texto') : COLS.find((c) => c.id === o.col)!.tipo, s = o.dir === 'asc' ? 1 : -1
   return [...filas].sort((a, b) => {
     if (tipo === 'texto') return texto(a, o.col).localeCompare(texto(b, o.col), 'es') * s
     const x = numero(a, o.col), y = numero(b, o.col)
@@ -100,7 +105,7 @@ export function DrillModal({ d, onClose }: { d: Drill; onClose: () => void }) {
     const base = COLS.filter((c) => { const p = OPCIONALES[c.id]; return !p || d.filas.some((f) => { const v = p(f); return v != null && v !== '' }) })
       .map((c) => (c.id === 'num' && etiqueta ? { ...c, label: etiqueta } : c))
     // Columnas propias de la ventana (Fila.extras), después de Etapa.
-    const extras: ColDef[] = (d.filas.find((f) => f.extras)?.extras || []).map((e, i) => ({ id: `x${i}` as Col, label: e.label, tipo: 'texto' as Tipo }))
+    const extras: ColDef[] = (d.filas.find((f) => f.extras)?.extras || []).map((e, i) => ({ id: `x${i}` as Col, label: e.label, tipo: (e.estrellas !== undefined ? 'numero' : 'texto') as Tipo }))
     const k = base.findIndex((c) => c.id === 'detalle')
     return k < 0 ? [...base, ...extras] : [...base.slice(0, k), ...extras, ...base.slice(k)]
   }, [d])
@@ -150,7 +155,7 @@ export function DrillModal({ d, onClose }: { d: Drill; onClose: () => void }) {
       {hay('ciudad') && <td>{f.ciudad || <span className="muted">Sin ciudad</span>}</td>}
       {hay('embudo') && <td>{f.embudo || '—'}</td>}
       {hay('etapa') && <td>{f.etapa || '—'}</td>}
-      {cols.filter((c) => ix(c.id) >= 0).map((c) => { const v = f.extras?.[ix(c.id)]?.valor || '—'; return <td key={c.id} className={/^[\d– ]+$/.test(v) ? 'tnum' : undefined}>{v}</td> })}
+      {cols.filter((c) => ix(c.id) >= 0).map((c) => { const e = f.extras?.[ix(c.id)]; return <td key={c.id} className={e?.estrellas !== undefined ? 'cstars' : undefined}>{e?.estrellas !== undefined ? <Estrellas n={e.estrellas} /> : (e?.valor || '—')}</td> })}
       {hay('detalle') && <td>{f.detalle || '—'}</td>}
       {hay('num') && <td className="num">{f.num == null ? '—' : fmtNum(f.num)}</td>}
       <td className="num">{f.monto ? fmtMoney(f.monto) : '—'}</td>

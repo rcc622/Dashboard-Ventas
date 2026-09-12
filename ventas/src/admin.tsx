@@ -699,7 +699,7 @@ export function Asesores({ corte, filtros, onFicha }: { corte: Corte; filtros: F
     setDet(null)
     setDrill({ titulo: `${titulo} · ${f.u.nombre}`, filas: filasDeLlamadas(f.calif.llamadas, corte), sub: rango + ' · fecha = la llamada',
       verFila: (x) => { const l = porSid.get(x.id); if (l) setLlamada(l) }, verLabel: 'Notas', alertaLabel: 'sin siguiente paso',
-      pie: 'Clic en la llamada abre el audio en otra pestaña; «Notas» abre las 14 preguntas con su evidencia. Etapas 1-5 / 6-10 / Objeción 1-4: nota de 1 a 5 de cada pregunta de la rúbrica, «–» = no aplicaba. Primer contacto se lee en las 10 etapas; seguimiento, en 6-10 y la objeción. ⭐ ponderada: siguiente paso ×3; cierre, objeciones y calificación ×2. Estándar: 4 o más.' })
+      pie: 'Clic en la llamada abre el audio en otra pestaña; «Notas» abre las 14 preguntas con su evidencia. Las columnas de estrellas son las etapas rectoras de la llamada (las que pesan en la rúbrica y las que separan ganadas de perdidas); Objeción = promedio de los 4 pasos; «–» = no aplicaba. Las 14 preguntas completas están en «Notas». ⭐ ponderada: siguiente paso ×3; cierre, objeciones y calificación ×2. Estándar: 4 o más.' })
   }
 
   // Junto al cursor (offset 14 px); si se saldría por la derecha o por abajo, voltea.
