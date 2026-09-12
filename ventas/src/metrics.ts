@@ -5,7 +5,7 @@
 // Reglas de Alejandro (consultor, juntas jul-ago 2026) que viven aquí: meta en pesos
 // prorrateada al rango, cotizado vigente (≤ 90 d) contra 10× la meta mensual, tasa de
 // asignación como KPI de entrada, primer contacto en horas y perfiles actividad × venta.
-import type { CotFila, Corte, Crm, Etapa, Evento, Lead, LevFila, Rango, Tarea, Usuario, VentaReal, Origen } from './types'
+import type { CotFila, Corte, Crm, Etapa, Evento, Lead, LevFila, Llamada, NotaClave, Rango, Tarea, Usuario, VentaReal, Origen } from './types'
 
 /** crm = qué CRM entran (botones Kommo · HubSpot de la barra del Admin); al menos uno encendido. */
 export interface Filtros { rango: Rango; equipo: string | null; asesor: string | null; crm: Record<Crm, boolean> }
@@ -130,6 +130,11 @@ export function leadsFiltrados(c: Corte, f: Filtros): Lead[] {
 export function eventosFiltrados(c: Corte, f: Filtros): Evento[] {
   const users = mapaUsuarios(c), oc = ocultosDe(c)
   return c.eventos.filter((e) => pasaCrm(e.crm, f) && enRango(e.ts, f.rango) && pasaPersona(e.asesor_id, f, users, oc))
+}
+/** Llamadas calificadas cuya fecha cae en el rango (la llamada cuenta cuando ocurrió, como una actividad). */
+export function llamadasFiltradas(c: Corte, f: Filtros): Llamada[] {
+  const users = mapaUsuarios(c), oc = ocultosDe(c)
+  return (c.llamadas?.llamadas || []).filter((x) => pasaCrm(x.crm, f) && enRango(x.fecha, f.rango) && pasaPersona(x.asesor_id, f, users, oc))
 }
 export const vivo = (l: Lead) => l.funnel !== 0 && l.funnel !== 5
 /** Ventas = leads ganados cuyo cierre cae en el rango (el cierre manda, no la asignación). */
@@ -373,6 +378,38 @@ export function filasDeEventos(c: Corte, ev: Evento[]): Fila[] {
       asesor: nombreAsesor(c, e.asesor_id), detalle: TIPO_LABEL[e.tipo] || e.tipo, ciudad: l?.ciudad || '', embudo: l ? tipoLead(l) : undefined, etapa: l?.etapa, monto: l?.presupuesto || undefined, cuando: e.ts }
   }).sort((a, b) => (b.cuando || 0) - (a.cuando || 0))
 }
+// ---------------------------------------------------------------- Llamadas calificadas
+/** Nombres de las 14 preguntas de la rúbrica, en el orden en que se leen. */
+export const NOTAS: { id: NotaClave; label: string; grupo: 'etapa' | 'objecion' }[] = [
+  { id: 'e1_apertura', label: '1 Apertura', grupo: 'etapa' }, { id: 'e2_confianza', label: '2 Confianza', grupo: 'etapa' },
+  { id: 'e3_recibo', label: '3 Recibo CFE', grupo: 'etapa' }, { id: 'e4_necesidades', label: '4 Necesidades', grupo: 'etapa' },
+  { id: 'e5_motivaciones', label: '5 Motivaciones', grupo: 'etapa' }, { id: 'e6_objeciones', label: '6 Objeciones (provocarlas)', grupo: 'etapa' },
+  { id: 'e7_calificacion', label: '7 Calificación', grupo: 'etapa' }, { id: 'e8_propuesta', label: '8 Propuesta', grupo: 'etapa' },
+  { id: 'e9_cierre', label: '9 Cierre', grupo: 'etapa' }, { id: 'e10_siguiente', label: '10 Siguiente paso', grupo: 'etapa' },
+  { id: 'o1_validar', label: 'O1 Validar', grupo: 'objecion' }, { id: 'o2_aclarar', label: 'O2 Aclarar', grupo: 'objecion' },
+  { id: 'o3_resolver', label: 'O3 Resolver', grupo: 'objecion' }, { id: 'o4_retomar', label: 'O4 Retomar', grupo: 'objecion' },
+]
+export const TIPO_LLAMADA: Record<string, string> = { primer_contacto: 'Primer contacto', seguimiento: 'Seguimiento', no_contacto: 'No contacto', entrante_consulta: 'Entrante · consulta', cierre_agenda: 'Cierre · agenda', postventa_operativo: 'Postventa' }
+export const RESULTADO_LLAMADA: Record<string, string> = { seguimiento_sin_fecha: 'Seguimiento sin fecha', llamada_seguimiento_con_fecha: 'Llamada con fecha', propuesta_enviada: 'Propuesta enviada', sin_avance: 'Sin avance', no_contacto: 'No contacto', levantamiento: 'Levantamiento agendado', descarte: 'Descarte', cita_presencial: 'Cita presencial' }
+export const OBJECION_LABEL: Record<string, string> = { lo_pienso: '«Lo pienso»', sin_dinero: '«No tengo dinero»', consultar_pareja: '«Lo platico con mi pareja»', otra_cotizacion: '«Ya tengo otra cotización»', mandame_info_wa: '«Mándame la info por WhatsApp»', precio_caro: '«Está caro»', solo_precio: 'Solo precio', no_interesa: 'No interesa', esperaba_gratis: 'Esperaba gratis', no_visita_casa: 'No quiere visita', otra: 'Otra' }
+export const tipoLlamada = (x: Llamada) => TIPO_LLAMADA[x.tipo] || x.tipo || '—'
+export const resultadoLlamada = (x: Llamada) => RESULTADO_LLAMADA[x.resultado] || x.resultado || '—'
+/** El resumen de calificación de un conjunto de llamadas. `pond` = promedio de la nota ponderada (null sin llamadas);
+ *  `cumple` y `sigPaso` en fracción 0-1. El estándar es 4 o más: hoy casi nadie llega; el KPI que mueve el cierre es sigPaso. */
+export interface ResumenLlamadas { n: number; pond: number | null; cumple: number; sigPaso: number; llamadas: Llamada[] }
+export function resumenLlamadas(ls: Llamada[]): ResumenLlamadas {
+  const con = ls.filter((x) => x.pond != null)
+  return { n: ls.length, pond: con.length ? con.reduce((s, x) => s + (x.pond as number), 0) / con.length : null,
+    cumple: ls.length ? ls.filter((x) => x.cumple).length / ls.length : 0, sigPaso: ls.length ? ls.filter((x) => x.sig_paso).length / ls.length : 0, llamadas: ls }
+}
+export const fmtEstrellas = (n: number | null) => (n == null ? '—' : n.toFixed(2).replace('.', ',') + ' ⭐')
+/** Una fila por llamada calificada para el drill: el nombre abre el audio, el número es la nota, el estado dice si dejó fecha. */
+export function filasDeLlamadas(ls: Llamada[], c: Corte): Fila[] {
+  return ls.map((x) => ({ id: x.id, nombre: `${tipoLlamada(x)} · ${Math.round(x.dur / 60)} min${x.tel ? ' · ' + x.tel : ''}`, link: x.audio || undefined, crm: x.crm,
+    asesor: nombreAsesor(c, x.asesor_id) === 'Sin asesor' ? x.asesor : nombreAsesor(c, x.asesor_id), etapa: resultadoLlamada(x), detalle: x.resumen,
+    num: x.pond == null ? undefined : Math.round(x.pond * 100) / 100, numLabel: '⭐ ponderada', cuando: x.fecha,
+    estado: x.sig_paso ? 'Con siguiente paso' : 'Sin siguiente paso', alerta: !x.sig_paso })).sort((a, b) => (b.cuando || 0) - (a.cuando || 0))
+}
 export const etapaDe = (l: Lead) => `${tipoLead(l)} · ${l.etapa}`
 /** «1 día», «2 días»: sin abreviar (Randall) y sin plural falso. */
 export const dias = (n: number) => `${fmtN(n)} día${n === 1 ? '' : 's'}`
@@ -443,6 +480,8 @@ export interface FilaAsesor {
   tareasCompletadas: number; tareasVencidas: number; sinTarea: number; pcVencidas: number
   cotizaciones: number; descartes: number; levantamientos: number
   actividad: Evento[]
+  /** Calificación de sus llamadas grabadas dentro del rango (por fecha de la llamada). n = 0 si el corte no trae llamadas. */
+  calif: ResumenLlamadas
 }
 /** La meta en pesos del rango, sumando la de los asesores que cuentan con estos filtros. Misma regla
  *  que la tarjeta «Avance contra la meta» de fabrica: quien no tiene leads, actividad ni ventas no suma
@@ -452,13 +491,14 @@ export function metaTotal(c: Corte, f: Filtros): number {
 }
 
 export function porAsesor(c: Corte, f: Filtros): FilaAsesor[] {
-  const leads = leadsFiltrados(c, f), ev = eventosFiltrados(c, f), ventas = ventasFiltradas(c, f)
+  const leads = leadsFiltrados(c, f), ev = eventosFiltrados(c, f), ventas = ventasFiltradas(c, f), llam = llamadasFiltradas(c, f)
   const filas: FilaAsesor[] = []
   for (const u of (f.asesor != null ? c.usuarios : usuariosVisibles(c))) {
     const mios = leads.filter((l) => l.asesor_id === u.id)
     const act = ev.filter((e) => e.asesor_id === u.id)
     const vt = ventas.filter((l) => l.asesor_id === u.id)
-    if (!mios.length && !act.length && !vt.length) continue
+    const cal = llam.filter((x) => x.asesor_id === u.id)
+    if (!mios.length && !act.length && !vt.length && !cal.length) continue
     const a = actividad(act)
     const activos = mios.filter(vivo)
     const metaMes = metaDe(c, u), metaRango = metaEnRango(metaMes, f.rango), montoVentas = vt.reduce((s, l) => s + l.presupuesto, 0)
@@ -472,6 +512,7 @@ export function porAsesor(c: Corte, f: Filtros): FilaAsesor[] {
       tareasCompletadas: a.tareas, tareasVencidas: activos.reduce((s, l) => s + l.tareas_vencidas, 0),
       sinTarea: activos.filter((l) => l.sin_tarea).length, pcVencidas: activos.filter((l) => l.pc_vencida).length,
       cotizaciones: a.cotizaciones, descartes: a.descartes, levantamientos: a.levantamientos, actividad: act,
+      calif: resumenLlamadas(cal),
     })
   }
   // De a lo más a lo menos (Alejandro): primero la venta, luego la carga.

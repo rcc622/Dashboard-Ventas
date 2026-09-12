@@ -1077,3 +1077,20 @@ h3 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: 0; t
 .vbars.apretado .vcol .vv, .vbars.apretado .vcol .vs { display: none; }
 .gcard-pie { display: flex; justify-content: space-between; gap: 8px; }
 .gborrar { font-size: 12px; color: var(--warn-ink); }
+
+/* Llamada calificada (calificador-llamadas): la nota de registro arriba, las 14 preguntas con
+   evidencia abajo. Colores solo por variable del tema; la nota siempre va escrita, nunca solo color. */
+.modal.llamada { width: min(960px, 100%); }
+.lcabecera { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; padding: 14px 0 6px; }
+.lkpi .v { font-size: 20px; font-weight: 700; letter-spacing: -.02em; line-height: 1.2; }
+.lkpi .c { font-size: 11px; color: var(--g2); line-height: 1.3; }
+.lresumen { font-size: 12.5px; line-height: 1.45; margin: 6px 0 12px; padding: 10px 12px; background: var(--hover); border-radius: 8px; }
+.lnotas td.lnota { white-space: nowrap; font-weight: 600; width: 1%; }
+.lnotas td.lev { font-size: 12px; line-height: 1.4; }
+.lnotas tr.grow td { background: var(--hover); font-weight: 700; padding: 6px 8px; }
+.estrellas { letter-spacing: .5px; white-space: nowrap; font-weight: 700; }
+.estrellas.ok { color: var(--c4-ink); }
+.estrellas.mid { color: var(--c2-ink); }
+.estrellas.bad { color: var(--warn-ink); }
+.estrellas.na { color: var(--g2); font-weight: 500; }
+.lmejora { font-size: 12.5px; line-height: 1.45; margin: 12px 0 4px; }

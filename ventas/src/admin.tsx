@@ -1,7 +1,9 @@
 import { Fragment, useLayoutEffect, useMemo, useRef, useState, type SyntheticEvent, useEffect } from 'react'
 import type { Corte, Evento, Lead, LevFila, Sanciones, Usuario } from './types'
 import { CRM_LABEL } from './types'
-import { BUCKETS, PERFIL_LABEL, actividad, actividadDe, cotizado, dias, embudo, entrada, ep, eventosFiltrados, fechaCotizado, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, metaDe, metaEnRango, pasaCrm, etiquetaRango, periodoTexto, preset, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, type Fila, type FilaAsesor, type Filtros, type Perfil , type Preset, type PuntoPerfil, ventasReales, filasDeVentasReales, comparativaVentas, rolDestacado, rolNombre, cotizacionesGeneradas, filasDeCotizaciones, visitas, levantados, filasDeLevantamientos } from './metrics'
+import { BUCKETS, PERFIL_LABEL, actividad, actividadDe, cotizado, dias, embudo, entrada, ep, eventosFiltrados, fechaCotizado, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, metaDe, metaEnRango, pasaCrm, etiquetaRango, periodoTexto, preset, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, type Fila, type FilaAsesor, type Filtros, type Perfil , type Preset, type PuntoPerfil, ventasReales, filasDeVentasReales, comparativaVentas, rolDestacado, rolNombre, cotizacionesGeneradas, filasDeCotizaciones, visitas, levantados, filasDeLevantamientos, filasDeLlamadas, fmtEstrellas } from './metrics'
+import { LlamadaModal } from './llamadas'
+import type { Llamada } from './types'
 import { BarDetailPopup, BubbleChart, Bullet, DonutChart, FunnelChart, Gauge, Info, LlamadasBar, MiniAreaChart, Scatter, SortTh, StackedBar, activar, useEscape, useOutside, type DetRow, type Sort, type BubbleCol, useFocoDialogo } from './components'
 import { DrillModal, type Drill } from './drill'
 import { BASE_FECHA, EditarColumnas, anchos, anchoTotal, useColumnas, type ColDef } from './columnas'
@@ -599,7 +601,7 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
 interface Pop { fila: FilaAsesor; x: number; y: number }
 interface Det { title: string; total: number; rows: DetRow[]; anchor: DOMRect }
 type Key = 'nombre' | 'vendido' | 'cotizado' | 'leads' | 'llamadas' | 'tareas' | 'pc' | 'cotiz' | 'desc' | 'lev' | 'equipo' | 'ventas' | 'estanc' | 'sintarea'
-  | 'asignados' | 'totales' | 'conversion' | 'perdida' | 'ticket' | 'cumpl' | 'actividad'
+  | 'asignados' | 'totales' | 'conversion' | 'perdida' | 'ticket' | 'cumpl' | 'actividad' | 'cal_pond' | 'cal_estandar' | 'cal_sigpaso'
 const valor = (f: FilaAsesor, k: Key): number | string =>
   k === 'nombre' ? f.u.nombre : k === 'vendido' ? f.montoVentas : k === 'cotizado' ? f.cotizado.vigente : k === 'leads' ? f.leadsActivos.length
     : k === 'llamadas' ? f.llamadas : k === 'tareas' ? f.tareasCompletadas + f.tareasVencidas + f.sinTarea : k === 'pc' ? f.pcVencidas
@@ -609,7 +611,9 @@ const valor = (f: FilaAsesor, k: Key): number | string =>
             : k === 'conversion' ? (f.asignados.length ? f.ganados / f.asignados.length : -1)
               : k === 'perdida' ? (f.asignados.length ? f.perdidos / f.asignados.length : -1)
                 : k === 'ticket' ? (f.ventas ? f.montoVentas / f.ventas : -1)
-                  : k === 'cumpl' ? (f.metaRango ? f.montoVentas / f.metaRango : -1) : actividadDe(f)
+                  : k === 'cumpl' ? (f.metaRango ? f.montoVentas / f.metaRango : -1)
+                    : k === 'cal_pond' ? (f.calif.pond ?? -1) : k === 'cal_estandar' ? (f.calif.n ? f.calif.cumple : -1)
+                      : k === 'cal_sigpaso' ? (f.calif.n ? f.calif.sigPaso : -1) : actividadDe(f)
 
 export function Asesores({ corte, filtros, onFicha }: { corte: Corte; filtros: Filtros; onFicha: (uid: string) => void }) {
   const [sort, setSort] = useState<Sort<Key>>({ key: 'vendido', dir: 'desc' })
@@ -650,6 +654,15 @@ export function Asesores({ corte, filtros, onFicha }: { corte: Corte; filtros: F
   }
   const ver = (titulo: string, filas: Fila[], sub?: string) => { setDet(null); setDrill({ titulo, filas, sub }) }
   const rango = filtros.rango.label
+  // Llamadas calificadas (calificador-llamadas): el drill lista sus llamadas del rango con audio y nota; «Notas» abre las 14 preguntas.
+  const [llamada, setLlamada] = useState<Llamada | null>(null)
+  const porSid = useMemo(() => new Map((corte.llamadas?.llamadas || []).map((x) => [x.id, x])), [corte])
+  const verLlamadas = (f: FilaAsesor, titulo: string) => {
+    setDet(null)
+    setDrill({ titulo: `${titulo} · ${f.u.nombre}`, filas: filasDeLlamadas(f.calif.llamadas, corte), sub: rango + ' · fecha = la llamada',
+      verFila: (x) => { const l = porSid.get(x.id); if (l) setLlamada(l) }, verLabel: 'Notas', alertaLabel: 'sin siguiente paso',
+      pie: 'Clic en la llamada abre el audio en otra pestaña; «Notas» abre las 14 preguntas con su evidencia. Nota de registro = ponderada (siguiente paso ×3; cierre, objeciones y calificación ×2). Estándar: 4 o más.' })
+  }
 
   // Junto al cursor (offset 14 px); si se saldría por la derecha o por abajo, voltea.
   const abrir = (fila: FilaAsesor, cx: number, cy: number) => {
@@ -796,6 +809,20 @@ export function Asesores({ corte, filtros, onFicha }: { corte: Corte; filtros: F
       celda: (f) => (<td className="cnt">{f.levantamientos > 0 ? <button type="button" className="nbtn celln" aria-haspopup="dialog" aria-label={`${f.levantamientos} levantamientos de ${f.u.nombre}. Abrir desglose`} onClick={(e) => detalle(e, 'Levantamientos · ' + f.u.nombre, f.levantamientos, porEstado('Levantamientos', evDe(f, 'levantamiento'), f, (l) => l.levantamiento || l.asignacion))}>{f.levantamientos}</button> : '0'}</td>) },
     { id: 'equipo', label: 'Equipo', ancho: 120, fecha: 'ninguna', oculta: true,
       celda: (f) => (<td>{zonaNombre(corte, f.u.zona) || <span className="muted">Sin equipo</span>}</td>) },
+    // Calificador de llamadas (Randall, PLAN Fase 3.2): tres columnas por fecha de la llamada. Sin llamadas
+    // calificadas en el rango la celda lo dice, no pinta cero.
+    { id: 'cal_pond', label: '⭐ Llamadas', ancho: 150, fecha: 'actividad',
+      celda: (f) => (<td><div className="mc">
+        {f.calif.n ? <>
+          <button type="button" className="nbtn celln v" aria-haspopup="dialog" aria-label={`${f.calif.n} llamadas calificadas de ${f.u.nombre}, ${fmtEstrellas(f.calif.pond)} en promedio. Ver la lista`} onClick={() => verLlamadas(f, 'Llamadas calificadas')}>{fmtEstrellas(f.calif.pond)}</button>
+          <div className="c">{fmtN(f.calif.n)} llamada{f.calif.n === 1 ? '' : 's'} calificada{f.calif.n === 1 ? '' : 's'}</div>
+          <div className="c">estándar: 4 o más</div>
+        </> : <><div className="v muted">—</div><div className="c">sin llamadas calificadas</div><div className="c">en estas fechas</div></>}
+      </div></td>) },
+    { id: 'cal_estandar', label: '% en estándar', ancho: 140, fecha: 'actividad', cnt: true,
+      celda: (f) => (<td className="cnt">{f.calif.n ? <button type="button" className="nbtn celln" aria-haspopup="dialog" aria-label={`${pct(f.calif.cumple, 1)}% de las llamadas de ${f.u.nombre} en estándar. Ver la lista`} onClick={() => verLlamadas(f, 'Llamadas en estándar')}>{pct(f.calif.cumple, 1)}%</button> : '—'}</td>) },
+    { id: 'cal_sigpaso', label: '% con siguiente paso', ancho: 165, fecha: 'actividad', cnt: true,
+      celda: (f) => (<td className="cnt">{f.calif.n ? <button type="button" className="nbtn celln" aria-haspopup="dialog" aria-label={`${pct(f.calif.sigPaso, 1)}% de las llamadas de ${f.u.nombre} terminaron con siguiente paso. Ver la lista`} onClick={() => verLlamadas(f, 'Llamadas con y sin siguiente paso')}>{pct(f.calif.sigPaso, 1)}%</button> : '—'}</td>) },
     { id: 'ventas', label: 'Ventas cerradas', ancho: 160, fecha: 'cierre', cnt: true, oculta: true,
       celda: (f) => (<td className="cnt">{f.ventas > 0 ? <button type="button" className="nbtn celln" aria-label={`${f.ventas} ventas cerradas de ${f.u.nombre}. Ver la lista`} onClick={() => ver(`Ventas cerradas · ${f.u.nombre}`, fVentas(ventasFiltradas(corte, { ...filtros, asesor: f.u.id })), rango)}>{f.ventas}</button> : '0'}</td>) },
     { id: 'estanc', label: 'Estancados', ancho: 135, fecha: 'asignacion', cnt: true, oculta: true,
@@ -853,6 +880,7 @@ export function Asesores({ corte, filtros, onFicha }: { corte: Corte; filtros: F
       {pop && <AsesorPopup corte={corte} filtros={filtros} fila={pop.fila} x={pop.x} y={pop.y} onClose={() => setPop(null)} onFicha={() => { setPop(null); onFicha(pop.fila.u.id) }} />}
       {det && <BarDetailPopup anchor={det.anchor} title={det.title} total={det.total} rows={det.rows} onClose={() => setDet(null)} />}
       {drill && <DrillModal d={drill} onClose={() => setDrill(null)} />}
+      {llamada && <LlamadaModal x={llamada} onClose={() => setLlamada(null)} />}
       {edCols && <EditarColumnas todas={COLS} ordenadas={ordenadas} ocultas={ocultas} onFijar={fijarCols} onRestablecer={restablecerCols} onClose={() => setEdCols(false)} />}
     </>
   )
