@@ -1,8 +1,18 @@
 import { useEffect } from 'react'
-import type { Llamada } from './types'
+import type { Corte, Llamada } from './types'
 import { CRM_LABEL } from './types'
-import { NOTAS, OBJECION_LABEL, fechaDe, fmtCorta, fmtEstrellas, fmtHora, resultadoLlamada, tipoLlamada } from './metrics'
+import { NOTAS, OBJECION_LABEL, fechaDe, filasDeLlamadas, fmtCorta, fmtEstrellas, fmtHora, resultadoLlamada, tipoLlamada } from './metrics'
 import { useEscape } from './components'
+import type { Drill } from './drill'
+
+/** El drill de llamadas calificadas, igual desde donde se abra (tabla de Asesores, widget «Calidad de llamadas»):
+ *  el nombre abre el audio, «Notas» abre las 14 preguntas, el contador de alerta dice «sin siguiente paso». */
+export function drillLlamadas(titulo: string, ls: Llamada[], corte: Corte, rango: string, onNotas: (x: Llamada) => void): Drill {
+  const porSid = new Map(ls.map((x) => [x.id, x]))
+  return { titulo, filas: filasDeLlamadas(ls, corte), sub: rango + ' · fecha = la llamada',
+    verFila: (f) => { const x = porSid.get(f.id); if (x) onNotas(x) }, verLabel: 'Notas', alertaLabel: 'sin siguiente paso',
+    pie: 'Clic en la llamada abre el audio en otra pestaña; «Notas» abre las 14 preguntas con su evidencia. Nota de registro = ponderada (siguiente paso ×3; cierre, objeciones y calificación ×2). Estándar: 4 o más. «–» = la etapa no aplicaba.' }
+}
 
 // Una llamada calificada: la nota de registro, las 14 preguntas con su evidencia textual y el audio.
 // Es la ventana que abre el drill de «⭐ Llamadas» (Fase 3.3 del calificador). Nada aquí escribe nada.

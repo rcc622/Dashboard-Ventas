@@ -724,7 +724,11 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   `VENTAS_LLAMADAS_MAP` y `llamadas_map` de la config mandan. En la tabla de Asesores son tres columnas
   **por actividad** (fecha de la llamada): «⭐ Llamadas», «% en estándar», «% con siguiente paso»; su
   drill lista las llamadas (el nombre abre el audio) y «Notas» abre `LlamadaModal` (`llamadas.tsx`) con
-  las 14 preguntas. `corte_para` recorta las de otros asesores. Nadie se evalúa con esto hasta que la
+  las 14 preguntas. **Todo drill de llamadas se arma con `drillLlamadas()` (`llamadas.tsx`)** — tabla de Asesores,
+  widget «Calidad de llamadas» y Ficha — para que siempre traiga «Notas», el contador «sin siguiente paso» y el pie;
+  un `ver()` genérico pierde las tres cosas. En la tabla del widget, los asesores con menos de 10 llamadas van al
+  final y marcados «muestra chica»: 3 ⭐ de una sola llamada no encabeza un ranking (HALLAZGOS: no comparar a
+  nadie con muestra chica). `corte_para` recorta las de otros asesores. Nadie se evalúa con esto hasta que la
   calibración humana (Pamela, Fase 2.3) dé ≥ 85%: la herramienta está medida contra sí misma y contra
   el cierre, no contra un humano.
 - **Ventas reales desde la app de comisiones** (pedido de Randall 4-sep): `ventas_comisiones.py`

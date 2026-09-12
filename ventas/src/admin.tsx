@@ -1,8 +1,8 @@
 import { Fragment, useLayoutEffect, useMemo, useRef, useState, type SyntheticEvent, useEffect } from 'react'
 import type { Corte, Evento, Lead, LevFila, Sanciones, Usuario } from './types'
 import { CRM_LABEL } from './types'
-import { BUCKETS, PERFIL_LABEL, actividad, actividadDe, cotizado, dias, embudo, entrada, ep, eventosFiltrados, fechaCotizado, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, metaDe, metaEnRango, pasaCrm, etiquetaRango, periodoTexto, preset, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, type Fila, type FilaAsesor, type Filtros, type Perfil , type Preset, type PuntoPerfil, ventasReales, ventasCrm, tipoDe, crmTexto, activo, VENDEDOR_LABEL, filasDeVentasReales, comparativaVentas, rolDestacado, rolNombre, cotizacionesGeneradas, filasDeCotizaciones, visitas, levantados, filasDeLevantamientos, filasDeLlamadas, fmtEstrellas, llamadasFiltradas, resumenLlamadas } from './metrics'
-import { LlamadaModal } from './llamadas'
+import { BUCKETS, PERFIL_LABEL, actividad, actividadDe, cotizado, dias, embudo, entrada, ep, eventosFiltrados, fechaCotizado, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, metaDe, metaEnRango, pasaCrm, etiquetaRango, periodoTexto, preset, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, type Fila, type FilaAsesor, type Filtros, type Perfil , type Preset, type PuntoPerfil, ventasReales, ventasCrm, tipoDe, crmTexto, activo, VENDEDOR_LABEL, filasDeVentasReales, comparativaVentas, rolDestacado, rolNombre, cotizacionesGeneradas, filasDeCotizaciones, visitas, levantados, filasDeLevantamientos, fmtEstrellas, llamadasFiltradas, resumenLlamadas } from './metrics'
+import { LlamadaModal, drillLlamadas } from './llamadas'
 import type { Llamada } from './types'
 import { BarDetailPopup, BubbleChart, Bullet, DonutChart, FunnelChart, Gauge, Info, LlamadasBar, MiniAreaChart, Scatter, SortTh, StackedBar, activar, useEscape, useOutside, type DetRow, type Sort, type BubbleCol, useFocoDialogo } from './components'
 import { DrillModal, type Drill } from './drill'
@@ -175,6 +175,8 @@ type Datos = ReturnType<typeof datosDe>
 /** Quién responde a los clics de los widgets: la página que los dibuja. */
 interface Acciones {
   ver: (titulo: string, filas: Fila[], sub?: string) => void
+  /** Drill de llamadas calificadas con «Notas» (14 preguntas) — el mismo que usa la tabla de Asesores. */
+  verLlamadas: (titulo: string, ls: Llamada[]) => void
   onFicha: (uid: string) => void
   grupo: PuntoPerfil[] | null
   setGrupo: (g: PuntoPerfil[] | null) => void
@@ -183,7 +185,7 @@ interface Acciones {
  *  con las fechas de arriba, con las fechas propias de un widget, y —desde la ficha— fijado a UNA
  *  persona (Randall 10-sep: «que la vista por defecto del asesor sea como el diseño del PDF»). */
 function widgetsTablero(corte: Corte, filtros: Filtros, d: Datos, ax: Acciones): Widget[] {
-  const { ver, onFicha, grupo, setGrupo } = ax
+  const { ver, verLlamadas, onFicha, grupo, setGrupo } = ax
   const { leads, ev, ventas, filas, ent, pc, rz, perf, vr, cg, vis, lev } = d
   const s = salud(leads)
   const con = s.ventasCon + s.huntCon, sin = s.ventasSin + s.huntSin, tot = con + sin
@@ -481,8 +483,11 @@ function widgetsTablero(corte: Corte, filtros: Filtros, d: Datos, ax: Acciones):
     // Solo existe cuando el corte trae llamadas calificadas (Supabase analítica).
     ...(corte.llamadas ? [W('calidad-llamadas', 'Calidad de llamadas', (() => {
       const cal = resumenLlamadas(llamadasFiltradas(corte, filtros))
-      const porAs = filas.filter((f) => f.calif.n > 0).sort((a, b) => (b.calif.pond ?? 0) - (a.calif.pond ?? 0))
-      const verCal = (titulo: string, ls: typeof cal.llamadas) => ver(titulo, filasDeLlamadas(ls, corte), rango + ' · fecha = la llamada')
+      // Con menos de MIN_LLAMADAS la nota se mueve con cada llamada nueva (HALLAZGOS: no comparar con muestra chica):
+      // esos asesores van al final y marcados, no encabezando la tabla con 3 ⭐ de una sola llamada.
+      const MIN_LLAMADAS = 10
+      const porAs = filas.filter((f) => f.calif.n > 0).sort((a, b) => Number(b.calif.n >= MIN_LLAMADAS) - Number(a.calif.n >= MIN_LLAMADAS) || (b.calif.pond ?? 0) - (a.calif.pond ?? 0))
+      const verCal = (titulo: string, ls: typeof cal.llamadas) => verLlamadas(titulo, ls)
       return cal.n === 0 ? <div className="small muted">Sin llamadas calificadas en estas fechas.</div> : (
         <>
           <div className="kpi-row" style={{ marginBottom: 8 }}>
@@ -497,7 +502,7 @@ function widgetsTablero(corte: Corte, filtros: Filtros, d: Datos, ax: Acciones):
               {porAs.map((f) => (
                 <tr key={f.u.id}>
                   <td><button type="button" className="nbtn" aria-label={`${f.u.nombre}: ${fmtEstrellas(f.calif.pond)} en ${fmtN(f.calif.n)} llamadas. Ver la lista`} onClick={() => verCal(`Llamadas calificadas · ${f.u.nombre}`, f.calif.llamadas)}>{f.u.nombre}</button></td>
-                  <td className="num">{fmtEstrellas(f.calif.pond)}</td><td className="num">{fmtN(f.calif.n)}</td>
+                  <td className="num">{fmtEstrellas(f.calif.pond)}{f.calif.n < MIN_LLAMADAS && <span className="muted" title={`Menos de ${MIN_LLAMADAS} llamadas: la nota cambia con cada llamada nueva`}> ·muestra chica</span>}</td><td className="num">{fmtN(f.calif.n)}</td>
                   <td className="num">{pct(f.calif.cumple, 1)}%</td><td className="num">{pct(f.calif.sigPaso, 1)}%</td>
                 </tr>))}
             </tbody>
@@ -592,6 +597,9 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
   useEffect(() => setGrupo(null), [filtros])
   const [drill, setDrill] = useState<Drill | null>(null)
   const ver = (titulo: string, filas: Fila[], sub?: string) => setDrill({ titulo, filas, sub })
+  // Llamadas calificadas: el drill trae «Notas» y abre las 14 preguntas de una llamada (mismo modal que en Asesores).
+  const [llamada, setLlamada] = useState<Llamada | null>(null)
+  const verLlamadas = (titulo: string, ls: Llamada[]) => setDrill(drillLlamadas(titulo, ls, corte, filtros.rango.label, setLlamada))
   // Fechas propias por widget (Randall 10-sep: «si un widget siempre debe mostrar la info histórica,
   // que la muestre y no conflictúe con el date range del tablero»). Sin fechas propias se sigue al tablero.
   const { rangos, fijarRango } = useRangos('admin')
@@ -605,7 +613,7 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
   // Lo que el constructor necesita para dejar elegir las fechas de la gráfica que se está creando.
   const fechasCtor = { de: (id: string) => rangos['g:' + id], filtros: (id: string) => filtrosDe('g:' + id), fijar: (id: string, p: Preset | null) => fijarRango('g:' + id, p) }
 
-  const construir = (f: Filtros, dd: Datos): Widget[] => widgetsTablero(corte, f, dd, { ver, onFicha, grupo, setGrupo })
+  const construir = (f: Filtros, dd: Datos): Widget[] => widgetsTablero(corte, f, dd, { ver, verLlamadas, onFicha, grupo, setGrupo })
 
   // El tablero, con las fechas de arriba. Los widgets que tienen fechas propias se sacan de un
   // segundo armado con SUS fechas: uno por periodo distinto, no uno por widget.
@@ -631,6 +639,7 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
           editor: (p) => <Editor corte={corte} filtros={filtrosDe('g:' + p.g.id)} g={p.g} rango={rangos['g:' + p.g.id]} onRango={(x) => fijarRango('g:' + p.g.id, x)} onGuardar={p.onGuardar} onClose={p.onClose} />,
         }} />
       {drill && <DrillModal d={drill} onClose={() => setDrill(null)} />}
+      {llamada && <LlamadaModal x={llamada} onClose={() => setLlamada(null)} />}
     </>
   )
 }
@@ -694,13 +703,7 @@ export function Asesores({ corte, filtros, onFicha }: { corte: Corte; filtros: F
   const rango = filtros.rango.label
   // Llamadas calificadas (calificador-llamadas): el drill lista sus llamadas del rango con audio y nota; «Notas» abre las 14 preguntas.
   const [llamada, setLlamada] = useState<Llamada | null>(null)
-  const porSid = useMemo(() => new Map((corte.llamadas?.llamadas || []).map((x) => [x.id, x])), [corte])
-  const verLlamadas = (f: FilaAsesor, titulo: string) => {
-    setDet(null)
-    setDrill({ titulo: `${titulo} · ${f.u.nombre}`, filas: filasDeLlamadas(f.calif.llamadas, corte), sub: rango + ' · fecha = la llamada',
-      verFila: (x) => { const l = porSid.get(x.id); if (l) setLlamada(l) }, verLabel: 'Notas', alertaLabel: 'sin siguiente paso',
-      pie: 'Clic en la llamada abre el audio en otra pestaña; «Notas» abre las 14 preguntas con su evidencia. Las columnas de estrellas son las etapas rectoras de la llamada (las que pesan en la rúbrica y las que separan ganadas de perdidas); Objeción = promedio de los 4 pasos; «–» = no aplicaba. Las 14 preguntas completas están en «Notas». ⭐ ponderada: siguiente paso ×3; cierre, objeciones y calificación ×2. Estándar: 4 o más.' })
-  }
+  const verLlamadas = (f: FilaAsesor, titulo: string) => { setDet(null); setDrill(drillLlamadas(`${titulo} · ${f.u.nombre}`, f.calif.llamadas, corte, rango, setLlamada)) }
 
   // Junto al cursor (offset 14 px); si se saldría por la derecha o por abajo, voltea.
   const abrir = (fila: FilaAsesor, cx: number, cy: number) => {
@@ -1022,7 +1025,10 @@ export function Ficha({ corte, filtros, uid, onBack }: { corte: Corte; filtros: 
   const fechasDe = (pz?: Preset) => { const r = pz ? conRango(pz).rango : f.rango; return etiquetaRango(null, r.ini, r.fin) }
   // Los mismos widgets del tablero, pero de esta persona. Se arman una vez con las fechas de arriba
   // y una por cada periodo que alguien haya fijado, como en el tablero general.
-  const acciones = useMemo(() => ({ ver: (titulo: string, filas: Fila[], sub?: string) => setDrill({ titulo, filas, sub }), onFicha: () => {}, grupo: null, setGrupo: () => {} }), [])
+  const [llamada, setLlamada] = useState<Llamada | null>(null)
+  const acciones = useMemo(() => ({ ver: (titulo: string, filas: Fila[], sub?: string) => setDrill({ titulo, filas, sub }),
+    verLlamadas: (titulo: string, ls: Llamada[]) => setDrill(drillLlamadas(titulo, ls, corte, filtros.rango.label, setLlamada)),
+    onFicha: () => {}, grupo: null, setGrupo: () => {} }), [corte, filtros.rango.label])
   const compartidos = (ff: Filtros) => widgetsTablero(corte, ff, datosDe(corte, ff), acciones).filter((w) => FICHA_COMPARTIDOS.includes(w.id))
   const baseCompartidos = useMemo(() => compartidos(f), [corte, filtros, uid])   // eslint-disable-line react-hooks/exhaustive-deps
   const otrosCompartidos = useMemo(() => {
@@ -1178,6 +1184,7 @@ export function Ficha({ corte, filtros, uid, onBack }: { corte: Corte; filtros: 
         editor: (p) => <Editor corte={corte} filtros={filtrosDe('g:' + p.g.id)} g={p.g} rango={rangos['g:' + p.g.id]} onRango={(x) => fijarRango('g:' + p.g.id, x)} onGuardar={p.onGuardar} onClose={p.onClose} />,
       }} />
       {drill && <DrillModal d={drill} onClose={() => setDrill(null)} />}
+      {llamada && <LlamadaModal x={llamada} onClose={() => setLlamada(null)} />}
     </>
   )
 }
