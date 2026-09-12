@@ -9,8 +9,11 @@ import { useEscape, useFocoDialogo, useOutside } from './components'
 // 6-sep (Randall): filtros «como HubSpot y Sheets»: cada columna tiene su menú (ordenar, filtrar
 // por condición, filtrar por valores con buscador y conteos, Aceptar/Cancelar), los filtros
 // activos se ven como chips, se puede agrupar por una columna y la lista va por páginas de 100.
-export interface Drill { titulo: string; sub?: string; filas: Fila[] }
+/** `verFila`: botón «Notas» por renglón que abre un detalle propio (las 14 notas de una llamada); `verLabel` es su texto. */
+export interface Drill { titulo: string; sub?: string; filas: Fila[]; verFila?: (f: Fila) => void; verLabel?: string; pie?: string; alertaLabel?: string }
 const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+/** La columna numérica: días y horas son enteros; la nota de una llamada (2,57 ⭐) no, y redondearla a 3 la miente. */
+const fmtNum = (n: number) => (Number.isInteger(n) ? fmtN(n) : n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))
 
 type Col = 'estado' | 'nombre' | 'crm' | 'asesor' | 'ciudad' | 'embudo' | 'etapa' | 'detalle' | 'num' | 'monto' | 'cuando'
 type Tipo = 'texto' | 'monto' | 'fecha' | 'numero'
@@ -26,7 +29,7 @@ const OPCIONALES: Record<string, (f: Fila) => unknown> = { estado: (f) => f.esta
 const texto = (f: Fila, c: Col): string =>
   c === 'crm' ? CRM_LABEL[f.crm] : c === 'estado' ? (f.estado || '—') : c === 'nombre' ? f.nombre : c === 'asesor' ? (f.asesor || '—')
     : c === 'ciudad' ? (f.ciudad || 'Sin ciudad') : c === 'embudo' ? (f.embudo || '—') : c === 'etapa' ? (f.etapa || '—') : c === 'detalle' ? (f.detalle || '—')
-      : c === 'num' ? (f.num == null ? '—' : fmtN(f.num)) : c === 'monto' ? (f.monto ? fmtMoney(f.monto) : '—') : (f.cuando ? fmtCorta(fechaDe(f.cuando)) : '—')
+      : c === 'num' ? (f.num == null ? '—' : fmtNum(f.num)) : c === 'monto' ? (f.monto ? fmtMoney(f.monto) : '—') : (f.cuando ? fmtCorta(fechaDe(f.cuando)) : '—')
 const numero = (f: Fila, c: Col): number | undefined => (c === 'monto' ? f.monto : c === 'cuando' ? f.cuando : c === 'num' ? f.num : undefined)
 
 /** Filtro de una columna: valores marcados (null = todos), rango para monto y fecha, «contiene» para texto. */
@@ -133,14 +136,15 @@ export function DrillModal({ d, onClose }: { d: Drill; onClose: () => void }) {
   const fila = (f: Fila) => (
     <tr key={f.id}>
       {conEstado && <td><span className={'tag' + (f.alerta ? ' alerta' : '')}>{f.estado || '—'}</span></td>}
-      <td>{f.link ? <a href={f.link} target="_blank" rel="noreferrer" title={'Abrir en ' + CRM_LABEL[f.crm]}>{f.nombre}</a> : <span className="muted">{f.nombre}</span>}</td>
+      <td>{f.link ? <a href={f.link} target="_blank" rel="noreferrer" title={d.verFila ? 'Abrir el audio' : 'Abrir en ' + CRM_LABEL[f.crm]}>{f.nombre}</a> : <span className="muted">{f.nombre}</span>}
+        {d.verFila && <> <button type="button" className="nbtn small" aria-haspopup="dialog" aria-label={`${d.verLabel || 'Ver detalle'}: ${f.nombre}`} onClick={() => d.verFila!(f)}>{d.verLabel || 'Ver detalle'}</button></>}</td>
       <td><span className="tag">{CRM_LABEL[f.crm]}</span></td>
       <td>{f.asesor}</td>
       {hay('ciudad') && <td>{f.ciudad || <span className="muted">Sin ciudad</span>}</td>}
       {hay('embudo') && <td>{f.embudo || '—'}</td>}
       {hay('etapa') && <td>{f.etapa || '—'}</td>}
       {hay('detalle') && <td>{f.detalle || '—'}</td>}
-      {hay('num') && <td className="num">{f.num == null ? '—' : fmtN(f.num)}</td>}
+      {hay('num') && <td className="num">{f.num == null ? '—' : fmtNum(f.num)}</td>}
       <td className="num">{f.monto ? fmtMoney(f.monto) : '—'}</td>
       <td className="muted">{cuando(f.cuando)}</td>
     </tr>
@@ -152,7 +156,7 @@ export function DrillModal({ d, onClose }: { d: Drill; onClose: () => void }) {
           <div className="mt">
             <h2>{d.titulo}</h2>
             <div className="small muted" aria-live="polite">
-              {fmtN(filtradas.length)}{filtradas.length !== d.filas.length ? ` de ${fmtN(d.filas.length)}` : ''} registro{filtradas.length === 1 ? '' : 's'}{total ? ` · ${fmtMoney(total)}` : ''}{conEstado ? ` · ${fmtN(alertas)} sin pareja` : ''}{crms.length ? ' · ' + crms.map((c) => CRM_LABEL[c]).join(' + ') : ''}{d.sub ? ' · ' + d.sub : ''}
+              {fmtN(filtradas.length)}{filtradas.length !== d.filas.length ? ` de ${fmtN(d.filas.length)}` : ''} registro{filtradas.length === 1 ? '' : 's'}{total ? ` · ${fmtMoney(total)}` : ''}{conEstado ? ` · ${fmtN(alertas)} ${d.alertaLabel || 'sin pareja'}` : ''}{crms.length ? ' · ' + crms.map((c) => CRM_LABEL[c]).join(' + ') : ''}{d.sub ? ' · ' + d.sub : ''}
             </div>
           </div>
           <input ref={inp} className="sel" type="search" placeholder="Buscar nombre, asesor, ciudad o etapa…" aria-label="Buscar en el detalle" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -208,7 +212,7 @@ export function DrillModal({ d, onClose }: { d: Drill; onClose: () => void }) {
           )}
         </div>
         <div className="mf small muted">
-          Clic en el nombre abre el registro en su CRM en otra pestaña.{sinLiga > 0 ? ` ${fmtN(sinLiga)} registro${sinLiga === 1 ? '' : 's'} sin liga: HubSpot no liga tareas ni llamadas al deal.` : ''} Esc o clic afuera cierra.
+          {d.pie ?? <>Clic en el nombre abre el registro en su CRM en otra pestaña.{sinLiga > 0 ? ` ${fmtN(sinLiga)} registro${sinLiga === 1 ? '' : 's'} sin liga: HubSpot no liga tareas ni llamadas al deal.` : ''}</>} Esc o clic afuera cierra.
         </div>
         {menu && <MenuCol col={cols.find((c) => c.id === menu.col)!} filas={filasPara(menu.col)} filtro={filtros[menu.col]} anchor={menu.anchor}
           onOrden={(dir) => { setOrden({ col: menu.col, dir }); setMenu(null) }}

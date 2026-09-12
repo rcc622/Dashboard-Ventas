@@ -827,6 +827,9 @@ def corte_para(uid):
         com = c["comisiones"]
         f["comisiones"] = dict(com, vendedores=[v for v in com.get("vendedores", []) if v.get("asesor_id") == uid],
                                ventas=[v for v in com.get("ventas", []) if v.get("asesor_id") == uid])
+    if isinstance(c.get("llamadas"), dict):
+        ll = c["llamadas"]
+        f["llamadas"] = dict(ll, llamadas=[x for x in ll.get("llamadas", []) if x.get("asesor_id") == uid])
     return json.dumps(f, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
 
 

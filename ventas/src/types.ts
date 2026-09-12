@@ -53,6 +53,15 @@ export interface LevFila { fuente: 'excel-mty' | 'form-zonas'; zona: string; ase
   municipio: string; prioridad: string; paneles: number; solicitado: number; finalizado: number; estado: string; hecho: boolean; lead: string }
 export interface Levantamientos { generado?: string; error?: string; dias: number; filas: LevFila[] }
 export interface Comisiones { generado?: string; error?: string; vendedores: VendedorCom[]; ventas: VentaReal[] }
+/** Una llamada grabada, transcrita y calificada 1-5 ⭐ contra la rúbrica (calificador-llamadas → Supabase analítica).
+ *  `pond` es la nota de registro (ponderada: siguiente paso ×3, cierre/objeciones/calificación ×2); `cumple` = pond ≥ 4;
+ *  `sig_paso` = terminó con siguiente paso concreto (fecha y hora o acción registrable), el KPI que más separa
+ *  ganadas de perdidas. `notas` = las 14 preguntas: [estrellas 0-5 (0 = no aplicaba), evidencia textual]. */
+export type NotaClave = 'e1_apertura' | 'e2_confianza' | 'e3_recibo' | 'e4_necesidades' | 'e5_motivaciones' | 'e6_objeciones' | 'e7_calificacion' | 'e8_propuesta' | 'e9_cierre' | 'e10_siguiente' | 'o1_validar' | 'o2_aclarar' | 'o3_resolver' | 'o4_retomar'
+export interface Llamada { id: string; crm: Crm; asesor: string; asesor_id: string | null; fecha: number; dur: number; tipo: string; resultado: string
+  pond: number | null; plana: number | null; cumple: boolean; sig_paso: boolean; objecion: string; audio: string; tel: string; resumen: string; mejora: string
+  notas: Record<NotaClave, [number, string]> }
+export interface Llamadas { generado?: string; error?: string; dias: number; llamadas: Llamada[] }
 
 export interface Corte {
   generado: string; dias_historia: number; desde: number
@@ -62,6 +71,8 @@ export interface Corte {
   cotizaciones?: Cotizaciones
   /** Levantamientos de los Excel de operaciones; opcional porque un corte viejo no los trae. */
   levantamientos?: Levantamientos
+  /** Llamadas calificadas por el calificador (Supabase analítica); opcional porque un corte viejo no las trae. */
+  llamadas?: Llamadas
   /** Configuración: nombre en la app de comisiones -> slug del CRM ('' = sin asesor). */
   comisiones_map?: Record<string, string>
   /** Tipo de vendedor fijado a mano (env VENTAS_TIPOS o Configuración); sin entrada = por CRM. */

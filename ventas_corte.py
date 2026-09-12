@@ -251,6 +251,32 @@ def agregar_comisiones(corte):
     return corte
 
 
+def agregar_llamadas(corte):
+    """Calificación de llamadas (calificador-llamadas → Supabase analítica). Entra con
+    ANALITICA_SUPABASE_URL + _KEY (o SUPABASE_*); si falla, `llamadas.error` lo dice y el corte
+    sale igual que antes."""
+    if not ((os.environ.get("ANALITICA_SUPABASE_URL") and os.environ.get("ANALITICA_SUPABASE_KEY"))
+            or (os.environ.get("SUPABASE_URL") and os.environ.get("SUPABASE_SERVICE_KEY"))):
+        return corte
+    try:
+        import ventas_llamadas
+        forzados = {}
+        try:   # Configuración: {nombre en el calificador: slug o ''}; vive en el volumen
+            with open(os.path.join(os.path.dirname(OUT), "ventas_config.json"), encoding="utf-8") as f:
+                forzados = json.load(f).get("llamadas_map") or {}
+        except (OSError, ValueError):
+            pass
+        corte["llamadas"] = ventas_llamadas.build(corte["usuarios"], forzados)
+        con = sum(1 for x in corte["llamadas"]["llamadas"] if x["asesor_id"])
+        sin = sorted({x["asesor"] for x in corte["llamadas"]["llamadas"] if not x["asesor_id"]})
+        print("llamadas calificadas: %d · %d con asesor del CRM%s"
+              % (len(corte["llamadas"]["llamadas"]), con, (" · sin cruzar: " + ", ".join(sin)) if sin else ""))
+    except Exception as e:
+        aviso("llamadas falló: %r" % e)
+        corte["llamadas"] = {"error": str(e)[:200], "dias": 0, "llamadas": []}
+    return corte
+
+
 HIST = os.path.join(os.path.dirname(OUT), "ventas_hist.jsonl")
 
 
@@ -414,7 +440,7 @@ if __name__ == "__main__":
     partes = fuentes()
     if not partes:
         sys.exit("ningún CRM entregó corte: se conserva el ventas.json anterior")
-    corte = agregar_levantamientos(agregar_cotizaciones(agregar_comisiones(mezclar(partes))))
+    corte = agregar_llamadas(agregar_levantamientos(agregar_cotizaciones(agregar_comisiones(mezclar(partes)))))
     print("corte: %s · %d asesores · %d leads · %d actividades · %d tareas abiertas"
           % (" + ".join(f["crm"] for f in corte["fuentes"]), len(corte["usuarios"]),
              len(corte["leads"]), len(corte["eventos"]), len(corte["tareas_abiertas"])))

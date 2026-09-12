@@ -713,6 +713,20 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   en móvil. Pruebas: `e2e_grid.py` en el scratchpad (30 comprobaciones: teclado, puntero, estirar,
   quitar/agregar, separador, migración, reset, 900/390 px). Gotcha E2E: el arrastre es por pointer
   events, no HTML5: en Playwright va con `mouse.down/move/up` sobre `.grip`.
+- **Llamadas calificadas** (calificador-llamadas, Fase 3 del PLAN; 11-sep): `ventas_llamadas.py` lee
+  `calificaciones_llamadas` del Supabase **analítica** (`ANALITICA_SUPABASE_URL/_KEY`, o `SUPABASE_*` si es
+  el mismo proyecto; solo GET, últimos `VENTAS_LLAMADAS_DIAS` = 180) y `ventas_corte.agregar_llamadas` lo
+  mete al corte como `llamadas {generado, dias, llamadas[]}` (o `error`). Cada llamada trae la nota
+  ponderada (`pond`, la de registro: siguiente paso ×3; cierre, objeciones y calificación ×2), `cumple`
+  (≥ 4), `sig_paso` (terminó con fecha y hora o acción registrable — el KPI que separa ganadas de
+  perdidas: 37% vs 9%), las 14 `notas` [estrellas, evidencia] y el `audio`. El asesor se cruza por slug y,
+  si no, por tokens dentro del nombre del CRM («Cinthia Heredia» ↔ «Cinthia Gabriela Heredia Cortez»);
+  `VENTAS_LLAMADAS_MAP` y `llamadas_map` de la config mandan. En la tabla de Asesores son tres columnas
+  **por actividad** (fecha de la llamada): «⭐ Llamadas», «% en estándar», «% con siguiente paso»; su
+  drill lista las llamadas (el nombre abre el audio) y «Notas» abre `LlamadaModal` (`llamadas.tsx`) con
+  las 14 preguntas. `corte_para` recorta las de otros asesores. Nadie se evalúa con esto hasta que la
+  calibración humana (Pamela, Fase 2.3) dé ≥ 85%: la herramienta está medida contra sí misma y contra
+  el cierre, no contra un humano.
 - **Ventas reales desde la app de comisiones** (pedido de Randall 4-sep): `ventas_comisiones.py`
   lee `profiles` y `sales` de Supabase (solo GET, `SUPABASE_URL` + `SUPABASE_SERVICE_KEY`, la
   misma llave del respaldo diario) y `ventas_corte.agregar_comisiones` lo mete al corte como
