@@ -36,7 +36,7 @@ OUT = os.environ.get("DASH_OUT", os.path.join(HERE, "out"))
 #   marketing -> solo Meta + CRM de marketing (como antes de /ventas)
 #   ventas    -> solo el corte de ventas; / redirige a /ventas/
 #   ambos     -> los dos en el mismo proceso (default)
-DASH_MODO = (os.environ.get("DASH_MODO") or "ambos").strip().lower()
+DASH_MODO = (os.environ.get("DASH_MODO") or "ventas").strip().lower()   # este repo solo trae el tablero de ventas
 VENTAS_DIST = os.path.join(HERE, "ventas", "dist")
 # Link «Ventas» de la barra flotante: en marketing apunta al servicio mkt-ventas.
 VENTAS_URL = os.environ.get("VENTAS_URL") or "/ventas/"
