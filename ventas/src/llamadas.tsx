@@ -44,6 +44,7 @@ export function LlamadaModal({ x, onClose }: { x: Llamada; onClose: () => void }
               {Math.round(x.dur / 60)} min · {CRM_LABEL[x.crm]}{x.tel ? ' · ' + x.tel : ''} · Resultado: {resultadoLlamada(x)}{x.objecion ? ' · Objeción: ' + (OBJECION_LABEL[x.objecion] || x.objecion) : ''}
             </div>
           </div>
+          <a className="btn ghost" href="playbook-calificacion.html" target="_blank" rel="noreferrer" title="Cómo se califica cada llamada">ⓘ Playbook</a>
           {x.audio && <a className="btn ghost" href={x.audio} target="_blank" rel="noreferrer">Oír la llamada</a>}
           <button type="button" className="ib" aria-label="Cerrar" onClick={onClose}>×</button>
         </div>

@@ -495,7 +495,10 @@ function widgetsTablero(corte: Corte, filtros: Filtros, d: Datos, ax: Acciones):
             <button type="button" className="e4 tbtn" onClick={() => verCal('Llamadas en estándar (4 ⭐ o más)', cal.llamadas.filter((x) => x.cumple))} aria-label={`${pct(cal.cumple, 1)}% de las llamadas en estándar. Ver la lista`}><div className="n">{pct(cal.cumple, 1)}%</div><div className="l">en estándar (4 ⭐ o más)</div></button>
             <button type="button" className="e5 tbtn" onClick={() => verCal('Llamadas con siguiente paso', cal.llamadas.filter((x) => x.sig_paso))} aria-label={`${pct(cal.sigPaso, 1)}% de las llamadas terminaron con siguiente paso. Ver la lista`}><div className="n">{pct(cal.sigPaso, 1)}%</div><div className="l">con siguiente paso</div></button>
           </div>
-          <div className="small muted" style={{ marginBottom: 6 }}>Nota ponderada: siguiente paso ×3; cierre, objeciones y calificación ×2. Clic en un asesor abre sus llamadas con audio.</div>
+          <div className="small muted" style={{ marginBottom: 6, display: 'flex', flexWrap: 'wrap', gap: '4px 12px', alignItems: 'center' }}>
+            <span>Nota ponderada: siguiente paso ×3; cierre, objeciones y calificación ×2. Clic en un asesor abre sus llamadas con audio.</span>
+            <a className="chip" href="playbook-calificacion.html" target="_blank" rel="noreferrer" title="Cómo se califica cada llamada: escala, etapas, estándar y rutina de revisión">ⓘ Cómo se califica · Playbook</a>
+          </div>
           <div className="scrollx crece"><table className="ftable">
             <thead><tr><th scope="col">Asesor</th><th scope="col" className="num">⭐</th><th scope="col" className="num">Llamadas</th><th scope="col" className="num">En estándar</th><th scope="col" className="num">Con siguiente paso</th></tr></thead>
             <tbody>

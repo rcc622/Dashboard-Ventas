@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="./favicon.png">
+<title>Playbook de calificación de llamadas · Kenet Solar</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#F5F7FA; --paper:#FFFFFF; --ink:#16191F; --ink2:#3C4553; --muted:#5B6472; --line:#DCE2EA; --soft:#EEF2F7;
+  --navy:#1F3A5F; --amber:#E5A100; --amber-soft:#FFF4D6; --star-off:#C9D1DB;
+  --good:#0C7A70; --good-soft:#E1F4F2; --bad:#B23A20; --bad-soft:#FBE9E4;
+  --display:"Sora",system-ui,sans-serif; --body:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#14171C; --paper:#1B1F26; --ink:#E8ECF1; --ink2:#C4CBD5; --muted:#98A2B0; --line:#2C333D; --soft:#232931;
+    --navy:#9DB8DA; --amber:#FFC53D; --amber-soft:#3A2F12; --star-off:#3A424D;
+    --good:#4FC3B7; --good-soft:#123634; --bad:#F08A72; --bad-soft:#3D1F18;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#14171C; --paper:#1B1F26; --ink:#E8ECF1; --ink2:#C4CBD5; --muted:#98A2B0; --line:#2C333D; --soft:#232931;
+  --navy:#9DB8DA; --amber:#FFC53D; --amber-soft:#3A2F12; --star-off:#3A424D;
+  --good:#4FC3B7; --good-soft:#123634; --bad:#F08A72; --bad-soft:#3D1F18;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 var(--body);-webkit-font-smoothing:antialiased}
+a{color:var(--navy)}
+.wrap{max-width:1180px;margin:0 auto;padding:32px 24px 80px;display:grid;grid-template-columns:230px minmax(0,1fr);gap:40px}
+@media (max-width:900px){.wrap{grid-template-columns:1fr;gap:24px}.toc{position:static!important}}
+.toc{position:sticky;top:24px;align-self:start;font-size:13.5px}
+.toc .k{font:600 11px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0 0 12px}
+.toc ol{list-style:none;margin:0;padding:0;border-left:2px solid var(--line)}
+.toc li a{display:block;padding:5px 12px;color:var(--ink2);text-decoration:none;border-left:2px solid transparent;margin-left:-2px}
+.toc li a:hover,.toc li a:focus-visible{border-left-color:var(--amber);color:var(--ink);outline:none}
+main{max-width:760px}
+h1{font:700 34px/1.15 var(--display);letter-spacing:-.01em;margin:0 0 10px;text-wrap:balance}
+h2{font:600 22px/1.25 var(--display);margin:56px 0 14px;padding-top:18px;border-top:1px solid var(--line);color:var(--navy);text-wrap:balance}
+h3{font:600 16.5px/1.3 var(--display);margin:26px 0 8px}
+p{margin:0 0 12px;max-width:68ch}
+.eyebrow{font:500 12px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 14px}
+.lede{font-size:18px;color:var(--ink2);max-width:62ch}
+.meta{display:flex;flex-wrap:wrap;gap:8px 18px;font:13px/1.4 var(--mono);color:var(--muted);margin:18px 0 0}
+.facts{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:28px 0 8px}
+@media (max-width:640px){.facts{grid-template-columns:1fr}}
+.fact{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.fact .n{font:600 26px/1.1 var(--display);font-variant-numeric:tabular-nums}
+.fact .l{font-size:13px;color:var(--muted);margin-top:4px}
+.star{color:var(--amber);letter-spacing:1px;white-space:nowrap}
+.star .off{color:var(--star-off)}
+table{border-collapse:collapse;width:100%;font-size:14px;margin:12px 0 18px}
+.tw{overflow-x:auto;margin:0 -4px;padding:0 4px}
+th,td{text-align:left;vertical-align:top;padding:9px 10px;border-bottom:1px solid var(--line)}
+th{font:600 12px/1.3 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--soft)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+tr.hi td{background:var(--amber-soft)}
+.mono{font-family:var(--mono);font-size:13px}
+.tag{display:inline-block;font:500 12px/1 var(--mono);padding:4px 8px;border-radius:999px;background:var(--soft);color:var(--ink2);white-space:nowrap}
+.tag.good{background:var(--good-soft);color:var(--good)}
+.tag.bad{background:var(--bad-soft);color:var(--bad)}
+.rule{background:var(--paper);border:1px solid var(--line);border-left:4px solid var(--amber);border-radius:8px;padding:12px 16px;margin:14px 0}
+.rule b{font-family:var(--display);font-weight:600}
+.steps{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:14px 0 6px}
+@media (max-width:720px){.steps{grid-template-columns:1fr 1fr}}
+.step{background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:12px}
+.step .k{font:500 11px/1 var(--mono);color:var(--muted);letter-spacing:.1em;text-transform:uppercase}
+.step .t{font:600 14px/1.3 var(--display);margin:6px 0 4px}
+.step .d{font-size:13px;color:var(--ink2)}
+ul,ol{padding-left:22px;margin:0 0 12px;max-width:68ch}
+li{margin:4px 0}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:720px){.two{grid-template-columns:1fr}}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.card h3{margin-top:0}
+.check li{list-style:none;position:relative;padding-left:26px}
+.check li::before{content:"";position:absolute;left:0;top:7px;width:14px;height:14px;border:1.5px solid var(--muted);border-radius:3px}
+.foot{margin-top:56px;padding-top:16px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
+@media print{.toc{display:none}.wrap{grid-template-columns:1fr;padding:0}h2{break-after:avoid}table{break-inside:auto}tr{break-inside:avoid}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<nav class="toc" aria-label="Índice">
+  <p class="k">Índice</p>
+  <ol>
+    <li><a href="#como">Cómo se califica</a></li>
+    <li><a href="#escala">La escala</a></li>
+    <li><a href="#tipo">Tipo de llamada</a></li>
+    <li><a href="#etapas">Las 10 etapas</a></li>
+    <li><a href="#objecion">Los 4 pasos de objeción</a></li>
+    <li><a href="#nota">La nota y el estándar</a></li>
+    <li><a href="#dash">Dónde se ve</a></li>
+    <li><a href="#hoy">Punto de partida</a></li>
+    <li><a href="#cierran">Qué hacen los que cierran</a></li>
+    <li><a href="#rutina">Rutina de revisión</a></li>
+    <li><a href="#auditar">Auditar una llamada en 5 min</a></li>
+    <li><a href="#limites">Confiabilidad y límites</a></li>
+  </ol>
+</nav>
+
+<main>
+<p class="eyebrow">Kenet Solar · Ventas</p>
+<h1>Playbook de calificación de llamadas</h1>
+<p class="lede">Cómo se califica hoy cada llamada de venta, qué significa cada estrella, dónde se ve y qué hace con eso el líder de ventas, el consultor y el director.</p>
+<div class="meta"><span>Rúbrica v3</span><span>Vigente desde 10 sep 2026</span><span>Última edición 13 sep 2026</span><span>Fuente: <span class="mono">RUBRICA.md</span> (la lee el calificador tal cual)</span></div>
+
+<div class="facts">
+  <div class="fact"><div class="n">4 <span class="star">★</span> o más</div><div class="l">Estándar de una llamada bien hecha (nota ponderada)</div></div>
+  <div class="fact"><div class="n">2.36 <span class="star">★</span></div><div class="l">Promedio del equipo (16 asesores, 1,612 llamadas, sep 2026). 1% llega al estándar.</div></div>
+  <div class="fact"><div class="n">52% vs 12%</div><div class="l">Cierre de las llamadas de 3 ★ o más contra las de menos de 3. La nota predice la venta.</div></div>
+</div>
+
+<h2 id="como">Cómo se califica</h2>
+<p>Cada llamada grabada de más de un minuto pasa por el mismo proceso, sin intervención humana, y queda en el tablero de ventas al cabo de unos minutos.</p>
+<div class="steps">
+  <div class="step"><div class="k">1</div><div class="t">Grabación</div><div class="d">Kommo (Twilio) y HubSpot. Se separan las dos voces.</div></div>
+  <div class="step"><div class="k">2</div><div class="t">Transcripción</div><div class="d">Texto con marca de tiempo por turno: quién dijo qué y cuándo.</div></div>
+  <div class="step"><div class="k">3</div><div class="t">Tipo de llamada</div><div class="d">Primer contacto, seguimiento, cierre/agenda… Define qué etapas aplican.</div></div>
+  <div class="step"><div class="k">4</div><div class="t">14 preguntas</div><div class="d">10 etapas + 4 pasos de objeción, cada una con nota 1-5 y una cita textual que la justifica.</div></div>
+  <div class="step"><div class="k">5</div><div class="t">Nota y estándar</div><div class="d">Promedio ponderado; «en estándar» si llega a 4. Aparte: ¿dejó siguiente paso con fecha?</div></div>
+</div>
+<div class="rule"><b>Regla de oro.</b> Se califica el <b>resultado observable</b> de cada etapa, no si el asesor recitó la frase del guion. Si no dijo la frase pero obtuvo el resultado, califica alto. Si dijo la frase y no obtuvo nada, califica bajo.</div>
+<p>Se califica sobre la transcripción: todo criterio es verificable leyendo el texto. Tono, velocidad y muletillas <b>no</b> se califican (y los datos de Fase 1 muestran que tampoco predicen la venta).</p>
+
+<h2 id="escala">La escala</h2>
+<p>Idéntica en las 14 preguntas. Lo que cambia entre una y otra es el <em>resultado</em> que se busca, no la escala.</p>
+<div class="tw"><table>
+<thead><tr><th>Nota</th><th>Significado</th><th>Ancla (cómo se decide)</th></tr></thead>
+<tbody>
+<tr><td><span class="star">★★★★★</span></td><td>Ejemplar</td><td>Resultado de la etapa obtenido <b>y</b> el asesor detectó lo que la etapa pide detectar. Sirve como ejemplo de capacitación.</td></tr>
+<tr><td><span class="star">★★★★<span class="off">★</span></span></td><td>Bien</td><td>Resultado obtenido, con un hueco menor (no confirmó un dato, se le pasó una repregunta).</td></tr>
+<tr><td><span class="star">★★★<span class="off">★★</span></span></td><td>Suficiente</td><td>Lo intentó y quedó a medias: preguntó pero no escuchó la respuesta, o sonó a cuestionario.</td></tr>
+<tr><td><span class="star">★★<span class="off">★★★</span></span></td><td>Débil</td><td>Intento simbólico o mal ejecutado; el resultado <b>no</b> se obtuvo.</td></tr>
+<tr><td><span class="star">★<span class="off">★★★★</span></span></td><td>Ausente</td><td>Había oportunidad clara y no lo hizo.</td></tr>
+<tr><td><span class="mono">–</span></td><td>No aplicaba</td><td>La llamada terminó antes por causa ajena (colgó, buzón, número equivocado) o la etapa no tenía disparador (no hubo objeción). <b>No penaliza:</b> el promedio se calcula solo sobre lo calificado.</td></tr>
+</tbody></table></div>
+
+<h2 id="tipo">Tipo de llamada: qué etapas aplican</h2>
+<p>Las 10 etapas describen la llamada de <b>primer contacto</b>. Calificar un seguimiento de 70 segundos contra las 10 castigaría al asesor por no repetir un diagnóstico que ya hizo. Por eso lo primero que se decide es el tipo.</p>
+<div class="tw"><table>
+<thead><tr><th>Tipo</th><th>Qué es</th><th>Etapas que se califican</th></tr></thead>
+<tbody>
+<tr><td><span class="tag">Primer contacto</span></td><td>Primera conversación real con el prospecto después del bot</td><td><b>Las 10</b></td></tr>
+<tr><td><span class="tag">Seguimiento</span></td><td>Ya hubo llamada previa; se retoma cotización, duda o decisión</td><td>Arranca en la <b>4</b> (prospecto indefinido) o en la <b>6</b> (ya hay propuesta y queda la barrera). 1 y 2 «ligeras». Los 4 pasos de objeción casi siempre aplican.</td></tr>
+<tr><td><span class="tag">Cierre / agenda</span></td><td>Llamada corta para confirmar cita, levantamiento u hora</td><td>1, 9, 10</td></tr>
+<tr><td><span class="tag">Entrante · consulta</span></td><td>El prospecto llama con una duda puntual</td><td>1, 2, 6, 9, 10 · 3-5 y 7 solo si el asesor aprovecha para diagnosticar</td></tr>
+<tr><td><span class="tag">Postventa · operativo</span></td><td>Instalación, CFE, garantía, gestoría</td><td>1, 9, 10</td></tr>
+<tr><td><span class="tag">No contacto</span></td><td>Buzón, colgó, número equivocado</td><td>Ninguna (todo «–»)</td></tr>
+</tbody></table></div>
+<h3>Tres reglas que evitan que el tipo se vuelva excusa</h3>
+<ul>
+<li><b>El tipo se deduce de la llamada, no de la duración.</b> Un primer contacto de 3 minutos sigue siendo primer contacto y se califica completo.</li>
+<li><b>«No aplicaba» nunca es «se le pasó».</b> Si en un seguimiento el prospecto suelta información nueva (consumo, motivo, dinero) y el asesor la ignora, esa etapa sí se califica, y bajo.</li>
+<li><b>Las etapas 9 y 10 siempre se califican</b> (salvo no contacto): toda llamada cierra con acuerdo y siguiente paso.</li>
+</ul>
+<p>«1 y 2 ligeras» en seguimiento: basta con identificarse y demostrar que recuerda el caso (<em>«te marco por la cotización de los 10 paneles que te mandé el jueves»</em>) — eso es 4 ★. Volver a presentarse de cero es 2 ★.</p>
+
+<h2 id="etapas">Las 10 etapas</h2>
+<p>La columna «resultado observable» es lo que se califica. Las señales son ejemplos, no un guion.</p>
+<div class="tw"><table>
+<thead><tr><th>#</th><th>Etapa</th><th>Resultado observable</th><th>Señales de 5 ★</th><th>Señales de 1-2 ★</th></tr></thead>
+<tbody>
+<tr><td>1</td><td><b>Apertura</b></td><td>Permiso explícito para conversar</td><td>Nombre + Kenet Solar, confirma que habla con la persona correcta y <b>pide</b> el tiempo</td><td>Entra al pitch sin identificarse ni pedir permiso</td></tr>
+<tr><td>2</td><td><b>Confianza</b></td><td>El prospecto se abre</td><td>Muestra que conoce el caso: «ya tengo aquí tu recibo», nombra el canal por el que llegó</td><td>Arranca de cero; «un asesor te contacta» cuando quien habla es el asesor (tope 2 ★)</td></tr>
+<tr><td>3</td><td><b>Recibo CFE</b></td><td>Base para dimensionar</td><td>Cita monto/kWh del recibo y valida si sigue siendo representativo</td><td>Vuelve a pedir el recibo que el bot ya consiguió (1 ★) o nunca menciona el consumo</td></tr>
+<tr class="hi"><td>4</td><td><b>Necesidades</b></td><td>Necesidad principal identificada</td><td>Pregunta abierta («¿qué te gustaría lograr?»), indaga si ya tiene otra cotización, escucha</td><td>Asume la necesidad («todos quieren ahorrar») sin preguntar</td></tr>
+<tr><td>5</td><td><b>Motivaciones</b></td><td>Motivo real + urgencia</td><td>Devuelve el motivo con las palabras del prospecto; pregunta desde cuándo y quién más decide</td><td>Nunca confirma el motivo; lo da por hecho</td></tr>
+<tr class="hi"><td>6</td><td><b>Objeciones</b></td><td>Barreras identificadas</td><td>Provoca la objeción antes de que estalle: «¿qué es lo que más te preocupa?»</td><td>No pregunta por dudas y la objeción aparece sola al final</td></tr>
+<tr class="hi"><td>7</td><td><b>Calificación</b></td><td>Viable o descarte, con criterio</td><td>Confirma método de pago <b>y</b> temporalidad (este mes vs. ~3 meses); detecta expectativa de «gratis»</td><td>Prepara propuesta sin saber si puede pagarla</td></tr>
+<tr class="hi"><td>8</td><td><b>Propuesta</b></td><td>Propuesta enviada o agendada</td><td>La manda en el momento y la explica; o detecta al co-decisor y ofrece llamada conjunta</td><td>Información genérica sin calificar, o «te mando algo» sin decir qué ni cuándo</td></tr>
+<tr class="hi"><td>9</td><td><b>Cierre</b></td><td>Acuerdo sin ambigüedad</td><td>Resume lo acordado y ofrece <b>dos opciones concretas</b> («¿te funciona mejor X o Y?»)</td><td>«Cualquier cosa me avisas», «quedamos pendientes», «revísalo y me dices» → tope 2 ★</td></tr>
+<tr class="hi"><td>10</td><td><b>Siguiente paso</b></td><td>Seguimiento trazable</td><td>Acción específica <b>con fecha y hora</b>, confirmada por el prospecto, y la registra</td><td>Sin fecha, o fecha puesta por el asesor sin confirmación</td></tr>
+</tbody></table></div>
+<p>Las filas resaltadas son las <b>etapas rectoras</b>: las que pesan más en la nota y las que, según los datos, separan una llamada ganada de una perdida. Son las que se ven como estrellas en el tablero.</p>
+<h3>Precisiones para no discutir al auditar</h3>
+<ul>
+<li><b>Etapa 9 vs. 10:</b> 9 es que <em>haya acuerdo</em>; 10 es que <em>tenga fecha y quede registrable</em>. Un «sí, mándame la info» sin fecha = 9 en 3 ★, 10 en 1-2 ★.</li>
+<li><b>Descarte legítimo</b> (fuera de zona, ya compró): 8 no aplica; 9 y 10 sí. Cerrar bien un descarte también es cerrar.</li>
+<li><b>Llamada entrante sin recibo previo:</b> la etapa 3 califica si el asesor <em>levantó</em> el consumo, no si citó un recibo.</li>
+<li><b>Desempate en 3, 4, 5 y 7 fuera del primer contacto:</b> si nadie tocó el tema y el tipo no lo exigía → no aplica. Si lo abrió el prospecto y el asesor no lo tomó → 1-2 ★. Si lo tocaron los dos → se califica normal.</li>
+</ul>
+
+<h2 id="objecion">Los 4 pasos de objeción</h2>
+<p>Se califican <b>solo si hubo objeción</b> (el 74% de las llamadas la tiene). Son la columna vertebral del seguimiento.</p>
+<div class="tw"><table>
+<thead><tr><th>Paso</th><th>Qué se califica</th><th>5 ★</th><th>1-2 ★</th></tr></thead>
+<tbody>
+<tr><td><b>1 · Validar</b></td><td>Reconocer, no combatir</td><td>«Claro, te entiendo», «totalmente válido» antes de cualquier argumento</td><td>Contraataca, se pone defensivo o descalifica al competidor</td></tr>
+<tr><td><b>2 · Aclarar</b></td><td><b>Una</b> pregunta que descubre la preocupación real</td><td>«¿Lo que te frena es el precio, el ahorro o el momento?»</td><td>Asume qué le preocupa y responde a la objeción equivocada</td></tr>
+<tr><td><b>3 · Resolver</b></td><td>Responder <b>solo eso</b>, corto y concreto</td><td>Da el dato específico (financiamiento 3-24 meses, comparar contra el recibo) y para</td><td>Repite toda la presentación, o ruega</td></tr>
+<tr><td><b>4 · Retomar</b></td><td>Volver al objetivo <b>una vez</b>, con un paso pequeño</td><td>Pide recibo, cotización o cita después de resolver</td><td>No pide nada, o insiste tras una segunda negativa (rogar → 1 ★)</td></tr>
+</tbody></table></div>
+<div class="rule"><b>Tope duro: «nunca pelea, nunca ruega».</b> Discutir con el prospecto o hablar mal del competidor (pelear) e insistir después de una segunda negativa clara (rogar) topan el paso correspondiente en 1 ★.</div>
+<p>Objeciones tipificadas y su frecuencia hoy: otra/operativa 25% · «lo tengo que pensar» 18% · «no tengo dinero ahorita» 15% · «lo platico con mi pareja» 13% · «ya tengo otra cotización» 13% · «mándame la info por WhatsApp» 9% · «está caro» 4%.</p>
+
+<h2 id="nota">La nota y el estándar</h2>
+<p>No todas las preguntas pesan igual. El objetivo mínimo de toda llamada es un siguiente paso concreto, así que esa etapa manda.</p>
+<div class="tw"><table>
+<thead><tr><th>Peso</th><th>Preguntas</th><th>Por qué</th></tr></thead>
+<tbody>
+<tr><td class="num">×3</td><td>10 Siguiente paso</td><td>Es el objetivo mínimo de toda llamada y el mejor predictor de cierre (37% vs 9%)</td></tr>
+<tr><td class="num">×2</td><td>9 Cierre · 6 Objeciones · 7 Calificación</td><td>Deciden si la llamada avanza o se queda en «seguimos en contacto»</td></tr>
+<tr><td class="num">×1.5</td><td>Los 4 pasos de objeción</td><td>Columna vertebral del seguimiento, que es el 54% del volumen</td></tr>
+<tr><td class="num">×1</td><td>Las demás</td><td></td></tr>
+</tbody></table></div>
+<ul>
+<li><b>Nota ponderada</b> (la que se reporta): promedio ponderado de las preguntas que aplicaron. <b>En estándar = 4 o más.</b></li>
+<li><b>Nota plana</b>: mismo promedio sin pesos; queda como referencia auditable.</li>
+<li><b>Con siguiente paso (sí/no)</b>: ¿terminó con acción y fecha/hora confirmadas y registrables? Es el KPI de equipo. Hoy 40%; meta 70%.</li>
+<li><b>Frases prohibidas</b>: «cualquier cosa me avisas», «quedamos pendientes», «revísalo y me dices», «estamos en contacto» y equivalentes. Hoy cierran el 67% de las llamadas.</li>
+<li><b>Comparar entre asesores</b>: siempre por tipo de llamada. El promedio comparable es el de primer contacto; el seguimiento se lee aparte.</li>
+</ul>
+
+<h2 id="dash">Dónde se ve</h2>
+<p>Todo vive en el tablero de ventas (<span class="mono">/ventas</span>), con datos nuevos cada 10 minutos. Los filtros de fechas, equipo, propietario y CRM aplican igual que al resto del tablero; la fecha es la de la llamada.</p>
+<div class="two">
+  <div class="card"><h3>Widget «Calidad de llamadas»</h3><p>Promedio del equipo, % en estándar y % con siguiente paso en el rango; tabla por asesor ordenada por estrellas (los de menos de 10 llamadas van al final, marcados «muestra chica»). Cada cifra y cada nombre abre la lista de llamadas.</p></div>
+  <div class="card"><h3>Tabla de Asesores</h3><p>Tres columnas: <b>★ Llamadas</b>, <b>% en estándar</b>, <b>% con siguiente paso</b>. Se ordenan y se eligen como cualquier otra columna. En la ficha de cada asesor aparecen las mismas cifras.</p></div>
+  <div class="card"><h3>Lista de llamadas</h3><p>Una fila por llamada: tipo, etapas rectoras en estrellas, objeción (promedio de los 4 pasos), nota ponderada, resumen y si dejó siguiente paso. Clic en la llamada abre el <b>audio</b>; «Notas» abre las <b>14 preguntas con la cita textual</b> que justifica cada estrella y un veredicto (Excelente / Reforzar / Requiere atención).</p></div>
+  <div class="card"><h3>Excel</h3><p>El mismo censo en Excel (una hoja por nivel: resumen por asesor, llamadas, detalle por etapa, rúbrica) para trabajarlo fuera del tablero. Se regenera a pedido.</p></div>
+</div>
+
+<h2 id="hoy">Punto de partida (septiembre 2026)</h2>
+<p>Censo de 1,612 llamadas de 16 asesores (Kommo y HubSpot), 500 con desenlace conocido. Es la línea base contra la que se mide todo lo que sigue.</p>
+<div class="tw"><table>
+<thead><tr><th>Etapa</th><th class="num">Hecha (≥ 3 ★)</th><th class="num">Bien (≥ 4 ★)</th><th>Lectura</th></tr></thead>
+<tbody>
+<tr><td>1 Apertura</td><td class="num">85%</td><td class="num">33%</td><td rowspan="3">Abrir, lo hace todo el mundo. No distingue a nadie.</td></tr>
+<tr><td>2 Confianza</td><td class="num">84%</td><td class="num">45%</td></tr>
+<tr><td>3 Recibo CFE</td><td class="num">54%</td><td class="num">22%</td></tr>
+<tr><td>4 Necesidades</td><td class="num">35%</td><td class="num">6%</td><td rowspan="2">Descubrir, casi nadie. Motivaciones se pregunta el 6% de las veces.</td></tr>
+<tr><td>5 Motivaciones</td><td class="num">6%</td><td class="num">1%</td></tr>
+<tr><td>6 Objeciones (provocarlas)</td><td class="num">25%</td><td class="num">4%</td><td>En primer contacto se hace bien el 0% de las veces.</td></tr>
+<tr><td>7 Calificación</td><td class="num">49%</td><td class="num">18%</td><td rowspan="2">La mitad presenta sin saber si el prospecto puede pagar.</td></tr>
+<tr><td>8 Propuesta</td><td class="num">58%</td><td class="num">21%</td></tr>
+<tr><td>9 Cierre</td><td class="num">37%</td><td class="num">9%</td><td rowspan="2">El hueco más caro: 54% termina en «seguimiento sin fecha».</td></tr>
+<tr><td>10 Siguiente paso</td><td class="num">23%</td><td class="num">9%</td></tr>
+<tr><td>O1 Validar</td><td class="num">44%</td><td class="num">11%</td><td rowspan="4">Se contesta la objeción sin antes preguntar (O2: 14%).</td></tr>
+<tr><td>O2 Aclarar</td><td class="num">14%</td><td class="num">4%</td></tr>
+<tr><td>O3 Resolver</td><td class="num">48%</td><td class="num">18%</td></tr>
+<tr><td>O4 Retomar</td><td class="num">50%</td><td class="num">19%</td></tr>
+</tbody></table></div>
+<div class="two">
+  <div class="card"><h3>Cierre real por asesor (lead único)</h3><p>Marco Pérez 32% · Elizabeth Cadena 20% · Cinthia Heredia 16% · Mara Gálvez 15% · Mildred García 15% · Carlos Campillo 13% · Mónica Muñiz 9% · Yazmín González 7% · Samuel Giacoman 7%. Solo asesores con 15 o más desenlaces.</p></div>
+  <div class="card"><h3>Lo que predice la venta</h3><p>Contenido, no estilo: necesidades (+37 pts de cierre), provocar objeciones (+38), calificación (+33), propuesta (+39), cierre (+40), siguiente paso (+33). Talk ratio, ritmo, pausas y tono: nada. La llamada que cierra dura 2.7 veces más (344 s contra 126 s).</p></div>
+</div>
+
+<h2 id="cierran">Qué hacen los que cierran (y los demás no)</h2>
+<p>Sacado de las llamadas de Marco, Elizabeth y Cinthia. Es lo que hay que copiar en coaching e inducción.</p>
+<ol>
+<li><b>Reabren el seguimiento con el dato exacto de la vez anterior</b>, no con «¿ya lo revisó?»: <em>«¿Recuerda que le envié su cotización de los cuatro paneles con financiamiento?»</em></li>
+<li><b>Llegan con una novedad</b> (crédito a 24 meses, estudio terminado, resultado del levantamiento). El seguimiento sin novedad termina en «seguimos en contacto».</li>
+<li><b>Una pregunta de consumo futuro antes de cotizar</b>: <em>«¿piensas incrementar tu consumo o dejarlo igual?»</em></li>
+<li><b>Una plantilla fija de propuesta</b>, en bloques: qué es → qué incluye → cómo se paga.</li>
+<li><b>El plan de pagos anclado a hitos, antes de que el cliente objete dinero</b>: apartar → enganche al instalar → mensualidades después. Resuelve por adelantado «no tengo dinero» y «está caro».</li>
+<li><b>El levantamiento gratuito como siguiente paso de bajo compromiso</b>, agendado en la misma llamada con día, hora y dirección.</li>
+<li><b>Honestidad con lo que no controlan</b> (tiempos de CFE, no sobredimensionar) como argumento de confianza.</li>
+<li><b>Piden INE y pólizas en cuanto hay intención</b>, sin esperar a la siguiente llamada.</li>
+</ol>
+<p><b>Lo que tampoco hacen ellos</b> (por eso el techo es 32% y no 60%): cerrar con fecha y hora (19-35%), provocar la objeción antes de que estalle (25%), una pregunta antes de contestar la objeción (12-15%), preguntar por qué quiere paneles (3-12%).</p>
+
+<h2 id="rutina">Rutina de revisión</h2>
+<div class="tw"><table>
+<thead><tr><th>Cuándo</th><th>Quién</th><th>Qué mira</th><th>Qué hace</th></tr></thead>
+<tbody>
+<tr><td><b>Semanal</b> (lunes)</td><td>Líder de ventas</td><td>Widget «Calidad de llamadas» de la semana: % con siguiente paso del equipo y por asesor; las 5 llamadas peor calificadas con «Notas»</td><td>Un mensaje al equipo con el KPI (% con siguiente paso, meta 70%) y una llamada modelo de la semana. Pide a cada asesor con 0% que agende con fecha en sus siguientes 5 llamadas.</td></tr>
+<tr><td><b>Mensual</b></td><td>Consultor de ventas</td><td>Por asesor: ★ del mes, % con siguiente paso, su etapa rectora más floja, sus 2 mejores y 2 peores llamadas (audio + Notas)</td><td>Coaching 1:1 de 30 min sobre <b>una</b> etapa, con sus propias llamadas. Se anota la etapa y se remide al mes siguiente.</td></tr>
+<tr><td><b>Mensual</b> (junta)</td><td>Director de ventas</td><td>Equipo vs. mes anterior: promedio ★, % en estándar, % con siguiente paso, cierre real por asesor</td><td>Reconoce la llamada del mes (se oye en junta). Decide inducción y prioridades de coaching con el cruce nota ↔ cierre.</td></tr>
+<tr><td><b>Trimestral</b></td><td>Consultor + una persona que no calificó antes</td><td>20 llamadas nuevas calificadas a mano con esta misma rúbrica, a ciegas</td><td>Se compara contra la IA. Si menos del 85% coincide dentro de 1 ★, se revisa la rúbrica antes de seguir usándola para evaluar personas.</td></tr>
+</tbody></table></div>
+<h3>Reglas de uso</h3>
+<ul>
+<li><b>No se evalúa a una persona con menos de 15 llamadas calificadas</b> en el periodo; con menos, se usa solo para coaching.</li>
+<li><b>Se compara por tipo de llamada.</b> Un asesor de seguimientos y uno de primer contacto no compiten en la misma tabla.</li>
+<li><b>La nota abre la conversación, no la cierra.</b> Antes de cualquier decisión sobre una persona se oyen las llamadas; la cita textual de cada estrella está en «Notas» para eso.</li>
+<li><b>No se pondera por zona ni por antigüedad.</b> La vara es la misma para los 16.</li>
+<li><b>Una llamada mal calificada se reporta</b> (rec_sid + qué estrella + por qué) y entra al lote trimestral de calibración. La rúbrica se corrige con evidencia acumulada, no llamada por llamada.</li>
+</ul>
+
+<h2 id="auditar">Auditar una llamada en 5 minutos</h2>
+<p>Para que el líder compruebe por sí mismo una nota, sin conocer la herramienta. Abre la llamada en la lista, pulsa «Notas» y ten el audio a la mano.</p>
+<ul class="check">
+<li><b>Tipo.</b> ¿Es primer contacto o seguimiento? Si es seguimiento, ¿arranca en la 4 o en la 6? Si el tipo está mal, todo lo demás se lee mal.</li>
+<li><b>Etapa 10.</b> ¿Quedó acción con fecha y hora confirmada por el prospecto? Es la estrella que más pesa. «Te marco la próxima semana» no cuenta.</li>
+<li><b>Etapa 9.</b> ¿Hubo acuerdo con dos opciones concretas, o una frase prohibida?</li>
+<li><b>Objeción.</b> Si el prospecto puso una barrera: ¿el asesor validó, hizo <em>una</em> pregunta, resolvió solo eso y retomó? ¿Peleó o rogó?</li>
+<li><b>Etapa 7.</b> ¿Se supo cómo y cuándo va a pagar antes de proponer?</li>
+<li><b>Etapa 6.</b> ¿El asesor preguntó qué le preocupa antes de que saliera la objeción?</li>
+<li><b>Evidencia.</b> Cada estrella trae una cita. Si la cita no está en el audio o no justifica la nota, esa llamada se reporta.</li>
+<li><b>Veredicto propio.</b> Con lo anterior, ¿tu nota queda a 1 ★ de la de la IA? Si sí, la herramienta está bien calibrada para esa llamada.</li>
+</ul>
+
+<h2 id="limites">Confiabilidad y límites</h2>
+<ul>
+<li><b>Consistencia de la IA:</b> la misma llamada calificada dos veces a ciegas coincide dentro de 1 ★ el 93.7% de las veces; la nota ponderada varía ±0.11. Es más estable que dos auditores humanos entre sí.</li>
+<li><b>Predicción:</b> con 500 llamadas con desenlace, la nota separa ganadas de perdidas con p &lt; 0.001. No es opinión.</li>
+<li><b>Calibración humana:</b> en curso (20 llamadas calificadas a mano a ciegas). Hasta que termine, la herramienta sirve para coaching y prioridades; no para decisiones de permanencia.</li>
+<li><b>Lo que no ve:</b> tono, ritmo, silencios. Los datos dicen que no predicen la venta, pero sí existen; si un día se quieren, se agregan aparte.</li>
+<li><b>Errores de transcripción:</b> nombres y cifras a veces salen mal. La rúbrica instruye no castigar errores claramente de transcripción; si una nota depende de una cifra, se comprueba en el audio.</li>
+<li><b>Cobertura:</b> solo llamadas grabadas de más de un minuto. Janeth García (Torreón) no deja grabación; Carolina Solís tiene 4. Lo que no se graba no se califica.</li>
+<li><b>Una sola vara:</b> todas las llamadas, Kommo y HubSpot, se califican con el mismo modelo, el mismo prompt y esta misma rúbrica. Cambiar cualquiera de los tres obliga a recalibrar.</li>
+</ul>
+
+<p class="foot">Rúbrica v3 · Fuentes: «Llamada Comercial Kenet Solar.xlsx», diapositivas «Toda llamada tiene estructura» y «Objeción · fórmula de 4 pasos», scorecards de Gong · Datos: censo de 1,612 llamadas (11 sep 2026), FASE1_patron_ganador.md · Cualquier cambio a la rúbrica se hace en RUBRICA.md y se documenta aquí con fecha.</p>
+</main>
+</div>
+
+</body>
+</html>
