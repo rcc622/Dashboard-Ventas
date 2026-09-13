@@ -11,7 +11,7 @@ export function drillLlamadas(titulo: string, ls: Llamada[], corte: Corte, rango
   const porSid = new Map(ls.map((x) => [x.id, x]))
   return { titulo, clave: 'llamadas', filas: filasDeLlamadas(ls, corte), sub: rango + ' · fecha = la llamada',
     verFila: (f) => { const x = porSid.get(f.id); if (x) onNotas(x) }, verLabel: 'Notas', alertaLabel: 'sin siguiente paso',
-    pie: 'Clic en la llamada abre el audio en otra pestaña; «Notas» abre las 14 preguntas con su evidencia. Nota de registro = ponderada (siguiente paso ×3; cierre, objeciones y calificación ×2). Estándar: 4 o más. «–» = la etapa no aplicaba.' }
+    pie: 'Clic en la llamada abre el audio en otra pestaña; «Notas» abre las 14 preguntas con su evidencia. Detalle = veredicto: Excelente (4 o más, el estándar), Reforzar (3 a 3,99) o Requiere atención (menos de 3), con lo que salió bien y qué mejorar; el resumen completo aparece al pasar el mouse. Nota de registro = ponderada (siguiente paso ×3; cierre, objeciones y calificación ×2). «–» = la etapa no aplicaba.' }
 }
 
 // Una llamada calificada: la nota de registro, las 14 preguntas con su evidencia textual y el audio.

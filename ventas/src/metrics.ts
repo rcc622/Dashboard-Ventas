@@ -400,7 +400,9 @@ export function razones(c: Corte, ev: Evento[]): { razon: string; n: number; lea
  *  encabezado de la columna numérica (días sin cambio, horas al primer contacto…). */
 export interface Fila { id: string; nombre: string; link?: string; crm: Origen; asesor: string; detalle: string; ciudad?: string; embudo?: string; etapa?: string; num?: number; numLabel?: string; monto?: number; cuando?: number; estado?: string; alerta?: boolean
   /** Columnas de texto propias de la ventana (mismas etiquetas y orden en todas las filas); van después de Etapa. */
-  extras?: { label: string; valor: string; estrellas?: number | null }[] }
+  extras?: { label: string; valor: string; estrellas?: number | null }[]
+  /** Detalle en veredicto (Randall 13-sep, llamadas): titular con color + lo bueno + qué mejorar; `resumen` largo va al tooltip. */
+  veredicto?: { nivel: 'ok' | 'mid' | 'bad'; titulo: string; bien: string[]; mejorar: string[]; resumen: string } }
 export function mapaLeads(c: Corte): Map<string, Lead> { return new Map(c.leads.map((l) => [l.id, l])) }
 /** «KS-TRAINING» → «Training». Ventas es el rol normal y no se etiqueta; Training y Seguimiento sí (Randall 6-sep). */
 export const rolNombre = (r?: string) => (!r ? '' : /^admin/i.test(r) ? 'Administrador' : r.replace(/^KS-/i, '').toLowerCase().replace(/^\w/, (c) => c.toUpperCase()))
@@ -456,11 +458,28 @@ export function filasDeLlamadas(ls: Llamada[], c: Corte): Fila[] {
   const OB: NotaClave[] = ['o1_validar', 'o2_aclarar', 'o3_resolver', 'o4_retomar']
   const est = (n: number | null) => ({ valor: n == null ? '–' : String(n), estrellas: n })
   const objecion = (x: Llamada) => { const ns = OB.map((k) => nota(x, k)).filter((n): n is number => n != null); return ns.length ? Math.round(ns.reduce((a, b) => a + b, 0) / ns.length) : null }
-  return ls.map((x) => ({ id: x.id, nombre: `${Math.round(x.dur / 60)} min${x.tel ? ' · ' + x.tel : ''}`, link: x.audio || undefined, crm: x.crm,
-    asesor: nombreAsesor(c, x.asesor_id) === 'Sin asesor' ? x.asesor : nombreAsesor(c, x.asesor_id), etapa: resultadoLlamada(x), detalle: x.resumen,
+  return ls.map((x) => { const v = veredictoLlamada(x); return { id: x.id, nombre: `${Math.round(x.dur / 60)} min${x.tel ? ' · ' + x.tel : ''}`, link: x.audio || undefined, crm: x.crm,
+    asesor: nombreAsesor(c, x.asesor_id) === 'Sin asesor' ? x.asesor : nombreAsesor(c, x.asesor_id), etapa: resultadoLlamada(x),
+    detalle: v ? `${v.titulo} · Bien: ${v.bien.join(', ') || '—'} · Mejorar: ${v.mejorar.join('; ') || '—'}` : x.resumen, veredicto: v,
     extras: [{ label: 'Tipo', valor: tipoLlamada(x) }, ...RECTORAS.map(([label, k]) => ({ label, ...est(nota(x, k)) })), { label: 'Objeción (4 pasos)', ...est(objecion(x)) }],
     num: x.pond == null ? undefined : Math.round(x.pond * 100) / 100, numLabel: '⭐ ponderada', cuando: x.fecha,
-    estado: x.sig_paso ? 'Con siguiente paso' : 'Sin siguiente paso', alerta: !x.sig_paso })).sort((a, b) => (b.cuando || 0) - (a.cuando || 0))
+    estado: x.sig_paso ? 'Con siguiente paso' : 'Sin siguiente paso', alerta: !x.sig_paso } }).sort((a, b) => (b.cuando || 0) - (a.cuando || 0))
+}
+/** Veredicto conciso de una llamada (Randall 13-sep: «sé conciso y ve al grano»): titular por la nota ponderada
+ *  (≥ 4 Excelente = el estándar, 3 a 3,99 Reforzar, menos Requiere atención), lo bueno = etapas con 4-5 estrellas
+ *  y si fijó siguiente paso, y qué mejorar = los puntos «mejora» del calificador (van separados por «|», máximo 2, recortados a 110 caracteres)
+ *  más «sin siguiente paso» cuando falta. Sin nota ponderada no hay veredicto: se muestra el resumen. */
+export function veredictoLlamada(x: Llamada): Fila['veredicto'] | undefined {
+  if (x.pond == null) return undefined
+  const nivel = x.pond >= 4 ? 'ok' : x.pond >= 3 ? 'mid' : 'bad'
+  const titulo = nivel === 'ok' ? 'Excelente' : nivel === 'mid' ? 'Reforzar' : 'Requiere atención'
+  const bien = NOTAS.filter((n) => n.grupo === 'etapa' && (x.notas?.[n.id]?.[0] || 0) >= 4).map((n) => n.label.replace(/^\d+ /, ''))
+  if (x.sig_paso) bien.push('fijó siguiente paso')
+  const mejorar = x.sig_paso ? [] : ['Sin siguiente paso: no fijó fecha ni acción']
+  // Al grano: dos puntos como mucho y cortos; lo demás sigue en el tooltip (resumen) y en «Notas».
+  const corto = (t: string) => (t.length <= 110 ? t : t.slice(0, 110).replace(/\s+\S*$/, '') + '…')
+  for (const m of (x.mejora || '').split('|').map((t) => t.trim()).filter(Boolean)) { if (mejorar.length < 2) mejorar.push(corto(m)) }
+  return { nivel, titulo, bien, mejorar, resumen: x.resumen || '' }
 }
 export const etapaDe = (l: Lead) => `${tipoLead(l)} · ${l.etapa}`
 /** «1 día», «2 días»: sin abreviar (Randall) y sin plural falso. */

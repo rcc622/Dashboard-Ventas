@@ -116,6 +116,18 @@ function IconoExpandir({ on }: { on: boolean }) {
   </svg>
 }
 const aTabla = (c: ColDef): ColTabla<Fila> => ({ id: c.id, label: c.label, ancho: 0, fija: c.id === 'nombre', celda: () => null })
+/** Detalle de una llamada como veredicto (Randall 13-sep): titular con color y puntos; el resumen largo queda en el tooltip y en «Notas». */
+function Veredicto({ v }: { v: NonNullable<Fila['veredicto']> }) {
+  return (
+    <div className="vered">
+      <b className={'vered-t ' + v.nivel}>{v.titulo}</b>
+      <ul>
+        {v.bien.length > 0 && <li className="ok"><span>Bien:</span> {v.bien.join(', ')}</li>}
+        {v.mejorar.map((m, i) => <li key={i} className="mejorar">{m}</li>)}
+      </ul>
+    </div>
+  )
+}
 
 export function DrillModal({ d, onClose }: { d: Drill; onClose: () => void }) {
   const [q, setQ] = useState('')
@@ -287,14 +299,14 @@ export function DrillModal({ d, onClose }: { d: Drill; onClose: () => void }) {
       : id === 'asesor' ? f.asesor
       : id === 'ciudad' ? (f.ciudad || <span className="muted">Sin ciudad</span>)
       : id === 'embudo' ? (f.embudo || '—') : id === 'etapa' ? (f.etapa || '—')
-      : id === 'detalle' ? (f.detalle || '—')
+      : id === 'detalle' ? (f.veredicto ? <Veredicto v={f.veredicto} /> : (f.detalle || '—'))
       : id === 'num' ? (f.num == null ? '—' : fmtNum(f.num))
       : id === 'monto' ? (f.monto ? fmtMoney(f.monto) : '—')
       : id === 'cuando' ? cuando(f.cuando)
       : e?.estrellas !== undefined ? <Estrellas n={e.estrellas} /> : (e?.valor || '—')
     const cls = [id === 'detalle' ? 'det' : id === 'num' || id === 'monto' ? 'num' : id === 'cuando' ? 'muted' : e?.estrellas !== undefined ? 'cstars' : '', primera ? 'c0' : ''].filter(Boolean).join(' ') || undefined
     return (
-      <td key={id} className={cls} title={id === 'detalle' ? f.detalle || undefined : undefined}>
+      <td key={id} className={cls} title={id === 'detalle' ? (f.veredicto?.resumen || f.detalle || undefined) : undefined}>
         <div className="cc">{cont}</div>
         {primera && <span className="rrsz" role="separator" aria-orientation="horizontal" tabIndex={foco ? 0 : -1} aria-hidden={foco ? undefined : true} aria-label="Alto de las filas"
           aria-valuenow={vista.alto} aria-valuetext={vista.alto ? `${vista.alto} píxeles` : 'automático'} title="Arrastra para cambiar el alto de todas las filas (↑ ↓ con el teclado); doble clic o Supr = automático"
