@@ -101,8 +101,9 @@ export function anchoTotal<F>(visibles: ColDef<F>[]): number {
   return visibles.reduce((a, c) => a + c.ancho, 0)
 }
 
-export function EditarColumnas<F>({ todas, ordenadas, ocultas, onFijar, onRestablecer, onClose }: {
-  todas: ColDef<F>[]; ordenadas: ColDef<F>[]; ocultas: Set<string>
+/** `nota`: qué pasa con la elección (por defecto se recuerda en la cuenta; la ventana de detalle la guarda con «Guardar vista»). */
+export function EditarColumnas<F>({ todas, ordenadas, ocultas, nota, onFijar, onRestablecer, onClose }: {
+  todas: ColDef<F>[]; ordenadas: ColDef<F>[]; ocultas: Set<string>; nota?: string
   onFijar: (e: Eleccion) => void; onRestablecer: () => void; onClose: () => void
 }) {
   const ref = useRef<HTMLDivElement>(null)
@@ -127,7 +128,7 @@ export function EditarColumnas<F>({ todas, ordenadas, ocultas, onFijar, onRestab
     <div className="modal-bg" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div className="modal cols" role="dialog" aria-modal="true" aria-label="Editar columnas" ref={ref}>
         <div className="mh">
-          <div className="mt"><h2>Editar columnas</h2><div className="small muted">Elige qué columnas ves en esta tabla y en qué orden. Se recuerda en tu cuenta, así que el teléfono muestra lo mismo.</div></div>
+          <div className="mt"><h2>Editar columnas</h2><div className="small muted">{nota ?? 'Elige qué columnas ves en esta tabla y en qué orden. Se recuerda en tu cuenta, así que el teléfono muestra lo mismo.'}</div></div>
           <button type="button" className="ib" aria-label="Cerrar" onClick={onClose}>×</button>
         </div>
         <div className="mb">

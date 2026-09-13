@@ -813,6 +813,31 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   Detalle, Estado) mete encabezados de grupo con conteo y monto, colapsables; con grupos no hay
   páginas. Sin grupos, **páginas** de 100 (50/250/500) con Anterior/Siguiente. Escape cierra primero
   el menú y luego la ventana. El menú va con `z-index: 450` porque el fondo del modal es 400.
+- **La vista «tipo Excel» del detalle** (Randall 13-sep, `/goal`: «expandir a pantalla completa, modificar
+  la anchura de las columnas y la altura de las filas, mover las columnas y, si lo deseo, guardar esa
+  vista»). En `drill.tsx`: (a) botón de **pantalla completa** en la cabecera (`.modal-bg.full`);
+  (b) **asa de ancho** en el borde derecho de cada `th` (`.crsz`, role separator, ← → con el teclado,
+  Supr o doble clic = ancho por defecto): la PRIMERA vez que se arrastra se congelan los anchos que
+  miden todas las columnas (`congelados`) y la tabla pasa a `table-layout: fixed` con `<colgroup>`
+  (`.dtable.anchos`), para que solo se mueva la que se arrastra y las demás no salten; si no caben,
+  `.mb` se desplaza a lo ancho; (c) **asa de alto** en el borde inferior de la primera celda de cada
+  fila (`.rrsz`; solo la de la primera fila es enfocable, ↑ ↓, Supr = automático): UN alto para todas
+  las filas (`--alto-fila`), el contenido de cada celda va en `.cc` y se recorta al alto (Detalle
+  cambia sus renglones con `--lineas`); (d) **mover columnas** arrastrando el título (pasados 6 px es
+  arrastre y el clic que sigue NO ordena, `arrastrado`; se suelta antes o después de la columna bajo
+  el puntero, `.mov-antes/.mov-despues`) o desde el botón «Columnas», que reutiliza `EditarColumnas`
+  (también permite ocultar; Registro es fija). Todo eso vive en `Vista {anchos, alto, orden, ocultas,
+  expandido}` (`vista.ts`), **en memoria** mientras no se toque «Guardar vista» (los cambios sin
+  guardar sobreviven a cerrar la ventana en `borradores`, no a recargar). **Guardar vista** la deja en
+  la CUENTA con la clave `vista-<clave>` por el endpoint del tablero (mismo patrón «gana el ts más
+  nuevo» contra localStorage); «Restablecer» borra la guardada; **«Aplicar a otras cuentas»** reutiliza
+  `Compartir` de `widgets.tsx` (guarda primero si hay cambios). La `clave` la trae el `Drill`
+  (`drillLlamadas` → `llamadas`) o, si no, es la **forma de sus columnas** (`claveDe`: una letra por
+  columna + número de extras, p. ej. `ncaibtumw`): dos ventanas con las mismas columnas comparten
+  vista, y una vista guardada no se cuela en ventanas con otras columnas. Sin cambio de servidor:
+  `validar_tablero` ya aceptaba cualquier clave `[a-z0-9:_-]`. Con `pointer: coarse` las asas se
+  esconden. Prueba: `e2e_vista.py` (scratchpad fc946f13, 48 comprobaciones con el corte de prod).
+  Gotcha: el asa va DENTRO del `th` (`right: 0`), porque el `th` sticky de al lado tapa lo que sobresale.
 - **Página «Ventas reales» = la Analítica de la app de comisiones** (Randall 7-sep, `reales.tsx`,
   `analiticaReales()` en metrics.ts): mismas fórmulas que `renderAnalytics` de la app (master.js de
   comisiones-ventas-dun.vercel.app): seis cifras (ventas, contrato total, precio por panel = contrato /

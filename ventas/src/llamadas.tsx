@@ -9,7 +9,7 @@ import type { Drill } from './drill'
  *  el nombre abre el audio, «Notas» abre las 14 preguntas, el contador de alerta dice «sin siguiente paso». */
 export function drillLlamadas(titulo: string, ls: Llamada[], corte: Corte, rango: string, onNotas: (x: Llamada) => void): Drill {
   const porSid = new Map(ls.map((x) => [x.id, x]))
-  return { titulo, filas: filasDeLlamadas(ls, corte), sub: rango + ' · fecha = la llamada',
+  return { titulo, clave: 'llamadas', filas: filasDeLlamadas(ls, corte), sub: rango + ' · fecha = la llamada',
     verFila: (f) => { const x = porSid.get(f.id); if (x) onNotas(x) }, verLabel: 'Notas', alertaLabel: 'sin siguiente paso',
     pie: 'Clic en la llamada abre el audio en otra pestaña; «Notas» abre las 14 preguntas con su evidencia. Nota de registro = ponderada (siguiente paso ×3; cierre, objeciones y calificación ×2). Estándar: 4 o más. «–» = la etapa no aplicaba.' }
 }

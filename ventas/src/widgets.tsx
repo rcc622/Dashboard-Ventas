@@ -225,7 +225,8 @@ function BotonFechas({ id, titulo, actual, base, fechas }: { id: string; titulo:
 /** Aplicarle este acomodo a otras cuentas (Randall 10-sep: «poderle acomodar la vista a los demás,
  *  de gráficas que no encuentren o no sepan cómo hacer»). Copia el acomodo y las fechas propias de
  *  los widgets; no toca nada más de la cuenta destino. */
-function Compartir({ clave, datos, onClose }: { clave: string; datos: Record<string, unknown>; onClose: () => void }) {
+/** También la usa la ventana de detalle para aplicar la vista de un reporte (13-sep); `nombre` es lo que se lee en vez de la clave. */
+export function Compartir({ clave, datos, nombre, onClose }: { clave: string; datos: Record<string, unknown>; nombre?: string; onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null)
   useEscape(onClose)
   const [cuentas, setCuentas] = useState<Cuenta[] | null>(null)
@@ -248,8 +249,8 @@ function Compartir({ clave, datos, onClose }: { clave: string; datos: Record<str
   const roles = [...new Set((cuentas || []).map((c) => c.rol))]
   // Cada vista la ve un tipo de cuenta: no tiene caso aplicarle el tablero de administrador a un
   // vendedor, que abre en «Mi día».
-  const soloAdmin = clave === 'admin' || clave === 'ficha2'
-  const deQuien = soloAdmin ? (clave === 'admin' ? 'Es la vista Dashboard, que solo abren las cuentas de administrador.' : 'Es la ficha del asesor, que solo abren las cuentas de administrador.')
+  const soloAdmin = clave === 'admin' || clave === 'ficha2' || clave.startsWith('vista-')
+  const deQuien = soloAdmin ? (clave === 'admin' ? 'Es la vista Dashboard, que solo abren las cuentas de administrador.' : clave === 'ficha2' ? 'Es la ficha del asesor, que solo abren las cuentas de administrador.' : 'Es la vista de un reporte del Dashboard (ancho de columnas, alto de filas, orden), que solo abren las cuentas de administrador.')
     : clave.startsWith('midia-') ? 'Es la vista «Mi día» de ese asesor: aplícasela a SU cuenta.' : ''
   return (
     <div className="modal-bg" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
@@ -278,7 +279,7 @@ function Compartir({ clave, datos, onClose }: { clave: string; datos: Record<str
           </ul>
         </div>
         <div className="mf">
-          <span className="small muted">{elegidas.size} cuenta{elegidas.size === 1 ? '' : 's'} elegida{elegidas.size === 1 ? '' : 's'} · vista «{clave}»</span>
+          <span className="small muted">{elegidas.size} cuenta{elegidas.size === 1 ? '' : 's'} elegida{elegidas.size === 1 ? '' : 's'} · vista «{nombre ?? clave}»</span>
           <span className="cols-btns">
             <button type="button" className="btn ghost" onClick={onClose}>Cerrar</button>
             <button type="button" className="btn on" disabled={!elegidas.size || ocupado} onClick={aplicar}>{ocupado ? 'Aplicando…' : 'Aplicar a los elegidos'}</button>
