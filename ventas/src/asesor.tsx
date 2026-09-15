@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Corte } from './types'
 import { CRM_LABEL } from './types'
-import { dias, enRango, todasVentas, activo, fechaDe, fmtCorta, fmtFecha, fmtHora, fmtMoney, fmtMoney0, fmtN, hoyIni, leaderboardHoy, metaDeId, miDia, pct, preset, tipoLead } from './metrics'
+import { dias, diasSinActividad, enRango, todasVentas, activo, fechaDe, fmtCorta, fmtFecha, fmtHora, fmtMoney, fmtMoney0, fmtN, hoyIni, leaderboardHoy, metaDeId, miDia, pct, preset, tipoLead } from './metrics'
 import { Bullet, Info } from './components'
 import { WidgetGrid, type Widget } from './widgets'
 
@@ -133,7 +133,7 @@ const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCa
 
 export function Prospectos({ corte, uid }: { corte: Corte; uid: string }) {
   const [q, setQ] = useState('')
-  const todos = useMemo(() => corte.leads.filter((l) => l.asesor_id === uid && activo(l)).sort((a, b) => b.dias_sin_cambio - a.dias_sin_cambio), [corte, uid])
+  const todos = useMemo(() => corte.leads.filter((l) => l.asesor_id === uid && activo(l)).sort((a, b) => diasSinActividad(b) - diasSinActividad(a)), [corte, uid])
   const nq = norm(q.trim())
   const p = nq ? todos.filter((l) => norm(l.nombre + ' ' + l.etapa + ' ' + tipoLead(l)).includes(nq)) : todos
   return (
@@ -147,7 +147,7 @@ export function Prospectos({ corte, uid }: { corte: Corte; uid: string }) {
       {p.slice(0, 200).map((l) => (
         <div className="li" key={l.id}>
           <span className="nm"><a href={l.link} target="_blank" rel="noreferrer">{l.nombre}</a> <span className="tag">{tipoLead(l)} · {l.etapa}{mixto(corte) ? ' · ' + CRM_LABEL[l.crm] : ''}</span></span>
-          <span>{fmtMoney(l.presupuesto)}</span><span className="muted">{dias(l.dias_sin_cambio)} sin cambio{l.tareas_vencidas ? ` · ${l.tareas_vencidas} tarea${l.tareas_vencidas > 1 ? 's' : ''} vencida${l.tareas_vencidas > 1 ? 's' : ''}` : ''}</span>
+          <span>{fmtMoney(l.presupuesto)}</span><span className="muted">{dias(diasSinActividad(l))} sin actividad{l.tareas_vencidas ? ` · ${l.tareas_vencidas} tarea${l.tareas_vencidas > 1 ? 's' : ''} vencida${l.tareas_vencidas > 1 ? 's' : ''}` : ''}</span>
         </div>))}
       {p.length > 200 && <div className="small muted">Se muestran 200 de {p.length}</div>}
     </div>

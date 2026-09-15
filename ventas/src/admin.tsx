@@ -1,7 +1,7 @@
 import { Fragment, useLayoutEffect, useMemo, useRef, useState, type SyntheticEvent, useEffect } from 'react'
 import type { Corte, Evento, Lead, LevFila, Sanciones, Usuario } from './types'
 import { CRM_LABEL } from './types'
-import { BUCKETS, PERFIL_LABEL, actividad, actividadDe, cotizado, dias, embudo, entrada, ep, eventosFiltrados, fechaCotizado, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, metaDe, metaEnRango, pasaCrm, etiquetaRango, periodoTexto, preset, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, type Fila, type FilaAsesor, type Filtros, type Perfil , type Preset, type PuntoPerfil, ventasReales, ventasCrm, tipoDe, crmTexto, activo, VENDEDOR_LABEL, filasDeVentasReales, comparativaVentas, rolDestacado, rolNombre, cotizacionesGeneradas, filasDeCotizaciones, visitas, levantados, filasDeLevantamientos, fmtEstrellas, llamadasFiltradas, resumenLlamadas } from './metrics'
+import { BUCKETS, PERFIL_LABEL, actividad, actividadDe, cotizado, dias, embudo, entrada, ep, eventosFiltrados, fechaCotizado, diasSinActividad, estancado, estadoActivo, ESTADO_ACTIVO, ESTANCADO_DIAS, type EstadoActivo, leadsActivosHoy, rangoVentas, metaYRitmo, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, pasaCrm, etiquetaRango, periodoTexto, preset, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, type Fila, type FilaAsesor, type Filtros, type Perfil , type Preset, type PuntoPerfil, ventasReales, ventasCrm, tipoDe, crmTexto, activo, VENDEDOR_LABEL, filasDeVentasReales, comparativaVentas, rolDestacado, rolNombre, cotizacionesGeneradas, filasDeCotizaciones, visitas, levantados, filasDeLevantamientos, fmtEstrellas, llamadasFiltradas, resumenLlamadas } from './metrics'
 import { LlamadaModal, drillLlamadas } from './llamadas'
 import type { Llamada } from './types'
 import { BarDetailPopup, BubbleChart, Bullet, DonutChart, FunnelChart, Gauge, Info, LlamadasBar, MiniAreaChart, Scatter, SortTh, StackedBar, activar, useEscape, useOutside, type DetRow, type Sort, type BubbleCol, useFocoDialogo } from './components'
@@ -40,7 +40,7 @@ const PC_TRAMOS = [
 ]
 /** Orden de colocación por defecto del Dashboard: pares de igual alto (bandas) para que la rejilla libre no deje huecos. */
 const ORDEN_ADMIN = ['t-leads', 't-ventas', 't-vendido', 't-conversion', 't-perdida', 't-tareas', 't-cotizaciones', 't-descartes', 't-levantamientos', 'llamadas', 'calidad-llamadas', 'salud', 'pipeline', 'ranking', 'reales', 'cotiz-metodos', 'lev-operaciones', 'visitas', 'entrada', 'embudo', 'etapas', 'contacto', 'razones', 'perfiles', 'perfiles-tabla']
-const fLeads = (ls: Lead[]) => filasDeLeads(ls, () => '', undefined, { label: 'Días sin cambio', de: (l) => l.dias_sin_cambio })
+const fLeads = (ls: Lead[]) => filasDeLeads(ls, () => '', undefined, { label: 'Días sin actividad', de: (l) => diasSinActividad(l) })
 const HOY = 'foto de hoy, sin importar las fechas del tablero'
 const fVentas = (ls: Lead[]) => filasDeLeads(ls, (l) => (l.crm === 'comisiones' ? 'Venta registrada en la app' : 'Ganado'), (l) => l.cerrado)
 /** De dónde salen las ventas, para el pie de cada lista: la app guarda solo el mes de venta. */
@@ -51,10 +51,15 @@ const fEntrada = (ls: Lead[]) => filasDeLeads(ls, (l) => l.funnel_label, (l) => 
  *  vigencia. Es la misma regla de `cotizado()`, para que la cifra y su lista no se puedan separar. */
 const vigentesDe = (c: Corte, f: FilaAsesor) =>
   f.leadsActivos.filter((l) => vivo(l) && l.presupuesto > 0 && diasDesde(fechaCotizado(l)) <= c.cotizado_dias)
+/** Los leads activos del asesor partidos por estado (una sola cosa por lead, ver `estadoActivo`). */
+const estadosDe = (f: FilaAsesor): Record<EstadoActivo, Lead[]> => {
+  const out: Record<EstadoActivo, Lead[]> = { pc: [], estancado: [], sin_tarea: [], al_dia: [] }
+  for (const l of f.leadsActivos) out[estadoActivo(l)].push(l)
+  return out
+}
 /** Las actividades de un asesor de ciertos tipos; antes era un ayudante dentro del renglón. */
 const evDe = (f: FilaAsesor, ...tipos: string[]) => f.actividad.filter((e) => tipos.includes(e.tipo))
-/** Tareas totales del asesor: completadas + vencidas + leads sin tarea. */
-// Randall 11-sep: el número grande son SOLO las tareas completadas; vencidas y sin tarea (foto de hoy) van abajo.
+/** El número grande de «Tareas»: SOLO las completadas del periodo (Randall 11-sep); vencidas y sin tarea son foto de hoy y van en la barra y abajo. */
 const totTareas = (f: FilaAsesor) => f.tareasCompletadas
 /** Un renglón de la tabla de levantamientos: pedidos, hechos, porcentaje y días típicos. */
 function FilaLev({ r, ver, rango, que }: { r: { label: string; solicitados: LevFila[]; hechos: LevFila[]; dias: number[] }; ver: (t: string, f: Fila[], s?: string) => void; rango: string; que: string }) {
@@ -105,6 +110,20 @@ function Cifra({ children, onClick, label }: { children: React.ReactNode; onClic
   return <button type="button" className="n nbtn" onClick={onClick} title="Ver el detalle" aria-label={label + '. Ver el detalle'}>{children}</button>
 }
 
+/** «Avance contra la meta» —la barrita—: vendido, % de la meta, medidor con la marca del ritmo y la frase, teñido
+ *  del estado. Es la misma tarjeta en el Dashboard (todo el equipo) y en la ficha (una persona): Alejandro 15-sep
+ *  pidió verla «igualito» en la ficha, «muy dramático y que se quede en rojo o cambie de color». */
+function TileAvance({ monto, metaRango, rit, periodo, onClick }: { monto: number; metaRango: number; rit: ReturnType<typeof ritmo>; periodo: string; onClick: () => void }) {
+  return (
+    <button type="button" className={'tile tbtn t3 ritmo-' + rit.estado} onClick={onClick} aria-label={`Vendido ${fmtMoney0(monto)} ${periodo}: ${pct(monto, metaRango)}% de la meta de ${fmtMoney0(metaRango)}. ${rit.texto}. Ver detalle`}>
+      <div className="n">{fmtMoney0(monto)}</div>
+      <div className="l">{pct(monto, metaRango)}% de la meta de {fmtMoney0(metaRango)} · vendido {periodo}</div>
+      <Bullet value={monto} target={metaRango} expected={rit.esperado} label="Vendido" fmt={fmtMoney0} />
+      <div className={'rt ' + rit.estado}>{rit.texto}</div>
+    </button>
+  )
+}
+
 /** Barra de antigüedad del cotizado: rampa ordinal, lo de más de 90 días rayado. Cada tramo de la leyenda abre sus leads. */
 function Antiguedad({ c, leads, onVer }: { c: Cotizado; leads?: Lead[]; onVer?: (titulo: string, filas: Fila[]) => void }) {
   const tot = c.buckets.reduce((a, b) => a + b, 0)
@@ -126,12 +145,12 @@ function Antiguedad({ c, leads, onVer }: { c: Cotizado; leads?: Lead[]; onVer?: 
 /** Lista de leads con lo que Alejandro pidió ver sin abrir la ficha: intentos, última tarea, alertas. */
 function LeadsTabla({ corte, leads, max = 40 }: { corte: Corte; leads: Lead[]; max?: number }) {
   const hoy = Math.floor(Date.now() / 1000)
-  const rows = [...leads].sort((a, b) => b.dias_sin_cambio - a.dias_sin_cambio).slice(0, max)
+  const rows = [...leads].sort((a, b) => diasSinActividad(b) - diasSinActividad(a)).slice(0, max)
   if (!leads.length) return <div className="muted">Sin leads activos asignados en el rango.</div>
   return (
     <div className="tblwrap" style={{ boxShadow: 'none' }}>
       <table className="ftable ltbl">
-        <thead><tr><th scope="col">Lead</th><th scope="col">Etapa</th><th scope="col" className="num">Monto</th><th scope="col">Intentos<Info termino="Intentos" /></th><th scope="col">Última tarea hecha</th><th className="num">Días sin cambio</th><th>Alertas</th></tr></thead>
+        <thead><tr><th scope="col">Lead</th><th scope="col">Etapa</th><th scope="col" className="num">Monto</th><th scope="col">Intentos<Info termino="Intentos" /></th><th scope="col">Última tarea hecha</th><th className="num">Días sin actividad</th><th>Alertas</th></tr></thead>
         <tbody>
           {rows.map((l) => (
             <tr key={l.id}>
@@ -140,12 +159,12 @@ function LeadsTabla({ corte, leads, max = 40 }: { corte: Corte; leads: Lead[]; m
               <td className="num">{fmtMoney(l.presupuesto)}</td>
               <td>{intentos(l)}</td>
               <td>{hace(l.ult_tarea, hoy)}</td>
-              <td className="num">{l.dias_sin_cambio}</td>
+              <td className="num">{diasSinActividad(l)}</td>
               <td>
                 {l.pc_vencida && <span className="tag warn">Primer contacto vencido</span>}
                 {l.sin_tarea && <span className="tag warn">sin tarea</span>}
                 {l.tareas_vencidas > 0 && <span className="tag warn">{l.tareas_vencidas} vencida{l.tareas_vencidas > 1 ? 's' : ''}</span>}
-                {l.dias_sin_cambio > 7 && <span className="tag">estancado</span>}
+                {estancado(l) && <span className="tag">estancado</span>}
               </td>
             </tr>
           ))}
@@ -164,8 +183,14 @@ function datosDe(corte: Corte, f: Filtros) {
   const ev = eventosFiltrados(corte, f)
   const ventas = ventasFiltradas(corte, f)
   const filas = porAsesor(corte, f)
+  // Las ventas de la app van por MES: el periodo que de verdad cubren (y la base de la conversión) son los meses
+  // que toca el rango (`rangoVentas`), no sus días. Sin app es el rango tal cual.
+  const rv = rangoVentas(corte, f.rango)
+  const leadsVentas = rv.ini === f.rango.ini && rv.fin === f.rango.fin ? leads : leadsFiltrados(corte, { ...f, rango: rv })
+  // Cotizado vigente y activos son foto de HOY (Randall 11-sep), igual que en la tabla de Asesores.
+  const activosHoy = leadsActivosHoy(corte, f)
   return {
-    leads, ev, ventas, filas,
+    leads, ev, ventas, filas, rv, leadsVentas, activosHoy,
     ent: entrada(corte, f.rango, f), pc: primerContacto(corte, leads), rz: razones(corte, ev), perf: perfiles(corte, filas),
     vr: ventasReales(corte, f), cg: cotizacionesGeneradas(corte, f), vis: visitas(corte, f), lev: levantados(corte, f),
   }
@@ -186,7 +211,7 @@ interface Acciones {
  *  persona (Randall 10-sep: «que la vista por defecto del asesor sea como el diseño del PDF»). */
 function widgetsTablero(corte: Corte, filtros: Filtros, d: Datos, ax: Acciones): Widget[] {
   const { ver, verLlamadas, onFicha, grupo, setGrupo } = ax
-  const { leads, ev, ventas, filas, ent, pc, rz, perf, vr, cg, vis, lev } = d
+  const { leads, ev, ventas, filas, rv, leadsVentas, activosHoy, ent, pc, rz, perf, vr, cg, vis, lev } = d
   const s = salud(leads)
   const con = s.ventasCon + s.huntCon, sin = s.ventasSin + s.huntSin, tot = con + sin
   const hayHunting = s.huntCon + s.huntSin > 0
@@ -200,18 +225,21 @@ function widgetsTablero(corte: Corte, filtros: Filtros, d: Datos, ax: Acciones):
   // Ganados del CRM, solo para la tabla que compara la app contra el CRM.
   const vCrm = ventasCrm(corte, filtros)
   const crmDe = (uid: string) => { const xs = vCrm.filter((l) => l.asesor_id === uid); return { n: xs.length, monto: xs.reduce((x, l) => x + l.presupuesto, 0) } }
-  const verVendido = () => ver('Vendido ' + periodo, fVentas(ventas), rango + FUENTE_VENTAS(corte))
+  const verVendido = () => ver('Vendido ' + periodoV, fVentas(ventas), rango + FUENTE_VENTAS(corte))
   const metaRango = filas.reduce((x, f) => x + f.metaRango, 0)
   const metaMes = filas.reduce((x, f) => x + f.metaMes, 0)
-  const cot = cotizado(leads, corte.cotizado_dias)
-  const vigentes = leads.filter((l) => vivo(l) && l.presupuesto > 0 && diasDesde(fechaCotizado(l)) <= corte.cotizado_dias)
+  const cot = cotizado(activosHoy, corte.cotizado_dias)
+  const vigentes = activosHoy.filter((l) => vivo(l) && l.presupuesto > 0 && diasDesde(fechaCotizado(l)) <= corte.cotizado_dias)
   const objetivoCot = metaMes * corte.cotizado_x
   const ranking = filas.slice(0, 8)
   const rzTot = rz.reduce((x, r) => x + r.n, 0)
   const horasPC = pc.mediana == null ? '—' : pc.mediana < 48 ? pc.mediana.toFixed(1) : String(Math.round(pc.mediana / 24))
   const unidadPC = pc.mediana == null ? 'sin dato' : pc.mediana < 48 ? 'horas (mediana)' : 'días (mediana)'
   const rango = filtros.rango.label, periodo = periodoTexto(filtros.rango)
-  const rit = ritmo(monto, metaRango, filtros.rango)
+  // Lo vendido y su meta se leen por los meses que toca el rango («del 1 al 30 de septiembre» aunque el
+  // calendario diga «Últimos 7 días»): es lo que de verdad suma la app de comisiones.
+  const periodoV = periodoTexto(rv)
+  const rit = ritmo(monto, metaRango, rv)
   const evDe = (...tipos: string[]) => ev.filter((e) => tipos.includes(e.tipo))
   const verEv = (titulo: string, ...tipos: string[]) => ver(titulo, filasDeEventos(corte, evDe(...tipos)), rango)
   const saludRow = (label: string, ls: Lead[], n: number, cls?: string, pctTxt?: string, h = false) => (
@@ -231,19 +259,13 @@ function widgetsTablero(corte: Corte, filtros: Filtros, d: Datos, ax: Acciones):
         <button type="button" className="tile tbtn" onClick={() => ver('Leads asignados ' + periodo, fLeads(asignados), rango + ' · fecha = última asignación')} aria-label={`${fmtN(tot)} leads asignados ${periodo}. Ver detalle`}><div className="n">{fmtN(tot)}</div><div className="l">Leads asignados {periodo}</div></button>
     ), { plain: true, span: 1, alto: 4, cls: 'wtile', info: ['Leads asignados'], desde: 'cifras', base: 'asignacion' }),
     W('t-ventas', 'Clientes cerrados', (
-        <button type="button" className="tile tbtn t2" onClick={() => ver('Clientes cerrados ' + periodo, fVentas(ventas), rango + FUENTE_VENTAS(corte))} aria-label={`${fmtN(ventas.length)} clientes cerrados ${periodo}. Ver detalle`}><div className="n">{fmtN(ventas.length)}</div><div className="l">Clientes cerrados {periodo}</div></button>
+        <button type="button" className="tile tbtn t2" onClick={() => ver('Clientes cerrados ' + periodoV, fVentas(ventas), rango + FUENTE_VENTAS(corte))} aria-label={`${fmtN(ventas.length)} clientes cerrados ${periodoV}. Ver detalle`}><div className="n">{fmtN(ventas.length)}</div><div className="l">Clientes cerrados {periodoV}</div></button>
     ), { plain: true, span: 1, alto: 4, cls: 'wtile', info: ['Clientes cerrados'], desde: 'cifras', base: 'cierre' }),
     // El número que Alejandro llamó «el más importante» (4-sep): vendido contra la meta con el ritmo del mes y color que grite.
-    W('t-vendido', 'Avance contra la meta', (
-        <button type="button" className={'tile tbtn t3 ritmo-' + rit.estado} onClick={verVendido} aria-label={`Vendido ${fmtMoney0(monto)} ${periodo}: ${pct(monto, metaRango)}% de la meta de ${fmtMoney0(metaRango)}. ${rit.texto}. Ver detalle`}>
-          <div className="n">{fmtMoney0(monto)}</div>
-          <div className="l">{pct(monto, metaRango)}% de la meta de {fmtMoney0(metaRango)} · vendido {periodo}</div>
-          <Bullet value={monto} target={metaRango} expected={rit.esperado} label="Vendido" fmt={fmtMoney0} />
-          <div className={'rt ' + rit.estado}>{rit.texto}</div>
-        </button>
-    ), { plain: true, span: 1, alto: 4, cls: 'wtile', info: ['Ritmo'], desde: 'cifras', base: 'cierre' }),   // 4 filas: trae medidor y frase del ritmo
+    W('t-vendido', 'Avance contra la meta', <TileAvance monto={monto} metaRango={metaRango} rit={rit} periodo={periodoV} onClick={verVendido} />,
+      { plain: true, span: 1, alto: 4, cls: 'wtile', info: ['Ritmo'], desde: 'cifras', base: 'cierre' }),   // 4 filas: trae medidor y frase del ritmo
     W('t-conversion', 'Conversión ventas / asignados', (
-        <button type="button" className="tile tbtn t4" onClick={() => ver('Ventas que cuentan en la conversión', fVentas(ventas), `${fmtN(ventas.length)} ventas / ${fmtN(leads.length)} leads asignados · ${rango}`)} aria-label={`Conversión ${leads.length ? pct(ventas.length, leads.length) + '%' : 'sin dato'}. Ver detalle`}><div className="n">{leads.length ? pct(ventas.length, leads.length) + '%' : '—'}</div><div className="l">Ventas cerradas entre leads asignados</div></button>
+        <button type="button" className="tile tbtn t4" onClick={() => ver('Ventas que cuentan en la conversión', fVentas(ventas), `${fmtN(ventas.length)} ventas / ${fmtN(leadsVentas.length)} leads asignados ${periodoV}`)} aria-label={`Conversión ${leadsVentas.length ? pct(ventas.length, leadsVentas.length) + '%' : 'sin dato'}. Ver detalle`}><div className="n">{leadsVentas.length ? pct(ventas.length, leadsVentas.length) + '%' : '—'}</div><div className="l">Ventas cerradas entre leads asignados {periodoV}</div></button>
     ), { plain: true, span: 1, alto: 4, cls: 'wtile', info: ['Conversión'], desde: 'cifras' }),
     W('t-perdida', 'Tasa de pérdida', (
         <button type="button" className="tile tbtn t5" onClick={() => ver('Leads perdidos · asignados en el rango', filasDeLeads(perdidos, (l) => `Perdido · ${l.razon || 'sin razón'}`, (l) => l.cerrado), rango + ' · fecha = descarte')} aria-label={`Tasa de pérdida ${pct(perdidos.length, baseAsignados)}%: ${fmtN(perdidos.length)} perdidos de ${fmtN(baseAsignados)} asignados. Ver detalle`}><div className="n">{pct(perdidos.length, baseAsignados)}%</div><div className="l">{fmtN(perdidos.length)} perdidos de {fmtN(baseAsignados)} asignados</div></button>
@@ -412,17 +434,17 @@ function widgetsTablero(corte: Corte, filtros: Filtros, d: Datos, ax: Acciones):
           <span className="l">Vendido</span>
           <Bullet value={monto} target={metaRango} expected={rit.esperado} label="Vendido" fmt={fmtMoney0} />
           <Cifra label={`Vendido ${fmtMoney0(monto)}`} onClick={() => ver('Vendido en el rango', fVentas(ventas), rango + FUENTE_VENTAS(corte))}><span className="v">{fmtMoney0(monto)}</span></Cifra>
-          <span className="sub">meta {periodo} {fmtMoney0(metaRango)} ({filas.length} asesor{filas.length === 1 ? '' : 'es'}) · <span className={'rt ' + rit.estado}>{rit.texto}</span><Info termino="Ritmo" />{monto < metaRango && ` · faltan ${fmtMoney0(metaRango - monto)}`}</span>
+          <span className="sub">meta {periodoV} {fmtMoney0(metaRango)} ({filas.length} asesor{filas.length === 1 ? '' : 'es'}) · <span className={'rt ' + rit.estado}>{rit.texto}</span><Info termino="Ritmo" />{monto < metaRango && ` · faltan ${fmtMoney0(metaRango - monto)}`}</span>
         </div>
         <div className="brow">
           <span className="l">Cotizado vigente</span>
           <Bullet value={cot.vigente} target={objetivoCot} label="Cotizado vigente" color="var(--c2)" fmt={fmtMoney0} />
-          <Cifra label={`Cotizado vigente ${fmtMoney0(cot.vigente)}`} onClick={() => ver('Cotizado vigente', fCotizado(vigentes), `≤ ${corte.cotizado_dias} días · ${rango}`)}><span className="v">{fmtMoney0(cot.vigente)}</span></Cifra>
-          <span className="sub">objetivo {fmtMoney0(objetivoCot)} = {corte.cotizado_x}× la meta mensual ({fmtMoney0(metaMes)}) · {fmtN(cot.n)} lead{cot.n === 1 ? '' : 's'} con monto<Info termino="Cotizado vigente" /></span>
+          <Cifra label={`Cotizado vigente ${fmtMoney0(cot.vigente)}`} onClick={() => ver('Cotizado vigente', fCotizado(vigentes), `≤ ${corte.cotizado_dias} días · ${HOY}`)}><span className="v">{fmtMoney0(cot.vigente)}</span></Cifra>
+          <span className="sub">objetivo {fmtMoney0(objetivoCot)} = {corte.cotizado_x}× la meta mensual ({fmtMoney0(metaMes)}) · {fmtN(cot.n)} lead{cot.n === 1 ? '' : 's'} con monto · foto de hoy<Info termino="Cotizado vigente" /></span>
         </div>
         <div style={{ marginTop: 10 }}>
           <div className="small" style={{ fontWeight: 600 }}>Antigüedad del cotizado<Info termino="Antigüedad" /></div>
-          <Antiguedad c={cot} leads={leads} onVer={(t, f) => ver(t, f, rango)} />
+          <Antiguedad c={cot} leads={activosHoy} onVer={(t, f) => ver(t, f, HOY)} />
           {cot.viejo > 0 && <div className="small muted" style={{ marginTop: 6 }}>{fmtMoney(cot.viejo)} en {fmtN(cot.nViejo)} leads pasan de {corte.cotizado_dias} días: ya no cuentan como pipeline vivo.</div>}
         </div>
       </>
@@ -635,7 +657,7 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
     <>
       <div className="hint" style={{ marginBottom: 8 }}>Clic en cualquier cifra, barra o renglón abre la lista de registros detrás, con liga a Kommo o HubSpot.</div>
       <WidgetGrid clave="admin" compartible widgets={ORDEN_ADMIN.map((id) => widgets.find((w) => w.id === id)).filter((w): w is Widget => !!w).concat(widgets.filter((w) => !ORDEN_ADMIN.includes(w.id)))}
-        fechas={{ por: rangos, fijar: fijarRango, tablero: nombreTablero, fechas: fechasDe }}
+        fechas={{ clave: 'admin', por: rangos, fijar: fijarRango, tablero: nombreTablero, fechas: fechasDe }}
         taller={{
           render: (g: Grafica) => <GraficaLibre corte={corte} filtros={filtrosDe('g:' + g.id)} g={g} onDrill={setDrill} />,
           galeria: (p) => <Galeria corte={corte} filtros={filtros} quitados={p.quitados} onAgregar={p.onAgregar} onCrear={p.onCrear} onClose={p.onClose} fechas={fechasCtor} />,
@@ -654,11 +676,11 @@ type Key = 'nombre' | 'vendido' | 'cotizado' | 'leads' | 'llamadas' | 'tareas' |
   | 'asignados' | 'totales' | 'conversion' | 'perdida' | 'ticket' | 'cumpl' | 'actividad' | 'cal_pond' | 'cal_estandar' | 'cal_sigpaso'
 const valor = (f: FilaAsesor, k: Key): number | string =>
   k === 'nombre' ? f.u.nombre : k === 'vendido' ? f.montoVentas : k === 'cotizado' ? f.cotizado.vigente : k === 'leads' ? f.leadsActivos.length
-    : k === 'llamadas' ? f.llamadas : k === 'tareas' ? f.tareasCompletadas + f.tareasVencidas + f.sinTarea : k === 'pc' ? f.pcVencidas
+    : k === 'llamadas' ? f.llamadas : k === 'tareas' ? f.tareasCompletadas : k === 'pc' ? f.pcVencidas
       : k === 'cotiz' ? f.cotizaciones : k === 'desc' ? f.descartes : k === 'lev' ? f.levantamientos
         : k === 'equipo' ? f.u.zona : k === 'tipo' ? f.tipo : k === 'ventas' ? f.ventas : k === 'estanc' ? f.estancados : k === 'sintarea' ? f.sinTarea
           : k === 'asignados' || k === 'totales' ? f.asignados.length
-            : k === 'conversion' ? (f.asignados.length ? f.ganados / f.asignados.length : -1)
+            : k === 'conversion' ? (f.asignadosVentas ? f.ventas / f.asignadosVentas : -1)
               : k === 'perdida' ? (f.asignados.length ? f.perdidos / f.asignados.length : -1)
                 : k === 'ticket' ? (f.ventas ? f.montoVentas / f.ventas : -1)
                   : k === 'cumpl' ? (f.metaRango ? f.montoVentas / f.metaRango : -1)
@@ -678,7 +700,7 @@ export function Asesores({ corte, filtros, onFicha }: { corte: Corte; filtros: F
   const onSort = (k: Key) => setSort((s) => (s.key === k ? { key: k, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key: k, dir: k === 'nombre' ? 'asc' : 'desc' }))
   const maxLeads = Math.max(1, ...filas.map((f) => f.leadsActivos.length))
   const maxLlam = Math.max(1, ...filas.map((f) => f.llamadas))
-  const maxTar = Math.max(1, ...filas.map((f) => f.tareasCompletadas))
+  const maxTar = Math.max(1, ...filas.map((f) => f.tareasCompletadas + f.tareasVencidas + f.sinTarea))
   const maxAsig = Math.max(1, ...filas.map((f) => f.asignados.length))
   const maxAct = Math.max(1, ...filas.map(actividadDe))
   const [pop, setPop] = useState<Pop | null>(null)
@@ -774,8 +796,10 @@ export function Asesores({ corte, filtros, onFicha }: { corte: Corte; filtros: F
         <div className="c">{fmtN(f.asignados.length - f.ganados - f.perdidos)} activos · {fmtN(f.ganados)} ganados</div>
         <div className="c">{fmtN(f.perdidos)} descartados</div>
       </div></td>) },
+    // Misma regla que la cifra «Conversión» del tablero y el glosario: ventas de la app entre leads asignados
+    // (antes contaba ganados del CRM y daba 0 % donde la cifra decía 2 %).
     { id: 'conversion', label: 'Conversión', ancho: 130, fecha: 'asignacion', cnt: true, oculta: true, info: 'Conversión',
-      celda: (f) => (<td className="cnt">{f.asignados.length ? `${pct(f.ganados, f.asignados.length)}%` : '—'}</td>) },
+      celda: (f) => (<td className="cnt">{f.asignadosVentas ? `${pct(f.ventas, f.asignadosVentas)}%` : '—'}</td>) },
     { id: 'perdida', label: 'Tasa de pérdida', ancho: 155, fecha: 'asignacion', cnt: true, oculta: true, info: 'Tasa de pérdida',
       celda: (f) => (<td className="cnt">{f.asignados.length ? `${pct(f.perdidos, f.asignados.length)}%` : '—'}</td>) },
     { id: 'ticket', label: 'Ticket promedio', ancho: 160, fecha: 'cierre', cnt: true, oculta: true,
@@ -785,18 +809,20 @@ export function Asesores({ corte, filtros, onFicha }: { corte: Corte; filtros: F
     { id: 'actividad', label: 'Actividad total', ancho: 190, fecha: 'actividad', oculta: true,
       celda: (f) => (<td><div className="mc">
         <div className="v">{fmtN(actividadDe(f))}</div>
-        {/* Partida por TIPO (Randall 9-sep): tareas de seguimiento, llamadas contestadas, llamadas
-            sin contestar y levantamientos. Cada tramo abre su lista. */}
-        <StackedBar segs={[{ val: f.tareasCompletadas, cls: 'seg-comp' }, { val: f.contestadas, cls: 'seg-ok' }, { val: f.sinContestar, cls: 'seg-warn' }, { val: f.levantamientos, cls: 'seg-neutral' }]}
+        {/* Partida por TIPO (Randall 9-sep): tareas de seguimiento, llamadas contestadas, llamadas sin
+            contestar, cotizaciones y levantamientos: los MISMOS sumandos de `actividadDe`. Faltaban las
+            cotizaciones y el desglose no cuadraba con el total (Randall 15-sep: «6 + 8 no da 16»). */}
+        <StackedBar segs={[{ val: f.tareasCompletadas, cls: 'seg-comp' }, { val: f.contestadas, cls: 'seg-ok' }, { val: f.sinContestar, cls: 'seg-warn' }, { val: f.cotizaciones, cls: 'seg-c3' }, { val: f.levantamientos, cls: 'seg-neutral' }]}
           total={actividadDe(f)} max={maxAct}
-          title={`Actividad de ${f.u.nombre}: ${f.tareasCompletadas} tareas completadas, ${f.contestadas} llamadas contestadas, ${f.sinContestar} sin contestar, ${f.levantamientos} levantamientos. Abrir detalle`}
+          title={`Actividad de ${f.u.nombre}: ${f.tareasCompletadas} tareas completadas, ${f.contestadas} llamadas contestadas, ${f.sinContestar} sin contestar, ${f.cotizaciones} cotizaciones, ${f.levantamientos} levantamientos. Abrir detalle`}
           onClick={(e) => detalle(e, 'Actividad · ' + f.u.nombre, actividadDe(f), [
             { label: 'Tareas de seguimiento completadas', val: f.tareasCompletadas, onVer: () => ver(`Tareas completadas · ${f.u.nombre}`, filasDeEventos(corte, evDe(f, 'tarea')), rango) },
             { label: 'Llamadas contestadas', val: f.contestadas, onVer: () => ver(`Llamadas contestadas · ${f.u.nombre}`, filasDeEventos(corte, evDe(f, 'llamada_ok')), rango) },
             { label: 'Llamadas sin contestar', val: f.sinContestar, onVer: () => ver(`Llamadas sin contestar · ${f.u.nombre}`, filasDeEventos(corte, evDe(f, 'llamada_no')), rango) },
-            { label: 'Levantamientos agendados', val: f.levantamientos, onVer: () => ver(`Levantamientos · ${f.u.nombre}`, filasDeEventos(corte, evDe(f, 'levantamiento')), rango) }])} />
+            { label: 'Cotizaciones entregadas', val: f.cotizaciones, onVer: () => ver(`Cotizaciones · ${f.u.nombre}`, filasDeEventos(corte, evDe(f, 'cotizacion')), rango) },
+            { label: 'Levantamientos solicitados', val: f.levantamientos, onVer: () => ver(`Levantamientos · ${f.u.nombre}`, filasDeEventos(corte, evDe(f, 'levantamiento')), rango) }])} />
         <div className="c">{fmtN(f.tareasCompletadas)} tareas · {fmtN(f.llamadas)} llamadas</div>
-        <div className="c">{fmtN(f.levantamientos)} levantamientos</div>
+        <div className="c">{fmtN(f.cotizaciones)} cotizaciones · {fmtN(f.levantamientos)} levantamientos</div>
       </div></td>) },
     { id: 'vendido', label: 'Vendido', ancho: 170, fecha: 'cierre', info: 'Vendido',
       celda: (f) => (<td><div className="mc">
@@ -813,13 +839,17 @@ export function Asesores({ corte, filtros, onFicha }: { corte: Corte; filtros: F
                           <div className="c" title={`${pct(f.cotizado.vigente, f.metaMes * corte.cotizado_x)}% del objetivo ${corte.cotizado_x}× la meta mensual (${fmtMoney0(f.metaMes * corte.cotizado_x)})`}>{pct(f.cotizado.vigente, f.metaMes * corte.cotizado_x)}% de {fmtMoney0(f.metaMes * corte.cotizado_x)} ({corte.cotizado_x}×)</div>
                           <div className="c" title={f.cotizado.viejo > 0 ? `${fmtMoney(f.cotizado.viejo)} cotizados hace más de ${corte.cotizado_dias} días: ya no cuentan` : `Objetivo: ${corte.cotizado_x} veces la meta mensual`}>{f.cotizado.viejo > 0 ? `+${fmtMoney(f.cotizado.viejo)} viejo` : `objetivo ${corte.cotizado_x}× la meta`}</div>
                         </div></td>) },
-    { id: 'leads', label: 'Leads activos', ancho: 155, fecha: 'hoy', info: 'Leads activos',
-      celda: (f) => (<td><div className="mc">
-                          <button type="button" className="v nbtn" aria-label={`${fmtN(f.leadsActivos.length)} leads activos de ${f.u.nombre}. Ver la lista`} onClick={() => ver(`Leads activos · ${f.u.nombre}`, fLeads(f.leadsActivos), HOY)}>{fmtN(f.leadsActivos.length)}</button>
-                          <div className="minibar" aria-hidden="true"><i style={{ width: pct(f.leadsActivos.length, maxLeads) + '%' }} /></div>
-                          <div className="c">{f.estancados > 0 ? `${fmtN(f.estancados)} estancado${f.estancados === 1 ? '' : 's'}` : 'sin estancados'}</div>
-                          <div className="c" title="Suma del precio cotizado a sus leads activos">{f.presupuesto > 0 ? `${fmtMoney0(f.presupuesto)} en presupuesto` : 'sin presupuesto'}</div>
-                        </div></td>) },
+    { id: 'leads', label: 'Leads activos', ancho: 200, fecha: 'hoy', info: 'Leads activos',
+      celda: (f) => { const e = estadosDe(f); return (<td><div className="mc">
+                          <button type="button" className="v nbtn" title={`Suma del precio cotizado a sus leads activos: ${fmtMoney0(f.presupuesto)}`} aria-label={`${fmtN(f.leadsActivos.length)} leads activos de ${f.u.nombre}, ${fmtMoney0(f.presupuesto)} en presupuesto. Ver la lista`} onClick={() => ver(`Leads activos · ${f.u.nombre}`, fLeads(f.leadsActivos), HOY)}>{fmtN(f.leadsActivos.length)}</button>
+                          {/* Barra por estado (Randall 15-sep: «no deja ver los sin tarea y desatendidos»): cada lead cae en UN
+                              tramo, de lo peor a lo mejor, así que la barra suma exactamente los activos. */}
+                          <StackedBar segs={ESTADO_ACTIVO.map((s) => ({ val: e[s.id].length, cls: s.cls }))} total={f.leadsActivos.length} max={maxLeads}
+                            title={`Leads activos de ${f.u.nombre}: ${ESTADO_ACTIVO.map((s) => `${e[s.id].length} ${s.label.toLowerCase()}`).join(', ')}. Abrir detalle`}
+                            onClick={(ev) => detalle(ev, 'Leads activos · ' + f.u.nombre, f.leadsActivos.length, ESTADO_ACTIVO.map((s) => ({ label: s.label, val: e[s.id].length, onVer: () => ver(`${s.label} · ${f.u.nombre}`, fLeads(e[s.id]), HOY) })))} />
+                          <div className="c" title={`${fmtN(e.pc.length)} sin primer contacto · ${fmtN(e.estancado.length)} estancados (sin actividad del asesor en más de ${ESTANCADO_DIAS} días)`}>{fmtN(e.pc.length)} sin 1er contacto · {fmtN(e.estancado.length)} estancados</div>
+                          <div className="c" title={`${fmtN(e.sin_tarea.length)} sin tarea pendiente · ${fmtN(e.al_dia.length)} al día`}>{fmtN(e.sin_tarea.length)} sin tarea · {fmtN(e.al_dia.length)} al día</div>
+                        </div></td>) } },
     { id: 'llamadas', label: 'Llamadas', ancho: 155, fecha: 'actividad', info: 'Llamadas',
       celda: (f) => (<td><div className="mc">
                           <button type="button" className="v nbtn" aria-haspopup="dialog" aria-label={`${fmtN(f.llamadas)} llamadas de ${f.u.nombre}: ${f.contestadas} contestadas, ${f.sinContestar} sin contestar. Abrir detalle`}
@@ -838,7 +868,11 @@ export function Asesores({ corte, filtros, onFicha }: { corte: Corte; filtros: F
                               { label: 'Completadas', val: f.tareasCompletadas, onVer: () => ver(`Tareas completadas · ${f.u.nombre}`, filasDeEventos(corte, evDe(f, 'tarea')), rango) },
                               { label: 'Vencidas (hoy)', val: f.tareasVencidas, onVer: () => ver(`Leads con tareas vencidas · ${f.u.nombre}`, filasDeLeads(f.leadsActivos.filter((l) => l.tareas_vencidas > 0), () => '', undefined, { label: 'Tareas vencidas', de: (l) => l.tareas_vencidas }), HOY) },
                               { label: 'Leads sin tarea (hoy)', val: f.sinTarea, onVer: () => ver(`Leads sin tarea · ${f.u.nombre}`, fLeads(f.leadsActivos.filter((l) => l.sin_tarea)), HOY) }])}>{fmtN(totTareas(f))}</button>
-                          <StackedBar segs={[{ val: f.tareasCompletadas, cls: 'seg-comp' }]} total={totTareas(f)} max={maxTar} title={`Tareas completadas de ${f.u.nombre}: ${f.tareasCompletadas}`} />
+                          {/* La barra sí pinta las vencidas en rojo y los sin tarea rayados, como dice la leyenda del pie
+                              (Randall 15-sep: «no sale en la barra de color rojo los vencidos»); el número sigue siendo
+                              las completadas del periodo. */}
+                          <StackedBar segs={[{ val: f.tareasCompletadas, cls: 'seg-comp' }, { val: f.tareasVencidas, cls: 'seg-alert' }, { val: f.sinTarea, cls: 'seg-empty' }]} total={f.tareasCompletadas + f.tareasVencidas + f.sinTarea} max={maxTar}
+                            title={`Tareas de ${f.u.nombre}: ${f.tareasCompletadas} completadas en el periodo; hoy ${f.tareasVencidas} vencidas y ${f.sinTarea} leads sin tarea`} />
                           <div className="c">completadas {rango}</div>
                           <div className="c" title={`Foto de hoy, sin importar las fechas: ${fmtN(f.tareasVencidas)} tareas vencidas · ${fmtN(f.sinTarea)} leads sin tarea`}>hoy: {fmtN(f.tareasVencidas)} vencidas · {fmtN(f.sinTarea)} sin tarea</div>
                         </div></td>) },
@@ -871,7 +905,7 @@ export function Asesores({ corte, filtros, onFicha }: { corte: Corte; filtros: F
     { id: 'ventas', label: 'Ventas cerradas', ancho: 160, fecha: 'cierre', cnt: true, oculta: true,
       celda: (f) => (<td className="cnt">{f.ventas > 0 ? <button type="button" className="nbtn celln" aria-label={`${f.ventas} ventas cerradas de ${f.u.nombre}. Ver la lista`} onClick={() => ver(`Ventas cerradas · ${f.u.nombre}`, fVentas(ventasFiltradas(corte, { ...filtros, asesor: f.u.id })), rango)}>{f.ventas}</button> : '0'}</td>) },
     { id: 'estanc', label: 'Estancados', ancho: 135, fecha: 'hoy', cnt: true, oculta: true,
-      celda: (f) => (<td className="cnt">{f.estancados > 0 ? <button type="button" className="nbtn celln" aria-label={`${f.estancados} leads estancados de ${f.u.nombre}. Ver la lista`} onClick={() => ver(`Leads estancados · ${f.u.nombre}`, fLeads(f.leadsActivos.filter((l) => l.dias_sin_cambio >= 7)), HOY)}>{f.estancados}</button> : '0'}</td>) },
+      celda: (f) => (<td className="cnt">{f.estancados > 0 ? <button type="button" className="nbtn celln" aria-label={`${f.estancados} leads estancados de ${f.u.nombre}. Ver la lista`} onClick={() => ver(`Leads estancados · ${f.u.nombre}`, fLeads(f.leadsActivos.filter((l) => estancado(l))), HOY)}>{f.estancados}</button> : '0'}</td>) },
     { id: 'sintarea', label: 'Leads sin tarea', ancho: 155, fecha: 'hoy', cnt: true, oculta: true,
       celda: (f) => (<td className="cnt">{f.sinTarea > 0 ? <button type="button" className="nbtn celln" aria-label={`${f.sinTarea} leads sin tarea de ${f.u.nombre}. Ver la lista`} onClick={() => ver(`Leads sin tarea · ${f.u.nombre}`, fLeads(f.leadsActivos.filter((l) => l.sin_tarea)), HOY)}>{f.sinTarea}</button> : '0'}</td>) },
     { id: 'asig', label: 'Asignación', ancho: 155, fecha: 'ninguna', info: 'Asignación',
@@ -942,8 +976,8 @@ function AsesorPopup({ corte, filtros, fila, x, y, onClose, onFicha }: { corte: 
   // Arranca en el último mes del rango (el actual con los presets), no en el primero.
   const [mes, setMes] = useState(() => { const d = new Date((filtros.rango.fin - 1) * 1000); return new Date(d.getFullYear(), d.getMonth(), 1) })
   const ini = ep(mes), fin = ep(new Date(mes.getFullYear(), mes.getMonth() + 1, 1))
-  const activos = corte.leads.filter((l) => pasaCrm(l.crm, filtros) && l.asesor_id === fila.u.id && activo(l) && l.asignacion >= ini && l.asignacion < fin).sort((p, q) => q.dias_sin_cambio - p.dias_sin_cambio)
-  const serie = serieDiaria(fila.leadsActivos.map((l) => l.asignacion), filtros.rango)
+  const activos = corte.leads.filter((l) => pasaCrm(l.crm, filtros) && l.asesor_id === fila.u.id && activo(l) && l.asignacion >= ini && l.asignacion < fin).sort((p, q) => diasSinActividad(q) - diasSinActividad(p))
+  const serie = serieDiaria(fila.asignados.map((l) => l.asignacion), filtros.rango)
   const cumpl = pct(fila.montoVentas, fila.metaRango)
   return (
     <div className="popup" ref={ref} style={{ left: x, top }} role="dialog" aria-modal="true" aria-label={`Resumen de ${fila.u.nombre}`}>
@@ -967,7 +1001,7 @@ function AsesorPopup({ corte, filtros, fila, x, y, onClose, onFicha }: { corte: 
           {activos.slice(0, 6).map((l) => (
             <div className="leadrow" key={l.id}>
               <a className="nm" href={l.link} target="_blank" rel="noreferrer" title={l.nombre + ' · abrir en ' + CRM_LABEL[l.crm]}>{l.nombre}</a>
-              <span className="it">{dias(l.dias_sin_cambio)} sin cambio</span>
+              <span className="it">{dias(diasSinActividad(l))} sin actividad</span>
               <span className="it l2"><span className="tag" title={CRM_LABEL[l.crm]}>{tipoLead(l)}{mixto(corte) ? ' · ' + crmCorto(l) : ''}</span> {intentos(l)}{(l.pc_vencida || l.sin_tarea) && <> <span className="tag warn">{l.pc_vencida ? 'Primer contacto vencido' : 'sin tarea'}</span></>}</span>
             </div>
           ))}
@@ -1001,6 +1035,10 @@ const ORDEN_FICHA = [
 ]
 /** La meta de porcentaje de cierre mientras no viva en Configuración (Randall la puso en el PDF). */
 const META_CIERRE = 0.10
+/** Fechas con las que abre cada widget de la ficha si la cuenta no ha elegido otras: la evolución por mes
+ *  siempre en «Máximo» (Alejandro 15-sep: «independientemente de lo que yo seleccione acá, siempre abra el
+ *  máximo acá»). Lo demás sigue al tablero. */
+const RANGOS_FICHA: Record<string, Preset> = { ev: 'maximo', 'ev-tabla': 'maximo' }
 
 /** Ficha del asesor. Es un WidgetGrid (clave «ficha», compartida entre asesores): cada tarjeta se
  *  mueve, estira o quita igual que en el Dashboard. Cotizado vigente y su antigüedad van en UNA
@@ -1019,7 +1057,7 @@ export function Ficha({ corte, filtros, uid, onBack }: { corte: Corte; filtros: 
   // Fechas propias por widget, igual que en el tablero general (Randall 10-sep: «en la vista del
   // asesor no está lo del date range del widget»). La elección se comparte entre fichas: si dejas
   // «Ventas» en Máximo, se ve en Máximo para cualquier asesor.
-  const { rangos, fijarRango } = useRangos('ficha')
+  const { rangos, fijarRango } = useRangos('ficha', RANGOS_FICHA)
   const desdeMaximo = useMemo(() => { let m = corte.desde; for (const l of corte.leads) { if (l.asignacion && l.asignacion < m) m = l.asignacion; if (l.creado && l.creado < m) m = l.creado } return m }, [corte])
   const conRango = (pz: Preset): Filtros => ({ ...f, rango: preset(pz, new Date(), desdeMaximo) })
   const filtrosDe = (id: string): Filtros => (rangos[id] ? conRango(rangos[id]) : f)
@@ -1041,15 +1079,21 @@ export function Ficha({ corte, filtros, uid, onBack }: { corte: Corte; filtros: 
   }, [corte, filtros, uid, rangos])   // eslint-disable-line react-hooks/exhaustive-deps
   const delTablero = baseCompartidos.map((w) => (rangos[w.id] && otrosCompartidos.get(rangos[w.id])?.find((x) => x.id === w.id)) || w)
   if (!u) return <div className="panel">Asesor no encontrado. <button type="button" className="btn" onClick={onBack}>← Volver</button></div>
-  const rango = filtros.rango.label, periodo = periodoTexto(filtros.rango)
-  const metaMes = metaDe(corte, u), metaRango = metaEnRango(metaMes, filtros.rango)
+  const rango = filtros.rango.label
+  // La meta y el ritmo van por los meses que toca el rango desde que la persona existe (`rangoMeta`): así la
+  // ficha dice lo mismo que la tabla de Asesores y que la evolución por mes.
+  const rv = rangoVentas(corte, filtros.rango), periodoV = periodoTexto(rv)
   const monto = ventas.reduce((s, l) => s + l.presupuesto, 0)
-  const rit = ritmo(monto, metaRango, filtros.rango)
-  const activos = leads.filter(vivo)
+  const { metaMes, metaRango, ritmo: rit } = metaYRitmo(corte, u, monto, filtros.rango)
+  // Leads asignados en los meses de las ventas: la base del porcentaje de cierre (ventas de septiembre entre
+  // leads de septiembre), igual que la cifra «Conversión» del tablero.
+  const leadsV = rv.ini === filtros.rango.ini && rv.fin === filtros.rango.fin ? leads : leadsFiltrados(corte, { ...f, rango: rv })
+  // Activos = foto de HOY (Randall 11-sep), no los asignados en el rango: la ficha decía «87 leads activos» y la
+  // tabla de Asesores 205 para la misma persona.
+  const activos = leadsActivosHoy(corte, f)
   const cot = cotizado(activos, corte.cotizado_dias)
   const vigentes = activos.filter((l) => l.presupuesto > 0 && diasDesde(fechaCotizado(l)) <= corte.cotizado_dias)
   const objetivo = metaMes * corte.cotizado_x
-  const serie = serieDiaria(ventas.map((l) => l.cerrado), filtros.rango, true)
   const vr = ventasReales(corte, f)
   // Actividad: el rango manda. Hasta 21 días por día; hasta 26 semanas por semana; más largo (p. ej. «Máximo» desde 2023)
   // por mes, siempre en una sola fila. Una semana o un mes se abren por día con un clic.
@@ -1095,15 +1139,16 @@ export function Ficha({ corte, filtros, uid, onBack }: { corte: Corte; filtros: 
   const tareas = corte.tareas_abiertas.filter((t) => pasaCrm(t.crm, filtros) && t.asesor_id === uid).sort((p, q) => p.vence - q.vence).slice(0, 24)
   const hoy = ep(inicioDia(new Date()))
   const widgets: Widget[] = [
-    wg('ventas', 'Ventas · ' + rango, (
-      <div className="kcard hero"><div className="l">Ventas · {rango}</div><div className="n"><Cifra label={`${ventas.length} ventas, ${fmtMoney0(monto)}`} onClick={() => setDrill({ titulo: `Ventas de ${u.nombre}`, filas: fVentas(ventas), sub: rango + FUENTE_VENTAS(corte) })}><b>{ventas.length}</b> <span style={{ fontSize: 22 }}>{fmtMoney0(monto)}</span></Cifra></div><MiniAreaChart values={serie} height={56} /><div className="small muted">Conversión {leads.length ? pct(ventas.length, leads.length) + '%' : '—'}: {ventas.length} ventas / {leads.length} leads asignados en el rango<Info termino="Conversión" /></div></div>
-    ), { plain: true, span: 2, cls: 'wcard', info: ['Vendido'] }),
+    // «Ventas · este mes» se cambió por la barrita del tablero (Alejandro 15-sep: «el widget de ventas este mes por
+    // el de la barrita»); conserva el id para quedarse en el lugar que ya tiene en los acomodos guardados.
+    wg('ventas', 'Avance contra la meta', <TileAvance monto={monto} metaRango={metaRango} rit={rit} periodo={periodoV} onClick={() => setDrill({ titulo: `Ventas de ${u.nombre}`, filas: fVentas(ventas), sub: rango + FUENTE_VENTAS(corte) })} />,
+      { plain: true, span: 2, alto: 5, cls: 'wtile', info: ['Ritmo'], base: 'cierre' }),
     wg('cumplimiento', 'Cumplimiento', (
       <div className={'kcard k2 ritmo-' + rit.estado}><div className="l">Cumplimiento<Info termino={['Cumplimiento', 'Ritmo']} /></div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', gap: 8 }}><div className="n">{pct(monto, metaRango)}%</div><Gauge pct={pct(monto, metaRango)} label="meta" size={120} color={rit.estado === 'atras' ? 'var(--warn)' : 'var(--c4)'} /></div>
         <div className={'rt ' + rit.estado}>{rit.texto}</div>
-        <div className="small muted">meta {periodo} {fmtMoney0(metaRango)} ({fmtMoney0(metaMes)} al mes){monto < metaRango && ` · faltan ${fmtMoney0(metaRango - monto)}`}</div></div>
-    ), { plain: true, span: 2, cls: 'wcard' }),
+        <div className="small muted">meta {periodoV} {fmtMoney0(metaRango)} ({fmtMoney0(metaMes)} al mes){monto < metaRango && ` · faltan ${fmtMoney0(metaRango - monto)}`}</div></div>
+    ), { plain: true, span: 2, cls: 'wcard', base: 'cierre' }),
     wg('cotizado', 'Cotizado vigente y antigüedad', (
       <div className="kcard k3"><div className="cot-grid">
         <div><div className="l">Cotizado vigente<Info termino="Cotizado vigente" /></div><div className="n"><Cifra label={`Cotizado vigente ${fmtMoney0(cot.vigente)}`} onClick={() => setDrill({ titulo: `Cotizado vigente de ${u.nombre}`, filas: fCotizado(vigentes), sub: `≤ ${corte.cotizado_dias} días · ${rango}` })}>{fmtMoney0(cot.vigente)}</Cifra></div>
@@ -1160,12 +1205,12 @@ export function Ficha({ corte, filtros, uid, onBack }: { corte: Corte; filtros: 
     ), { span: 3, alto: 9, base: 'cierre' }),
     // Porcentaje de cierre contra su meta: el número que Randall puso a mano en el PDF.
     wg('cierre', 'Porcentaje de cierre', (
-      <button type="button" className={'tile tbtn t4 ritmo-' + (leads.length && ventas.length / leads.length >= META_CIERRE ? 'cumplida' : 'atras')}
-        aria-label={`Porcentaje de cierre ${leads.length ? pct(ventas.length, leads.length) : 0}%, meta ${Math.round(META_CIERRE * 100)}%. Ver las ventas`}
+      <button type="button" className={'tile tbtn t4 ritmo-' + (leadsV.length && ventas.length / leadsV.length >= META_CIERRE ? 'cumplida' : 'atras')}
+        aria-label={`Porcentaje de cierre ${leadsV.length ? pct(ventas.length, leadsV.length) : 0}%, meta ${Math.round(META_CIERRE * 100)}%. Ver las ventas`}
         onClick={() => setDrill({ titulo: `Ventas de ${u.nombre}`, filas: fVentas(ventas), sub: rango + FUENTE_VENTAS(corte) })}>
-        <div className="n">{leads.length ? pct(ventas.length, leads.length) : 0}%</div>
-        <div className="l">{fmtN(ventas.length)} cerrados de {fmtN(leads.length)} leads asignados {periodo}</div>
-        <Bullet value={leads.length ? ventas.length / leads.length : 0} target={META_CIERRE} label="Porcentaje de cierre" fmt={(n) => Math.round(n * 100) + '%'} />
+        <div className="n">{leadsV.length ? pct(ventas.length, leadsV.length) : 0}%</div>
+        <div className="l">{fmtN(ventas.length)} cerrados de {fmtN(leadsV.length)} leads asignados {periodoV}</div>
+        <Bullet value={leadsV.length ? ventas.length / leadsV.length : 0} target={META_CIERRE} label="Porcentaje de cierre" fmt={(n) => Math.round(n * 100) + '%'} />
         <div className="rt">Meta: {Math.round(META_CIERRE * 100)}%</div>
       </button>
     ), { plain: true, span: 2, alto: 5, cls: 'wtile', info: ['Conversión'], base: 'cierre' }),
@@ -1180,7 +1225,7 @@ export function Ficha({ corte, filtros, uid, onBack }: { corte: Corte; filtros: 
       </div>
       {/* La ficha usa el mismo constructor, pero fijado a este asesor. */}
       <WidgetGrid clave="ficha2" compartible widgets={ORDEN_FICHA.map((id) => widgets.find((w) => w.id === id)).filter((w): w is Widget => !!w).concat(widgets.filter((w) => !ORDEN_FICHA.includes(w.id)))}
-        fechas={{ por: rangos, fijar: fijarRango, tablero: nombreTablero, fechas: fechasDe }}
+        fechas={{ clave: 'ficha', por: rangos, fijar: fijarRango, tablero: nombreTablero, fechas: fechasDe }}
         taller={{
         render: (g: Grafica) => <GraficaLibre corte={corte} filtros={filtrosDe('g:' + g.id)} g={g} onDrill={setDrill} />,
         galeria: (p) => <Galeria corte={corte} filtros={f} quitados={p.quitados} onAgregar={p.onAgregar} onCrear={p.onCrear} onClose={p.onClose} fechas={fechasCtor} />,

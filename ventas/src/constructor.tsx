@@ -4,7 +4,7 @@ import type { Corte, Evento, Lead, Rango, Tarea, Usuario, VentaReal } from './ty
 import { CRM_LABEL } from './types'
 import {
   cotizadoVigenteDe, enRango, etapaDe, fechaDe, filasDeEventos, filasDeLeads, filasDeVentasReales, fmtCorta, fmtMoney0, fmtN,
-  PRESETS, ep, inicioDia, mapaUsuarios, metaDe, metaEnRango, metaTotal, ocultosDe, pasaCrm, pct, periodoTexto, porAsesor, primerContacto, ritmo, visitas, vivo, zonaNombre, type Filtros, type Preset,
+  PRESETS, ep, inicioDia, mapaUsuarios, metaEnRango, metaTotal, estancado, ESTANCADO_DIAS, primeraAparicion, ocultosDe, pasaCrm, pct, periodoTexto, porAsesor, primerContacto, ritmo, visitas, vivo, zonaNombre, type Filtros, type Preset,
   realesDe, ventasFiltradas, leadsActivosHoy,
 } from './metrics'
 import { BarChart, BarDetailPopup, Bullet, DonutChart, HBarList, LineChart, useEscape, useFocoDialogo, type BarItem, type DetRow, type Modo } from './components'
@@ -89,19 +89,22 @@ function tareasDe(c: Corte, f: Filtros, soloVencidas: boolean): Tarea[] {
 const ventasDe = ventasFiltradas
 const fmtPct = (n: number) => Math.round(n * 100) + '%'
 const uno = <T,>(xs: T[], k: (x: T) => Item): Item[] => xs.map(k)
-/** La meta cortada mes a mes dentro del rango, prorrateada por días en los meses incompletos: así la
- *  misma medida sirve para una cifra («la meta del periodo») y para una serie de tiempo («la meta de
- *  cada mes»), sin inventar reparto dentro del mes. */
+/** La meta cortada mes a mes dentro de `rangoMeta` (los meses que toca el rango, desde que el asesor existe):
+ *  así la misma medida sirve para una cifra («la meta del periodo») y para una serie de tiempo («la meta de
+ *  cada mes») y suma lo mismo que la tarjeta «Avance contra la meta». Con la app de comisiones cada mes lleva
+ *  la meta completa, también el que corre (15-sep: prorratear septiembre daba $493K contra el $1M de la meta);
+ *  sin app, los meses incompletos se prorratean por días. */
 function metasPorMes(c: Corte, f: Filtros): Item[] {
   const out: Item[] = []
-  const a0 = fechaDe(f.rango.ini)
   for (const x of porAsesor(c, f)) {
-    const mensual = metaDe(c, x.u)
+    const r = x.rangoMeta
+    if (r.fin <= r.ini) continue
+    const a0 = fechaDe(r.ini)
     let d = new Date(a0.getFullYear(), a0.getMonth(), 1)
-    for (let i = 0; i < 200 && ep(d) < f.rango.fin; i++) {
+    for (let i = 0; i < 200 && ep(d) < r.fin; i++) {
       const sig = new Date(d.getFullYear(), d.getMonth() + 1, 1)
-      const ini = Math.max(ep(d), f.rango.ini), fin = Math.min(ep(sig), f.rango.fin)
-      if (fin > ini) out.push({ v: metaEnRango(mensual, { ini, fin, label: '' }), u: x.u, ts: ini })
+      const ini = Math.max(ep(d), r.ini), fin = Math.min(ep(sig), r.fin)
+      if (fin > ini) out.push({ v: metaEnRango(x.metaMes, { ini, fin, label: '' }), u: x.u, ts: ini })
       d = sig
     }
   }
@@ -124,7 +127,7 @@ export const MEDIDAS: Medida[] = [
   { id: 'tareas_abiertas', label: 'Tareas agendadas', grupo: 'Seguimiento', fmt: fmtN, dims: ['asesor', 'equipo', 'ciudad', 'crm', 'etapa', 'ninguna'], base: 'ninguna', ayuda: 'Tareas abiertas hoy en leads que siguen en juego, vencidas o por vencer.', items: (c, f) => uno(tareasDe(c, f, false), (t) => ({ v: 1, tar: t })) },
   { id: 'sin_tarea', label: 'Leads sin tarea', grupo: 'Seguimiento', fmt: fmtN, dims: DIMS_CRM, base: 'ninguna', ayuda: 'Leads en juego hoy sin ninguna tarea pendiente: nadie los está siguiendo. Foto de hoy, no depende de las fechas.', items: (c, f) => uno(activos(c, f).filter((l) => l.sin_tarea), (l) => ({ v: 1, lead: l })), fecha: (i) => i.lead?.asignacion },
   { id: 'pc_vencido', label: 'Primer contacto vencido', grupo: 'Seguimiento', fmt: fmtN, dims: DIMS_CRM, base: 'ninguna', ayuda: 'Leads en juego hoy a los que se les pasó la fecha de la tarea de primer contacto. Solo Kommo. Foto de hoy.', items: (c, f) => uno(activos(c, f).filter((l) => l.pc_vencida), (l) => ({ v: 1, lead: l })), fecha: (i) => i.lead?.asignacion },
-  { id: 'estancados', label: 'Leads estancados', grupo: 'Seguimiento', fmt: fmtN, dims: DIMS_CRM, base: 'ninguna', ayuda: 'Leads en juego hoy con más de 7 días sin ningún cambio en el CRM. Foto de hoy.', items: (c, f) => uno(activos(c, f).filter((l) => l.dias_sin_cambio > 7), (l) => ({ v: 1, lead: l })), fecha: (i) => i.lead?.asignacion },
+  { id: 'estancados', label: 'Leads estancados', grupo: 'Seguimiento', fmt: fmtN, dims: DIMS_CRM, base: 'ninguna', ayuda: `Leads en juego hoy con más de ${ESTANCADO_DIAS} días sin actividad del asesor (llamada, tarea terminada, cotización o levantamiento; si nunca hubo, desde que se le asignó). Foto de hoy.`, items: (c, f) => uno(activos(c, f).filter((l) => estancado(l)), (l) => ({ v: 1, lead: l })), fecha: (i) => i.lead?.asignacion },
   { id: 'leads', label: 'Leads asignados', grupo: 'Seguimiento', fmt: fmtN, dims: DIMS_CRM, base: 'asignacion', ayuda: 'Leads que se repartieron a los asesores en las fechas elegidas.', items: (c, f) => uno(leadsDe(c, f), (l) => ({ v: 1, lead: l })), fecha: (i) => i.lead?.asignacion },
   { id: 'activos', label: 'Leads en juego', grupo: 'Seguimiento', fmt: fmtN, dims: DIMS_CRM, base: 'ninguna', ayuda: 'Todos los leads que hoy siguen en juego: ni ganados ni perdidos y, en Kommo, fuera de Hunting. Sin importar cuándo se asignaron. Foto de hoy.', items: (c, f) => uno(activos(c, f), (l) => ({ v: 1, lead: l })), fecha: (i) => i.lead?.asignacion },
   { id: 'cotizado', label: 'Cotizado vigente', grupo: 'Seguimiento', fmt: fmtMoney0, dims: DIMS_CRM, base: 'ninguna', ayuda: 'Dinero en juego: precio de los leads activos cuya cotización tiene 90 días o menos.', items: (c, f) => uno(cotizadoVigenteDe(activos(c, f), c.cotizado_dias), (l) => ({ v: l.presupuesto, lead: l })), fecha: (i) => i.lead?.asignacion },
@@ -262,9 +265,12 @@ export function serie(c: Corte, f: Filtros, g: Grafica): { grupos: Grupo[]; tota
     const gr = map.get(clave) || { label: clave, valor: 0, n: 0, items: [], orden }
     gr.n++; gr.items.push(it); map.set(clave, gr)
   }
-  // En tiempo, los periodos sin registros entran con cero para que la línea no mienta.
+  // En tiempo, los periodos sin registros entran con cero para que la línea no mienta. Con UNA persona elegida
+  // (la ficha) la serie arranca en el mes en que aparece: en «Máximo» una asesora de julio no tiene por qué
+  // cargar tres años de ceros antes de su primer mes.
   const dimT = dimensionDe(g.dim)
-  if (dimT.tiempo) for (const c of cubosDe(g.dim, f.rango)) if (!map.has(c.clave)) map.set(c.clave, { label: c.clave, valor: 0, n: 0, items: [], orden: c.orden })
+  const desde = f.asesor != null ? Math.max(f.rango.ini, primeraAparicion(c).get(f.asesor) ?? f.rango.ini) : f.rango.ini
+  if (dimT.tiempo) for (const cb of cubosDe(g.dim, { ...f.rango, ini: Math.min(desde, f.rango.fin) })) if (!map.has(cb.clave)) map.set(cb.clave, { label: cb.clave, valor: 0, n: 0, items: [], orden: cb.orden })
   const agg = m.agg || 'suma'
   const grupos = [...map.values()].map((gr) => {
     const s = gr.items.reduce((a, i) => a + i.v, 0)
@@ -322,6 +328,8 @@ const COLORES = ['var(--c1)', 'var(--c2)', 'var(--c4)', 'var(--c3)', 'var(--neut
 function recortar<T>(xs: T[], dim: string, tope: number): T[] {
   return dimensionDe(dim).tiempo ? xs.slice(-tope) : xs.slice(0, tope)
 }
+/** Para las tablas: en tiempo, el periodo más reciente primero. */
+const recientesArriba = <T,>(xs: T[], dim: string): T[] => (dimensionDe(dim).tiempo ? [...xs].reverse() : xs)
 /** «Fechas por cierre»: contra qué fecha cae cada registro en su periodo. Solo aparece cuando el eje
  *  es tiempo, que es donde la duda muerde (Randall: el conflicto entre fecha de actividad y de
  *  asignación). Si las medidas de una mixta usan bases distintas, se dicen todas. */
@@ -393,10 +401,12 @@ function GraficaUna({ corte, filtros, g, onDrill, mini = false }: { corte: Corte
       )}
     </div>
   )
+  // En una tabla por tiempo el periodo más reciente va ARRIBA (Alejandro 15-sep: «debería venir septiembre
+  // arriba»); en la gráfica el tiempo sigue corriendo de izquierda a derecha.
   if (g.tipo === 'tabla') return (
     <div className="scrollx"><table className="ftable" aria-label={m.label}>
       <thead><tr><th scope="col">{dimensionDe(g.dim).label}</th><th scope="col" className="num">{m.label}</th><th scope="col" className="num">Registros</th></tr></thead>
-      <tbody>{vistos.map((x) => (
+      <tbody>{recientesArriba(vistos, g.dim).map((x) => (
         <tr key={x.label} className={onDrill && !mini ? 'drill' : ''} {...(onDrill && !mini ? { role: 'button', tabIndex: 0, onClick: () => ver(x) } : {})}>
           <td>{x.label}</td><td className="num">{m.fmt(x.valor)}</td><td className="num">{fmtN(x.n)}</td>
         </tr>))}
@@ -440,7 +450,7 @@ function GraficaMixta({ corte, filtros, g, onDrill, mini = false }: { corte: Cor
   const cuerpo = g.tipo === 'tabla' ? (
     <div className="scrollx"><table className="ftable" aria-label={etiqueta}>
       <thead><tr><th scope="col">{dimensionDe(g.dim).label}</th>{series.map((s) => <th key={s.m.id} scope="col" className="num">{s.m.label}</th>)}</tr></thead>
-      <tbody>{vistos.map((l) => (
+      <tbody>{recientesArriba(vistos, g.dim).map((l) => (
         <tr key={l.label}>
           <td>{l.label}</td>
           {series.map((s, i) => (

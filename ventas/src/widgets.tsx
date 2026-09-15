@@ -151,6 +151,10 @@ interface Colocando { titulo: string; w: number; h: number; pos: Pos | null; pon
 
 /** Fechas propias por widget: qué widget tiene cuáles y cómo cambiarlas. */
 export interface Fechas {
+  /** La clave con la que `useRangos` guarda estas fechas en la cuenta (`rangos-<clave>`). No siempre es la del
+   *  tablero: la ficha guarda su acomodo en `ficha2` y sus fechas en `ficha`; «Aplicar a otras cuentas» las
+   *  copiaba bajo `rangos-ficha2` y nadie las leía (15-sep). */
+  clave: string
   por: Record<string, Preset>
   fijar: (id: string, p: Preset | null) => void
   tablero: string                        // cómo se llama el periodo de arriba: «Este mes», «Máximo»…
@@ -573,7 +577,7 @@ export function WidgetGrid({ clave, widgets, taller: ctor, fechas, compartible }
       <div className="wreset">Arrastra el asa ⋮⋮ a la celda que quieras (o enfócala y usa ← → ↑ ↓); estira la esquina inferior derecha para cambiar ancho y alto (← → ↑ ↓ sobre ella; Supr regresa el tamaño por defecto). Nada se encima: lo que choca se empuja hacia abajo. × quita la gráfica del tablero y arriba, en «Agregar gráfica», la regresas. Se guarda en este navegador.</div>
 
       {compartir && <Compartir clave={clave} onClose={() => setCompartir(false)}
-        datos={{ [clave]: layout, ...(fechas ? { ['rangos-' + clave]: { por: fechas.por, ts: Date.now() } } : {}) }} />}
+        datos={{ [clave]: layout, ...(fechas ? { ['rangos-' + fechas.clave]: { por: fechas.por, ts: Date.now() } } : {}) }} />}
       {colocando && (
         <div className="colocando" role="status">
           <span>Sueltas <b>{colocando.titulo}</b> donde toques el tablero.</span>

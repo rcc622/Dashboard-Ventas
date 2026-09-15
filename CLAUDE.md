@@ -95,6 +95,56 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   guarda. La UI la prorratea al rango (`metaEnRango`: meses completos si el
   rango va de día 1 a día 1, si no por días) y calcula «esperado a hoy» por
   regla de tres (`metaEsperada`). Cumplimiento = monto vendido / meta del rango.
+- **Con la app de comisiones, ventas y meta van POR MES** (auditoría 15-sep tras las dos juntas con
+  Alejandro: «la meta es de un millón… si es a 493, es lo que no entiendo»). La app guarda el MES de
+  cada venta (día 1), y `realesDe` ya contaba la venta si su mes tocaba el rango; la meta, en cambio,
+  se prorrateaba por días → «Últimos 7 días» comparaba todo septiembre vendido contra 7/30 de meta, y
+  la evolución por mes de la ficha prorrateaba el mes en curso ($493K contra el $1M que decía
+  Cumplimiento al lado). Ahora `rangoVentas(c, r)` (metrics.ts) es el rango llevado a meses
+  completos cuando el corte trae comisiones (sin app, el rango tal cual), y `rangoMeta(c, u, r)`
+  además lo recorta al **mes en que el asesor aparece** (`primeraAparicion`: su lead, actividad o
+  venta más vieja; una asesora de julio no debe $1M por cada mes desde 2023 en «Máximo»). De ahí
+  salen `FilaAsesor.metaRango / esperado / ritmo / rangoMeta`, `metasPorMes` del constructor (cada
+  mes con su meta completa, también el que corre), el tile «Avance contra la meta», Cumplimiento y
+  Porcentaje de cierre de la ficha, y `asignadosVentas` (leads asignados en esos meses = base de la
+  conversión: ventas de septiembre entre leads de septiembre). Las etiquetas de ventas dicen ese
+  periodo («vendido del 1 al 30 de septiembre» aunque el calendario diga «Últimos 7 días»). En la
+  serie de tiempo de UNA persona los periodos vacíos arrancan en su primer mes.
+- **Estancado = más de 7 días sin actividad del ASESOR** (Randall 15-sep: «leads sin actividad en los
+  últimos 7 días»; `diasSinActividad`, `estancado`, `ESTANCADO_DIAS` en metrics.ts): desde la última
+  llamada, tarea terminada, cotización o levantamiento (`ult_actividad`; en HubSpot
+  `notes_last_contacted`) o, si nunca hubo, desde la asignación. Ya NO es `dias_sin_cambio`
+  (`updated_at`): los bots y las ediciones masivas lo reinician — 120 leads de Adriana «cambiaron» el
+  mismo día y salían 2 estancados con 126 sin actividad. Aplica a la columna Estancados, su lista,
+  la medida del constructor, la etiqueta «estancado» de las tablas de leads y Prospectos (columna
+  «Días sin actividad»). `dias_sin_cambio` sigue solo en «días en etapa» del embudo.
+- **Columna «Leads activos» = barra por estado** (Randall 15-sep: «no deja ver los sin tarea y
+  desatendidos»): `estadoActivo(l)` mete cada lead activo en UN tramo, del peor al mejor — sin primer
+  contacto (`pc_vencida`), estancado, sin tarea pendiente, al día (`ESTADO_ACTIVO` trae etiqueta y
+  color) — así la barra suma exactamente el total; la barra abre el desglose y cada tramo su lista.
+  **«Tareas»** volvió a pintar las vencidas en rojo y los sin tarea rayados (como ya decía la leyenda
+  del pie); el número grande sigue siendo las completadas del periodo. **«Actividad total»** partía
+  la barra sin las cotizaciones y el desglose no cuadraba con el total («6 + 8 no da 16»): ahora los
+  cinco sumandos de `actividadDe` van en barra, desglose y leyendas. **«Conversión»** de la tabla
+  usaba ganados del CRM y la cifra del tablero ventas de la app: ahora las dos son ventas de la app
+  entre `asignadosVentas`. El popup del asesor grafica «leads asignados por día» con `asignados`, no
+  con los activos de hoy. Regla: **toda barra apilada usa los mismos sumandos que su número**.
+- **Ficha = foto de hoy donde la tabla es foto de hoy**: `activos`, cotizado vigente y su antigüedad en
+  la ficha salen de `leadsActivosHoy` (decía «87 leads activos» donde la tabla decía 205). El widget
+  «Cotizado vs vendido vs meta» del Dashboard también (antes contaba solo leads asignados en el rango).
+- **La ficha abre con la barrita y en Máximo** (Alejandro 15-sep): el widget `ventas` de la ficha es
+  ahora `TileAvance` —la misma tarjeta «Avance contra la meta» del Dashboard, teñida por el ritmo—
+  con el MISMO id para quedarse en el lugar que ya tenía en los acomodos guardados; «Monto vendido y
+  Meta de venta por mes» y su tabla abren en «Máximo» aunque el tablero esté en «Este mes»
+  (`RANGOS_FICHA` → `useRangos(clave, defaults)`; elegir «Las fechas del tablero» se guarda como
+  `'tablero'` para que el default no lo pise), y en las tablas por tiempo el periodo más reciente va
+  arriba (`recientesArriba`). Las tarjetas `.wcard` llevan sus controles DENTRO del recuadro blanco
+  como las cifras (antes el encabezado era un renglón encima y no alineaban).
+- 🐞 **«Aplicar a otras cuentas» copiaba las fechas por widget a la clave equivocada**: la ficha guarda
+  el acomodo en `ficha2` y sus fechas en `rangos-ficha`, pero el modal las mandaba como
+  `rangos-ficha2`, que nadie lee (David y auditorcrm no veían el Máximo que Alejandro les aplicó).
+  `Fechas.clave` dice ahora bajo qué clave viven; el volumen se migró a mano el 15-sep
+  (`rangos-ficha2` → `rangos-ficha`, respaldo `ventas_tableros.json.bak-20260915-rangos`).
 - **Ritmo del mes** (Alejandro 4-sep, «el número más importante»; hecho 5-sep): la meta del
   rango se reparte por **días naturales** con hoy contado completo (`diasRango`: día N de M;
   `metaEsperada` = meta × N/M) y `ritmo()` dice si lo vendido va arriba o abajo de esa parte, en

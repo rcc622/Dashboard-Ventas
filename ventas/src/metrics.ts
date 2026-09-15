@@ -157,6 +157,22 @@ export const vivo = (l: Lead) => l.funnel !== 0 && l.funnel !== 5
  *  (ahí el lead está en cadencia automática, no en manos del asesor). Es lo que se mide como foto de hoy:
  *  días estancado, con o sin tarea, llamadas, levantamiento, cotizado. `vivo` sigue siendo «no cerrado». */
 export const activo = (l: Lead) => vivo(l) && l.embudo !== 'hunting'
+/** Días sin que el asesor le haga nada al lead: llamada, tarea terminada, cotización o levantamiento (en HubSpot,
+ *  el último contacto del deal); si nunca ha hecho nada, desde que se le asignó. NO es `dias_sin_cambio`
+ *  (updated_at): los bots y las ediciones masivas lo reinician (15-sep: 120 leads de Adriana «cambiaron» el
+ *  mismo día y solo 2 salían estancados, con 126 sin actividad en más de una semana). */
+export const diasSinActividad = (l: Lead, ahora = Date.now() / 1000) => Math.max(0, Math.floor((ahora - Math.max(l.ult_actividad || 0, l.asignacion || 0)) / DIA))
+/** Estancado = lead activo con más de 7 días sin actividad del asesor (Randall 15-sep: «leads sin actividad en los últimos 7 días»). */
+export const ESTANCADO_DIAS = 7
+export const estancado = (l: Lead, ahora = Date.now() / 1000) => diasSinActividad(l, ahora) > ESTANCADO_DIAS
+/** En qué está cada lead activo, UNA sola cosa por lead, de lo peor a lo mejor: sin primer contacto, sin actividad
+ *  en más de 7 días, sin tarea pendiente, o al día. Así la barra de «Leads activos» suma exactamente el total. */
+export type EstadoActivo = 'pc' | 'estancado' | 'sin_tarea' | 'al_dia'
+export const ESTADO_ACTIVO: { id: EstadoActivo; label: string; cls: string }[] = [
+  { id: 'pc', label: 'Sin primer contacto', cls: 'seg-alert' }, { id: 'estancado', label: `Sin actividad en más de ${ESTANCADO_DIAS} días`, cls: 'seg-warn' },
+  { id: 'sin_tarea', label: 'Sin tarea pendiente', cls: 'seg-empty' }, { id: 'al_dia', label: 'Al día', cls: 'seg-comp' },
+]
+export const estadoActivo = (l: Lead, ahora = Date.now() / 1000): EstadoActivo => (l.pc_vencida ? 'pc' : estancado(l, ahora) ? 'estancado' : l.sin_tarea ? 'sin_tarea' : 'al_dia')
 /** Ventas = leads ganados cuyo cierre cae en el rango (el cierre manda, no la asignación). */
 /** Ganados del CRM cerrados en el rango. Solo para comparar contra la app (tabla «Ventas reales · Comisiones»). */
 export function ventasCrm(c: Corte, f: Filtros): Lead[] {
@@ -269,6 +285,47 @@ export function diasRango(r: Rango, ahora = Date.now() / 1000): { dia: number; d
   const dias = Math.max(1, Math.round((r.fin - r.ini) / DIA))
   const dia = Math.max(0, Math.min(dias, Math.ceil((ahora - r.ini) / DIA)))
   return { dia, dias }
+}
+const inicioMes = (ts: number) => { const d = fechaDe(ts); return ep(new Date(d.getFullYear(), d.getMonth(), 1)) }
+const finMesDe = (ts: number) => { const d = fechaDe(ts); return ep(new Date(d.getFullYear(), d.getMonth() + 1, 1)) }
+/** Con la app de comisiones la venta tiene fecha de MES (día 1): ventas y meta se cuentan por los meses que
+ *  toca el rango, no por sus días. Si no, «Últimos 7 días» comparaba todo septiembre vendido contra 7/30 de
+ *  meta, y la evolución por mes prorrateaba el mes en curso ($493K en vez de $1M: Alejandro 15-sep, «la meta
+ *  es de un millón»). Sin app (ganados del CRM con fecha exacta) el rango se respeta tal cual. */
+export function rangoVentas(c: Corte, r: Rango): Rango {
+  if (!c.comisiones) return r
+  const ini = inicioMes(r.ini), fin = finMesDe(r.fin - 1)
+  return { ini, fin, label: etiquetaRango(null, ini, fin) }
+}
+/** Desde cuándo existe cada asesor: su lead, actividad o venta más vieja. Antes de eso no hay meta que
+ *  cobrarle (una asesora de julio no debe $1M por cada mes desde 2023 en «Máximo»). */
+const _primera = new WeakMap<Corte, Map<string, number>>()
+export function primeraAparicion(c: Corte): Map<string, number> {
+  let m = _primera.get(c)
+  if (m) return m
+  m = new Map()
+  const ver = (id: string | null, ts: number) => { if (id != null && ts > 0 && ts < (m!.get(id) ?? Infinity)) m!.set(id, ts) }
+  for (const l of c.leads) ver(l.asesor_id, l.asignacion || l.creado)
+  for (const e of c.eventos) ver(e.asesor_id, e.ts)
+  for (const v of todasVentas(c)) ver(v.asesor_id, v.cerrado)
+  _primera.set(c, m)
+  return m
+}
+/** El rango que le toca a la meta de un asesor: los meses que toca el rango (con app de comisiones), desde el
+ *  mes en que el asesor aparece. Vacío si el asesor no existía en ese periodo. */
+export function rangoMetaDe(c: Corte, u: Usuario, r: Rango): Rango {
+  const rv = rangoVentas(c, r)
+  const desde = primeraAparicion(c).get(u.id)
+  const ini = desde ? Math.max(rv.ini, c.comisiones ? inicioMes(desde) : desde) : rv.ini
+  return ini >= rv.fin ? { ...rv, ini: rv.fin } : { ...rv, ini }
+}
+/** Meta, esperado y ritmo de un asesor para un rango, con `rangoMeta`. Si el asesor aún no existía en ese
+ *  periodo lo dice, en vez de «Sin meta configurada» (sí tiene meta: no estaba). */
+export function metaYRitmo(c: Corte, u: Usuario, monto: number, r: Rango, ahora = Date.now() / 1000): { metaMes: number; metaRango: number; rangoMeta: Rango; esperado: number; ritmo: Ritmo } {
+  const metaMes = metaDe(c, u), rangoMeta = rangoMetaDe(c, u, r), metaRango = metaEnRango(metaMes, rangoMeta)
+  const rit = ritmo(monto, metaRango, rangoMeta, ahora)
+  if (metaRango <= 0 && metaMes > 0 && rangoMeta.ini >= rangoMeta.fin) { rit.corto = 'Aún no estaba'; rit.texto = 'Sin meta en este periodo: el asesor aún no estaba' }
+  return { metaMes, metaRango, rangoMeta, esperado: metaEsperada(metaRango, rangoMeta, ahora), ritmo: rit }
 }
 /** Lo que ya debería estar vendido a día N de M del rango. */
 export function metaEsperada(metaRango: number, r: Rango, ahora = Date.now() / 1000): number {
@@ -545,7 +602,11 @@ export interface FilaAsesor {
    *  `leadsActivos` es otra cosa: TODOS los que siguen en juego hoy, sin importar cuándo se asignaron
    *  (Randall 11-sep: activos, tareas vencidas y sin tarea son foto de hoy, no del rango). */
   asignados: Lead[]; ganados: number; perdidos: number
-  metaMes: number; metaRango: number; esperado: number; ritmo: Ritmo
+  /** Leads asignados en los MESES que toca el rango: la base de la conversión, porque las ventas de la app van
+   *  por mes (ventas de septiembre entre leads de septiembre, no entre los asignados en 7 días). */
+  asignadosVentas: number
+  /** `rangoMeta`: los meses del rango desde que el asesor existe; de ahí salen la meta, lo esperado y el ritmo. */
+  metaMes: number; metaRango: number; rangoMeta: Rango; esperado: number; ritmo: Ritmo
   leadsActivos: Lead[]; presupuesto: number; cotizado: Cotizado; estancados: number
   llamadas: number; contestadas: number; sinContestar: number
   tareasCompletadas: number; tareasVencidas: number; sinTarea: number; pcVencidas: number
@@ -563,6 +624,8 @@ export function metaTotal(c: Corte, f: Filtros): number {
 
 export function porAsesor(c: Corte, f: Filtros): FilaAsesor[] {
   const leads = leadsFiltrados(c, f), ev = eventosFiltrados(c, f), ventas = ventasFiltradas(c, f), hoy = leadsActivosHoy(c, f), llam = llamadasFiltradas(c, f)
+  const rv = rangoVentas(c, f.rango)
+  const leadsV = rv.ini === f.rango.ini && rv.fin === f.rango.fin ? leads : leadsFiltrados(c, { ...f, rango: rv })
   const filas: FilaAsesor[] = []
   for (const u of (f.asesor != null ? c.usuarios : usuariosVisibles(c))) {
     const mios = leads.filter((l) => l.asesor_id === u.id)
@@ -572,13 +635,15 @@ export function porAsesor(c: Corte, f: Filtros): FilaAsesor[] {
     const cal = llam.filter((x) => x.asesor_id === u.id)
     if (!mios.length && !act.length && !vt.length && !activos.length && !cal.length) continue
     const a = actividad(act)
-    const metaMes = metaDe(c, u), metaRango = metaEnRango(metaMes, f.rango), montoVentas = vt.reduce((s, l) => s + l.presupuesto, 0)
+    const montoVentas = vt.reduce((s, l) => s + l.presupuesto, 0)
+    const { metaMes, metaRango, rangoMeta: rm, esperado, ritmo: rit } = metaYRitmo(c, u, montoVentas, f.rango)
     filas.push({
       u, tipo: tipoDe(c, u), ventas: vt.length, montoVentas,
       asignados: mios, ganados: mios.filter((l) => l.funnel === 5).length, perdidos: mios.filter((l) => l.funnel === 0).length,
-      metaMes, metaRango, esperado: metaEsperada(metaRango, f.rango), ritmo: ritmo(montoVentas, metaRango, f.rango),
+      asignadosVentas: leadsV === leads ? mios.length : leadsV.filter((l) => l.asesor_id === u.id).length,
+      metaMes, metaRango, rangoMeta: rm, esperado, ritmo: rit,
       leadsActivos: activos, presupuesto: activos.reduce((s, l) => s + l.presupuesto, 0),
-      cotizado: cotizado(activos, c.cotizado_dias), estancados: activos.filter((l) => l.dias_sin_cambio > 7).length,
+      cotizado: cotizado(activos, c.cotizado_dias), estancados: activos.filter((l) => estancado(l)).length,
       llamadas: a.llamadas, contestadas: a.contestadas, sinContestar: a.sinContestar,
       tareasCompletadas: a.tareas, tareasVencidas: activos.reduce((s, l) => s + l.tareas_vencidas, 0),
       sinTarea: activos.filter((l) => l.sin_tarea).length, pcVencidas: activos.filter((l) => l.pc_vencida).length,
