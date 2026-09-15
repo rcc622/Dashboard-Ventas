@@ -165,14 +165,17 @@ export const diasSinActividad = (l: Lead, ahora = Date.now() / 1000) => Math.max
 /** Estancado = lead activo con más de 7 días sin actividad del asesor (Randall 15-sep: «leads sin actividad en los últimos 7 días»). */
 export const ESTANCADO_DIAS = 7
 export const estancado = (l: Lead, ahora = Date.now() / 1000) => diasSinActividad(l, ahora) > ESTANCADO_DIAS
-/** En qué está cada lead activo, UNA sola cosa por lead, de lo peor a lo mejor: sin primer contacto, sin actividad
- *  en más de 7 días, sin tarea pendiente, o al día. Así la barra de «Leads activos» suma exactamente el total. */
-export type EstadoActivo = 'pc' | 'estancado' | 'sin_tarea' | 'al_dia'
+/** En qué está cada lead activo, UNA sola cosa por lead: sin primer contacto, sin tarea pendiente, con tarea pero
+ *  sin actividad en más de 7 días, o al día. Así la barra de «Leads activos» suma exactamente el total. «Sin
+ *  tarea» va antes que «estancado» para que ese tramo sea el MISMO número que la columna «Leads sin tarea» y la
+ *  línea de Tareas (un lead sin tarea nunca tiene primer contacto vencido: esa es una tarea); el tramo «estancado»
+ *  son entonces los estancados que sí tienen tarea, y la columna «Estancados» los cuenta todos. */
+export type EstadoActivo = 'pc' | 'sin_tarea' | 'estancado' | 'al_dia'
 export const ESTADO_ACTIVO: { id: EstadoActivo; label: string; cls: string }[] = [
-  { id: 'pc', label: 'Sin primer contacto', cls: 'seg-alert' }, { id: 'estancado', label: `Sin actividad en más de ${ESTANCADO_DIAS} días`, cls: 'seg-warn' },
-  { id: 'sin_tarea', label: 'Sin tarea pendiente', cls: 'seg-empty' }, { id: 'al_dia', label: 'Al día', cls: 'seg-comp' },
+  { id: 'pc', label: 'Sin primer contacto', cls: 'seg-alert' }, { id: 'sin_tarea', label: 'Sin tarea pendiente', cls: 'seg-empty' },
+  { id: 'estancado', label: `Con tarea, pero sin actividad en más de ${ESTANCADO_DIAS} días`, cls: 'seg-warn' }, { id: 'al_dia', label: 'Al día', cls: 'seg-comp' },
 ]
-export const estadoActivo = (l: Lead, ahora = Date.now() / 1000): EstadoActivo => (l.pc_vencida ? 'pc' : estancado(l, ahora) ? 'estancado' : l.sin_tarea ? 'sin_tarea' : 'al_dia')
+export const estadoActivo = (l: Lead, ahora = Date.now() / 1000): EstadoActivo => (l.pc_vencida ? 'pc' : l.sin_tarea ? 'sin_tarea' : estancado(l, ahora) ? 'estancado' : 'al_dia')
 /** Ventas = leads ganados cuyo cierre cae en el rango (el cierre manda, no la asignación). */
 /** Ganados del CRM cerrados en el rango. Solo para comparar contra la app (tabla «Ventas reales · Comisiones»). */
 export function ventasCrm(c: Corte, f: Filtros): Lead[] {

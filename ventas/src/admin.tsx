@@ -53,7 +53,7 @@ const vigentesDe = (c: Corte, f: FilaAsesor) =>
   f.leadsActivos.filter((l) => vivo(l) && l.presupuesto > 0 && diasDesde(fechaCotizado(l)) <= c.cotizado_dias)
 /** Los leads activos del asesor partidos por estado (una sola cosa por lead, ver `estadoActivo`). */
 const estadosDe = (f: FilaAsesor): Record<EstadoActivo, Lead[]> => {
-  const out: Record<EstadoActivo, Lead[]> = { pc: [], estancado: [], sin_tarea: [], al_dia: [] }
+  const out: Record<EstadoActivo, Lead[]> = { pc: [], sin_tarea: [], estancado: [], al_dia: [] }
   for (const l of f.leadsActivos) out[estadoActivo(l)].push(l)
   return out
 }
@@ -847,8 +847,8 @@ export function Asesores({ corte, filtros, onFicha }: { corte: Corte; filtros: F
                           <StackedBar segs={ESTADO_ACTIVO.map((s) => ({ val: e[s.id].length, cls: s.cls }))} total={f.leadsActivos.length} max={maxLeads}
                             title={`Leads activos de ${f.u.nombre}: ${ESTADO_ACTIVO.map((s) => `${e[s.id].length} ${s.label.toLowerCase()}`).join(', ')}. Abrir detalle`}
                             onClick={(ev) => detalle(ev, 'Leads activos · ' + f.u.nombre, f.leadsActivos.length, ESTADO_ACTIVO.map((s) => ({ label: s.label, val: e[s.id].length, onVer: () => ver(`${s.label} · ${f.u.nombre}`, fLeads(e[s.id]), HOY) })))} />
-                          <div className="c" title={`${fmtN(e.pc.length)} sin primer contacto · ${fmtN(e.estancado.length)} estancados (sin actividad del asesor en más de ${ESTANCADO_DIAS} días)`}>{fmtN(e.pc.length)} sin 1er contacto · {fmtN(e.estancado.length)} estancados</div>
-                          <div className="c" title={`${fmtN(e.sin_tarea.length)} sin tarea pendiente · ${fmtN(e.al_dia.length)} al día`}>{fmtN(e.sin_tarea.length)} sin tarea · {fmtN(e.al_dia.length)} al día</div>
+                          <div className="c" title={`${fmtN(e.pc.length)} sin primer contacto · ${fmtN(e.sin_tarea.length)} sin tarea pendiente`}>{fmtN(e.pc.length)} sin 1er contacto · {fmtN(e.sin_tarea.length)} sin tarea</div>
+                          <div className="c" title={`${fmtN(e.estancado.length)} con tarea pero sin actividad del asesor en más de ${ESTANCADO_DIAS} días (la columna «Estancados» suma también los que no tienen tarea) · ${fmtN(e.al_dia.length)} al día`}>{fmtN(e.estancado.length)} estancados · {fmtN(e.al_dia.length)} al día</div>
                         </div></td>) } },
     { id: 'llamadas', label: 'Llamadas', ancho: 155, fecha: 'actividad', info: 'Llamadas',
       celda: (f) => (<td><div className="mc">
