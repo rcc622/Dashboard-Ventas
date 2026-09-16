@@ -57,6 +57,8 @@ function Shell({ yo, corte, origen, error, onRetry, onConfig, onLogout }: { yo: 
   const r0 = useMemo(() => rangoDeHash(h0.r, desdeMaximo), [h0, desdeMaximo])
   // Un asesor solo ve su perfil; el administrador puede alternar y mirar a cualquiera.
   const esAdmin = yo.rol === 'admin'
+  // Permiso de acomodar tableros (Configuración › Usuarios › «Acomoda el tablero»); el servidor lo dice en /ventas/yo.
+  const puedeEditar = yo.edita !== false
   const [perfil, setPerfil] = useState<Perfil>(!esAdmin || h0.perfil === 'asesor' ? 'asesor' : 'admin')
   const [pagina, setPagina] = useState<Pagina>(() => {
     const p = PAGINAS.includes(h0.p as Pagina) ? (h0.p as Pagina) : null
@@ -133,14 +135,14 @@ function Shell({ yo, corte, origen, error, onRetry, onConfig, onLogout }: { yo: 
   let contenido
   if (perfil === 'admin') {
     contenido = ficha != null
-      ? <Ficha corte={corte} filtros={filtros} uid={ficha} onBack={() => setFicha(null)} />
+      ? <Ficha corte={corte} filtros={filtros} uid={ficha} onBack={() => setFicha(null)} puedeEditar={puedeEditar} />
       : pagina === 'config' ? <Configuracion key={corte.generado} corte={corte} onSaved={onConfig} />
-        : pagina === 'asesores' ? <Asesores corte={corte} filtros={filtros} onFicha={setFicha} /> : <AdminDashboard corte={corte} filtros={filtros} onFicha={setFicha} />
+        : pagina === 'asesores' ? <Asesores corte={corte} filtros={filtros} onFicha={setFicha} /> : <AdminDashboard corte={corte} filtros={filtros} onFicha={setFicha} puedeEditar={puedeEditar} />
   } else {
     contenido = pagina === 'ventas' ? <MisVentas corte={corte} uid={asesorActual} />
       : pagina === 'prospectos' ? <Prospectos corte={corte} uid={asesorActual} />
       : pagina === 'calendario' ? <Calendario corte={corte} uid={asesorActual} />
-      : <MiDia corte={corte} uid={asesorActual}  compartible={esAdmin} />
+      : <MiDia corte={corte} uid={asesorActual} compartible={esAdmin} puedeEditar={puedeEditar} />
   }
 
   return (

@@ -53,6 +53,11 @@ VENTAS_CONFIG = os.path.join(DATA, "ventas_config.json")   # metas en pesos desd
 VENTAS_TABLEROS = os.path.join(DATA, "ventas_tableros.json")
 TABLERO_MAX = 200_000       # bytes por cuenta: un acomodo con gráficas propias ronda los 10 KB
 CLAVE_TABLERO = re.compile(r"^[a-z0-9][a-z0-9:_-]{0,59}$")
+_WIDGET = re.compile(r"^[a-z0-9][a-z0-9:*_.-]{0,59}$")   # id de widget («t-leads», «g:*»)
+# Acomodos del tablero (posición, tamaño, quitados): lo que una cuenta sin permiso de acomodar NO puede escribir.
+# Las fechas por widget, las columnas y las vistas del detalle son preferencia de lectura y sí se guardan.
+def clave_es_acomodo(clave):
+    return clave in ("admin", "ficha", "ficha2") or clave.startswith("midia-")
 
 
 def leer_tableros():
@@ -482,9 +487,10 @@ def validar_config(body):
     crms = body.get("crms") or {}
     if not isinstance(crms, dict) or len(crms) > 500:
         raise ValueError("crms debe ser un objeto")
-    fechas_widget = body.get("fechas_widget", True)
-    if not isinstance(fechas_widget, bool):
-        raise ValueError("fechas_widget debe ser verdadero o falso")
+    # Widgets SIN fechas propias (Randall 16-sep: «seleccionar qué widgets tendrán fechas personalizables»).
+    fechas_sin = body.get("fechas_sin") or []
+    if not isinstance(fechas_sin, list) or len(fechas_sin) > 300 or not all(isinstance(x, str) and _WIDGET.match(x) for x in fechas_sin):
+        raise ValueError("fechas_sin debe ser una lista de widgets")
     for k, v in crms.items():
         if not (isinstance(k, str) and _SLUG.match(k) and v in ("kommo", "hubspot", "ambos", "ninguno")):
             raise ValueError("CRM declarado inválido: %r" % ((k, v),))
@@ -494,7 +500,7 @@ def validar_config(body):
             "metas_zona": tabla(body.get("metas_zona"), "metas_zona", _ZONA),
             "metas": tabla(body.get("metas"), "metas", _SLUG),
             "ocultos": sorted(set(ocultos)), "equipos": dict(equipos), "comisiones_map": dict(cmap), "tipos": dict(tipos), "crms": dict(crms),
-            "fechas_widget": fechas_widget}
+            "fechas_sin": sorted(set(fechas_sin))}
 
 
 # ---------------------------------------------------------------- accesos de /ventas
@@ -575,13 +581,13 @@ def autenticar(usuario, pwd):
     """Devuelve {uid, rol, nombre} o None. DASH_USER/DASH_PASS = administrador maestro."""
     usuario = (usuario or "").strip().lower()
     if USER and PASS and hmac.compare_digest(usuario, USER.lower()) and hmac.compare_digest(pwd or "", PASS):
-        return {"uid": "admin", "rol": "admin", "nombre": "Administrador"}
+        return {"uid": "admin", "rol": "admin", "nombre": "Administrador", "edita": True}
     for u in leer_usuarios():
         if u.get("usuario") == usuario and u.get("salt") and u.get("hash"):
             if hmac.compare_digest(hash_password(pwd or "", u["salt"])[1], u["hash"]):
                 if u.get("activo") is False:
                     return None
-                return {"uid": u.get("id") or usuario, "rol": u.get("rol") or "asesor", "nombre": u.get("nombre") or usuario}
+                return {"uid": u.get("id") or usuario, "rol": u.get("rol") or "asesor", "nombre": u.get("nombre") or usuario, "edita": u.get("edita") is not False}
             return None
     return None
 
@@ -604,6 +610,9 @@ def validar_usuarios(body, actuales):
         vistos.add(usuario)
         rol = x.get("rol") if x.get("rol") in ("admin", "asesor") else "asesor"
         activo = x.get("activo") is not False
+        # Permiso para acomodar el tablero (mover, estirar, quitar y agregar widgets). Alejandro 15-sep: «le puedes
+        # después dar un permiso de no moverlo» al líder de ventas. Sin el permiso sigue viendo todo y eligiendo fechas.
+        edita = x.get("edita") is not False
         uid = str(x.get("id") or "").strip()
         if rol == "asesor" and not _SLUG.match(uid):
             raise ValueError("la cuenta %s debe estar ligada a un vendedor: sin eso no sabemos qué tablero mostrarle" % usuario)
@@ -619,7 +628,7 @@ def validar_usuarios(body, actuales):
             salt, h = previos[usuario]["salt"], previos[usuario]["hash"]
         else:
             raise ValueError("falta la contraseña de %s" % usuario)
-        out.append({"id": uid, "usuario": usuario, "nombre": nombre, "rol": rol, "activo": activo, "salt": salt, "hash": h})
+        out.append({"id": uid, "usuario": usuario, "nombre": nombre, "rol": rol, "activo": activo, "edita": edita, "salt": salt, "hash": h})
     # A propósito NO se exige que quede un administrador en la lista: DASH_USER/DASH_PASS entra
     # siempre como administrador maestro, así que un tablero con puras cuentas de vendedor es
     # válido y común. La página lo avisa, pero no lo bloquea.
@@ -628,7 +637,18 @@ def validar_usuarios(body, actuales):
 
 def usuarios_publicos(lista):
     return [{"id": u.get("id"), "usuario": u.get("usuario"), "nombre": u.get("nombre"), "rol": u.get("rol"),
-             "activo": u.get("activo") is not False} for u in lista]
+             "activo": u.get("activo") is not False, "edita": u.get("edita") is not False} for u in lista]
+
+
+def puede_editar(ses):
+    """Si la cuenta de la sesión puede acomodar tableros. Se lee del archivo en cada consulta (no de la cookie)
+    para que quitar el permiso aplique sin volver a entrar. El administrador maestro siempre puede."""
+    if not ses or ses.get("uid") == "admin":
+        return True
+    for u in leer_usuarios():
+        if u.get("id") == ses.get("uid"):
+            return u.get("edita") is not False
+    return True
 
 
 def corte_cargado():
@@ -879,6 +899,8 @@ class H(BaseHTTPRequestHandler):
         rel = ruta[len("/ventas/"):] or "index.html"
         if rel == "yo":
             ses = self._sesion()
+            if ses:
+                ses = dict(ses, edita=puede_editar(ses))
             return self._send(200 if ses else 401, json.dumps(ses or {"error": "sin sesión"}, ensure_ascii=False), "application/json")
         if rel in ("data.json", "config.json", "hist.json"):
             ses = self._sesion()
@@ -1019,6 +1041,8 @@ class H(BaseHTTPRequestHandler):
                 clave, layout = validar_tablero(self._json_body(TABLERO_MAX + 2000))
             except (ValueError, TypeError) as e:
                 return err(400, str(e))
+            if clave_es_acomodo(clave) and not puede_editar(ses):
+                return err(403, "tu cuenta no tiene permiso para acomodar el tablero")
             todos = leer_tableros()
             mios = dict(todos.get(ses["uid"]) or {})
             if layout is None:

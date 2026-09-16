@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { CATALOGO_FECHAS } from './catalogo'
 import type { Acceso, Config, Corte, CrmDeclarado, Usuario } from './types'
 import { CRM_LABEL } from './types'
 import { cargarAccesos, guardarAccesos, guardarConfig } from './data'
@@ -35,8 +36,10 @@ export function Configuracion({ corte, onSaved }: { corte: Corte; onSaved: (cfg:
   const [general, setGeneral] = useState(String(corte.meta_mxn))
   const [factor, setFactor] = useState(String(corte.cotizado_x))
   const [dias, setDias] = useState(String(corte.cotizado_dias))
-  // Fechas propias por widget (Randall 16-sep: «activar o desactivar el tema de la fecha del widget»).
-  const [fechasWidget, setFechasWidget] = useState(corte.fechas_widget !== false)
+  // Qué widgets NO llevan fechas propias (Randall 16-sep: «un menú para seleccionar qué widgets tendrán fechas
+  // personalizables y cuáles no»). Vacío = todos las tienen.
+  const [fechasSin, setFechasSin] = useState<Set<string>>(() => new Set(corte.fechas_sin || []))
+  const alternarFecha = (id: string) => setFechasSin((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })
   const [zonas, setZonas] = useState<Record<string, string>>(() => Object.fromEntries(corte.equipos.map((e) => [e.id, corte.metas_zona[e.id] != null ? String(corte.metas_zona[e.id]) : ''])))
   const [asesores, setAsesores] = useState<Record<string, string>>(() => Object.fromEntries(corte.usuarios.map((u) => [u.id, corte.metas[u.id] != null ? String(corte.metas[u.id]) : ''])))
   const [ocultos, setOcultos] = useState<Set<string>>(() => new Set(corte.ocultos || []))
@@ -54,11 +57,11 @@ export function Configuracion({ corte, onSaved }: { corte: Corte; onSaved: (cfg:
   // Cuentas de la plataforma: se cargan del servidor; la contraseña solo viaja cuando se escribe.
   const [accesos, setAccesos] = useState<Acceso[] | null>(null)
   const [accesosDirty, setAccesosDirty] = useState(false)
-  useEffect(() => { let vivo = true; cargarAccesos().then((a) => { if (vivo) setAccesos(a.map((x) => ({ ...x, activo: x.activo !== false }))) }); return () => { vivo = false } }, [])
+  useEffect(() => { let vivo = true; cargarAccesos().then((a) => { if (vivo) setAccesos(a.map((x) => ({ ...x, activo: x.activo !== false, edita: x.edita !== false }))) }); return () => { vivo = false } }, [])
   const setAcceso = (i: number, cambio: Partial<Acceso>) => { setAccesos((a) => (a || []).map((x, j) => (j === i ? { ...x, ...cambio } : x))); setAccesosDirty(true) }
   const quitarAcceso = (i: number) => { setAccesos((a) => (a || []).filter((_, j) => j !== i)); setAccesosDirty(true) }
   const agregarAcceso = (rol: Acceso['rol']) => {
-    setAccesos((a) => [...(a || []), { id: '', usuario: '', nombre: '', rol, activo: true, password: '', nuevo: true }])
+    setAccesos((a) => [...(a || []), { id: '', usuario: '', nombre: '', rol, activo: true, edita: true, password: '', nuevo: true }])
     setAccesosDirty(true); setSeccion('usuarios')
   }
   const validarAccesos = (): string | null => {
@@ -87,7 +90,7 @@ export function Configuracion({ corte, onSaved }: { corte: Corte; onSaved: (cfg:
     for (const [k, v] of Object.entries(asesores)) { if (v.trim() === '') continue; const n = num(v); if (n == null) return `La meta de ${corte.usuarios.find((u) => u.id === k)?.nombre || k} no es un número.`; metas[k] = n }
     const eq: Record<string, string> = {}
     for (const [k, v] of Object.entries(equipos)) if (v) eq[k] = v
-    return { meta_mxn: g, cotizado_x: x, cotizado_dias: Math.round(d), metas_zona, metas, ocultos: [...ocultos], equipos: eq, comisiones_map: comMap, tipos: Object.fromEntries(Object.entries(tipos).filter(([, v]) => v)) as Config['tipos'], crms: Object.fromEntries(Object.entries(crms).filter(([, v]) => v)) as Config['crms'], fechas_widget: fechasWidget }
+    return { meta_mxn: g, cotizado_x: x, cotizado_dias: Math.round(d), metas_zona, metas, ocultos: [...ocultos], equipos: eq, comisiones_map: comMap, tipos: Object.fromEntries(Object.entries(tipos).filter(([, v]) => v)) as Config['tipos'], crms: Object.fromEntries(Object.entries(crms).filter(([, v]) => v)) as Config['crms'], fechas_sin: [...fechasSin].sort() }
   }
   const borrador = armar()
   const cfg = typeof borrador === 'string' ? null : borrador
@@ -110,8 +113,8 @@ export function Configuracion({ corte, onSaved }: { corte: Corte; onSaved: (cfg:
       let msg = 'Guardado. Metas, equipos y vendedores activos ya aplican.'
       if (accesosDirty && accesos) {
         const nuevas = accesos.filter((a) => a.nuevo).length
-        const guardadas = await guardarAccesos(accesos.map((a) => ({ id: a.id, usuario: a.usuario, rol: a.rol, activo: a.activo !== false, nombre: a.nombre || corte.usuarios.find((u) => u.id === a.id)?.nombre || a.usuario, password: a.password || undefined })))
-        setAccesos(guardadas.map((a) => ({ ...a, activo: a.activo !== false, password: '' }))); setAccesosDirty(false)
+        const guardadas = await guardarAccesos(accesos.map((a) => ({ id: a.id, usuario: a.usuario, rol: a.rol, activo: a.activo !== false, edita: a.edita !== false, nombre: a.nombre || corte.usuarios.find((u) => u.id === a.id)?.nombre || a.usuario, password: a.password || undefined })))
+        setAccesos(guardadas.map((a) => ({ ...a, activo: a.activo !== false, edita: a.edita !== false, password: '' }))); setAccesosDirty(false)
         msg = nuevas > 0
           ? `Guardado. ${nuevas === 1 ? 'La cuenta nueva ya puede entrar' : `Las ${nuevas} cuentas nuevas ya pueden entrar`} con su correo y su contraseña.`
           : 'Guardado. Metas, equipos, vendedores activos y cuentas ya aplican.'
@@ -149,9 +152,21 @@ export function Configuracion({ corte, onSaved }: { corte: Corte; onSaved: (cfg:
               <div className="small muted">Prioridad: meta del vendedor → meta de su zona → meta general. Deja en blanco para heredar. Las metas son mensuales y se cuentan por los meses que tocan las fechas elegidas, desde el mes en que el vendedor aparece.</div>
             </div>
             <div className="panel">
-              <h3>Tablero</h3>
-              <label className="fld casilla"><input type="checkbox" checked={fechasWidget} onChange={(e) => setFechasWidget(e.target.checked)} /><span>Fechas propias por widget</span></label>
-              <div className="small muted">Encendido: cada gráfica lleva su calendario (la píldora «Este mes» / «Máximo») y puede mirar otro periodo que el tablero; la evolución por mes y el embudo abren en «Máximo». Apagado: se esconden las píldoras y todas las gráficas siguen el calendario de arriba. Lo que cada cuenta haya elegido se conserva para cuando se vuelva a encender.</div>
+              <h3>Fechas propias por widget</h3>
+              <div className="small muted" style={{ marginBottom: 8 }}>Con la casilla encendida, esa gráfica lleva su calendario (la píldora «Este mes» / «Máximo») y puede mirar otro periodo que el tablero. Apagada, sigue el calendario de arriba y no muestra píldora. Las cifras «foto de hoy» no dependen de fechas y no aparecen aquí.</div>
+              <div className="cols-btns" style={{ marginBottom: 8 }}>
+                <button type="button" className="btn sm" onClick={() => setFechasSin(new Set())}>Todas con fechas</button>
+                <button type="button" className="btn sm" onClick={() => setFechasSin(new Set(CATALOGO_FECHAS.flatMap((g) => g.widgets.map((w) => w.id))))}>Ninguna</button>
+                <span className="small muted">{fmtN(CATALOGO_FECHAS.reduce((n, g) => n + g.widgets.filter((w) => !fechasSin.has(w.id)).length, 0))} de {fmtN(CATALOGO_FECHAS.reduce((n, g) => n + g.widgets.length, 0))} con fechas propias</span>
+              </div>
+              {CATALOGO_FECHAS.map((g) => (
+                <div key={g.vista} className="cat-fechas">
+                  <div className="small" style={{ fontWeight: 700, margin: '8px 0 4px' }}>{g.vista}</div>
+                  {g.widgets.map((w) => (
+                    <label key={w.id} className="fld casilla"><input type="checkbox" checked={!fechasSin.has(w.id)} onChange={() => alternarFecha(w.id)} /><span>{w.titulo}</span></label>
+                  ))}
+                </div>
+              ))}
             </div>
             <div className="panel">
               <h3>Meta por zona</h3>
@@ -270,7 +285,7 @@ export function Configuracion({ corte, onSaved }: { corte: Corte; onSaved: (cfg:
               )}
               <div className="tblwrap" style={{ boxShadow: 'none' }}>
                 <table className="ftable" aria-label="Cuentas de la plataforma">
-                  <thead><tr><th scope="col">Activa</th><th scope="col">Correo (para entrar)</th><th scope="col">Nombre</th><th scope="col">Rol</th><th scope="col">Vendedor ligado</th><th scope="col">Contraseña</th><th scope="col"><span className="sr-solo">Acciones</span></th></tr></thead>
+                  <thead><tr><th scope="col">Activa</th><th scope="col">Correo (para entrar)</th><th scope="col">Nombre</th><th scope="col">Rol</th><th scope="col">Vendedor ligado</th><th scope="col">Acomoda el tablero<Info termino="Acomodar el tablero" /></th><th scope="col">Contraseña</th><th scope="col"><span className="sr-solo">Acciones</span></th></tr></thead>
                   <tbody>
                     {accesos.map((a, i) => {
                       const activa = a.activo !== false
@@ -283,12 +298,14 @@ export function Configuracion({ corte, onSaved }: { corte: Corte; onSaved: (cfg:
                           <td>{a.rol === 'asesor'
                             ? <select className="sel" aria-label={'Vendedor ligado a la cuenta ' + (i + 1)} value={a.id} onChange={(e) => setAcceso(i, { id: e.target.value, nombre: corte.usuarios.find((u) => u.id === e.target.value)?.nombre || a.nombre })}><option value="">— elige —</option>{usuarios.map((u) => <option key={u.id} value={u.id}>{u.nombre}</option>)}</select>
                             : <span className="muted small">ve todo el tablero</span>}</td>
+                          {/* Permiso de acomodar (Alejandro 15-sep: que el líder de ventas no lo mueva al principio). */}
+                          <td><label className="casilla-celda"><input type="checkbox" checked={a.edita !== false} aria-label={'La cuenta ' + (a.usuario || i + 1) + ' puede acomodar el tablero'} onChange={(e) => setAcceso(i, { edita: e.target.checked })} /><span className="small muted">{a.edita !== false ? 'sí' : 'solo mira'}</span></label></td>
                           <td><input className="inp" type="password" autoComplete="new-password" placeholder={a.nuevo ? 'mínimo 6 caracteres' : 'sin cambio'} aria-label={'Contraseña de la cuenta ' + (i + 1)} value={a.password || ''} onChange={(e) => setAcceso(i, { password: e.target.value })} /></td>
                           <td><button type="button" className="ib" aria-label={'Borrar la cuenta ' + (a.usuario || i + 1)} title="Borrar la cuenta" onClick={() => quitarAcceso(i)}>×</button></td>
                         </tr>
                       )
                     })}
-                    {!accesos.length && <tr><td colSpan={7} className="muted">Todavía no hay ninguna cuenta. Crea la primera aquí abajo.</td></tr>}
+                    {!accesos.length && <tr><td colSpan={8} className="muted">Todavía no hay ninguna cuenta. Crea la primera aquí abajo.</td></tr>}
                   </tbody>
                 </table>
               </div>

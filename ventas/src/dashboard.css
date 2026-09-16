@@ -611,6 +611,9 @@ h3 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: 0; t
 .cfg .fld { display: grid; gap: 4px; margin-bottom: 12px; font-size: 12.5px; font-weight: 600; }
 .cfg .fld.casilla { grid-template-columns: auto 1fr; align-items: center; gap: 8px; }
 .cfg .fld.casilla input { width: 18px; height: 18px; margin: 0; accent-color: var(--c1); }
+.cfg .cat-fechas .fld.casilla { margin-bottom: 4px; font-weight: 500; }
+.casilla-celda { display: inline-flex; align-items: center; gap: 6px; }
+.casilla-celda input { width: 18px; height: 18px; margin: 0; accent-color: var(--c1); }
 .inp { border: 1px solid var(--edge); border-radius: 8px; padding: 7px 10px; background: var(--card); font-weight: 600; width: 100%; max-width: 220px; font-variant-numeric: tabular-nums; }
 .inp::placeholder { color: var(--g2); font-weight: 400; }
 .cfg .ftable td { padding: 5px 8px; }

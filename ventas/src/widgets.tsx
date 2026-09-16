@@ -155,6 +155,8 @@ export interface Fechas {
    *  tablero: la ficha guarda su acomodo en `ficha2` y sus fechas en `ficha`; «Aplicar a otras cuentas» las
    *  copiaba bajo `rangos-ficha2` y nadie las leía (15-sep). */
   clave: string
+  /** Si este widget puede tener fechas propias (Configuración › Fechas propias por widget). Sin la función, todos. */
+  permitido?: (id: string) => boolean
   por: Record<string, Preset>
   fijar: (id: string, p: Preset | null) => void
   tablero: string                        // cómo se llama el periodo de arriba: «Este mes», «Máximo»…
@@ -294,7 +296,9 @@ export function Compartir({ clave, datos, nombre, onClose }: { clave: string; da
   )
 }
 
-export function WidgetGrid({ clave, widgets, taller: ctor, fechas, compartible }: { clave: string; widgets: Widget[]; taller?: Constructor; fechas?: Fechas; compartible?: boolean }) {
+/** `bloqueado`: la cuenta no puede acomodar (Alejandro 15-sep): sin barra de agregar/quitar, sin asa, sin ×, sin esquina de
+ *  tamaño ni lápiz; el tablero se ve tal como se lo dejó el administrador. Las fechas por widget sí se pueden elegir. */
+export function WidgetGrid({ clave, widgets, taller: ctor, fechas, compartible, bloqueado = false }: { clave: string; widgets: Widget[]; taller?: Constructor; fechas?: Fechas; compartible?: boolean; bloqueado?: boolean }) {
   const [layout, setLayout] = useState<Layout>(() => inicial(clave, widgets))
   const [galeria, setGaleria] = useState(false)
   const [compartir, setCompartir] = useState(false)
@@ -405,7 +409,7 @@ export function WidgetGrid({ clave, widgets, taller: ctor, fechas, compartible }
 
   /** Arrastrar el asa ⋮⋮: el widget sigue al puntero y un fantasma marca la celda donde caerá. */
   const onGrip = (id: string) => (e: RPointerEvent<HTMLElement>) => {
-    if (e.button !== 0 || !libre || !grid.current) return
+    if (e.button !== 0 || !libre || !grid.current || bloqueado) return
     e.preventDefault()
     const p0 = actual.current.pos[id]
     if (!p0) return
@@ -440,7 +444,7 @@ export function WidgetGrid({ clave, widgets, taller: ctor, fechas, compartible }
   }
   /** Estirar con el mouse o el dedo: ancho por columnas y alto por filas, en vivo. */
   const onResizeStart = (id: string) => (e: RPointerEvent<HTMLSpanElement>) => {
-    if (!libre) return
+    if (!libre || bloqueado) return
     e.preventDefault()
     const el = refs.current[id], p0 = actual.current.pos[id]
     if (!el || !p0) return
@@ -510,7 +514,7 @@ export function WidgetGrid({ clave, widgets, taller: ctor, fechas, compartible }
 
   return (
     <>
-      <div className="wbar">
+      {bloqueado ? <div className="wbar"><span className="small muted" title="Lo fija el administrador en Configuración › Usuarios de la plataforma › Acomoda el tablero">Tu cuenta ve el tablero tal como se acomodó para ti; puedes elegir las fechas de cada gráfica.</span></div> : <div className="wbar">
         {/* Los tres botones de la barra son la misma familia (Randall 8-sep): recuadro, icono y texto. */}
         <button type="button" className="btn sm wadd-btn" onClick={() => setGaleria(true)} aria-haspopup="dialog">
           <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M10 4v12M4 10h12" /></svg>
@@ -533,7 +537,7 @@ export function WidgetGrid({ clave, widgets, taller: ctor, fechas, compartible }
           Restablecer tablero
         </button>}
         <span className="sr-solo" role="status" aria-live="polite">{msg}</span>
-      </div>
+      </div>}
       <div className={'wgrid' + (libre ? ' libre' : '') + (editando ? ' editing' : '')} ref={grid} style={libre ? { gridAutoRows: FILA + 'px' } : undefined}>
         {ghost && libre && <div className="wghost" aria-hidden="true" style={area(ghost)} />}
         {visibles.map((id) => {
@@ -544,11 +548,11 @@ export function WidgetGrid({ clave, widgets, taller: ctor, fechas, compartible }
             <section key={id} ref={(el) => { refs.current[id] = el }} aria-label={`Separador: ${layout.seps[id]}`} style={estilo}
               className={'widget sep' + (arrastrando ? ' dragging' : '')}>
               <div className="whead">
-                <button type="button" className="grip" title="Arrastra para mover (o usa las flechas)" aria-label={`Mover el separador «${layout.seps[id]}»: flechas mueven una celda, Home y End a los bordes`} onPointerDown={onGrip(id)} onKeyDown={onGripKey(id)}><IconoGrip /></button>
-                <input className="sep-in" value={layout.seps[id]} aria-label="Título del separador" placeholder="Título de la sección" onChange={(e) => titularSep(id, e.target.value)} />
-                <span className="wctl">
+                {!bloqueado && <button type="button" className="grip" title="Arrastra para mover (o usa las flechas)" aria-label={`Mover el separador «${layout.seps[id]}»: flechas mueven una celda, Home y End a los bordes`} onPointerDown={onGrip(id)} onKeyDown={onGripKey(id)}><IconoGrip /></button>}
+                {bloqueado ? <span className="sep-in">{layout.seps[id]}</span> : <input className="sep-in" value={layout.seps[id]} aria-label="Título del separador" placeholder="Título de la sección" onChange={(e) => titularSep(id, e.target.value)} />}
+                {!bloqueado && <span className="wctl">
                   <button type="button" className="wbtn" aria-label="Borrar separador" title="Borrar separador" onClick={() => borrarSep(id)}><IconoX /></button>
-                </span>
+                </span>}
               </div>
             </section>
           )
@@ -557,29 +561,30 @@ export function WidgetGrid({ clave, widgets, taller: ctor, fechas, compartible }
             <section key={id} ref={(el) => { refs.current[id] = el }} aria-label={w.titulo} style={estilo}
               className={'widget' + (w.plain ? ' plain' : ' panel') + (w.cls ? ' ' + w.cls : '') + (libre ? ' hset' : '') + (arrastrando ? ' dragging' : '') + (estiro?.id === id ? ' resizing' : '')}>
               <div className="whead">
-                <button type="button" className="grip" title="Arrastra para mover (o usa las flechas)" aria-label={`Mover «${w.titulo}»: flechas mueven una celda, Home y End a los bordes. Ahora en columna ${p.x}, fila ${p.y}`} onPointerDown={onGrip(id)} onKeyDown={onGripKey(id)}><IconoGrip /></button>
+                {!bloqueado && <button type="button" className="grip" title="Arrastra para mover (o usa las flechas)" aria-label={`Mover «${w.titulo}»: flechas mueven una celda, Home y End a los bordes. Ahora en columna ${p.x}, fila ${p.y}`} onPointerDown={onGrip(id)} onKeyDown={onGripKey(id)}><IconoGrip /></button>}
                 <h3><span className="wt">{w.titulo}</span>{w.info?.length ? <Info termino={w.info} /> : null}{w.ayuda ? <button type="button" className="ibtn" data-tip={w.ayuda} aria-label={w.ayuda} onClick={(e) => e.stopPropagation()}><IconoInfo /></button> : null}</h3>
                 {/* Un widget que es foto de HOY (leads activos, cotizado vigente, tareas abiertas) no depende de ninguna
                     fecha: la píldora lo dice en vez de prestar el periodo del tablero (Randall 16-sep: «este debería ser
                     igual que lo activo… recuerda»). */}
+                {/* Foto de hoy: siempre se dice. Fechas propias: solo si el administrador las permite para este widget. */}
                 {!fechas ? null : w.base === 'hoy'
                   ? <span className="wfechas hoy"><span className="wrango" title={BASE_FECHA.hoy.largo} aria-label={`«${w.titulo}» es foto de hoy. ${BASE_FECHA.hoy.largo}`}><IconoCalendario /><span>Foto de hoy</span></span></span>
-                  : <BotonFechas id={id} titulo={w.titulo} actual={fechas.por[id]} base={w.base} fechas={fechas} />}
-                <span className="wctl">
+                  : (!fechas.permitido || fechas.permitido(id)) && <BotonFechas id={id} titulo={w.titulo} actual={fechas.por[id]} base={w.base} fechas={fechas} />}
+                {!bloqueado && <span className="wctl">
                   {w.grafica && <button type="button" className="wbtn" aria-label={`Ajustar «${w.titulo}»`} title="Ajustar esta gráfica" onClick={() => setAjustando(w.grafica!)}><IconoLapiz /></button>}
                   <button type="button" className="wbtn" aria-label={w.grafica ? `Borrar «${w.titulo}»` : `Quitar «${w.titulo}» del tablero`} title={w.grafica ? 'Borrar esta gráfica' : 'Quitar del tablero'} onClick={() => quitar(id)}><IconoX /></button>
-                </span>
+                </span>}
               </div>
               <div className="wbody">{w.nodo}</div>
-              <span className="wresize" role="slider" tabIndex={0} aria-label={`Tamaño de «${w.titulo}»`} aria-valuemin={1} aria-valuemax={COLS} aria-valuenow={p.w}
+              {!bloqueado && <span className="wresize" role="slider" tabIndex={0} aria-label={`Tamaño de «${w.titulo}»`} aria-valuemin={1} aria-valuemax={COLS} aria-valuenow={p.w}
                 aria-valuetext={`${p.w} de ${COLS} columnas por ${p.h} filas`}
                 title="Arrastra para cambiar ancho y alto (o usa ← → ↑ ↓; Supr regresa el tamaño por defecto)"
-                data-ancho={`${p.w} / ${COLS} · ${p.h} filas`} onPointerDown={onResizeStart(id)} onKeyDown={onResizeKey(id)} />
+                data-ancho={`${p.w} / ${COLS} · ${p.h} filas`} onPointerDown={onResizeStart(id)} onKeyDown={onResizeKey(id)} />}
             </section>
           )
         })}
       </div>
-      <div className="wreset">Arrastra el asa ⋮⋮ a la celda que quieras (o enfócala y usa ← → ↑ ↓); estira la esquina inferior derecha para cambiar ancho y alto (← → ↑ ↓ sobre ella; Supr regresa el tamaño por defecto). Nada se encima: lo que choca se empuja hacia abajo. × quita la gráfica del tablero y arriba, en «Agregar gráfica», la regresas. Se guarda en este navegador.</div>
+      {!bloqueado && <div className="wreset">Arrastra el asa ⋮⋮ a la celda que quieras (o enfócala y usa ← → ↑ ↓); estira la esquina inferior derecha para cambiar ancho y alto (← → ↑ ↓ sobre ella; Supr regresa el tamaño por defecto). Nada se encima: lo que choca se empuja hacia abajo. × quita la gráfica del tablero y arriba, en «Agregar gráfica», la regresas. Se guarda en este navegador.</div>}
 
       {compartir && <Compartir clave={clave} onClose={() => setCompartir(false)}
         datos={{ [clave]: layout, ...(fechas ? { ['rangos-' + fechas.clave]: { por: fechas.por, ts: Date.now() } } : {}) }} />}

@@ -12,6 +12,7 @@ import { aplicarSancion, cargarSanciones } from './data'
 import { WidgetGrid, type Widget } from './widgets'
 import { Galeria, GraficaLibre, Editor, type Grafica } from './constructor'
 import { useRangos } from './rangos'
+import { fechasPermitidas } from './catalogo'
 
 const mixto = (c: Corte) => (c.fuentes || []).length > 1
 const crmCorto = (l: { crm: Lead['crm'] }) => CRM_LABEL[l.crm]
@@ -620,7 +621,7 @@ function widgetsTablero(corte: Corte, filtros: Filtros, d: Datos, ax: Acciones):
   return widgets
 }
 
-export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filtros: Filtros; onFicha: (uid: string) => void }) {
+export function AdminDashboard({ corte, filtros, onFicha, puedeEditar = true }: { corte: Corte; filtros: Filtros; onFicha: (uid: string) => void; puedeEditar?: boolean }) {
   // Punto agrupado («×n») de la dispersión: lista inline para elegir a quién abrir; se limpia al cambiar filtros.
   const [grupo, setGrupo] = useState<PuntoPerfil[] | null>(null)
   useEffect(() => setGrupo(null), [filtros])
@@ -632,9 +633,10 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
   // Fechas propias por widget (Randall 10-sep: «si un widget siempre debe mostrar la info histórica,
   // que la muestre y no conflictúe con el date range del tablero»). Sin fechas propias se sigue al tablero.
   const { rangos: rangosCuenta, fijarRango } = useRangos('admin', RANGOS_ADMIN)
-  // Configuración › Tablero › «Fechas propias por widget» apagado: todo sigue al calendario de arriba (Randall 16-sep).
-  const conFechas = corte.fechas_widget !== false
-  const rangos = useMemo(() => (conFechas ? rangosCuenta : {}), [conFechas, rangosCuenta])
+  // Configuración › Fechas propias por widget: el widget apagado sigue al calendario de arriba (Randall 16-sep).
+  const permitido = useMemo(() => fechasPermitidas(corte), [corte])
+  const rangos = useMemo(() => Object.fromEntries(Object.entries(rangosCuenta).filter(([id]) => permitido(id))), [permitido, rangosCuenta])
+  const conFechas = permitido('g:*')
   const desdeMaximo = useMemo(() => { let m = corte.desde; for (const l of corte.leads) { if (l.asignacion && l.asignacion < m) m = l.asignacion; if (l.creado && l.creado < m) m = l.creado } return m }, [corte])
   const conRango = (p: Preset): Filtros => ({ ...filtros, rango: preset(p, new Date(), desdeMaximo) })
   // «Este mes» / «Máximo»: el nombre del periodo de arriba, para que la etiqueta de cada widget diga
@@ -664,7 +666,8 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
     <>
       <div className="hint" style={{ marginBottom: 8 }}>Clic en cualquier cifra, barra o renglón abre la lista de registros detrás, con liga a Kommo o HubSpot.</div>
       <WidgetGrid clave="admin" compartible widgets={ORDEN_ADMIN.map((id) => widgets.find((w) => w.id === id)).filter((w): w is Widget => !!w).concat(widgets.filter((w) => !ORDEN_ADMIN.includes(w.id)))}
-        fechas={conFechas ? { clave: 'admin', por: rangos, fijar: fijarRango, tablero: nombreTablero, fechas: fechasDe } : undefined}
+        bloqueado={!puedeEditar}
+        fechas={{ clave: 'admin', por: rangos, fijar: fijarRango, tablero: nombreTablero, fechas: fechasDe, permitido }}
         taller={{
           render: (g: Grafica) => <GraficaLibre corte={corte} filtros={filtrosDe('g:' + g.id)} g={g} onDrill={setDrill} />,
           galeria: (p) => <Galeria corte={corte} filtros={filtros} quitados={p.quitados} onAgregar={p.onAgregar} onCrear={p.onCrear} onClose={p.onClose} fechas={fechasCtor} />,
@@ -1061,7 +1064,7 @@ const RANGOS_FICHA: Record<string, Preset> = { ev: 'maximo', 'ev-tabla': 'maximo
  *  mueve, estira o quita igual que en el Dashboard. Cotizado vigente y su antigüedad van en UNA
  *  tarjeta; la actividad respeta el rango del filtro (por día hasta 21 días, si no por semana con
  *  clic para abrir la semana). */
-export function Ficha({ corte, filtros, uid, onBack }: { corte: Corte; filtros: Filtros; uid: string; onBack: () => void }) {
+export function Ficha({ corte, filtros, uid, onBack, puedeEditar = true }: { corte: Corte; filtros: Filtros; uid: string; onBack: () => void; puedeEditar?: boolean }) {
   const u = corte.usuarios.find((x) => x.id === uid)
   // Su ficha muestra TODO lo suyo: el equipo y el CRM elegidos arriba no la recortan (si el tablero
   // estaba en Kommo y la persona trabaja en HubSpot, su ficha salía vacía).
@@ -1075,8 +1078,9 @@ export function Ficha({ corte, filtros, uid, onBack }: { corte: Corte; filtros: 
   // asesor no está lo del date range del widget»). La elección se comparte entre fichas: si dejas
   // «Ventas» en Máximo, se ve en Máximo para cualquier asesor.
   const { rangos: rangosCuenta, fijarRango } = useRangos('ficha', RANGOS_FICHA)
-  const conFechas = corte.fechas_widget !== false
-  const rangos = useMemo(() => (conFechas ? rangosCuenta : {}), [conFechas, rangosCuenta])
+  const permitido = useMemo(() => fechasPermitidas(corte), [corte])
+  const rangos = useMemo(() => Object.fromEntries(Object.entries(rangosCuenta).filter(([id]) => permitido(id))), [permitido, rangosCuenta])
+  const conFechas = permitido('g:*')
   const desdeMaximo = useMemo(() => { let m = corte.desde; for (const l of corte.leads) { if (l.asignacion && l.asignacion < m) m = l.asignacion; if (l.creado && l.creado < m) m = l.creado } return m }, [corte])
   const conRango = (pz: Preset): Filtros => ({ ...f, rango: preset(pz, new Date(), desdeMaximo) })
   const filtrosDe = (id: string): Filtros => (rangos[id] ? conRango(rangos[id]) : f)
@@ -1244,7 +1248,8 @@ export function Ficha({ corte, filtros, uid, onBack }: { corte: Corte; filtros: 
       </div>
       {/* La ficha usa el mismo constructor, pero fijado a este asesor. */}
       <WidgetGrid clave="ficha2" compartible widgets={ORDEN_FICHA.map((id) => widgets.find((w) => w.id === id)).filter((w): w is Widget => !!w).concat(widgets.filter((w) => !ORDEN_FICHA.includes(w.id)))}
-        fechas={conFechas ? { clave: 'ficha', por: rangos, fijar: fijarRango, tablero: nombreTablero, fechas: fechasDe } : undefined}
+        bloqueado={!puedeEditar}
+        fechas={{ clave: 'ficha', por: rangos, fijar: fijarRango, tablero: nombreTablero, fechas: fechasDe, permitido }}
         taller={{
         render: (g: Grafica) => <GraficaLibre corte={corte} filtros={filtrosDe('g:' + g.id)} g={g} onDrill={setDrill} />,
         galeria: (p) => <Galeria corte={corte} filtros={f} quitados={p.quitados} onAgregar={p.onAgregar} onCrear={p.onCrear} onClose={p.onClose} fechas={fechasCtor} />,

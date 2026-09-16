@@ -16,7 +16,7 @@ interface TareaLocal { id: string; texto: string; hora: string }
 const hoyKey = () => new Date().toISOString().slice(0, 10)
 const mixto = (c: Corte) => (c.fuentes || []).length > 1
 
-export function MiDia({ corte, uid, compartible }: { corte: Corte; uid: string; compartible?: boolean }) {
+export function MiDia({ corte, uid, compartible, puedeEditar = true }: { corte: Corte; uid: string; compartible?: boolean; puedeEditar?: boolean }) {
   const d = useMemo(() => miDia(corte, uid), [corte, uid])
   const ranking = useMemo(() => leaderboardHoy(corte), [corte])
   const [tab, setTab] = useState<'dia' | 'semana'>('dia')
@@ -110,7 +110,7 @@ export function MiDia({ corte, uid, compartible }: { corte: Corte; uid: string; 
       <textarea aria-label="Notas del día" value={notas} onChange={(e) => guardarNotas(e.target.value)} placeholder="Escribe aquí. Se guarda en este navegador…" />
     ), { cls: 'notes', alto: 5 }),
   ]
-  return <WidgetGrid clave={'midia-' + uid} widgets={widgets} compartible={compartible} />
+  return <WidgetGrid clave={'midia-' + uid} widgets={widgets} compartible={compartible} bloqueado={!puedeEditar} />
 }
 
 export function MisVentas({ corte, uid }: { corte: Corte; uid: string }) {
