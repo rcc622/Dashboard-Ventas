@@ -39,6 +39,10 @@ const PC_TRAMOS = [
   { l: 'de 4 a 24 horas', ok: (h: number) => h > 4 && h <= 24 }, { l: 'más de un día', ok: (h: number) => h > 24 },
 ]
 /** Orden de colocación por defecto del Dashboard: pares de igual alto (bandas) para que la rejilla libre no deje huecos. */
+/** Fechas con las que abre cada widget del Dashboard si la cuenta no ha elegido otras: el embudo y el monto por
+ *  etapa son la foto del pipeline de TODOS los leads activos (Randall 16-sep: «estos deben ser por default lo
+ *  máximo»); cada quien puede acotarlos con su calendario. */
+const RANGOS_ADMIN: Record<string, Preset> = { embudo: 'maximo', etapas: 'maximo' }
 const ORDEN_ADMIN = ['t-leads', 't-ventas', 't-vendido', 't-conversion', 't-perdida', 't-tareas', 't-cotizaciones', 't-descartes', 't-levantamientos', 'llamadas', 'calidad-llamadas', 'salud', 'pipeline', 'ranking', 'reales', 'cotiz-metodos', 'lev-operaciones', 'visitas', 'entrada', 'embudo', 'etapas', 'contacto', 'razones', 'perfiles', 'perfiles-tabla']
 const fLeads = (ls: Lead[]) => filasDeLeads(ls, () => '', undefined, { label: 'Días sin actividad', de: (l) => diasSinActividad(l) })
 const HOY = 'foto de hoy, sin importar las fechas del tablero'
@@ -627,7 +631,10 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
   const verLlamadas = (titulo: string, ls: Llamada[]) => setDrill(drillLlamadas(titulo, ls, corte, filtros.rango.label, setLlamada))
   // Fechas propias por widget (Randall 10-sep: «si un widget siempre debe mostrar la info histórica,
   // que la muestre y no conflictúe con el date range del tablero»). Sin fechas propias se sigue al tablero.
-  const { rangos, fijarRango } = useRangos('admin')
+  const { rangos: rangosCuenta, fijarRango } = useRangos('admin', RANGOS_ADMIN)
+  // Configuración › Tablero › «Fechas propias por widget» apagado: todo sigue al calendario de arriba (Randall 16-sep).
+  const conFechas = corte.fechas_widget !== false
+  const rangos = useMemo(() => (conFechas ? rangosCuenta : {}), [conFechas, rangosCuenta])
   const desdeMaximo = useMemo(() => { let m = corte.desde; for (const l of corte.leads) { if (l.asignacion && l.asignacion < m) m = l.asignacion; if (l.creado && l.creado < m) m = l.creado } return m }, [corte])
   const conRango = (p: Preset): Filtros => ({ ...filtros, rango: preset(p, new Date(), desdeMaximo) })
   // «Este mes» / «Máximo»: el nombre del periodo de arriba, para que la etiqueta de cada widget diga
@@ -636,7 +643,7 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
   const fechasDe = (p?: Preset) => { const r = p ? conRango(p).rango : filtros.rango; return etiquetaRango(null, r.ini, r.fin) }
   const filtrosDe = (id: string): Filtros => (rangos[id] ? conRango(rangos[id]) : filtros)
   // Lo que el constructor necesita para dejar elegir las fechas de la gráfica que se está creando.
-  const fechasCtor = { de: (id: string) => rangos['g:' + id], filtros: (id: string) => filtrosDe('g:' + id), fijar: (id: string, p: Preset | null) => fijarRango('g:' + id, p) }
+  const fechasCtor = conFechas ? { de: (id: string) => rangos['g:' + id], filtros: (id: string) => filtrosDe('g:' + id), fijar: (id: string, p: Preset | null) => fijarRango('g:' + id, p) } : undefined
 
   const construir = (f: Filtros, dd: Datos): Widget[] => widgetsTablero(corte, f, dd, { ver, verLlamadas, onFicha, grupo, setGrupo })
 
@@ -657,11 +664,11 @@ export function AdminDashboard({ corte, filtros, onFicha }: { corte: Corte; filt
     <>
       <div className="hint" style={{ marginBottom: 8 }}>Clic en cualquier cifra, barra o renglón abre la lista de registros detrás, con liga a Kommo o HubSpot.</div>
       <WidgetGrid clave="admin" compartible widgets={ORDEN_ADMIN.map((id) => widgets.find((w) => w.id === id)).filter((w): w is Widget => !!w).concat(widgets.filter((w) => !ORDEN_ADMIN.includes(w.id)))}
-        fechas={{ clave: 'admin', por: rangos, fijar: fijarRango, tablero: nombreTablero, fechas: fechasDe }}
+        fechas={conFechas ? { clave: 'admin', por: rangos, fijar: fijarRango, tablero: nombreTablero, fechas: fechasDe } : undefined}
         taller={{
           render: (g: Grafica) => <GraficaLibre corte={corte} filtros={filtrosDe('g:' + g.id)} g={g} onDrill={setDrill} />,
           galeria: (p) => <Galeria corte={corte} filtros={filtros} quitados={p.quitados} onAgregar={p.onAgregar} onCrear={p.onCrear} onClose={p.onClose} fechas={fechasCtor} />,
-          editor: (p) => <Editor corte={corte} filtros={filtrosDe('g:' + p.g.id)} g={p.g} rango={rangos['g:' + p.g.id]} onRango={(x) => fijarRango('g:' + p.g.id, x)} onGuardar={p.onGuardar} onClose={p.onClose} />,
+          editor: (p) => <Editor corte={corte} filtros={filtrosDe('g:' + p.g.id)} g={p.g} rango={rangos['g:' + p.g.id]} onRango={conFechas ? (x) => fijarRango('g:' + p.g.id, x) : undefined} onGuardar={p.onGuardar} onClose={p.onClose} />,
         }} />
       {drill && <DrillModal d={drill} onClose={() => setDrill(null)} />}
       {llamada && <LlamadaModal x={llamada} onClose={() => setLlamada(null)} />}
@@ -934,6 +941,17 @@ export function Asesores({ corte, filtros, onFicha }: { corte: Corte; filtros: F
           Columnas ({vis.length} de {COLS.length})
         </button>
         {tocadoCols && <button type="button" className="btn sm" onClick={restablecerCols}>Restablecer columnas</button>}
+        {/* Qué significa cada color, ARRIBA de la tabla junto a la nota de fechas (Randall 16-sep); un color se repite en
+            varias columnas con el mismo sentido: azul = bien, ámbar = pendiente, rojo = vencido, rayado = sin tarea. */}
+        <div className="legend tleg" aria-label="Colores de las barras">
+          <span><i className="lg-comp" aria-hidden="true" />Contestadas · completadas · al día</span>
+          <span><i className="lg-l" aria-hidden="true" />Ganados</span>
+          <span><i className="lg-warn" aria-hidden="true" />Sin contestar · estancados</span>
+          <span><i style={{ background: 'var(--warn)' }} aria-hidden="true" />Vencidas · sin primer contacto · descartados</span>
+          <span><i style={{ background: 'repeating-linear-gradient(45deg, var(--neutral) 0 2px, #fff 2px 4px)' }} aria-hidden="true" />Sin tarea</span>
+          <span><i className="lg-e" aria-hidden="true" />Cotizaciones</span>
+          <span title="En la barra de Vendido la marca negra es la meta del periodo y la gris lo que tocaría llevar hoy. Clic en una barra abre el desglose y de ahí la lista">Vendido: negra = meta, gris = esperado a hoy</span>
+        </div>
       </div>
       <div className="tblwrap">
         <table className="tbl asesores" style={{ minWidth: anchoTotal(vis) + 'px' }}>
@@ -955,7 +973,6 @@ export function Asesores({ corte, filtros, onFicha }: { corte: Corte; filtros: F
           </tbody>
         </table>
       </div>
-      <div className="legend" style={{ marginTop: 8 }}><span><i className="lg-comp" aria-hidden="true" />Contestadas · completadas</span><span><i className="lg-warn" aria-hidden="true" />Sin contestar</span><span><i style={{ background: 'var(--warn)' }} aria-hidden="true" />Tareas vencidas</span><span><i style={{ background: 'repeating-linear-gradient(45deg, var(--neutral) 0 2px, #fff 2px 4px)' }} aria-hidden="true" />Leads sin tarea</span><span>Barra de Vendido: marca negra = meta del rango, gris = esperado a hoy</span><span>Clic en una barra abre el desglose y de ahí la lista de registros</span></div>
       {pop && <AsesorPopup corte={corte} filtros={filtros} fila={pop.fila} x={pop.x} y={pop.y} onClose={() => setPop(null)} onFicha={() => { setPop(null); onFicha(pop.fila.u.id) }} />}
       {det && <BarDetailPopup anchor={det.anchor} title={det.title} total={det.total} rows={det.rows} onClose={() => setDet(null)} />}
       {drill && <DrillModal d={drill} onClose={() => setDrill(null)} />}
@@ -1038,7 +1055,7 @@ const META_CIERRE = 0.10
 /** Fechas con las que abre cada widget de la ficha si la cuenta no ha elegido otras: la evolución por mes
  *  siempre en «Máximo» (Alejandro 15-sep: «independientemente de lo que yo seleccione acá, siempre abra el
  *  máximo acá»). Lo demás sigue al tablero. */
-const RANGOS_FICHA: Record<string, Preset> = { ev: 'maximo', 'ev-tabla': 'maximo' }
+const RANGOS_FICHA: Record<string, Preset> = { ev: 'maximo', 'ev-tabla': 'maximo', embudo: 'maximo', etapas: 'maximo' }
 
 /** Ficha del asesor. Es un WidgetGrid (clave «ficha», compartida entre asesores): cada tarjeta se
  *  mueve, estira o quita igual que en el Dashboard. Cotizado vigente y su antigüedad van en UNA
@@ -1057,11 +1074,13 @@ export function Ficha({ corte, filtros, uid, onBack }: { corte: Corte; filtros: 
   // Fechas propias por widget, igual que en el tablero general (Randall 10-sep: «en la vista del
   // asesor no está lo del date range del widget»). La elección se comparte entre fichas: si dejas
   // «Ventas» en Máximo, se ve en Máximo para cualquier asesor.
-  const { rangos, fijarRango } = useRangos('ficha', RANGOS_FICHA)
+  const { rangos: rangosCuenta, fijarRango } = useRangos('ficha', RANGOS_FICHA)
+  const conFechas = corte.fechas_widget !== false
+  const rangos = useMemo(() => (conFechas ? rangosCuenta : {}), [conFechas, rangosCuenta])
   const desdeMaximo = useMemo(() => { let m = corte.desde; for (const l of corte.leads) { if (l.asignacion && l.asignacion < m) m = l.asignacion; if (l.creado && l.creado < m) m = l.creado } return m }, [corte])
   const conRango = (pz: Preset): Filtros => ({ ...f, rango: preset(pz, new Date(), desdeMaximo) })
   const filtrosDe = (id: string): Filtros => (rangos[id] ? conRango(rangos[id]) : f)
-  const fechasCtor = { de: (id: string) => rangos['g:' + id], filtros: (id: string) => filtrosDe('g:' + id), fijar: (id: string, pz: Preset | null) => fijarRango('g:' + id, pz) }
+  const fechasCtor = conFechas ? { de: (id: string) => rangos['g:' + id], filtros: (id: string) => filtrosDe('g:' + id), fijar: (id: string, pz: Preset | null) => fijarRango('g:' + id, pz) } : undefined
   const nombreTablero = filtros.rango.label.includes(': ') ? filtros.rango.label.split(': ')[0] : 'Fechas elegidas'
   const fechasDe = (pz?: Preset) => { const r = pz ? conRango(pz).rango : f.rango; return etiquetaRango(null, r.ini, r.fin) }
   // Los mismos widgets del tablero, pero de esta persona. Se arman una vez con las fechas de arriba
@@ -1158,7 +1177,7 @@ export function Ficha({ corte, filtros, uid, onBack }: { corte: Corte; filtros: 
           <Antiguedad c={cot} leads={activos} onVer={(t, filas) => setDrill({ titulo: `${t} · ${u.nombre}`, filas, sub: rango })} />
           <div className="small muted" style={{ marginTop: 6 }}>{cot.viejo > 0 ? `${fmtMoney(cot.viejo)} en ${fmtN(cot.nViejo)} leads pasan de ${corte.cotizado_dias} días: ya no cuentan.` : 'Nada pasa de ' + corte.cotizado_dias + ' días.'}</div></div>
       </div></div>
-    ), { plain: true, span: 2, cls: 'wcard', alto: 6 }),
+    ), { plain: true, span: 2, cls: 'wcard', alto: 6, base: 'hoy' }),
     ...(corte.comisiones ? [wg('reales', 'Ventas reales · Comisiones', (
       <div className="kcard k4"><div className="l">Ventas reales · Comisiones<Info termino="Ventas reales" /></div>
         <div className="n"><Cifra label={`${vr.n} ventas reales, ${fmtMoney0(vr.total)}`} onClick={() => setDrill({ titulo: `Ventas reales de ${u.nombre}`, filas: filasDeVentasReales(vr.ventas), sub: rango + ' · mes de venta en la app de comisiones' })}><b>{vr.n}</b> <span style={{ fontSize: 22 }}>{fmtMoney0(vr.total)}</span></Cifra></div>
@@ -1179,7 +1198,7 @@ export function Ficha({ corte, filtros, uid, onBack }: { corte: Corte; filtros: 
           <button type="button" onClick={() => setDrill({ titulo: `Actividad de ${u.nombre} · ${zoom ? zoom.texto : rango}`, filas: filasDeEventos(corte, evVista) })}>Ver las {fmtN(evVista.length)} actividades ›</button></div>
       </>
     ), { span: 6, alto: 7, info: ['Actividad'] }),
-    wg('leads', `Leads activos · ${fmtN(activos.length)}`, <LeadsTabla corte={corte} leads={activos} />, { span: 6, info: ['Leads activos', 'Estancados'] }),
+    wg('leads', `Leads activos · ${fmtN(activos.length)}`, <LeadsTabla corte={corte} leads={activos} />, { span: 6, info: ['Leads activos', 'Estancados'], base: 'hoy' }),
     wg('tareas', 'Tareas abiertas', (
       <>
         {!tareas.length && <div className="muted">Sin tareas abiertas en el CRM para este asesor.</div>}
@@ -1193,7 +1212,7 @@ export function Ficha({ corte, filtros, uid, onBack }: { corte: Corte; filtros: 
             </div>) })}
         </div>
       </>
-    ), { span: 6, info: ['Tareas'] }),
+    ), { span: 6, info: ['Tareas'], base: 'hoy' }),
     // La evolución abre la ficha: cómo va mes a mes contra su meta (Randall 10-sep, diseño del PDF).
     wg('ev', 'Monto vendido y Meta de venta por mes', (
       <GraficaLibre corte={corte} filtros={filtrosDe('ev')} onDrill={setDrill}
@@ -1225,11 +1244,11 @@ export function Ficha({ corte, filtros, uid, onBack }: { corte: Corte; filtros: 
       </div>
       {/* La ficha usa el mismo constructor, pero fijado a este asesor. */}
       <WidgetGrid clave="ficha2" compartible widgets={ORDEN_FICHA.map((id) => widgets.find((w) => w.id === id)).filter((w): w is Widget => !!w).concat(widgets.filter((w) => !ORDEN_FICHA.includes(w.id)))}
-        fechas={{ clave: 'ficha', por: rangos, fijar: fijarRango, tablero: nombreTablero, fechas: fechasDe }}
+        fechas={conFechas ? { clave: 'ficha', por: rangos, fijar: fijarRango, tablero: nombreTablero, fechas: fechasDe } : undefined}
         taller={{
         render: (g: Grafica) => <GraficaLibre corte={corte} filtros={filtrosDe('g:' + g.id)} g={g} onDrill={setDrill} />,
         galeria: (p) => <Galeria corte={corte} filtros={f} quitados={p.quitados} onAgregar={p.onAgregar} onCrear={p.onCrear} onClose={p.onClose} fechas={fechasCtor} />,
-        editor: (p) => <Editor corte={corte} filtros={filtrosDe('g:' + p.g.id)} g={p.g} rango={rangos['g:' + p.g.id]} onRango={(x) => fijarRango('g:' + p.g.id, x)} onGuardar={p.onGuardar} onClose={p.onClose} />,
+        editor: (p) => <Editor corte={corte} filtros={filtrosDe('g:' + p.g.id)} g={p.g} rango={rangos['g:' + p.g.id]} onRango={conFechas ? (x) => fijarRango('g:' + p.g.id, x) : undefined} onGuardar={p.onGuardar} onClose={p.onClose} />,
       }} />
       {drill && <DrillModal d={drill} onClose={() => setDrill(null)} />}
       {llamada && <LlamadaModal x={llamada} onClose={() => setLlamada(null)} />}

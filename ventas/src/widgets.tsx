@@ -559,7 +559,12 @@ export function WidgetGrid({ clave, widgets, taller: ctor, fechas, compartible }
               <div className="whead">
                 <button type="button" className="grip" title="Arrastra para mover (o usa las flechas)" aria-label={`Mover «${w.titulo}»: flechas mueven una celda, Home y End a los bordes. Ahora en columna ${p.x}, fila ${p.y}`} onPointerDown={onGrip(id)} onKeyDown={onGripKey(id)}><IconoGrip /></button>
                 <h3><span className="wt">{w.titulo}</span>{w.info?.length ? <Info termino={w.info} /> : null}{w.ayuda ? <button type="button" className="ibtn" data-tip={w.ayuda} aria-label={w.ayuda} onClick={(e) => e.stopPropagation()}><IconoInfo /></button> : null}</h3>
-                {fechas && <BotonFechas id={id} titulo={w.titulo} actual={fechas.por[id]} base={w.base} fechas={fechas} />}
+                {/* Un widget que es foto de HOY (leads activos, cotizado vigente, tareas abiertas) no depende de ninguna
+                    fecha: la píldora lo dice en vez de prestar el periodo del tablero (Randall 16-sep: «este debería ser
+                    igual que lo activo… recuerda»). */}
+                {!fechas ? null : w.base === 'hoy'
+                  ? <span className="wfechas hoy"><span className="wrango" title={BASE_FECHA.hoy.largo} aria-label={`«${w.titulo}» es foto de hoy. ${BASE_FECHA.hoy.largo}`}><IconoCalendario /><span>Foto de hoy</span></span></span>
+                  : <BotonFechas id={id} titulo={w.titulo} actual={fechas.por[id]} base={w.base} fechas={fechas} />}
                 <span className="wctl">
                   {w.grafica && <button type="button" className="wbtn" aria-label={`Ajustar «${w.titulo}»`} title="Ajustar esta gráfica" onClick={() => setAjustando(w.grafica!)}><IconoLapiz /></button>}
                   <button type="button" className="wbtn" aria-label={w.grafica ? `Borrar «${w.titulo}»` : `Quitar «${w.titulo}» del tablero`} title={w.grafica ? 'Borrar esta gráfica' : 'Quitar del tablero'} onClick={() => quitar(id)}><IconoX /></button>

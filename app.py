@@ -482,6 +482,9 @@ def validar_config(body):
     crms = body.get("crms") or {}
     if not isinstance(crms, dict) or len(crms) > 500:
         raise ValueError("crms debe ser un objeto")
+    fechas_widget = body.get("fechas_widget", True)
+    if not isinstance(fechas_widget, bool):
+        raise ValueError("fechas_widget debe ser verdadero o falso")
     for k, v in crms.items():
         if not (isinstance(k, str) and _SLUG.match(k) and v in ("kommo", "hubspot", "ambos", "ninguno")):
             raise ValueError("CRM declarado inválido: %r" % ((k, v),))
@@ -490,7 +493,8 @@ def validar_config(body):
             "cotizado_dias": int(round(numero(body.get("cotizado_dias", 90), "cotizado_dias", 1))),
             "metas_zona": tabla(body.get("metas_zona"), "metas_zona", _ZONA),
             "metas": tabla(body.get("metas"), "metas", _SLUG),
-            "ocultos": sorted(set(ocultos)), "equipos": dict(equipos), "comisiones_map": dict(cmap), "tipos": dict(tipos), "crms": dict(crms)}
+            "ocultos": sorted(set(ocultos)), "equipos": dict(equipos), "comisiones_map": dict(cmap), "tipos": dict(tipos), "crms": dict(crms),
+            "fechas_widget": fechas_widget}
 
 
 # ---------------------------------------------------------------- accesos de /ventas

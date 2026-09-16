@@ -35,6 +35,8 @@ export function Configuracion({ corte, onSaved }: { corte: Corte; onSaved: (cfg:
   const [general, setGeneral] = useState(String(corte.meta_mxn))
   const [factor, setFactor] = useState(String(corte.cotizado_x))
   const [dias, setDias] = useState(String(corte.cotizado_dias))
+  // Fechas propias por widget (Randall 16-sep: «activar o desactivar el tema de la fecha del widget»).
+  const [fechasWidget, setFechasWidget] = useState(corte.fechas_widget !== false)
   const [zonas, setZonas] = useState<Record<string, string>>(() => Object.fromEntries(corte.equipos.map((e) => [e.id, corte.metas_zona[e.id] != null ? String(corte.metas_zona[e.id]) : ''])))
   const [asesores, setAsesores] = useState<Record<string, string>>(() => Object.fromEntries(corte.usuarios.map((u) => [u.id, corte.metas[u.id] != null ? String(corte.metas[u.id]) : ''])))
   const [ocultos, setOcultos] = useState<Set<string>>(() => new Set(corte.ocultos || []))
@@ -85,7 +87,7 @@ export function Configuracion({ corte, onSaved }: { corte: Corte; onSaved: (cfg:
     for (const [k, v] of Object.entries(asesores)) { if (v.trim() === '') continue; const n = num(v); if (n == null) return `La meta de ${corte.usuarios.find((u) => u.id === k)?.nombre || k} no es un número.`; metas[k] = n }
     const eq: Record<string, string> = {}
     for (const [k, v] of Object.entries(equipos)) if (v) eq[k] = v
-    return { meta_mxn: g, cotizado_x: x, cotizado_dias: Math.round(d), metas_zona, metas, ocultos: [...ocultos], equipos: eq, comisiones_map: comMap, tipos: Object.fromEntries(Object.entries(tipos).filter(([, v]) => v)) as Config['tipos'], crms: Object.fromEntries(Object.entries(crms).filter(([, v]) => v)) as Config['crms'] }
+    return { meta_mxn: g, cotizado_x: x, cotizado_dias: Math.round(d), metas_zona, metas, ocultos: [...ocultos], equipos: eq, comisiones_map: comMap, tipos: Object.fromEntries(Object.entries(tipos).filter(([, v]) => v)) as Config['tipos'], crms: Object.fromEntries(Object.entries(crms).filter(([, v]) => v)) as Config['crms'], fechas_widget: fechasWidget }
   }
   const borrador = armar()
   const cfg = typeof borrador === 'string' ? null : borrador
@@ -144,7 +146,12 @@ export function Configuracion({ corte, onSaved }: { corte: Corte; onSaved: (cfg:
               <label className="fld"><span>Meta mensual de venta por vendedor (MXN)</span><input className="inp" inputMode="numeric" value={general} onChange={(e) => setGeneral(e.target.value)} /></label>
               <label className="fld"><span>Cotizado sano = factor × meta mensual<Info termino="Pipeline 10×" /></span><input className="inp" inputMode="numeric" value={factor} onChange={(e) => setFactor(e.target.value)} /></label>
               <label className="fld"><span>Días de vigencia de una cotización<Info termino="Antigüedad" /></span><input className="inp" inputMode="numeric" value={dias} onChange={(e) => setDias(e.target.value)} /></label>
-              <div className="small muted">Prioridad: meta del vendedor → meta de su zona → meta general. Deja en blanco para heredar. Las metas son mensuales; el tablero las prorratea al rango elegido.</div>
+              <div className="small muted">Prioridad: meta del vendedor → meta de su zona → meta general. Deja en blanco para heredar. Las metas son mensuales y se cuentan por los meses que tocan las fechas elegidas, desde el mes en que el vendedor aparece.</div>
+            </div>
+            <div className="panel">
+              <h3>Tablero</h3>
+              <label className="fld casilla"><input type="checkbox" checked={fechasWidget} onChange={(e) => setFechasWidget(e.target.checked)} /><span>Fechas propias por widget</span></label>
+              <div className="small muted">Encendido: cada gráfica lleva su calendario (la píldora «Este mes» / «Máximo») y puede mirar otro periodo que el tablero; la evolución por mes y el embudo abren en «Máximo». Apagado: se esconden las píldoras y todas las gráficas siguen el calendario de arriba. Lo que cada cuenta haya elegido se conserva para cuando se vuelva a encender.</div>
             </div>
             <div className="panel">
               <h3>Meta por zona</h3>

@@ -609,6 +609,8 @@ h3 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: 0; t
 
 /* ---------- configuración de metas ---------- */
 .cfg .fld { display: grid; gap: 4px; margin-bottom: 12px; font-size: 12.5px; font-weight: 600; }
+.cfg .fld.casilla { grid-template-columns: auto 1fr; align-items: center; gap: 8px; }
+.cfg .fld.casilla input { width: 18px; height: 18px; margin: 0; accent-color: var(--c1); }
 .inp { border: 1px solid var(--edge); border-radius: 8px; padding: 7px 10px; background: var(--card); font-weight: 600; width: 100%; max-width: 220px; font-variant-numeric: tabular-nums; }
 .inp::placeholder { color: var(--g2); font-weight: 400; }
 .cfg .ftable td { padding: 5px 8px; }
@@ -1011,6 +1013,8 @@ h3 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: 0; t
    fecha que teníamos en el Sheet, que se veía feo y nadie usaba. */
 .tbl.asesores th .thbase { display: block; margin-top: 3px; font-size: 10.5px; letter-spacing: 0; text-transform: none; font-weight: 500; color: var(--g3); }
 .basefechas { flex: 1; min-width: 260px; line-height: 1.45; }
+/* La leyenda de colores vive en la barra de arriba, en su propio renglón a lo ancho (Randall 16-sep). */
+.tbltools .tleg { flex-basis: 100%; margin-top: 0; }
 .basefechas .bf { font-style: normal; font-weight: 600; white-space: nowrap; }
 .basefechas .bf.asignacion { color: var(--c1-ink); }
 .basefechas .bf.actividad { color: var(--c2-ink); }
@@ -1065,6 +1069,8 @@ h3 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: 0; t
 .wrango:hover { background: var(--hover); color: var(--ink); }
 .wrango:focus-visible { outline: 2px solid var(--c1); outline-offset: 1px; }
 .wfechas.on .wrango { color: var(--c1-ink); background: var(--c1-soft); border-color: var(--c1); }
+.wfechas.hoy .wrango { cursor: default; color: var(--c4-ink); background: var(--c4-soft); border-color: var(--c4); }
+.wfechas.hoy .wrango:hover { background: var(--c4-soft); color: var(--c4-ink); }
 .wmenu { position: fixed; z-index: 60; background: var(--card); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); padding: 4px; min-width: 215px; max-height: 330px; overflow: auto; display: grid; gap: 1px; }
 .wmenu button { appearance: none; border: 0; background: none; text-align: left; font: inherit; font-size: 12.5px; color: var(--ink); padding: 6px 9px; border-radius: 7px; cursor: pointer; }
 .wmenu button:hover { background: var(--hover); }

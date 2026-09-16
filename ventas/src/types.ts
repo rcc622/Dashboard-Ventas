@@ -79,6 +79,8 @@ export interface Corte {
   tipos?: Record<string, TipoVendedor>
   /** CRM declarado a mano por vendedor (Configuración); sin entrada = lo que detecta el corte. */
   crms?: Record<string, CrmDeclarado>
+  /** Fechas propias por widget (calendario en cada gráfica). Apagado = todo sigue al calendario del tablero (Randall 16-sep). */
+  fechas_widget?: boolean
   usuarios: Usuario[]; equipos: Equipo[]; etapas: Etapa[]
   /** Meta mensual de venta en MXN: por asesor (slug), por zona y la general. Prioridad asesor → zona → general. */
   metas: Record<string, number>; metas_zona: Record<string, number>; meta_mxn: number
@@ -91,7 +93,7 @@ export interface Corte {
 
 /** Lo que guarda la página de Configuración en data/ventas_config.json (app.py).
  *  equipos: zona por asesor que manda sobre la del CRM ('-' = sin equipo). */
-export interface Config { meta_mxn: number; cotizado_x: number; cotizado_dias: number; metas_zona: Record<string, number>; metas: Record<string, number>; ocultos: string[]; equipos: Record<string, string>; comisiones_map: Record<string, string>; tipos: Record<string, TipoVendedor>; crms: Record<string, CrmDeclarado> }
+export interface Config { meta_mxn: number; cotizado_x: number; cotizado_dias: number; metas_zona: Record<string, number>; metas: Record<string, number>; ocultos: string[]; equipos: Record<string, string>; comisiones_map: Record<string, string>; tipos: Record<string, TipoVendedor>; crms: Record<string, CrmDeclarado>; fechas_widget: boolean }
 
 /** Sesión de /ventas (cookie firmada por app.py). uid de un asesor = su slug en el corte. */
 export interface Yo { uid: string; rol: 'admin' | 'asesor'; nombre: string }
