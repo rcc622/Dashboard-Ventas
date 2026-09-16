@@ -146,10 +146,21 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   `base: 'hoy'` (cotizado vigente, leads activos y tareas abiertas de la ficha) no depende de fechas: la píldora
   dice **«Foto de hoy»** (`.wfechas.hoy`, sin menú) en vez de prestar el periodo del tablero, que hacía creer que
   el cotizado era «de este mes». (b) `RANGOS_FICHA` y `RANGOS_ADMIN` abren embudo y monto por etapa en **Máximo**
-  (la foto del pipeline de todos los activos; cada quien lo acota). (c) Configuración › Tablero ›
-  **«Fechas propias por widget»** (`fechas_widget` en la config, validado en app.py, default true): apagado,
-  `AdminDashboard` y `Ficha` pasan `fechas={undefined}` y `rangos = {}` (todo sigue al calendario de arriba,
-  sin píldoras, sin «Fechas de esta gráfica» en el constructor); lo guardado por cada cuenta no se toca.
+  (la foto del pipeline de todos los activos; cada quien lo acota). (c) Configuración › Vendedores ›
+  **«Fechas propias por widget»** es un MENÚ con casilla por widget (Randall 16-sep: «seleccionar qué widgets
+  tendrán fechas personalizables y cuáles no»): `fechas_sin` en la config (lista de ids apagados; «g:*» = todas las
+  gráficas del constructor; app.py la valida con `_WIDGET`), catálogo en `ventas/src/catalogo.ts`
+  (`CATALOGO_FECHAS`; **un widget nuevo hay que agregarlo ahí o no se podrá apagar**) y `fechasPermitidas(corte)`.
+  Apagado, ese widget sigue al calendario de arriba sin píldora (`Fechas.permitido` en widgets.tsx; `rangos` se
+  filtra en `AdminDashboard`/`Ficha`); lo guardado por cada cuenta no se toca. Las cifras «foto de hoy» no entran.
+  (e) **Permiso «Acomoda el tablero» por cuenta** (Alejandro 15-sep: «le puedes después dar un permiso de no
+  moverlo» al líder de ventas): `Acceso.edita` en `ventas_usuarios.json` (Configuración › Usuarios, columna con
+  casilla; default true), `GET /ventas/yo` lo devuelve VIVO (`puede_editar` lee el archivo, no la cookie, así quitar
+  el permiso aplica sin volver a entrar; el administrador maestro siempre puede) y `POST /ventas/tablero` contesta
+  403 para claves de acomodo (`clave_es_acomodo`: admin, ficha, ficha2, midia-*); fechas por widget, columnas y
+  vistas del detalle sí se guardan. En la UI `WidgetGrid bloqueado`: sin barra de agregar/quitar/aplicar/restablecer,
+  sin asa, sin ×, sin lápiz ni esquina de tamaño, separadores como texto; las píldoras de fechas siguen. `App` lo
+  baja como `puedeEditar` a Dashboard, Ficha y Mi día.
   (d) La leyenda de colores de Asesores vive ARRIBA (`.tbltools .tleg`, junto a la nota de fechas) y nombra
   todos los tramos: azul = contestadas/completadas/al día, teal = ganados, ámbar = sin contestar/estancados,
   rojo = vencidas/sin primer contacto/descartados, rayado = sin tarea, púrpura = cotizaciones.
