@@ -140,6 +140,19 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   `'tablero'` para que el default no lo pise), y en las tablas por tiempo el periodo más reciente va
   arriba (`recientesArriba`). Las tarjetas `.wcard` llevan sus controles DENTRO del recuadro blanco
   como las cifras (antes el encabezado era un renglón encima y no alineaban).
+- **Foto de hoy, dicho en la píldora; embudo en Máximo; casilla «Fechas propias por widget»** (Randall 16-sep,
+  viendo la ficha: «este debería ser igual que lo activo… recuerda», «estos deben ser por default lo máximo»,
+  «déjame en Configuración activar o desactivar el tema de la fecha del widget»). (a) Un widget con
+  `base: 'hoy'` (cotizado vigente, leads activos y tareas abiertas de la ficha) no depende de fechas: la píldora
+  dice **«Foto de hoy»** (`.wfechas.hoy`, sin menú) en vez de prestar el periodo del tablero, que hacía creer que
+  el cotizado era «de este mes». (b) `RANGOS_FICHA` y `RANGOS_ADMIN` abren embudo y monto por etapa en **Máximo**
+  (la foto del pipeline de todos los activos; cada quien lo acota). (c) Configuración › Tablero ›
+  **«Fechas propias por widget»** (`fechas_widget` en la config, validado en app.py, default true): apagado,
+  `AdminDashboard` y `Ficha` pasan `fechas={undefined}` y `rangos = {}` (todo sigue al calendario de arriba,
+  sin píldoras, sin «Fechas de esta gráfica» en el constructor); lo guardado por cada cuenta no se toca.
+  (d) La leyenda de colores de Asesores vive ARRIBA (`.tbltools .tleg`, junto a la nota de fechas) y nombra
+  todos los tramos: azul = contestadas/completadas/al día, teal = ganados, ámbar = sin contestar/estancados,
+  rojo = vencidas/sin primer contacto/descartados, rayado = sin tarea, púrpura = cotizaciones.
 - 🐞 **«Aplicar a otras cuentas» copiaba las fechas por widget a la clave equivocada**: la ficha guarda
   el acomodo en `ficha2` y sus fechas en `rangos-ficha`, pero el modal las mandaba como
   `rangos-ficha2`, que nadie lee (David y auditorcrm no veían el Máximo que Alejandro les aplicó).
