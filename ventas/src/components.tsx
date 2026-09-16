@@ -35,6 +35,16 @@ export function CollapsibleSection({ title, defaultOpen = false, children }: { t
   )
 }
 
+/** Interruptor sí/no (role switch): 40×22 con área de clic de 32 px, texto del estado al lado; teclado con espacio/Enter. */
+export function Interruptor({ on, onChange, label, texto }: { on: boolean; onChange: (v: boolean) => void; label: string; texto?: string }) {
+  return (
+    <button type="button" role="switch" aria-checked={on} aria-label={label} className={'interruptor' + (on ? ' on' : '')} onClick={() => onChange(!on)}>
+      <span className="pista" aria-hidden="true"><span className="perilla" /></span>
+      {texto && <span className="estado">{texto}</span>}
+    </button>
+  )
+}
+
 export interface Seg { val: number; cls: string }
 /** Barra apilada normalizada: el largo total es total/max (máximo global), los
  *  segmentos reparten ese largo sobre una pista clara. Si recibe onClick es un

@@ -153,6 +153,10 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   (`CATALOGO_FECHAS`; **un widget nuevo hay que agregarlo ahí o no se podrá apagar**) y `fechasPermitidas(corte)`.
   Apagado, ese widget sigue al calendario de arriba sin píldora (`Fechas.permitido` en widgets.tsx; `rangos` se
   filtra en `AdminDashboard`/`Ficha`); lo guardado por cada cuenta no se toca. Las cifras «foto de hoy» no entran.
+  UI (ui-ux-pro-max 16-sep): panel a lo ancho `.fechas-panel` con **chips** `.fchip` (botón `aria-pressed`, ≥ 32 px,
+  8 px de aire, calendario tachado + texto tachado cuando está apagado) agrupados por vista con contador por grupo,
+  y «Todas / Ninguna» como `.pill.sm`; 481 px de alto contra ~900 de la lista de casillas. El permiso de acomodar
+  es un `Interruptor` (components.tsx, `role=switch`, pista 40×22 teal, texto «Acomoda / Solo mira»).
   (e) **Permiso «Acomoda el tablero» por cuenta** (Alejandro 15-sep: «le puedes después dar un permiso de no
   moverlo» al líder de ventas): `Acceso.edita` en `ventas_usuarios.json` (Configuración › Usuarios, columna con
   casilla; default true), `GET /ventas/yo` lo devuelve VIVO (`puede_editar` lee el archivo, no la cookie, así quitar

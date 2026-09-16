@@ -611,9 +611,33 @@ h3 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: 0; t
 .cfg .fld { display: grid; gap: 4px; margin-bottom: 12px; font-size: 12.5px; font-weight: 600; }
 .cfg .fld.casilla { grid-template-columns: auto 1fr; align-items: center; gap: 8px; }
 .cfg .fld.casilla input { width: 18px; height: 18px; margin: 0; accent-color: var(--c1); }
-.cfg .cat-fechas .fld.casilla { margin-bottom: 4px; font-weight: 500; }
-.casilla-celda { display: inline-flex; align-items: center; gap: 6px; }
-.casilla-celda input { width: 18px; height: 18px; margin: 0; accent-color: var(--c1); }
+/* Fechas propias por widget: chips agrupados (Configuración). */
+.fp-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 6px; }
+.fp-head h3 { margin: 0 0 4px; }
+.fp-head > div:first-child { flex: 1 1 420px; min-width: 0; }
+.fp-tools { display: inline-flex; align-items: center; gap: 12px; flex: none; }
+.fp-count { font-size: 12.5px; color: var(--g2); white-space: nowrap; }
+.fp-count b { color: var(--ink); font-size: 14px; }
+.fp-grupo { margin-top: 12px; }
+.fp-titulo { font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--g2); margin-bottom: 6px; }
+.fp-titulo .muted { font-weight: 500; text-transform: none; letter-spacing: 0; }
+.fp-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.fchip { appearance: none; display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 5px 12px 5px 10px; border-radius: 999px; border: 1px solid var(--edge); background: var(--card); color: var(--g2); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease; }
+.fchip:hover { background: var(--hover); color: var(--ink); }
+.fchip.on { background: var(--c1-soft); border-color: var(--c1); color: var(--c1-ink); }
+.fchip.on:hover { background: #dbe6fa; }
+.fchip:not(.on) span { text-decoration: line-through; text-decoration-color: var(--g3); text-decoration-thickness: 1px; }
+.fchip:focus-visible { outline: 3px solid var(--c1); outline-offset: 2px; }
+/* Interruptor sí/no (permiso de acomodar el tablero). */
+.interruptor { appearance: none; border: 0; background: transparent; padding: 5px 4px; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--g2); border-radius: 8px; min-height: 32px; }
+.interruptor:hover { background: var(--hover); color: var(--ink); }
+.interruptor:focus-visible { outline: 3px solid var(--c1); outline-offset: 1px; }
+.interruptor .pista { position: relative; width: 40px; height: 22px; border-radius: 999px; background: var(--g3); transition: background-color 150ms ease; flex: none; }
+.interruptor .perilla { position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(20, 22, 25, .3); transition: transform 150ms ease; }
+.interruptor.on .pista { background: var(--c4); }
+.interruptor.on .perilla { transform: translateX(18px); }
+.interruptor.on .estado { color: var(--c4-ink); }
+@media (prefers-reduced-motion: reduce) { .fchip, .interruptor .pista, .interruptor .perilla { transition: none; } }
 .inp { border: 1px solid var(--edge); border-radius: 8px; padding: 7px 10px; background: var(--card); font-weight: 600; width: 100%; max-width: 220px; font-variant-numeric: tabular-nums; }
 .inp::placeholder { color: var(--g2); font-weight: 400; }
 .cfg .ftable td { padding: 5px 8px; }

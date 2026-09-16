@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CATALOGO_FECHAS } from './catalogo'
+import { Interruptor } from './components'
 import type { Acceso, Config, Corte, CrmDeclarado, Usuario } from './types'
 import { CRM_LABEL } from './types'
 import { cargarAccesos, guardarAccesos, guardarConfig } from './data'
@@ -152,23 +153,6 @@ export function Configuracion({ corte, onSaved }: { corte: Corte; onSaved: (cfg:
               <div className="small muted">Prioridad: meta del vendedor → meta de su zona → meta general. Deja en blanco para heredar. Las metas son mensuales y se cuentan por los meses que tocan las fechas elegidas, desde el mes en que el vendedor aparece.</div>
             </div>
             <div className="panel">
-              <h3>Fechas propias por widget</h3>
-              <div className="small muted" style={{ marginBottom: 8 }}>Con la casilla encendida, esa gráfica lleva su calendario (la píldora «Este mes» / «Máximo») y puede mirar otro periodo que el tablero. Apagada, sigue el calendario de arriba y no muestra píldora. Las cifras «foto de hoy» no dependen de fechas y no aparecen aquí.</div>
-              <div className="cols-btns" style={{ marginBottom: 8 }}>
-                <button type="button" className="btn sm" onClick={() => setFechasSin(new Set())}>Todas con fechas</button>
-                <button type="button" className="btn sm" onClick={() => setFechasSin(new Set(CATALOGO_FECHAS.flatMap((g) => g.widgets.map((w) => w.id))))}>Ninguna</button>
-                <span className="small muted">{fmtN(CATALOGO_FECHAS.reduce((n, g) => n + g.widgets.filter((w) => !fechasSin.has(w.id)).length, 0))} de {fmtN(CATALOGO_FECHAS.reduce((n, g) => n + g.widgets.length, 0))} con fechas propias</span>
-              </div>
-              {CATALOGO_FECHAS.map((g) => (
-                <div key={g.vista} className="cat-fechas">
-                  <div className="small" style={{ fontWeight: 700, margin: '8px 0 4px' }}>{g.vista}</div>
-                  {g.widgets.map((w) => (
-                    <label key={w.id} className="fld casilla"><input type="checkbox" checked={!fechasSin.has(w.id)} onChange={() => alternarFecha(w.id)} /><span>{w.titulo}</span></label>
-                  ))}
-                </div>
-              ))}
-            </div>
-            <div className="panel">
               <h3>Meta por zona</h3>
               <table className="ftable" aria-label="Meta mensual por zona">
                 <thead><tr><th scope="col">Zona</th><th scope="col">Meta mensual (MXN)</th><th scope="col" className="num">Efectiva</th></tr></thead>
@@ -183,6 +167,37 @@ export function Configuracion({ corte, onSaved }: { corte: Corte; onSaved: (cfg:
                 </tbody>
               </table>
             </div>
+          </div>
+
+          {/* Fechas propias por widget: chips agrupados a lo ancho (Randall 16-sep: «un menú para seleccionar qué widgets
+              tendrán fechas personalizables»). Un chip = un widget; encendido lleva la píldora de calendario, apagado sigue
+              al tablero. Cada chip es un botón con aria-pressed, ≥ 32 px de alto y 8 px de aire. */}
+          <div className="panel fechas-panel" style={{ marginTop: 14 }}>
+            <div className="fp-head">
+              <div>
+                <h3>Fechas propias por widget</h3>
+                <div className="small muted">Encendido: la gráfica lleva su calendario (píldora «Este mes» / «Máximo») y puede mirar otro periodo que el tablero. Apagado: sigue el calendario de arriba, sin píldora. Las cifras «foto de hoy» no dependen de fechas.</div>
+              </div>
+              <div className="fp-tools">
+                <span className="fp-count" aria-live="polite"><b>{fmtN(CATALOGO_FECHAS.reduce((n, g) => n + g.widgets.filter((w) => !fechasSin.has(w.id)).length, 0))}</b> de {fmtN(CATALOGO_FECHAS.reduce((n, g) => n + g.widgets.length, 0))} con fechas</span>
+                <span className="pill sm" role="group" aria-label="Todas o ninguna">
+                  <button type="button" className={fechasSin.size === 0 ? 'on' : ''} aria-pressed={fechasSin.size === 0} onClick={() => setFechasSin(new Set())}>Todas</button>
+                  <button type="button" className={fechasSin.size >= CATALOGO_FECHAS.reduce((n, g) => n + g.widgets.length, 0) ? 'on' : ''} aria-pressed={fechasSin.size >= CATALOGO_FECHAS.reduce((n, g) => n + g.widgets.length, 0)} onClick={() => setFechasSin(new Set(CATALOGO_FECHAS.flatMap((g) => g.widgets.map((w) => w.id))))}>Ninguna</button>
+                </span>
+              </div>
+            </div>
+            {CATALOGO_FECHAS.map((g) => (
+              <div key={g.vista} className="fp-grupo">
+                <div className="fp-titulo">{g.vista}<span className="muted"> · {fmtN(g.widgets.filter((w) => !fechasSin.has(w.id)).length)} de {fmtN(g.widgets.length)}</span></div>
+                <div className="fp-chips">
+                  {g.widgets.map((w) => { const on = !fechasSin.has(w.id); return (
+                    <button type="button" key={w.id} className={'fchip' + (on ? ' on' : '')} aria-pressed={on} title={on ? 'Con fechas propias. Clic para que siga el calendario del tablero' : 'Sigue el calendario del tablero. Clic para darle fechas propias'} onClick={() => alternarFecha(w.id)}>
+                      <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true"><rect x="3" y="4.5" width="14" height="12.5" rx="2" /><path d="M3 8.5h14M7 3v3M13 3v3" />{!on && <path d="M4 17L17 4" />}</svg>
+                      <span>{w.titulo}</span>
+                    </button>) })}
+                </div>
+              </div>
+            ))}
           </div>
 
           <div className="panel" style={{ marginTop: 14 }}>
@@ -299,7 +314,7 @@ export function Configuracion({ corte, onSaved }: { corte: Corte; onSaved: (cfg:
                             ? <select className="sel" aria-label={'Vendedor ligado a la cuenta ' + (i + 1)} value={a.id} onChange={(e) => setAcceso(i, { id: e.target.value, nombre: corte.usuarios.find((u) => u.id === e.target.value)?.nombre || a.nombre })}><option value="">— elige —</option>{usuarios.map((u) => <option key={u.id} value={u.id}>{u.nombre}</option>)}</select>
                             : <span className="muted small">ve todo el tablero</span>}</td>
                           {/* Permiso de acomodar (Alejandro 15-sep: que el líder de ventas no lo mueva al principio). */}
-                          <td><label className="casilla-celda"><input type="checkbox" checked={a.edita !== false} aria-label={'La cuenta ' + (a.usuario || i + 1) + ' puede acomodar el tablero'} onChange={(e) => setAcceso(i, { edita: e.target.checked })} /><span className="small muted">{a.edita !== false ? 'sí' : 'solo mira'}</span></label></td>
+                          <td><Interruptor on={a.edita !== false} label={'La cuenta ' + (a.usuario || i + 1) + ' puede acomodar el tablero'} texto={a.edita !== false ? 'Acomoda' : 'Solo mira'} onChange={(v) => setAcceso(i, { edita: v })} /></td>
                           <td><input className="inp" type="password" autoComplete="new-password" placeholder={a.nuevo ? 'mínimo 6 caracteres' : 'sin cambio'} aria-label={'Contraseña de la cuenta ' + (i + 1)} value={a.password || ''} onChange={(e) => setAcceso(i, { password: e.target.value })} /></td>
                           <td><button type="button" className="ib" aria-label={'Borrar la cuenta ' + (a.usuario || i + 1)} title="Borrar la cuenta" onClick={() => quitarAcceso(i)}>×</button></td>
                         </tr>
