@@ -8,7 +8,8 @@
 import type { CotFila, Corte, Crm, Etapa, Evento, Lead, LevFila, Llamada, NotaClave, Rango, Tarea, Usuario, VentaReal, Origen, TipoVendedor, CrmDeclarado } from './types'
 
 /** crm = qué CRM entran (botones Kommo · HubSpot de la barra del Admin); al menos uno encendido. */
-export interface Filtros { rango: Rango; equipo: string | null; asesor: string | null; crm: Record<Crm, boolean> }
+/** `foto` = «Foto de hoy» elegida en un widget: el rango es Máximo (todo) y lo que se mira son los leads activos hoy. */
+export interface Filtros { rango: Rango; equipo: string | null; asesor: string | null; crm: Record<Crm, boolean>; foto?: boolean }
 export const TODOS_CRM: Record<Crm, boolean> = { kommo: true, hubspot: true }
 export const pasaCrm = (crm: Origen, f: Filtros) => (f.crm as Partial<Record<Origen, boolean>>)?.[crm] !== false
 

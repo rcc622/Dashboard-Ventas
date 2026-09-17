@@ -157,6 +157,16 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   8 px de aire, calendario tachado + texto tachado cuando está apagado) agrupados por vista con contador por grupo,
   y «Todas / Ninguna» como `.pill.sm`; 481 px de alto contra ~900 de la lista de casillas. El permiso de acomodar
   es un `Interruptor` (components.tsx, `role=switch`, pista 40×22 teal, texto «Acomoda / Solo mira»).
+  (f) **«Foto de hoy» es una opción del menú de fechas de CUALQUIER widget y el default se fija en Configuración**
+  (Randall 17-sep: «foto de hoy no sale en las opciones… limitas la usabilidad»; «que me permita seleccionar en qué
+  date range va a estar el default»). `RangoWidget = Preset | 'foto'` (rangos.ts); `conRango('foto')` = rango Máximo +
+  `Filtros.foto = true`; con `foto`, `datosDe` usa `leadsActivosHoy` para embudo y monto por etapa (`leadsEmbudo`), y
+  los tres widgets propios de la ficha (cotizado, leads, tareas) miran lo activo hoy — con un periodo miran los leads
+  ASIGNADOS en él que siguen activos (`activosDe`) y las tareas abiertas que VENCEN en él. Ya no hay píldora fija:
+  `base: 'hoy'` desapareció de la ficha (cotizado/leads = `asignacion`, tareas = `actividad`). Defaults = fábrica
+  (`RANGOS_ADMIN` / `RANGOS_FICHA`: ev, ev-tabla, embudo, etapas → Máximo; cotizado, leads, tareas → foto) y encima
+  `config.fechas_default` (`defaultsDe`; app.py valida contra `_RANGOS_WIDGET`); la cuenta manda sobre los dos. En
+  Configuración cada widget lleva chip + «abre en» (`.fp-fila`, opción «De fábrica: …» del catálogo `fabrica`).
   (e) **Permiso «Acomoda el tablero» por cuenta** (Alejandro 15-sep: «le puedes después dar un permiso de no
   moverlo» al líder de ventas): `Acceso.edita` en `ventas_usuarios.json` (Configuración › Usuarios, columna con
   casilla; default true), `GET /ventas/yo` lo devuelve VIVO (`puede_editar` lee el archivo, no la cookie, así quitar

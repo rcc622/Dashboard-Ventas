@@ -4,12 +4,13 @@ import type { Corte, Evento, Lead, Rango, Tarea, Usuario, VentaReal } from './ty
 import { CRM_LABEL } from './types'
 import {
   cotizadoVigenteDe, enRango, etapaDe, fechaDe, filasDeEventos, filasDeLeads, filasDeVentasReales, fmtCorta, fmtMoney0, fmtN,
-  PRESETS, ep, inicioDia, mapaUsuarios, metaEnRango, metaTotal, estancado, ESTANCADO_DIAS, primeraAparicion, ocultosDe, pasaCrm, pct, periodoTexto, porAsesor, primerContacto, ritmo, visitas, vivo, zonaNombre, type Filtros, type Preset,
+  PRESETS, ep, inicioDia, mapaUsuarios, metaEnRango, metaTotal, estancado, ESTANCADO_DIAS, primeraAparicion, ocultosDe, pasaCrm, pct, periodoTexto, porAsesor, primerContacto, ritmo, visitas, vivo, zonaNombre, type Filtros,
   realesDe, ventasFiltradas, leadsActivosHoy,
 } from './metrics'
 import { BarChart, BarDetailPopup, Bullet, DonutChart, HBarList, LineChart, useEscape, useFocoDialogo, type BarItem, type DetRow, type Modo } from './components'
 import type { Drill } from './drill'
 import { BASE_FECHA, type BaseFecha } from './columnas'
+import type { RangoWidget } from './rangos'
 
 // Constructor de gráficas (Randall 7-sep: «un graph modifier/builder para que ya no dependamos tanto de ti»).
 // Una gráfica = QUÉ se mide (medida) × CÓMO se parte (dimensión) × CÓMO se dibuja (tipo). El mismo motor
@@ -561,7 +562,7 @@ export const PLANTILLAS: Grafica[] = [
 // ---------------------------------------------------------------- galería y editor
 /** Las fechas propias de una gráfica, vistas desde el constructor: cuál tiene, con qué filtros
  *  dibujarla y cómo cambiarlas. La página es la que sabe traducir un periodo a fechas. */
-export interface FechasCtor { de: (id: string) => Preset | undefined; filtros: (id: string) => Filtros; fijar: (id: string, p: Preset | null) => void }
+export interface FechasCtor { de: (id: string) => RangoWidget | undefined; filtros: (id: string) => Filtros; fijar: (id: string, p: RangoWidget | null) => void }
 
 export function Galeria({ corte, filtros, quitados, onAgregar, onCrear, onClose, fechas }: {
   corte: Corte; filtros: Filtros; quitados: { id: string; titulo: string; nodo: React.ReactNode }[]
@@ -679,7 +680,7 @@ export function autoTitulo(g: Grafica): string {
   return medidas + (g.dim === 'ninguna' ? '' : ' por ' + dimensionDe(g.dim).label.toLowerCase())
 }
 
-export function Editor({ corte, filtros, g, onGuardar, onClose, rango, onRango, onMia }: { corte: Corte; filtros: Filtros; g: Grafica; onGuardar: (g: Grafica) => void; onClose: () => void; rango?: Preset; onRango?: (p: Preset | null) => void; onMia?: (g: Grafica) => void }) {
+export function Editor({ corte, filtros, g, onGuardar, onClose, rango, onRango, onMia }: { corte: Corte; filtros: Filtros; g: Grafica; onGuardar: (g: Grafica) => void; onClose: () => void; rango?: RangoWidget; onRango?: (p: RangoWidget | null) => void; onMia?: (g: Grafica) => void }) {
   const ref = useRef<HTMLDivElement>(null)
   useFocoDialogo(ref)
   useEscape(onClose)
@@ -766,8 +767,9 @@ export function Editor({ corte, filtros, g, onGuardar, onClose, rango, onRango, 
             </label>
             {onRango && (
               <label>Fechas de esta gráfica
-                <select className="sel" value={rango || ''} onChange={(e) => onRango((e.target.value || null) as Preset | null)}>
+                <select className="sel" value={rango || ''} onChange={(e) => onRango((e.target.value || null) as RangoWidget | null)}>
                   <option value="">Las del tablero</option>
+                  <option value="foto">Foto de hoy · sin fechas</option>
                   {PRESETS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
                 </select>
                 <span className="small muted">{rango

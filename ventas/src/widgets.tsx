@@ -4,7 +4,8 @@ import { IconoInfo, Info, useEscape } from './components'
 import type { Termino } from './glosario'
 import { baseDe, type Grafica } from './constructor'
 import { BASE_FECHA, type BaseFecha } from './columnas'
-import { PRESETS, nombrePreset, type Preset } from './metrics'
+import { PRESETS } from './metrics'
+import { nombreRango, type RangoWidget } from './rangos'
 import { cargarCuentas, cargarTableros, compartirTablero, guardarTablero, type Cuenta } from './data'
 
 // Rejilla LIBRE de widgets (Randall 6-sep: «colocar libremente las gráficas en el lugar que yo
@@ -157,10 +158,10 @@ export interface Fechas {
   clave: string
   /** Si este widget puede tener fechas propias (Configuración › Fechas propias por widget). Sin la función, todos. */
   permitido?: (id: string) => boolean
-  por: Record<string, Preset>
-  fijar: (id: string, p: Preset | null) => void
+  por: Record<string, RangoWidget>
+  fijar: (id: string, p: RangoWidget | null) => void
   tablero: string                        // cómo se llama el periodo de arriba: «Este mes», «Máximo»…
-  fechas: (p?: Preset) => string         // ese periodo en fechas de verdad, para el menú y el título
+  fechas: (p?: RangoWidget) => string    // ese periodo en fechas de verdad, para el menú y el título
 }
 
 function IconoCalendario() {
@@ -171,7 +172,7 @@ function IconoCalendario() {
  *  Apagada cuando sigue al tablero, encendida cuando tiene las suyas (Randall 10-sep: «el icono de
  *  calendario no se puede cambiar a un formato tipo etiqueta así como el de HubSpot»). El menú se
  *  dibuja colgado del body y SIGUE al botón al hacer scroll: antes se cerraba de golpe. */
-function BotonFechas({ id, titulo, actual, base, fechas }: { id: string; titulo: string; actual?: Preset; base?: BaseFecha; fechas: Fechas }) {
+function BotonFechas({ id, titulo, actual, base, fechas }: { id: string; titulo: string; actual?: RangoWidget; base?: BaseFecha; fechas: Fechas }) {
   const [caja, setCaja] = useState<{ top: number; left: number } | null>(null)
   const btn = useRef<HTMLButtonElement>(null)
   const menu = useRef<HTMLDivElement>(null)
@@ -202,13 +203,14 @@ function BotonFechas({ id, titulo, actual, base, fechas }: { id: string; titulo:
     return () => { document.removeEventListener('pointerdown', fuera); window.removeEventListener('resize', seguir); window.removeEventListener('scroll', seguir, true) }
   }, [caja])
   const abrir = () => setCaja(caja ? null : donde())
-  const propio = !!actual
-  const label = propio ? nombrePreset(actual!) : fechas.tablero
-  const cuenta = base && base !== 'ninguna' ? `Cuenta ${BASE_FECHA[base].corto}. ${BASE_FECHA[base].largo}` : ''
+  const propio = !!actual, foto = actual === 'foto'
+  const label = propio ? nombreRango(actual!) : fechas.tablero
+  // Con «Foto de hoy» lo que cuenta es lo activo hoy, se haya asignado cuando se haya asignado; si no, la base propia del widget.
+  const cuenta = foto ? BASE_FECHA.hoy.largo : base && base !== 'ninguna' ? `Cuenta ${BASE_FECHA[base].corto}. ${BASE_FECHA[base].largo}` : ''
   const dice = `${propio ? `«${titulo}» tiene sus propias fechas` : 'Sigue las fechas del tablero'}: ${label} (${fechas.fechas(actual)}).${cuenta ? ' ' + cuenta : ''}`
-  const elegir = (p: Preset | null) => { fechas.fijar(id, p); setCaja(null) }
+  const elegir = (p: RangoWidget | null) => { fechas.fijar(id, p); setCaja(null) }
   return (
-    <span className={'wfechas' + (propio ? ' on' : '')}>
+    <span className={'wfechas' + (foto ? ' hoy' : propio ? ' on' : '')}>
       <button type="button" className="wrango" ref={btn} aria-haspopup="menu" aria-expanded={!!caja} title={dice} aria-label={`Fechas de «${titulo}». ${dice} Cambiar`} onClick={abrir}>
         <IconoCalendario /><span>{label}</span>
       </button>
@@ -216,10 +218,11 @@ function BotonFechas({ id, titulo, actual, base, fechas }: { id: string; titulo:
         <div className="wmenu" role="menu" ref={menu} style={{ top: caja.top, left: caja.left }} aria-label={`Fechas de «${titulo}»`}>
           <div className="wmenu-cab">
             <b>{label}</b><span>{fechas.fechas(actual)}</span>
-            {cuenta && <span className="wmenu-base" title={BASE_FECHA[base!].largo}>Cuenta {BASE_FECHA[base!].corto}</span>}
+            {cuenta && <span className="wmenu-base" title={cuenta}>Cuenta {foto ? 'foto de hoy' : BASE_FECHA[base!].corto}</span>}
           </div>
           <button type="button" role="menuitemradio" aria-checked={!propio} className={!propio ? 'on' : ''} onClick={() => elegir(null)}>Las fechas del tablero</button>
           <div className="wmenu-sec">Solo para esta gráfica</div>
+          <button type="button" role="menuitemradio" aria-checked={foto} className={foto ? 'on' : ''} onClick={() => elegir('foto')} title={BASE_FECHA.hoy.largo}>Foto de hoy · sin fechas</button>
           {PRESETS.map((p) => (
             <button type="button" key={p.id} role="menuitemradio" aria-checked={actual === p.id} className={actual === p.id ? 'on' : ''} onClick={() => elegir(p.id)}>{p.label}</button>
           ))}
@@ -566,10 +569,8 @@ export function WidgetGrid({ clave, widgets, taller: ctor, fechas, compartible, 
                 {/* Un widget que es foto de HOY (leads activos, cotizado vigente, tareas abiertas) no depende de ninguna
                     fecha: la píldora lo dice en vez de prestar el periodo del tablero (Randall 16-sep: «este debería ser
                     igual que lo activo… recuerda»). */}
-                {/* Foto de hoy: siempre se dice. Fechas propias: solo si el administrador las permite para este widget. */}
-                {!fechas ? null : w.base === 'hoy'
-                  ? <span className="wfechas hoy"><span className="wrango" title={BASE_FECHA.hoy.largo} aria-label={`«${w.titulo}» es foto de hoy. ${BASE_FECHA.hoy.largo}`}><IconoCalendario /><span>Foto de hoy</span></span></span>
-                  : (!fechas.permitido || fechas.permitido(id)) && <BotonFechas id={id} titulo={w.titulo} actual={fechas.por[id]} base={w.base} fechas={fechas} />}
+                {/* Fechas propias (incluida «Foto de hoy»): solo si el administrador las permite para este widget. */}
+                {fechas && (!fechas.permitido || fechas.permitido(id)) && <BotonFechas id={id} titulo={w.titulo} actual={fechas.por[id]} base={w.base} fechas={fechas} />}
                 {!bloqueado && <span className="wctl">
                   {w.grafica && <button type="button" className="wbtn" aria-label={`Ajustar «${w.titulo}»`} title="Ajustar esta gráfica" onClick={() => setAjustando(w.grafica!)}><IconoLapiz /></button>}
                   <button type="button" className="wbtn" aria-label={w.grafica ? `Borrar «${w.titulo}»` : `Quitar «${w.titulo}» del tablero`} title={w.grafica ? 'Borrar esta gráfica' : 'Quitar del tablero'} onClick={() => quitar(id)}><IconoX /></button>

@@ -54,6 +54,8 @@ VENTAS_TABLEROS = os.path.join(DATA, "ventas_tableros.json")
 TABLERO_MAX = 200_000       # bytes por cuenta: un acomodo con gráficas propias ronda los 10 KB
 CLAVE_TABLERO = re.compile(r"^[a-z0-9][a-z0-9:_-]{0,59}$")
 _WIDGET = re.compile(r"^[a-z0-9][a-z0-9:*_.-]{0,59}$")   # id de widget («t-leads», «g:*»)
+# Los periodos que un widget puede tener por defecto: los del calendario (metrics.ts PRESETS) + «foto» (foto de hoy).
+_RANGOS_WIDGET = {"hoy", "ayer", "hoy_ayer", "d7", "d14", "d28", "d30", "d60", "d90", "semana", "semana_pasada", "mes", "mes_pasado", "maximo", "trimestre", "foto"}
 # Acomodos del tablero (posición, tamaño, quitados): lo que una cuenta sin permiso de acomodar NO puede escribir.
 # Las fechas por widget, las columnas y las vistas del detalle son preferencia de lectura y sí se guardan.
 def clave_es_acomodo(clave):
@@ -491,6 +493,13 @@ def validar_config(body):
     fechas_sin = body.get("fechas_sin") or []
     if not isinstance(fechas_sin, list) or len(fechas_sin) > 300 or not all(isinstance(x, str) and _WIDGET.match(x) for x in fechas_sin):
         raise ValueError("fechas_sin debe ser una lista de widgets")
+    # Con qué periodo abre cada widget (Randall 16-sep): un preset del calendario o «foto» (foto de hoy).
+    fechas_default = body.get("fechas_default") or {}
+    if not isinstance(fechas_default, dict) or len(fechas_default) > 300:
+        raise ValueError("fechas_default debe ser un objeto")
+    for k, v in fechas_default.items():
+        if not (isinstance(k, str) and _WIDGET.match(k) and v in _RANGOS_WIDGET):
+            raise ValueError("periodo por defecto inválido: %r" % ((k, v),))
     for k, v in crms.items():
         if not (isinstance(k, str) and _SLUG.match(k) and v in ("kommo", "hubspot", "ambos", "ninguno")):
             raise ValueError("CRM declarado inválido: %r" % ((k, v),))
@@ -500,7 +509,7 @@ def validar_config(body):
             "metas_zona": tabla(body.get("metas_zona"), "metas_zona", _ZONA),
             "metas": tabla(body.get("metas"), "metas", _SLUG),
             "ocultos": sorted(set(ocultos)), "equipos": dict(equipos), "comisiones_map": dict(cmap), "tipos": dict(tipos), "crms": dict(crms),
-            "fechas_sin": sorted(set(fechas_sin))}
+            "fechas_sin": sorted(set(fechas_sin)), "fechas_default": dict(fechas_default)}
 
 
 # ---------------------------------------------------------------- accesos de /ventas

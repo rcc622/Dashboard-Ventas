@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { cargarTableros, guardarTablero } from './data'
-import type { Preset } from './metrics'
+import { nombrePreset, type Preset } from './metrics'
 
 // Fechas propias de un widget (Randall 10-sep: «que las gráficas puedan establecerse date range
 // específicos… para que si un widget siempre debe mostrar la info histórica, la muestre y no
@@ -13,20 +13,24 @@ import type { Preset } from './metrics'
 // siendo una elección posible en esos widgets, se guarda como `'tablero'`: sin esa marca, borrar la
 // entrada devolvería al default y el menú mentiría.
 
-export type Elegido = Preset | 'tablero'
+/** Lo que un widget puede mirar: un periodo del calendario o «Foto de hoy» (sin fechas: todo lo activo hoy). Randall
+ *  16-sep: «foto de hoy no sale en las opciones y eso limita la usabilidad» → es una opción más del menú. */
+export type RangoWidget = Preset | 'foto'
+export type Elegido = RangoWidget | 'tablero'
+export const nombreRango = (r: RangoWidget) => (r === 'foto' ? 'Foto de hoy' : nombrePreset(r))
 export interface Rangos { por: Record<string, Elegido>; ts?: number }
 const KEY = (clave: string) => 'kv_rangos_' + clave
 const CLAVE = (clave: string) => 'rangos-' + clave
 
 /** Lo guardado más los defaults, ya resuelto: solo presets, sin la marca `'tablero'`. */
-function efectivo(por: Record<string, Elegido>, defaults: Record<string, Preset>): Record<string, Preset> {
-  const out: Record<string, Preset> = { ...defaults }
+function efectivo(por: Record<string, Elegido>, defaults: Record<string, RangoWidget>): Record<string, RangoWidget> {
+  const out: Record<string, RangoWidget> = { ...defaults }
   for (const [id, p] of Object.entries(por)) { if (p === 'tablero') delete out[id]; else out[id] = p }
   return out
 }
 
-const SIN_DEFAULTS: Record<string, Preset> = {}
-export function useRangos(clave: string, defaults: Record<string, Preset> = SIN_DEFAULTS) {
+const SIN_DEFAULTS: Record<string, RangoWidget> = {}
+export function useRangos(clave: string, defaults: Record<string, RangoWidget> = SIN_DEFAULTS) {
   const [r, setR] = useState<Rangos>(() => {
     try { const v = JSON.parse(localStorage.getItem(KEY(clave)) || 'null'); if (v && v.por) return v as Rangos } catch { /* modo privado */ }
     return { por: {} }
@@ -49,7 +53,7 @@ export function useRangos(clave: string, defaults: Record<string, Preset> = SIN_
   }, [clave])
 
   /** `null` devuelve el widget a las fechas del tablero. */
-  const fijarRango = (id: string, p: Preset | null) => {
+  const fijarRango = (id: string, p: RangoWidget | null) => {
     setR((prev) => {
       const por = { ...prev.por }
       if (p) por[id] = p

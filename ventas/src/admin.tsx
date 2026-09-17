@@ -1,7 +1,7 @@
 import { Fragment, useLayoutEffect, useMemo, useRef, useState, type SyntheticEvent, useEffect } from 'react'
 import type { Corte, Evento, Lead, LevFila, Sanciones, Usuario } from './types'
 import { CRM_LABEL } from './types'
-import { BUCKETS, PERFIL_LABEL, actividad, actividadDe, cotizado, dias, embudo, entrada, ep, eventosFiltrados, fechaCotizado, diasSinActividad, estancado, estadoActivo, ESTADO_ACTIVO, ESTANCADO_DIAS, type EstadoActivo, leadsActivosHoy, rangoVentas, metaYRitmo, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, pasaCrm, etiquetaRango, periodoTexto, preset, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, type Fila, type FilaAsesor, type Filtros, type Perfil , type Preset, type PuntoPerfil, ventasReales, ventasCrm, tipoDe, crmTexto, activo, VENDEDOR_LABEL, filasDeVentasReales, comparativaVentas, rolDestacado, rolNombre, cotizacionesGeneradas, filasDeCotizaciones, visitas, levantados, filasDeLevantamientos, fmtEstrellas, llamadasFiltradas, resumenLlamadas } from './metrics'
+import { BUCKETS, PERFIL_LABEL, actividad, actividadDe, cotizado, dias, embudo, entrada, ep, eventosFiltrados, fechaCotizado, diasSinActividad, estancado, estadoActivo, ESTADO_ACTIVO, ESTANCADO_DIAS, type EstadoActivo, leadsActivosHoy, rangoVentas, metaYRitmo, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, pasaCrm, etiquetaRango, periodoTexto, preset, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, type Fila, type FilaAsesor, type Filtros, type Perfil , type PuntoPerfil, ventasReales, ventasCrm, tipoDe, crmTexto, activo, VENDEDOR_LABEL, filasDeVentasReales, comparativaVentas, rolDestacado, rolNombre, cotizacionesGeneradas, filasDeCotizaciones, visitas, levantados, filasDeLevantamientos, fmtEstrellas, llamadasFiltradas, resumenLlamadas } from './metrics'
 import { LlamadaModal, drillLlamadas } from './llamadas'
 import type { Llamada } from './types'
 import { BarDetailPopup, BubbleChart, Bullet, DonutChart, FunnelChart, Gauge, Info, LlamadasBar, MiniAreaChart, Scatter, SortTh, StackedBar, activar, useEscape, useOutside, type DetRow, type Sort, type BubbleCol, useFocoDialogo } from './components'
@@ -11,7 +11,7 @@ import type { Termino } from './glosario'
 import { aplicarSancion, cargarSanciones } from './data'
 import { WidgetGrid, type Widget } from './widgets'
 import { Galeria, GraficaLibre, Editor, type Grafica } from './constructor'
-import { useRangos } from './rangos'
+import { useRangos, type RangoWidget } from './rangos'
 import { fechasPermitidas } from './catalogo'
 
 const mixto = (c: Corte) => (c.fuentes || []).length > 1
@@ -43,7 +43,9 @@ const PC_TRAMOS = [
 /** Fechas con las que abre cada widget del Dashboard si la cuenta no ha elegido otras: el embudo y el monto por
  *  etapa son la foto del pipeline de TODOS los leads activos (Randall 16-sep: «estos deben ser por default lo
  *  máximo»); cada quien puede acotarlos con su calendario. */
-const RANGOS_ADMIN: Record<string, Preset> = { embudo: 'maximo', etapas: 'maximo' }
+const RANGOS_ADMIN: Record<string, RangoWidget> = { embudo: 'maximo', etapas: 'maximo' }
+/** Los periodos por defecto: los de fábrica y encima lo que el administrador fijó en Configuración («Abre en»). */
+const defaultsDe = (c: Corte, fabrica: Record<string, RangoWidget>): Record<string, RangoWidget> => ({ ...fabrica, ...((c.fechas_default || {}) as Record<string, RangoWidget>) })
 const ORDEN_ADMIN = ['t-leads', 't-ventas', 't-vendido', 't-conversion', 't-perdida', 't-tareas', 't-cotizaciones', 't-descartes', 't-levantamientos', 'llamadas', 'calidad-llamadas', 'salud', 'pipeline', 'ranking', 'reales', 'cotiz-metodos', 'lev-operaciones', 'visitas', 'entrada', 'embudo', 'etapas', 'contacto', 'razones', 'perfiles', 'perfiles-tabla']
 const fLeads = (ls: Lead[]) => filasDeLeads(ls, () => '', undefined, { label: 'Días sin actividad', de: (l) => diasSinActividad(l) })
 const HOY = 'foto de hoy, sin importar las fechas del tablero'
@@ -188,6 +190,8 @@ function datosDe(corte: Corte, f: Filtros) {
   const ev = eventosFiltrados(corte, f)
   const ventas = ventasFiltradas(corte, f)
   const filas = porAsesor(corte, f)
+  // «Foto de hoy» en el widget: el embudo y el monto por etapa son de TODOS los activos hoy, no de los asignados en un rango.
+  const leadsEmbudo = f.foto ? leadsActivosHoy(corte, f) : leads
   // Las ventas de la app van por MES: el periodo que de verdad cubren (y la base de la conversión) son los meses
   // que toca el rango (`rangoVentas`), no sus días. Sin app es el rango tal cual.
   const rv = rangoVentas(corte, f.rango)
@@ -195,7 +199,7 @@ function datosDe(corte: Corte, f: Filtros) {
   // Cotizado vigente y activos son foto de HOY (Randall 11-sep), igual que en la tabla de Asesores.
   const activosHoy = leadsActivosHoy(corte, f)
   return {
-    leads, ev, ventas, filas, rv, leadsVentas, activosHoy,
+    leads, ev, ventas, filas, rv, leadsVentas, activosHoy, leadsEmbudo,
     ent: entrada(corte, f.rango, f), pc: primerContacto(corte, leads), rz: razones(corte, ev), perf: perfiles(corte, filas),
     vr: ventasReales(corte, f), cg: cotizacionesGeneradas(corte, f), vis: visitas(corte, f), lev: levantados(corte, f),
   }
@@ -216,14 +220,14 @@ interface Acciones {
  *  persona (Randall 10-sep: «que la vista por defecto del asesor sea como el diseño del PDF»). */
 function widgetsTablero(corte: Corte, filtros: Filtros, d: Datos, ax: Acciones): Widget[] {
   const { ver, verLlamadas, onFicha, grupo, setGrupo } = ax
-  const { leads, ev, ventas, filas, rv, leadsVentas, activosHoy, ent, pc, rz, perf, vr, cg, vis, lev } = d
+  const { leads, ev, ventas, filas, rv, leadsVentas, activosHoy, leadsEmbudo, ent, pc, rz, perf, vr, cg, vis, lev } = d
   const s = salud(leads)
   const con = s.ventasCon + s.huntCon, sin = s.ventasSin + s.huntSin, tot = con + sin
   const hayHunting = s.huntCon + s.huntSin > 0
   const asignados = leads.filter((l) => l.funnel === 4)
   // Tasa de pérdida: de los leads asignados en el rango (activos + ganados + perdidos), cuántos ya se perdieron.
   const perdidos = leads.filter((l) => l.funnel === 0), baseAsignados = leads.filter((l) => l.funnel === 4 || l.funnel === 5 || l.funnel === 0).length
-  const et = embudo(leads, corte.etapas || [])
+  const et = embudo(leadsEmbudo, corte.etapas || [])
   const a = actividad(ev)
   // `ventas` = app de comisiones cuando el corte la trae (Randall 11-sep); el CRM solo de respaldo. Ver ventasFiltradas.
   const monto = ventas.reduce((x, l) => x + l.presupuesto, 0)
@@ -632,20 +636,22 @@ export function AdminDashboard({ corte, filtros, onFicha, puedeEditar = true }: 
   const verLlamadas = (titulo: string, ls: Llamada[]) => setDrill(drillLlamadas(titulo, ls, corte, filtros.rango.label, setLlamada))
   // Fechas propias por widget (Randall 10-sep: «si un widget siempre debe mostrar la info histórica,
   // que la muestre y no conflictúe con el date range del tablero»). Sin fechas propias se sigue al tablero.
-  const { rangos: rangosCuenta, fijarRango } = useRangos('admin', RANGOS_ADMIN)
+  const defaults = useMemo(() => defaultsDe(corte, RANGOS_ADMIN), [corte])
+  const { rangos: rangosCuenta, fijarRango } = useRangos('admin', defaults)
   // Configuración › Fechas propias por widget: el widget apagado sigue al calendario de arriba (Randall 16-sep).
   const permitido = useMemo(() => fechasPermitidas(corte), [corte])
   const rangos = useMemo(() => Object.fromEntries(Object.entries(rangosCuenta).filter(([id]) => permitido(id))), [permitido, rangosCuenta])
   const conFechas = permitido('g:*')
   const desdeMaximo = useMemo(() => { let m = corte.desde; for (const l of corte.leads) { if (l.asignacion && l.asignacion < m) m = l.asignacion; if (l.creado && l.creado < m) m = l.creado } return m }, [corte])
-  const conRango = (p: Preset): Filtros => ({ ...filtros, rango: preset(p, new Date(), desdeMaximo) })
+  // «foto» = Foto de hoy: rango Máximo (todo) y la marca `foto` para que embudo y etapas miren lo activo hoy.
+  const conRango = (p: RangoWidget): Filtros => ({ ...filtros, rango: preset(p === 'foto' ? 'maximo' : p, new Date(), desdeMaximo), foto: p === 'foto' })
   // «Este mes» / «Máximo»: el nombre del periodo de arriba, para que la etiqueta de cada widget diga
   // qué está mirando aunque siga al tablero (Randall 10-sep, como los widgets de HubSpot).
   const nombreTablero = filtros.rango.label.includes(': ') ? filtros.rango.label.split(': ')[0] : 'Fechas elegidas'
-  const fechasDe = (p?: Preset) => { const r = p ? conRango(p).rango : filtros.rango; return etiquetaRango(null, r.ini, r.fin) }
+  const fechasDe = (p?: RangoWidget) => { if (p === 'foto') return 'lo activo hoy, sin fechas'; const r = p ? conRango(p).rango : filtros.rango; return etiquetaRango(null, r.ini, r.fin) }
   const filtrosDe = (id: string): Filtros => (rangos[id] ? conRango(rangos[id]) : filtros)
   // Lo que el constructor necesita para dejar elegir las fechas de la gráfica que se está creando.
-  const fechasCtor = conFechas ? { de: (id: string) => rangos['g:' + id], filtros: (id: string) => filtrosDe('g:' + id), fijar: (id: string, p: Preset | null) => fijarRango('g:' + id, p) } : undefined
+  const fechasCtor = conFechas ? { de: (id: string) => rangos['g:' + id], filtros: (id: string) => filtrosDe('g:' + id), fijar: (id: string, p: RangoWidget | null) => fijarRango('g:' + id, p) } : undefined
 
   const construir = (f: Filtros, dd: Datos): Widget[] => widgetsTablero(corte, f, dd, { ver, verLlamadas, onFicha, grupo, setGrupo })
 
@@ -1058,7 +1064,7 @@ const META_CIERRE = 0.10
 /** Fechas con las que abre cada widget de la ficha si la cuenta no ha elegido otras: la evolución por mes
  *  siempre en «Máximo» (Alejandro 15-sep: «independientemente de lo que yo seleccione acá, siempre abra el
  *  máximo acá»). Lo demás sigue al tablero. */
-const RANGOS_FICHA: Record<string, Preset> = { ev: 'maximo', 'ev-tabla': 'maximo', embudo: 'maximo', etapas: 'maximo' }
+const RANGOS_FICHA: Record<string, RangoWidget> = { ev: 'maximo', 'ev-tabla': 'maximo', embudo: 'maximo', etapas: 'maximo', cotizado: 'foto', leads: 'foto', tareas: 'foto' }
 
 /** Ficha del asesor. Es un WidgetGrid (clave «ficha», compartida entre asesores): cada tarjeta se
  *  mueve, estira o quita igual que en el Dashboard. Cotizado vigente y su antigüedad van en UNA
@@ -1077,16 +1083,21 @@ export function Ficha({ corte, filtros, uid, onBack, puedeEditar = true }: { cor
   // Fechas propias por widget, igual que en el tablero general (Randall 10-sep: «en la vista del
   // asesor no está lo del date range del widget»). La elección se comparte entre fichas: si dejas
   // «Ventas» en Máximo, se ve en Máximo para cualquier asesor.
-  const { rangos: rangosCuenta, fijarRango } = useRangos('ficha', RANGOS_FICHA)
+  const defaults = useMemo(() => defaultsDe(corte, RANGOS_FICHA), [corte])
+  const { rangos: rangosCuenta, fijarRango } = useRangos('ficha', defaults)
   const permitido = useMemo(() => fechasPermitidas(corte), [corte])
   const rangos = useMemo(() => Object.fromEntries(Object.entries(rangosCuenta).filter(([id]) => permitido(id))), [permitido, rangosCuenta])
   const conFechas = permitido('g:*')
   const desdeMaximo = useMemo(() => { let m = corte.desde; for (const l of corte.leads) { if (l.asignacion && l.asignacion < m) m = l.asignacion; if (l.creado && l.creado < m) m = l.creado } return m }, [corte])
-  const conRango = (pz: Preset): Filtros => ({ ...f, rango: preset(pz, new Date(), desdeMaximo) })
+  const conRango = (pz: RangoWidget): Filtros => ({ ...f, rango: preset(pz === 'foto' ? 'maximo' : pz, new Date(), desdeMaximo), foto: pz === 'foto' })
   const filtrosDe = (id: string): Filtros => (rangos[id] ? conRango(rangos[id]) : f)
-  const fechasCtor = conFechas ? { de: (id: string) => rangos['g:' + id], filtros: (id: string) => filtrosDe('g:' + id), fijar: (id: string, pz: Preset | null) => fijarRango('g:' + id, pz) } : undefined
+  const fechasCtor = conFechas ? { de: (id: string) => rangos['g:' + id], filtros: (id: string) => filtrosDe('g:' + id), fijar: (id: string, pz: RangoWidget | null) => fijarRango('g:' + id, pz) } : undefined
   const nombreTablero = filtros.rango.label.includes(': ') ? filtros.rango.label.split(': ')[0] : 'Fechas elegidas'
-  const fechasDe = (pz?: Preset) => { const r = pz ? conRango(pz).rango : f.rango; return etiquetaRango(null, r.ini, r.fin) }
+  const fechasDe = (pz?: RangoWidget) => { if (pz === 'foto') return 'lo activo hoy, sin fechas'; const r = pz ? conRango(pz).rango : f.rango; return etiquetaRango(null, r.ini, r.fin) }
+  // Los tres widgets propios de la ficha que son «foto de hoy» por defecto también aceptan un periodo (Randall 16-sep):
+  // con fechas miran los leads ASIGNADOS en ese periodo que siguen activos, y las tareas abiertas que vencen en él.
+  const activosDe = (id: string): Lead[] => { const ff = filtrosDe(id); return ff.foto ? leadsActivosHoy(corte, ff) : leadsFiltrados(corte, ff).filter(activo) }
+  const periodoDe = (id: string) => (filtrosDe(id).foto ? 'foto de hoy' : 'asignados ' + periodoTexto(filtrosDe(id).rango))
   // Los mismos widgets del tablero, pero de esta persona. Se arman una vez con las fechas de arriba
   // y una por cada periodo que alguien haya fijado, como en el tablero general.
   const [llamada, setLlamada] = useState<Llamada | null>(null)
@@ -1114,8 +1125,9 @@ export function Ficha({ corte, filtros, uid, onBack, puedeEditar = true }: { cor
   // Activos = foto de HOY (Randall 11-sep), no los asignados en el rango: la ficha decía «87 leads activos» y la
   // tabla de Asesores 205 para la misma persona.
   const activos = leadsActivosHoy(corte, f)
-  const cot = cotizado(activos, corte.cotizado_dias)
-  const vigentes = activos.filter((l) => l.presupuesto > 0 && diasDesde(fechaCotizado(l)) <= corte.cotizado_dias)
+  const activosCot = activosDe('cotizado'), activosLeads = activosDe('leads')
+  const cot = cotizado(activosCot, corte.cotizado_dias)
+  const vigentes = activosCot.filter((l) => l.presupuesto > 0 && diasDesde(fechaCotizado(l)) <= corte.cotizado_dias)
   const objetivo = metaMes * corte.cotizado_x
   const vr = ventasReales(corte, f)
   // Actividad: el rango manda. Hasta 21 días por día; hasta 26 semanas por semana; más largo (p. ej. «Máximo» desde 2023)
@@ -1159,7 +1171,8 @@ export function Ficha({ corte, filtros, uid, onBack, puedeEditar = true }: { cor
     onCol = (i) => { const d = meses[i]; setZoom({ ini: d, dias: new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate(), texto: `${mesNombre(d)} de ${d.getFullYear()}` }) }
     vista = `Por mes · ${rango} · clic en un mes para verlo por día`
   }
-  const tareas = corte.tareas_abiertas.filter((t) => pasaCrm(t.crm, filtros) && t.asesor_id === uid).sort((p, q) => p.vence - q.vence).slice(0, 24)
+  const ft = filtrosDe('tareas')
+  const tareas = corte.tareas_abiertas.filter((t) => pasaCrm(t.crm, filtros) && t.asesor_id === uid && (ft.foto || (t.vence >= ft.rango.ini && t.vence < ft.rango.fin))).sort((p, q) => p.vence - q.vence).slice(0, 24)
   const hoy = ep(inicioDia(new Date()))
   const widgets: Widget[] = [
     // «Ventas · este mes» se cambió por la barrita del tablero (Alejandro 15-sep: «el widget de ventas este mes por
@@ -1174,14 +1187,14 @@ export function Ficha({ corte, filtros, uid, onBack, puedeEditar = true }: { cor
     ), { plain: true, span: 2, cls: 'wcard', base: 'cierre' }),
     wg('cotizado', 'Cotizado vigente y antigüedad', (
       <div className="kcard k3"><div className="cot-grid">
-        <div><div className="l">Cotizado vigente<Info termino="Cotizado vigente" /></div><div className="n"><Cifra label={`Cotizado vigente ${fmtMoney0(cot.vigente)}`} onClick={() => setDrill({ titulo: `Cotizado vigente de ${u.nombre}`, filas: fCotizado(vigentes), sub: `≤ ${corte.cotizado_dias} días · ${rango}` })}>{fmtMoney0(cot.vigente)}</Cifra></div>
+        <div><div className="l">Cotizado vigente<Info termino="Cotizado vigente" /></div><div className="n"><Cifra label={`Cotizado vigente ${fmtMoney0(cot.vigente)}`} onClick={() => setDrill({ titulo: `Cotizado vigente de ${u.nombre}`, filas: fCotizado(vigentes), sub: `≤ ${corte.cotizado_dias} días · ${periodoDe('cotizado')}` })}>{fmtMoney0(cot.vigente)}</Cifra></div>
           <Bullet value={cot.vigente} target={objetivo} label="Cotizado vigente" color="var(--c2)" fmt={fmtMoney0} />
           <div className="small muted" style={{ marginTop: 6 }}>objetivo {fmtMoney0(objetivo)} = {corte.cotizado_x}× la meta mensual · {fmtN(cot.n)} lead{cot.n === 1 ? '' : 's'} con monto<Info termino="Pipeline 10×" /></div></div>
         <div><div className="l">Antigüedad del cotizado<Info termino="Antigüedad" /></div>
-          <Antiguedad c={cot} leads={activos} onVer={(t, filas) => setDrill({ titulo: `${t} · ${u.nombre}`, filas, sub: rango })} />
+          <Antiguedad c={cot} leads={activosCot} onVer={(t, filas) => setDrill({ titulo: `${t} · ${u.nombre}`, filas, sub: periodoDe('cotizado') })} />
           <div className="small muted" style={{ marginTop: 6 }}>{cot.viejo > 0 ? `${fmtMoney(cot.viejo)} en ${fmtN(cot.nViejo)} leads pasan de ${corte.cotizado_dias} días: ya no cuentan.` : 'Nada pasa de ' + corte.cotizado_dias + ' días.'}</div></div>
       </div></div>
-    ), { plain: true, span: 2, cls: 'wcard', alto: 6, base: 'hoy' }),
+    ), { plain: true, span: 2, cls: 'wcard', alto: 6, base: 'asignacion' }),
     ...(corte.comisiones ? [wg('reales', 'Ventas reales · Comisiones', (
       <div className="kcard k4"><div className="l">Ventas reales · Comisiones<Info termino="Ventas reales" /></div>
         <div className="n"><Cifra label={`${vr.n} ventas reales, ${fmtMoney0(vr.total)}`} onClick={() => setDrill({ titulo: `Ventas reales de ${u.nombre}`, filas: filasDeVentasReales(vr.ventas), sub: rango + ' · mes de venta en la app de comisiones' })}><b>{vr.n}</b> <span style={{ fontSize: 22 }}>{fmtMoney0(vr.total)}</span></Cifra></div>
@@ -1202,10 +1215,10 @@ export function Ficha({ corte, filtros, uid, onBack, puedeEditar = true }: { cor
           <button type="button" onClick={() => setDrill({ titulo: `Actividad de ${u.nombre} · ${zoom ? zoom.texto : rango}`, filas: filasDeEventos(corte, evVista) })}>Ver las {fmtN(evVista.length)} actividades ›</button></div>
       </>
     ), { span: 6, alto: 7, info: ['Actividad'] }),
-    wg('leads', `Leads activos · ${fmtN(activos.length)}`, <LeadsTabla corte={corte} leads={activos} />, { span: 6, info: ['Leads activos', 'Estancados'], base: 'hoy' }),
+    wg('leads', `Leads activos · ${fmtN(activosLeads.length)}`, <LeadsTabla corte={corte} leads={activosLeads} />, { span: 6, info: ['Leads activos', 'Estancados'], base: 'asignacion' }),
     wg('tareas', 'Tareas abiertas', (
       <>
-        {!tareas.length && <div className="muted">Sin tareas abiertas en el CRM para este asesor.</div>}
+        {!tareas.length && <div className="muted">{ft.foto ? 'Sin tareas abiertas en el CRM para este asesor.' : 'Sin tareas abiertas que venzan en este periodo.'}</div>}
         <div className="cards">
           {tareas.map((t) => { const d = Math.floor((t.vence - hoy) / 86400); const nm = t.lead_nombre || t.texto || 'Sin nombre'; return (
             <div className="card" key={t.id}>
@@ -1216,7 +1229,7 @@ export function Ficha({ corte, filtros, uid, onBack, puedeEditar = true }: { cor
             </div>) })}
         </div>
       </>
-    ), { span: 6, info: ['Tareas'], base: 'hoy' }),
+    ), { span: 6, info: ['Tareas'], base: 'actividad' }),
     // La evolución abre la ficha: cómo va mes a mes contra su meta (Randall 10-sep, diseño del PDF).
     wg('ev', 'Monto vendido y Meta de venta por mes', (
       <GraficaLibre corte={corte} filtros={filtrosDe('ev')} onDrill={setDrill}

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CATALOGO_FECHAS } from './catalogo'
+import { PRESETS, nombrePreset, type Preset } from './metrics'
 import { Interruptor } from './components'
 import type { Acceso, Config, Corte, CrmDeclarado, Usuario } from './types'
 import { CRM_LABEL } from './types'
@@ -41,6 +42,11 @@ export function Configuracion({ corte, onSaved }: { corte: Corte; onSaved: (cfg:
   // personalizables y cuáles no»). Vacío = todos las tienen.
   const [fechasSin, setFechasSin] = useState<Set<string>>(() => new Set(corte.fechas_sin || []))
   const alternarFecha = (id: string) => setFechasSin((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })
+  // Con qué periodo abre cada widget si la cuenta no eligió otro ('' = sigue al tablero) — Randall 16-sep: «que me permita
+  // seleccionar en qué date range va a estar el default». Lo que no se fija aquí usa el de fábrica (evolución y embudo en Máximo,
+  // cotizado / leads activos / tareas abiertas en Foto de hoy).
+  const [fechasDef, setFechasDef] = useState<Record<string, string>>(() => ({ ...(corte.fechas_default || {}) }))
+  const fijarDef = (id: string, v: string) => setFechasDef((d) => { const n = { ...d }; if (v) n[id] = v; else delete n[id]; return n })
   const [zonas, setZonas] = useState<Record<string, string>>(() => Object.fromEntries(corte.equipos.map((e) => [e.id, corte.metas_zona[e.id] != null ? String(corte.metas_zona[e.id]) : ''])))
   const [asesores, setAsesores] = useState<Record<string, string>>(() => Object.fromEntries(corte.usuarios.map((u) => [u.id, corte.metas[u.id] != null ? String(corte.metas[u.id]) : ''])))
   const [ocultos, setOcultos] = useState<Set<string>>(() => new Set(corte.ocultos || []))
@@ -91,7 +97,7 @@ export function Configuracion({ corte, onSaved }: { corte: Corte; onSaved: (cfg:
     for (const [k, v] of Object.entries(asesores)) { if (v.trim() === '') continue; const n = num(v); if (n == null) return `La meta de ${corte.usuarios.find((u) => u.id === k)?.nombre || k} no es un número.`; metas[k] = n }
     const eq: Record<string, string> = {}
     for (const [k, v] of Object.entries(equipos)) if (v) eq[k] = v
-    return { meta_mxn: g, cotizado_x: x, cotizado_dias: Math.round(d), metas_zona, metas, ocultos: [...ocultos], equipos: eq, comisiones_map: comMap, tipos: Object.fromEntries(Object.entries(tipos).filter(([, v]) => v)) as Config['tipos'], crms: Object.fromEntries(Object.entries(crms).filter(([, v]) => v)) as Config['crms'], fechas_sin: [...fechasSin].sort() }
+    return { meta_mxn: g, cotizado_x: x, cotizado_dias: Math.round(d), metas_zona, metas, ocultos: [...ocultos], equipos: eq, comisiones_map: comMap, tipos: Object.fromEntries(Object.entries(tipos).filter(([, v]) => v)) as Config['tipos'], crms: Object.fromEntries(Object.entries(crms).filter(([, v]) => v)) as Config['crms'], fechas_sin: [...fechasSin].sort(), fechas_default: fechasDef }
   }
   const borrador = armar()
   const cfg = typeof borrador === 'string' ? null : borrador
@@ -178,7 +184,7 @@ export function Configuracion({ corte, onSaved }: { corte: Corte; onSaved: (cfg:
                 <h3>Fechas propias por widget</h3>
                 <div className="small muted">Encendido: la gráfica lleva su calendario (píldora «Este mes» / «Máximo») y puede mirar otro periodo que el tablero. Apagado: sigue el calendario de arriba, sin píldora. Las cifras «foto de hoy» no dependen de fechas.</div>
               </div>
-              <div className="fp-tools">
+              <div className="fp-tools" style={{ alignSelf: 'flex-start' }}>
                 <span className="fp-count" aria-live="polite"><b>{fmtN(CATALOGO_FECHAS.reduce((n, g) => n + g.widgets.filter((w) => !fechasSin.has(w.id)).length, 0))}</b> de {fmtN(CATALOGO_FECHAS.reduce((n, g) => n + g.widgets.length, 0))} con fechas</span>
                 <span className="pill sm" role="group" aria-label="Todas o ninguna">
                   <button type="button" className={fechasSin.size === 0 ? 'on' : ''} aria-pressed={fechasSin.size === 0} onClick={() => setFechasSin(new Set())}>Todas</button>
@@ -189,12 +195,22 @@ export function Configuracion({ corte, onSaved }: { corte: Corte; onSaved: (cfg:
             {CATALOGO_FECHAS.map((g) => (
               <div key={g.vista} className="fp-grupo">
                 <div className="fp-titulo">{g.vista}<span className="muted"> · {fmtN(g.widgets.filter((w) => !fechasSin.has(w.id)).length)} de {fmtN(g.widgets.length)}</span></div>
-                <div className="fp-chips">
-                  {g.widgets.map((w) => { const on = !fechasSin.has(w.id); return (
-                    <button type="button" key={w.id} className={'fchip' + (on ? ' on' : '')} aria-pressed={on} title={on ? 'Con fechas propias. Clic para que siga el calendario del tablero' : 'Sigue el calendario del tablero. Clic para darle fechas propias'} onClick={() => alternarFecha(w.id)}>
-                      <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true"><rect x="3" y="4.5" width="14" height="12.5" rx="2" /><path d="M3 8.5h14M7 3v3M13 3v3" />{!on && <path d="M4 17L17 4" />}</svg>
-                      <span>{w.titulo}</span>
-                    </button>) })}
+                <div className="fp-filas">
+                  {g.widgets.map((w) => { const on = !fechasSin.has(w.id); const def = fechasDef[w.id] || ''; return (
+                    <div key={w.id} className={'fp-fila' + (on ? '' : ' off')}>
+                      <button type="button" className={'fchip' + (on ? ' on' : '')} aria-pressed={on} title={on ? 'Con fechas propias. Clic para que siga el calendario del tablero' : 'Sigue el calendario del tablero. Clic para darle fechas propias'} onClick={() => alternarFecha(w.id)}>
+                        <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true"><rect x="3" y="4.5" width="14" height="12.5" rx="2" /><path d="M3 8.5h14M7 3v3M13 3v3" />{!on && <path d="M4 17L17 4" />}</svg>
+                        <span>{w.titulo}</span>
+                      </button>
+                      {/* Con qué periodo abre. '' = sigue al tablero (o el de fábrica si lo tiene: se dice en la opción). */}
+                      <label className="fp-def"><span className="small muted">abre en</span>
+                        <select className="sel" value={def} disabled={!on} aria-label={'Periodo con el que abre ' + w.titulo} onChange={(e) => fijarDef(w.id, e.target.value)}>
+                          <option value="">{w.fabrica ? `De fábrica: ${w.fabrica === 'foto' ? 'Foto de hoy' : nombrePreset(w.fabrica as Preset)}` : 'Las fechas del tablero'}</option>
+                          <option value="foto">Foto de hoy · sin fechas</option>
+                          {PRESETS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+                        </select>
+                      </label>
+                    </div>) })}
                 </div>
               </div>
             ))}
