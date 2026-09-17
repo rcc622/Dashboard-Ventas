@@ -203,7 +203,7 @@ export function Configuracion({ corte, onSaved }: { corte: Corte; onSaved: (cfg:
                         <span>{w.titulo}</span>
                       </button>
                       {/* Con qué periodo abre. '' = sigue al tablero (o el de fábrica si lo tiene: se dice en la opción). */}
-                      <label className="fp-def"><span className="small muted">abre en</span>
+                      <label className="fp-def" title="Con qué periodo abre este widget"><span className="fp-flecha" aria-hidden="true">→</span>
                         <select className="sel" value={def} disabled={!on} aria-label={'Periodo con el que abre ' + w.titulo} onChange={(e) => fijarDef(w.id, e.target.value)}>
                           <option value="">{w.fabrica ? `De fábrica: ${w.fabrica === 'foto' ? 'Foto de hoy' : nombrePreset(w.fabrica as Preset)}` : 'Las fechas del tablero'}</option>
                           <option value="foto">Foto de hoy · sin fechas</option>
