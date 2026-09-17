@@ -83,6 +83,8 @@ export interface Corte {
   fechas_sin?: string[]
   /** Con qué periodo abre cada widget si la cuenta no eligió otro: preset del calendario o «foto» (Randall 16-sep). */
   fechas_default?: Record<string, string>
+  /** Cuándo cambió `fechas_default` por última vez (ms): lo elegido por una cuenta antes de eso ya no cuenta. Lo pone app.py. */
+  fechas_default_ts?: number
   usuarios: Usuario[]; equipos: Equipo[]; etapas: Etapa[]
   /** Meta mensual de venta en MXN: por asesor (slug), por zona y la general. Prioridad asesor → zona → general. */
   metas: Record<string, number>; metas_zona: Record<string, number>; meta_mxn: number
@@ -95,7 +97,7 @@ export interface Corte {
 
 /** Lo que guarda la página de Configuración en data/ventas_config.json (app.py).
  *  equipos: zona por asesor que manda sobre la del CRM ('-' = sin equipo). */
-export interface Config { meta_mxn: number; cotizado_x: number; cotizado_dias: number; metas_zona: Record<string, number>; metas: Record<string, number>; ocultos: string[]; equipos: Record<string, string>; comisiones_map: Record<string, string>; tipos: Record<string, TipoVendedor>; crms: Record<string, CrmDeclarado>; fechas_sin: string[]; fechas_default: Record<string, string> }
+export interface Config { meta_mxn: number; cotizado_x: number; cotizado_dias: number; metas_zona: Record<string, number>; metas: Record<string, number>; ocultos: string[]; equipos: Record<string, string>; comisiones_map: Record<string, string>; tipos: Record<string, TipoVendedor>; crms: Record<string, CrmDeclarado>; fechas_sin: string[]; fechas_default: Record<string, string>; fechas_default_ts?: number }
 
 /** Sesión de /ventas (cookie firmada por app.py). uid de un asesor = su slug en el corte. */
 /** `edita`: puede acomodar tableros (mover, estirar, quitar, agregar). Se lee vivo del servidor; false = solo mira. */

@@ -167,6 +167,15 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   (`RANGOS_ADMIN` / `RANGOS_FICHA`: ev, ev-tabla, embudo, etapas → Máximo; cotizado, leads, tareas → foto) y encima
   `config.fechas_default` (`defaultsDe`; app.py valida contra `_RANGOS_WIDGET`); la cuenta manda sobre los dos. En
   Configuración cada widget lleva chip + «abre en» (`.fp-fila`, opción «De fábrica: …» del catálogo `fabrica`).
+  🐞 17-sep, «hay widgets que no respetan lo configurado»: (1) Avance contra la meta, Cumplimiento, Porcentaje de
+  cierre, Actividad y Ventas reales de la ficha calculaban con las fechas del TABLERO aunque su píldora dijera otra
+  cosa → ahora cada uno calcula con `filtrosDe(id)` (`ventasDe(id)` = ventas, meta, ritmo y leads de esos meses;
+  `rangoAct` para la actividad; `ventasReales(corte, filtrosDe('reales'))`, y la línea «CRM: …» ya usa `ventasCrm`,
+  antes sumaba las de la app). Regla: **ningún widget de la ficha usa `filtros.rango` directo; siempre
+  `filtrosDe(id)`**. (2) El default de Configuración solo valía si la cuenta no había elegido nada → ahora el
+  servidor sella `fechas_default_ts` al cambiar `fechas_default` y `useRangos` (`efectivo(r, defaults, desde)`)
+  ignora las elecciones de la cuenta anteriores a ese sello (`Rangos.cuando[id]`, o el `ts` del mapa para las
+  viejas); una elección posterior sí manda. Lo de fábrica nunca pisa a la cuenta.
   (e) **Permiso «Acomoda el tablero» por cuenta** (Alejandro 15-sep: «le puedes después dar un permiso de no
   moverlo» al líder de ventas): `Acceso.edita` en `ventas_usuarios.json` (Configuración › Usuarios, columna con
   casilla; default true), `GET /ventas/yo` lo devuelve VIVO (`puede_editar` lee el archivo, no la cookie, así quitar

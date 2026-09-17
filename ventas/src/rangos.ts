@@ -18,19 +18,27 @@ import { nombrePreset, type Preset } from './metrics'
 export type RangoWidget = Preset | 'foto'
 export type Elegido = RangoWidget | 'tablero'
 export const nombreRango = (r: RangoWidget) => (r === 'foto' ? 'Foto de hoy' : nombrePreset(r))
-export interface Rangos { por: Record<string, Elegido>; ts?: number }
+/** `cuando[id]` = cuándo la cuenta eligió ese periodo; las entradas viejas sin marca usan el `ts` del mapa. Sirve para
+ *  que un default fijado DESPUÉS en Configuración gane a una elección anterior de la cuenta, y no al revés. */
+export interface Rangos { por: Record<string, Elegido>; cuando?: Record<string, number>; ts?: number }
 const KEY = (clave: string) => 'kv_rangos_' + clave
 const CLAVE = (clave: string) => 'rangos-' + clave
 
-/** Lo guardado más los defaults, ya resuelto: solo presets, sin la marca `'tablero'`. */
-function efectivo(por: Record<string, Elegido>, defaults: Record<string, RangoWidget>): Record<string, RangoWidget> {
+/** Lo guardado más los defaults, ya resuelto: solo presets, sin la marca `'tablero'`. `desde[id]` = cuándo fijó el
+ *  administrador el default de ese widget: una elección de la cuenta anterior a esa fecha ya no cuenta. */
+function efectivo(r: Rangos, defaults: Record<string, RangoWidget>, desde: Record<string, number>): Record<string, RangoWidget> {
   const out: Record<string, RangoWidget> = { ...defaults }
-  for (const [id, p] of Object.entries(por)) { if (p === 'tablero') delete out[id]; else out[id] = p }
+  for (const [id, p] of Object.entries(r.por)) {
+    const elegido = r.cuando?.[id] ?? r.ts ?? 0
+    if ((desde[id] ?? 0) > elegido) continue
+    if (p === 'tablero') delete out[id]; else out[id] = p
+  }
   return out
 }
 
 const SIN_DEFAULTS: Record<string, RangoWidget> = {}
-export function useRangos(clave: string, defaults: Record<string, RangoWidget> = SIN_DEFAULTS) {
+const SIN_DESDE: Record<string, number> = {}
+export function useRangos(clave: string, defaults: Record<string, RangoWidget> = SIN_DEFAULTS, desde: Record<string, number> = SIN_DESDE) {
   const [r, setR] = useState<Rangos>(() => {
     try { const v = JSON.parse(localStorage.getItem(KEY(clave)) || 'null'); if (v && v.por) return v as Rangos } catch { /* modo privado */ }
     return { por: {} }
@@ -59,13 +67,13 @@ export function useRangos(clave: string, defaults: Record<string, RangoWidget> =
       if (p) por[id] = p
       else if (defaults[id]) por[id] = 'tablero'
       else delete por[id]
-      const n: Rangos = { por, ts: Date.now() }
+      const n: Rangos = { por, cuando: { ...(prev.cuando || {}), [id]: Date.now() }, ts: Date.now() }
       try { localStorage.setItem(KEY(clave), JSON.stringify(n)) } catch { /* modo privado */ }
       guardarTablero(CLAVE(clave), n).catch(() => { /* sin sesión: queda el local */ })
       return n
     })
   }
   // Memo: un objeto nuevo en cada render volvía a armar todos los widgets con fechas propias.
-  const rangos = useMemo(() => efectivo(r.por, defaults), [r.por, defaults])
+  const rangos = useMemo(() => efectivo(r, defaults, desde), [r, defaults, desde])
   return { rangos, fijarRango }
 }

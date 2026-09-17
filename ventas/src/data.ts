@@ -60,6 +60,7 @@ export function aplicarConfig(c: Corte, cfg: Partial<Config>): Corte {
     crms: { ...(c.crms || {}), ...(cfg.crms || {}) },
     fechas_sin: cfg.fechas_sin ?? c.fechas_sin ?? DEF.fechas_sin,
     fechas_default: cfg.fechas_default ?? c.fechas_default ?? DEF.fechas_default,
+    fechas_default_ts: cfg.fechas_default_ts ?? c.fechas_default_ts,
     usuarios: c.usuarios.map((u) => {
       const crm = u.zona_crm ?? u.zona
       const ov = equipos[u.id]

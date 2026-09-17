@@ -1109,6 +1109,18 @@ class H(BaseHTTPRequestHandler):
                 cfg = validar_config(self._json_body())
             except (ValueError, TypeError) as e:
                 return err(400, str(e))
+            # Cuándo cambió por última vez el periodo por defecto de los widgets: lo que cada cuenta eligió ANTES de
+            # ese momento deja de valer y el default manda; lo que elija después, se respeta (Randall 17-sep:
+            # «hay widgets que no respetan lo configurado»).
+            previo = {}
+            try:
+                with open(VENTAS_CONFIG, "rb") as f:
+                    previo = json.loads(f.read().decode("utf-8")) or {}
+            except (OSError, ValueError):
+                pass
+            cfg["fechas_default_ts"] = previo.get("fechas_default_ts") or 0
+            if previo.get("fechas_default") != cfg["fechas_default"]:
+                cfg["fechas_default_ts"] = int(time.time() * 1000)
             self._escribir(VENTAS_CONFIG, cfg)
             return self._send(200, json.dumps({"ok": True, "config": cfg}, ensure_ascii=False), "application/json")
         if ruta == "/ventas/usuarios":

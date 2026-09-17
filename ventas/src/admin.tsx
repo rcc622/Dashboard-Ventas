@@ -1,7 +1,7 @@
 import { Fragment, useLayoutEffect, useMemo, useRef, useState, type SyntheticEvent, useEffect } from 'react'
 import type { Corte, Evento, Lead, LevFila, Sanciones, Usuario } from './types'
 import { CRM_LABEL } from './types'
-import { BUCKETS, PERFIL_LABEL, actividad, actividadDe, cotizado, dias, embudo, entrada, ep, eventosFiltrados, fechaCotizado, diasSinActividad, estancado, estadoActivo, ESTADO_ACTIVO, ESTANCADO_DIAS, type EstadoActivo, leadsActivosHoy, rangoVentas, metaYRitmo, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, pasaCrm, etiquetaRango, periodoTexto, preset, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, type Fila, type FilaAsesor, type Filtros, type Perfil , type PuntoPerfil, ventasReales, ventasCrm, tipoDe, crmTexto, activo, VENDEDOR_LABEL, filasDeVentasReales, comparativaVentas, rolDestacado, rolNombre, cotizacionesGeneradas, filasDeCotizaciones, visitas, levantados, filasDeLevantamientos, fmtEstrellas, llamadasFiltradas, resumenLlamadas } from './metrics'
+import { BUCKETS, PERFIL_LABEL, actividad, actividadDe, cotizado, dias, embudo, entrada, ep, eventosFiltrados, fechaCotizado, diasSinActividad, estancado, estadoActivo, ESTADO_ACTIVO, ESTANCADO_DIAS, type EstadoActivo, leadsActivosHoy, rangoVentas, metaYRitmo, metaDe, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, pasaCrm, etiquetaRango, periodoTexto, preset, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, type Fila, type FilaAsesor, type Filtros, type Perfil , type PuntoPerfil, ventasReales, ventasCrm, tipoDe, crmTexto, activo, VENDEDOR_LABEL, filasDeVentasReales, comparativaVentas, rolDestacado, rolNombre, cotizacionesGeneradas, filasDeCotizaciones, visitas, levantados, filasDeLevantamientos, fmtEstrellas, llamadasFiltradas, resumenLlamadas } from './metrics'
 import { LlamadaModal, drillLlamadas } from './llamadas'
 import type { Llamada } from './types'
 import { BarDetailPopup, BubbleChart, Bullet, DonutChart, FunnelChart, Gauge, Info, LlamadasBar, MiniAreaChart, Scatter, SortTh, StackedBar, activar, useEscape, useOutside, type DetRow, type Sort, type BubbleCol, useFocoDialogo } from './components'
@@ -44,8 +44,12 @@ const PC_TRAMOS = [
  *  etapa son la foto del pipeline de TODOS los leads activos (Randall 16-sep: «estos deben ser por default lo
  *  máximo»); cada quien puede acotarlos con su calendario. */
 const RANGOS_ADMIN: Record<string, RangoWidget> = { embudo: 'maximo', etapas: 'maximo' }
-/** Los periodos por defecto: los de fábrica y encima lo que el administrador fijó en Configuración («Abre en»). */
-const defaultsDe = (c: Corte, fabrica: Record<string, RangoWidget>): Record<string, RangoWidget> => ({ ...fabrica, ...((c.fechas_default || {}) as Record<string, RangoWidget>) })
+/** Los periodos por defecto: los de fábrica y encima lo que el administrador fijó en Configuración («abre en»), con la fecha
+ *  en que los fijó (`desde`): lo que una cuenta eligió antes de esa fecha ya no cuenta; lo de fábrica nunca pisa a la cuenta. */
+const defaultsDe = (c: Corte, fabrica: Record<string, RangoWidget>): { por: Record<string, RangoWidget>; desde: Record<string, number> } => {
+  const cfg = (c.fechas_default || {}) as Record<string, RangoWidget>
+  return { por: { ...fabrica, ...cfg }, desde: Object.fromEntries(Object.keys(cfg).map((id) => [id, c.fechas_default_ts || 0])) }
+}
 const ORDEN_ADMIN = ['t-leads', 't-ventas', 't-vendido', 't-conversion', 't-perdida', 't-tareas', 't-cotizaciones', 't-descartes', 't-levantamientos', 'llamadas', 'calidad-llamadas', 'salud', 'pipeline', 'ranking', 'reales', 'cotiz-metodos', 'lev-operaciones', 'visitas', 'entrada', 'embudo', 'etapas', 'contacto', 'razones', 'perfiles', 'perfiles-tabla']
 const fLeads = (ls: Lead[]) => filasDeLeads(ls, () => '', undefined, { label: 'Días sin actividad', de: (l) => diasSinActividad(l) })
 const HOY = 'foto de hoy, sin importar las fechas del tablero'
@@ -637,7 +641,7 @@ export function AdminDashboard({ corte, filtros, onFicha, puedeEditar = true }: 
   // Fechas propias por widget (Randall 10-sep: «si un widget siempre debe mostrar la info histórica,
   // que la muestre y no conflictúe con el date range del tablero»). Sin fechas propias se sigue al tablero.
   const defaults = useMemo(() => defaultsDe(corte, RANGOS_ADMIN), [corte])
-  const { rangos: rangosCuenta, fijarRango } = useRangos('admin', defaults)
+  const { rangos: rangosCuenta, fijarRango } = useRangos('admin', defaults.por, defaults.desde)
   // Configuración › Fechas propias por widget: el widget apagado sigue al calendario de arriba (Randall 16-sep).
   const permitido = useMemo(() => fechasPermitidas(corte), [corte])
   const rangos = useMemo(() => Object.fromEntries(Object.entries(rangosCuenta).filter(([id]) => permitido(id))), [permitido, rangosCuenta])
@@ -1075,16 +1079,13 @@ export function Ficha({ corte, filtros, uid, onBack, puedeEditar = true }: { cor
   // Su ficha muestra TODO lo suyo: el equipo y el CRM elegidos arriba no la recortan (si el tablero
   // estaba en Kommo y la persona trabaja en HubSpot, su ficha salía vacía).
   const f: Filtros = { ...filtros, asesor: uid, equipo: null, crm: { kommo: true, hubspot: true } }
-  const leads = useMemo(() => leadsFiltrados(corte, f), [corte, filtros, uid])   // eslint-disable-line react-hooks/exhaustive-deps
-  const ventas = useMemo(() => ventasFiltradas(corte, f), [corte, filtros, uid]) // eslint-disable-line react-hooks/exhaustive-deps
   const [zoom, setZoom] = useState<{ ini: Date; dias: number; texto: string } | null>(null)   // semana o mes abierto en Actividad por día; null = vista del rango
   const [drill, setDrill] = useState<Drill | null>(null)
-  useEffect(() => setZoom(null), [filtros.rango.ini, filtros.rango.fin, uid])
   // Fechas propias por widget, igual que en el tablero general (Randall 10-sep: «en la vista del
   // asesor no está lo del date range del widget»). La elección se comparte entre fichas: si dejas
   // «Ventas» en Máximo, se ve en Máximo para cualquier asesor.
   const defaults = useMemo(() => defaultsDe(corte, RANGOS_FICHA), [corte])
-  const { rangos: rangosCuenta, fijarRango } = useRangos('ficha', defaults)
+  const { rangos: rangosCuenta, fijarRango } = useRangos('ficha', defaults.por, defaults.desde)
   const permitido = useMemo(() => fechasPermitidas(corte), [corte])
   const rangos = useMemo(() => Object.fromEntries(Object.entries(rangosCuenta).filter(([id]) => permitido(id))), [permitido, rangosCuenta])
   const conFechas = permitido('g:*')
@@ -1098,6 +1099,9 @@ export function Ficha({ corte, filtros, uid, onBack, puedeEditar = true }: { cor
   // con fechas miran los leads ASIGNADOS en ese periodo que siguen activos, y las tareas abiertas que vencen en él.
   const activosDe = (id: string): Lead[] => { const ff = filtrosDe(id); return ff.foto ? leadsActivosHoy(corte, ff) : leadsFiltrados(corte, ff).filter(activo) }
   const periodoDe = (id: string) => (filtrosDe(id).foto ? 'foto de hoy' : 'asignados ' + periodoTexto(filtrosDe(id).rango))
+  // La actividad se reagrupa cuando cambian SUS fechas (las del widget o las del tablero).
+  const rangoAct = filtrosDe('actividad').rango
+  useEffect(() => setZoom(null), [rangoAct.ini, rangoAct.fin, uid])
   // Los mismos widgets del tablero, pero de esta persona. Se arman una vez con las fechas de arriba
   // y una por cada periodo que alguien haya fijado, como en el tablero general.
   const [llamada, setLlamada] = useState<Llamada | null>(null)
@@ -1113,26 +1117,33 @@ export function Ficha({ corte, filtros, uid, onBack, puedeEditar = true }: { cor
   }, [corte, filtros, uid, rangos])   // eslint-disable-line react-hooks/exhaustive-deps
   const delTablero = baseCompartidos.map((w) => (rangos[w.id] && otrosCompartidos.get(rangos[w.id])?.find((x) => x.id === w.id)) || w)
   if (!u) return <div className="panel">Asesor no encontrado. <button type="button" className="btn" onClick={onBack}>← Volver</button></div>
-  const rango = filtros.rango.label
-  // La meta y el ritmo van por los meses que toca el rango desde que la persona existe (`rangoMeta`): así la
-  // ficha dice lo mismo que la tabla de Asesores y que la evolución por mes.
-  const rv = rangoVentas(corte, filtros.rango), periodoV = periodoTexto(rv)
-  const monto = ventas.reduce((s, l) => s + l.presupuesto, 0)
-  const { metaMes, metaRango, ritmo: rit } = metaYRitmo(corte, u, monto, filtros.rango)
-  // Leads asignados en los meses de las ventas: la base del porcentaje de cierre (ventas de septiembre entre
-  // leads de septiembre), igual que la cifra «Conversión» del tablero.
-  const leadsV = rv.ini === filtros.rango.ini && rv.fin === filtros.rango.fin ? leads : leadsFiltrados(corte, { ...f, rango: rv })
+  // Ventas, meta y ritmo de UN widget con SUS fechas (Randall 17-sep: «hay widgets que no respetan lo configurado»:
+  // Avance, Cumplimiento y Porcentaje de cierre calculaban con las fechas del tablero aunque su píldora dijera otra
+  // cosa). La meta va por los meses que toca ese rango desde que la persona existe (`rangoMeta`).
+  const ventasDe = (id: string) => {
+    const ff = filtrosDe(id)
+    const vs = ventasFiltradas(corte, ff), monto = vs.reduce((s, l) => s + l.presupuesto, 0)
+    const rvw = rangoVentas(corte, ff.rango)
+    const { metaMes, metaRango, ritmo: rit } = metaYRitmo(corte, u, monto, ff.rango)
+    // Leads asignados en los meses de las ventas: la base del porcentaje de cierre (ventas de septiembre entre
+    // leads de septiembre), igual que la cifra «Conversión» del tablero.
+    const ls = leadsFiltrados(corte, ff)
+    const leadsV = rvw.ini === ff.rango.ini && rvw.fin === ff.rango.fin ? ls : leadsFiltrados(corte, { ...ff, rango: rvw })
+    return { ff, ventas: vs, monto, metaMes, metaRango, rit, periodoV: periodoTexto(rvw), leadsV, rango: ff.rango.label }
+  }
+  const V = ventasDe('ventas'), C = ventasDe('cumplimiento'), Z = ventasDe('cierre')
   // Activos = foto de HOY (Randall 11-sep), no los asignados en el rango: la ficha decía «87 leads activos» y la
   // tabla de Asesores 205 para la misma persona.
   const activos = leadsActivosHoy(corte, f)
   const activosCot = activosDe('cotizado'), activosLeads = activosDe('leads')
   const cot = cotizado(activosCot, corte.cotizado_dias)
   const vigentes = activosCot.filter((l) => l.presupuesto > 0 && diasDesde(fechaCotizado(l)) <= corte.cotizado_dias)
-  const objetivo = metaMes * corte.cotizado_x
-  const vr = ventasReales(corte, f)
-  // Actividad: el rango manda. Hasta 21 días por día; hasta 26 semanas por semana; más largo (p. ej. «Máximo» desde 2023)
+  const objetivo = metaDe(corte, u) * corte.cotizado_x
+  const ffr = filtrosDe('reales')
+  const vr = ventasReales(corte, ffr), vcrm = ventasCrm(corte, ffr)
+  // Actividad: el rango del widget manda. Hasta 21 días por día; hasta 26 semanas por semana; más largo (p. ej. «Máximo» desde 2023)
   // por mes, siempre en una sola fila. Una semana o un mes se abren por día con un clic.
-  const ini = filtros.rango.ini, fin = filtros.rango.fin
+  const ini = rangoAct.ini, fin = rangoAct.fin, rangoActTxt = rangoAct.label
   const evRango = corte.eventos.filter((e) => pasaCrm(e.crm, filtros) && e.asesor_id === uid && e.ts >= ini && e.ts < fin)
   const burbujas = (ev: Evento[]) => [
     { n: ev.filter((e) => e.tipo === 'llamada_ok' || e.tipo === 'llamada_no').length, title: 'Llamadas' },
@@ -1153,14 +1164,14 @@ export function Ficha({ corte, filtros, uid, onBack, puedeEditar = true }: { cor
     const ds = Array.from({ length: Math.max(1, diasRango) }, (_, i) => sumar(d0, i))
     evVista = evRango
     cols = ds.map((d) => ({ label: fmtCorta(d), bubbles: burbujas(entre(ep(d), ep(d) + 86400)) }))
-    vista = `Por día · ${rango}`
+    vista = `Por día · ${rangoActTxt}`
   } else if (diasRango <= 26 * 7) {
     const semanas: Date[] = []
     for (let d = lunes(new Date(ini * 1000)); ep(d) < fin; d = sumar(d, 7)) semanas.push(d)
     evVista = evRango
     cols = semanas.map((d) => ({ label: fmtCorta(d), title: `Semana del ${fmtCorta(d)}. Clic para ver por día`, bubbles: burbujas(entre(Math.max(ini, ep(d)), Math.min(fin, ep(sumar(d, 7))))) }))
     onCol = (i) => setZoom({ ini: semanas[i], dias: 7, texto: `Semana del ${fmtCorta(semanas[i])} al ${fmtCorta(sumar(semanas[i], 6))}` })
-    vista = `Por semana · ${rango} · clic en una semana para verla por día`
+    vista = `Por semana · ${rangoActTxt} · clic en una semana para verla por día`
   } else {
     const meses: Date[] = []
     for (let d = new Date(new Date(ini * 1000).getFullYear(), new Date(ini * 1000).getMonth(), 1); ep(d) < fin; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) meses.push(d)
@@ -1169,7 +1180,7 @@ export function Ficha({ corte, filtros, uid, onBack, puedeEditar = true }: { cor
     evVista = evRango
     cols = meses.map((d, i) => { const sig = new Date(d.getFullYear(), d.getMonth() + 1, 1); return { label: i % paso === 0 ? nombre(d) : '', title: `${nombre(d)}. Clic para ver por día`, bubbles: burbujas(entre(Math.max(ini, ep(d)), Math.min(fin, ep(sig)))) } })
     onCol = (i) => { const d = meses[i]; setZoom({ ini: d, dias: new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate(), texto: `${mesNombre(d)} de ${d.getFullYear()}` }) }
-    vista = `Por mes · ${rango} · clic en un mes para verlo por día`
+    vista = `Por mes · ${rangoActTxt} · clic en un mes para verlo por día`
   }
   const ft = filtrosDe('tareas')
   const tareas = corte.tareas_abiertas.filter((t) => pasaCrm(t.crm, filtros) && t.asesor_id === uid && (ft.foto || (t.vence >= ft.rango.ini && t.vence < ft.rango.fin))).sort((p, q) => p.vence - q.vence).slice(0, 24)
@@ -1177,13 +1188,13 @@ export function Ficha({ corte, filtros, uid, onBack, puedeEditar = true }: { cor
   const widgets: Widget[] = [
     // «Ventas · este mes» se cambió por la barrita del tablero (Alejandro 15-sep: «el widget de ventas este mes por
     // el de la barrita»); conserva el id para quedarse en el lugar que ya tiene en los acomodos guardados.
-    wg('ventas', 'Avance contra la meta', <TileAvance monto={monto} metaRango={metaRango} rit={rit} periodo={periodoV} onClick={() => setDrill({ titulo: `Ventas de ${u.nombre}`, filas: fVentas(ventas), sub: rango + FUENTE_VENTAS(corte) })} />,
+    wg('ventas', 'Avance contra la meta', <TileAvance monto={V.monto} metaRango={V.metaRango} rit={V.rit} periodo={V.periodoV} onClick={() => setDrill({ titulo: `Ventas de ${u.nombre}`, filas: fVentas(V.ventas), sub: V.rango + FUENTE_VENTAS(corte) })} />,
       { plain: true, span: 2, alto: 5, cls: 'wtile', info: ['Ritmo'], base: 'cierre' }),
     wg('cumplimiento', 'Cumplimiento', (
-      <div className={'kcard k2 ritmo-' + rit.estado}><div className="l">Cumplimiento<Info termino={['Cumplimiento', 'Ritmo']} /></div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', gap: 8 }}><div className="n">{pct(monto, metaRango)}%</div><Gauge pct={pct(monto, metaRango)} label="meta" size={120} color={rit.estado === 'atras' ? 'var(--warn)' : 'var(--c4)'} /></div>
-        <div className={'rt ' + rit.estado}>{rit.texto}</div>
-        <div className="small muted">meta {periodoV} {fmtMoney0(metaRango)} ({fmtMoney0(metaMes)} al mes){monto < metaRango && ` · faltan ${fmtMoney0(metaRango - monto)}`}</div></div>
+      <div className={'kcard k2 ritmo-' + C.rit.estado}><div className="l">Cumplimiento<Info termino={['Cumplimiento', 'Ritmo']} /></div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', gap: 8 }}><div className="n">{pct(C.monto, C.metaRango)}%</div><Gauge pct={pct(C.monto, C.metaRango)} label="meta" size={120} color={C.rit.estado === 'atras' ? 'var(--warn)' : 'var(--c4)'} /></div>
+        <div className={'rt ' + C.rit.estado}>{C.rit.texto}</div>
+        <div className="small muted">meta {C.periodoV} {fmtMoney0(C.metaRango)} ({fmtMoney0(C.metaMes)} al mes){C.monto < C.metaRango && ` · faltan ${fmtMoney0(C.metaRango - C.monto)}`}</div></div>
     ), { plain: true, span: 2, cls: 'wcard', base: 'cierre' }),
     wg('cotizado', 'Cotizado vigente y antigüedad', (
       <div className="kcard k3"><div className="cot-grid">
@@ -1197,11 +1208,12 @@ export function Ficha({ corte, filtros, uid, onBack, puedeEditar = true }: { cor
     ), { plain: true, span: 2, cls: 'wcard', alto: 6, base: 'asignacion' }),
     ...(corte.comisiones ? [wg('reales', 'Ventas reales · Comisiones', (
       <div className="kcard k4"><div className="l">Ventas reales · Comisiones<Info termino="Ventas reales" /></div>
-        <div className="n"><Cifra label={`${vr.n} ventas reales, ${fmtMoney0(vr.total)}`} onClick={() => setDrill({ titulo: `Ventas reales de ${u.nombre}`, filas: filasDeVentasReales(vr.ventas), sub: rango + ' · mes de venta en la app de comisiones' })}><b>{vr.n}</b> <span style={{ fontSize: 22 }}>{fmtMoney0(vr.total)}</span></Cifra></div>
+        <div className="n"><Cifra label={`${vr.n} ventas reales, ${fmtMoney0(vr.total)}`} onClick={() => setDrill({ titulo: `Ventas reales de ${u.nombre}`, filas: filasDeVentasReales(vr.ventas), sub: ffr.rango.label + ' · mes de venta en la app de comisiones' })}><b>{vr.n}</b> <span style={{ fontSize: 22 }}>{fmtMoney0(vr.total)}</span></Cifra></div>
         {vr.n > 0 ? (
           <div className="reales-lista">{vr.ventas.slice(0, 6).map((v) => <div className="r" key={v.id}><span className="nm">{v.cliente || 'Sin nombre'}</span><span className="m">{v.mes_texto}</span><span>{fmtMoney0(v.monto)}</span></div>)}{vr.ventas.length > 6 && <div className="muted">+{vr.ventas.length - 6} más en el detalle</div>}</div>
         ) : <div className="small muted">Sin ventas en la app de comisiones para este rango.{corte.comisiones.error ? ` Error al leer la app: ${corte.comisiones.error}` : ''}</div>}
-        <div className="small muted" style={{ marginTop: 6 }}>CRM: {ventas.length} ganadas por {fmtMoney0(monto)} en el rango.</div></div>
+        {/* Decía «CRM» pero sumaba las ventas de la app: ahora sí son los ganados del CRM en esas fechas. */}
+        <div className="small muted" style={{ marginTop: 6 }}>CRM: {vcrm.length} ganada{vcrm.length === 1 ? '' : 's'} por {fmtMoney0(vcrm.reduce((s, l) => s + l.presupuesto, 0))} en el periodo.</div></div>
     ), { plain: true, span: 2, cls: 'wcard' })] : []),
     wg('actividad', 'Actividad', (
       <>
@@ -1212,9 +1224,9 @@ export function Ficha({ corte, filtros, uid, onBack, puedeEditar = true }: { cor
         <BubbleChart cols={cols} onCol={onCol} />
         <div className="small muted" style={{ marginTop: 8 }}>Cada columna es {zoom || diasRango <= 21 ? 'un día' : diasRango <= 26 * 7 ? 'una semana' : 'un mes'} y cada bolita cuenta lo que el asesor registró de cada tipo: entre más grande, más actividad.</div>
         <div className="legend"><span><i className="lg-comp" aria-hidden="true" />Llamadas</span><span><i className="lg-warn" aria-hidden="true" />Tareas completadas</span><span><i className="lg-e" aria-hidden="true" />Cotizaciones entregadas</span><span><i className="lg-l" aria-hidden="true" />Levantamientos solicitados</span>
-          <button type="button" onClick={() => setDrill({ titulo: `Actividad de ${u.nombre} · ${zoom ? zoom.texto : rango}`, filas: filasDeEventos(corte, evVista) })}>Ver las {fmtN(evVista.length)} actividades ›</button></div>
+          <button type="button" onClick={() => setDrill({ titulo: `Actividad de ${u.nombre} · ${zoom ? zoom.texto : rangoActTxt}`, filas: filasDeEventos(corte, evVista) })}>Ver las {fmtN(evVista.length)} actividades ›</button></div>
       </>
-    ), { span: 6, alto: 7, info: ['Actividad'] }),
+    ), { span: 6, alto: 7, info: ['Actividad'], base: 'actividad' }),
     wg('leads', `Leads activos · ${fmtN(activosLeads.length)}`, <LeadsTabla corte={corte} leads={activosLeads} />, { span: 6, info: ['Leads activos', 'Estancados'], base: 'asignacion' }),
     wg('tareas', 'Tareas abiertas', (
       <>
@@ -1241,12 +1253,12 @@ export function Ficha({ corte, filtros, uid, onBack, puedeEditar = true }: { cor
     ), { span: 3, alto: 9, base: 'cierre' }),
     // Porcentaje de cierre contra su meta: el número que Randall puso a mano en el PDF.
     wg('cierre', 'Porcentaje de cierre', (
-      <button type="button" className={'tile tbtn t4 ritmo-' + (leadsV.length && ventas.length / leadsV.length >= META_CIERRE ? 'cumplida' : 'atras')}
-        aria-label={`Porcentaje de cierre ${leadsV.length ? pct(ventas.length, leadsV.length) : 0}%, meta ${Math.round(META_CIERRE * 100)}%. Ver las ventas`}
-        onClick={() => setDrill({ titulo: `Ventas de ${u.nombre}`, filas: fVentas(ventas), sub: rango + FUENTE_VENTAS(corte) })}>
-        <div className="n">{leadsV.length ? pct(ventas.length, leadsV.length) : 0}%</div>
-        <div className="l">{fmtN(ventas.length)} cerrados de {fmtN(leadsV.length)} leads asignados {periodoV}</div>
-        <Bullet value={leadsV.length ? ventas.length / leadsV.length : 0} target={META_CIERRE} label="Porcentaje de cierre" fmt={(n) => Math.round(n * 100) + '%'} />
+      <button type="button" className={'tile tbtn t4 ritmo-' + (Z.leadsV.length && Z.ventas.length / Z.leadsV.length >= META_CIERRE ? 'cumplida' : 'atras')}
+        aria-label={`Porcentaje de cierre ${Z.leadsV.length ? pct(Z.ventas.length, Z.leadsV.length) : 0}%, meta ${Math.round(META_CIERRE * 100)}%. Ver las ventas`}
+        onClick={() => setDrill({ titulo: `Ventas de ${u.nombre}`, filas: fVentas(Z.ventas), sub: Z.rango + FUENTE_VENTAS(corte) })}>
+        <div className="n">{Z.leadsV.length ? pct(Z.ventas.length, Z.leadsV.length) : 0}%</div>
+        <div className="l">{fmtN(Z.ventas.length)} cerrados de {fmtN(Z.leadsV.length)} leads asignados {Z.periodoV}</div>
+        <Bullet value={Z.leadsV.length ? Z.ventas.length / Z.leadsV.length : 0} target={META_CIERRE} label="Porcentaje de cierre" fmt={(n) => Math.round(n * 100) + '%'} />
         <div className="rt">Meta: {Math.round(META_CIERRE * 100)}%</div>
       </button>
     ), { plain: true, span: 2, alto: 5, cls: 'wtile', info: ['Conversión'], base: 'cierre' }),
