@@ -638,6 +638,10 @@ h3 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: 0; t
 .fchip.on:hover { background: #dbe6fa; }
 .fchip:not(.on) span { text-decoration: line-through; text-decoration-color: var(--g3); text-decoration-thickness: 1px; }
 .fchip:focus-visible { outline: 3px solid var(--c1); outline-offset: 2px; }
+.collist.acomodos li { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.collist.acomodos .ac-nombre { min-width: 0; overflow-wrap: anywhere; }
+.ac-guardar { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.ac-guardar .inp { flex: 1 1 260px; }
 /* Interruptor sí/no (permiso de acomodar el tablero). */
 .interruptor { appearance: none; border: 0; background: transparent; padding: 5px 4px; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--g2); border-radius: 8px; min-height: 32px; }
 .interruptor:hover { background: var(--hover); color: var(--ink); }

@@ -6,7 +6,8 @@ import { baseDe, type Grafica } from './constructor'
 import { BASE_FECHA, type BaseFecha } from './columnas'
 import { PRESETS } from './metrics'
 import { nombreRango, type RangoWidget } from './rangos'
-import { cargarCuentas, cargarTableros, compartirTablero, guardarTablero, type Cuenta } from './data'
+import { borrarAcomodo, cargarAcomodos, cargarCuentas, cargarTableros, compartirTablero, guardarAcomodo, guardarTablero, yo as pedirYo, type Cuenta } from './data'
+import type { Acomodo, Yo } from './types'
 
 // Rejilla LIBRE de widgets (Randall 6-sep: «colocar libremente las gráficas en el lugar que yo
 // quiera, con un sistema de grids», como los editores de tablero de Kommo y HubSpot). Seis
@@ -305,6 +306,7 @@ export function WidgetGrid({ clave, widgets, taller: ctor, fechas, compartible, 
   const [layout, setLayout] = useState<Layout>(() => inicial(clave, widgets))
   const [galeria, setGaleria] = useState(false)
   const [compartir, setCompartir] = useState(false)
+  const [acomodos, setAcomodos] = useState(false)
   const [ajustando, setAjustando] = useState<Grafica | null>(null)
   // Las gráficas propias son widgets como los demás: se mueven, se estiran y se quitan igual.
   const todos = useMemo(() => [...widgets, ...(layout.graficas || []).map((g): Widget => ({
@@ -406,7 +408,11 @@ export function WidgetGrid({ clave, widgets, taller: ctor, fechas, compartible, 
   }
   const titularSep = (id: string, t: string) => fijar({ ...layout, seps: { ...layout.seps, [id]: t } })
   const borrarSep = (id: string) => { const seps = { ...layout.seps }, pos = { ...layout.pos }; delete seps[id]; delete pos[id]; fijar({ ...layout, pos, seps }) }
-  const restablecer = () => { try { localStorage.removeItem(KEY(clave)) } catch { /* nada */ } guardarEnLaCuenta(clave, null); setLayout(inicial(clave, widgets)); setTocado(false); setMsg('Tablero restablecido en todos tus dispositivos') }
+  // Confirmación antes de restablecer (Randall 18-sep): se pierde el acomodo actual en todos los dispositivos de la cuenta.
+  const restablecer = () => {
+    if (!window.confirm('¿Restablecer el tablero al acomodo de fábrica?\n\nPerderás la vista actual (orden, tamaños, gráficas quitadas y separadores) en todos tus dispositivos. Si la quieres conservar, guárdala antes en «Acomodos».')) return
+    try { localStorage.removeItem(KEY(clave)) } catch { /* nada */ } guardarEnLaCuenta(clave, null); setLayout(inicial(clave, widgets)); setTocado(false); setMsg('Tablero restablecido en todos tus dispositivos')
+  }
   const quitados = layout.ocultos.filter((id) => por.has(id))
   const visibles = Object.keys(layout.pos).filter((id) => (esSep(id) ? id in layout.seps : por.has(id))).sort((a, b) => layout.pos[a].y - layout.pos[b].y || layout.pos[a].x - layout.pos[b].x)
 
@@ -531,6 +537,10 @@ export function WidgetGrid({ clave, widgets, taller: ctor, fechas, compartible, 
           <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M10 12V4M7 7l3-3 3 3M4 16h12" /></svg>
           Quitar espacios
         </button>}
+        {compartible && <button type="button" className="btn sm" onClick={() => setAcomodos(true)} aria-haspopup="dialog" title="Acomodos guardados con nombre: aplicar uno o guardar el tuyo para los demás">
+          <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 5.5h12M4 10h12M4 14.5h7" /><path d="M14 13l1.5 1.5L18 12" /></svg>
+          Acomodos
+        </button>}
         {compartible && <button type="button" className="btn sm" onClick={() => setCompartir(true)} aria-haspopup="dialog" title="Dejarle este mismo acomodo a otras cuentas">
           <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="15" cy="5" r="2" /><circle cx="5" cy="10" r="2" /><circle cx="15" cy="15" r="2" /><path d="M6.8 9 13.2 6M6.8 11l6.4 3" /></svg>
           Aplicar a otras cuentas
@@ -589,6 +599,8 @@ export function WidgetGrid({ clave, widgets, taller: ctor, fechas, compartible, 
 
       {compartir && <Compartir clave={clave} onClose={() => setCompartir(false)}
         datos={{ [clave]: layout, ...(fechas ? { ['rangos-' + fechas.clave]: { por: fechas.por, ts: Date.now() } } : {}) }} />}
+      {acomodos && <Acomodos clave={clave} onClose={() => setAcomodos(false)}
+        datos={{ [clave]: layout, ...(fechas ? { ['rangos-' + fechas.clave]: { por: fechas.por, ts: Date.now() } } : {}) }} />}
       {colocando && (
         <div className="colocando" role="status">
           <span>Sueltas <b>{colocando.titulo}</b> donde toques el tablero.</span>
@@ -601,6 +613,91 @@ export function WidgetGrid({ clave, widgets, taller: ctor, fechas, compartible, 
         : <GaleriaSimple quitados={quitados.map((id) => por.get(id)!)} onAgregar={poner} onClose={() => setGaleria(false)} />)}
       {ajustando && ctor && ctor.editor({ g: ajustando, onGuardar: (g) => { crearGrafica(g); setAjustando(null) }, onClose: () => setAjustando(null) })}
     </>
+  )
+}
+
+/** Acomodos guardados con nombre (Randall 18-sep: «que otros usuarios admin puedan ver distintos acomodos… para enfocarse
+ *  en un tema»). Cualquier administrador aplica uno (se lo copia a sí mismo con el mismo endpoint de «Aplicar a otras
+ *  cuentas» y recarga); guardar el propio pide el permiso «Guarda acomodos» de Configuración › Usuarios (o ser el maestro);
+ *  borrar, ser quien lo guardó o el maestro. Mismo nombre = se reemplaza. */
+function Acomodos({ clave, datos, onClose }: { clave: string; datos: Record<string, unknown>; onClose: () => void }) {
+  useEscape(onClose)
+  const [lista, setLista] = useState<Acomodo[] | null>(null)
+  const [yo, setYo] = useState<Yo | null>(null)
+  const [nombre, setNombre] = useState('')
+  const [error, setError] = useState('')
+  const [msg, setMsg] = useState('')
+  const [ocupado, setOcupado] = useState(false)
+  useEffect(() => {
+    let vivo = true
+    Promise.all([cargarAcomodos(), pedirYo()]).then(([a, y]) => { if (vivo) { setLista(a[clave] || []); setYo(y) } }).catch((e) => setError(String(e.message || e)))
+    return () => { vivo = false }
+  }, [clave])
+  const vista = clave === 'admin' ? 'Dashboard' : clave === 'ficha2' ? 'ficha del asesor' : clave.startsWith('midia-') ? 'Mi día' : clave
+  const cuando = (ts: number) => { const d = new Date(ts); return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}` }
+  const aplicar = async (a: Acomodo) => {
+    if (!yo) return
+    if (!window.confirm(`¿Aplicar «${a.nombre}»?\n\nSustituye tu acomodo actual de esta vista (${vista}) en todos tus dispositivos. Si quieres conservar el tuyo, guárdalo primero con un nombre.`)) return
+    setOcupado(true); setError('')
+    try { await compartirTablero([yo.uid], a.datos); location.reload() } catch (e) { setError(String((e as Error).message || e)); setOcupado(false) }
+  }
+  const guardar = async () => {
+    const n = nombre.trim()
+    if (!n) { setError('Ponle un nombre al acomodo.'); return }
+    if (lista?.some((a) => a.nombre.toLowerCase() === n.toLowerCase()) && !window.confirm(`Ya hay un acomodo llamado «${n}». ¿Lo reemplazo con el tuyo?`)) return
+    setOcupado(true); setError(''); setMsg('')
+    try { setLista(await guardarAcomodo(clave, n, datos)); setNombre(''); setMsg(`«${n}» guardado: ya lo pueden aplicar los demás administradores.`) } catch (e) { setError(String((e as Error).message || e)) }
+    setOcupado(false)
+  }
+  const borrar = async (a: Acomodo) => {
+    if (!window.confirm(`¿Borrar el acomodo «${a.nombre}»? Quien ya lo aplicó lo conserva; solo deja de estar en esta lista.`)) return
+    setOcupado(true); setError('')
+    try { setLista(await borrarAcomodo(clave, a.id)) } catch (e) { setError(String((e as Error).message || e)) }
+    setOcupado(false)
+  }
+  const puedeGuardar = !!yo?.acomodos
+  return (
+    <div className="modal-bg" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="modal cols" role="dialog" aria-modal="true" aria-label="Acomodos guardados">
+        <div className="mh">
+          <div className="mt"><h2>Acomodos guardados · {vista}</h2><div className="small muted">Un acomodo es el orden, los tamaños, las gráficas y las fechas por widget de esta vista. Aplicar uno sustituye el tuyo; guardar el tuyo lo deja disponible para los demás administradores.</div></div>
+          <button type="button" className="ib" aria-label="Cerrar" onClick={onClose}>×</button>
+        </div>
+        <div className="mb">
+          {error && <div className="aviso">{error}</div>}
+          {msg && <div className="aviso">{msg}</div>}
+          {!lista && !error && <div className="muted">Cargando…</div>}
+          {lista && !lista.length && <div className="muted" style={{ marginBottom: 10 }}>Todavía no hay acomodos guardados para esta vista.</div>}
+          {lista && lista.length > 0 && (
+            <ul className="collist acomodos">
+              {lista.map((a) => (
+                <li key={a.id}>
+                  <div className="ac-nombre"><b>{a.nombre}</b><span className="small muted"> · guardado por {a.porNombre} el {cuando(a.ts)}</span></div>
+                  <span className="cols-btns">
+                    <button type="button" className="btn sm on" disabled={ocupado || !yo} onClick={() => aplicar(a)}>Aplicar</button>
+                    {yo && (yo.uid === a.por || yo.uid === 'admin') && <button type="button" className="btn sm ghost" disabled={ocupado} onClick={() => borrar(a)} aria-label={`Borrar «${a.nombre}»`}>Borrar</button>}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {puedeGuardar ? (
+            <div className="ac-guardar">
+              <label className="fld"><span>Guardar mi acomodo actual como</span>
+                <span className="cols-btns">
+                  <input className="inp" value={nombre} maxLength={60} placeholder="p. ej. Junta de ventas · Seguimiento" onChange={(e) => setNombre(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') guardar() }} />
+                  <button type="button" className="btn on" disabled={ocupado || !nombre.trim()} onClick={guardar}>Guardar</button>
+                </span>
+              </label>
+            </div>
+          ) : yo && <div className="small muted" style={{ marginTop: 10 }}>Tu cuenta puede aplicar acomodos; para guardar los tuyos pide el permiso «Guarda acomodos» en Configuración › Usuarios de la plataforma.</div>}
+        </div>
+        <div className="mf">
+          <span className="small muted">{lista ? `${lista.length} acomodo${lista.length === 1 ? '' : 's'}` : ''}</span>
+          <span className="cols-btns"><button type="button" className="btn ghost" onClick={onClose}>Cerrar</button></span>
+        </div>
+      </div>
+    </div>
   )
 }
 

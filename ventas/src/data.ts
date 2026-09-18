@@ -1,4 +1,4 @@
-import type { Sanciones, Acceso, Config, Corte, Yo } from './types'
+import type { Sanciones, Acceso, Acomodo, Config, Corte, Yo } from './types'
 import { mock } from './mock'
 
 export interface Carga { corte: Corte; origen: 'kommo' | 'ejemplo'; error?: string }
@@ -131,11 +131,22 @@ export async function guardarTablero(clave: string, layout: unknown | null): Pro
 
 /** Las cuentas de /ventas (solo administrador): para aplicarles un acomodo. */
 export interface Cuenta { id: string; usuario: string; nombre: string; rol: string; activo: boolean }
+/** Las cuentas a las que se les puede aplicar un acomodo: las del archivo más la maestra (DASH_USER), que no está en
+ *  Configuración pero también guarda tableros. */
 export async function cargarCuentas(): Promise<Cuenta[]> {
   const r = await fetch('usuarios.json', { cache: 'no-store' })
   if (!r.ok) throw new Error('HTTP ' + r.status)
-  return ((await r.json()) as { usuarios?: Cuenta[] }).usuarios || []
+  const j = (await r.json()) as { usuarios?: Cuenta[]; maestra?: Cuenta | null }
+  return [...(j.usuarios || []), ...(j.maestra ? [j.maestra] : [])]
 }
+/** Acomodos guardados con nombre, por vista (clave). Guardar pide el permiso «acomodos»; borrar, ser quien lo guardó. */
+export async function cargarAcomodos(): Promise<Record<string, Acomodo[]>> {
+  const r = await fetch('acomodos.json', { cache: 'no-store' })
+  if (!r.ok) throw new Error('HTTP ' + r.status)
+  return ((await r.json()) as { acomodos?: Record<string, Acomodo[]> }).acomodos || {}
+}
+export async function guardarAcomodo(clave: string, nombre: string, datos: Record<string, unknown>): Promise<Acomodo[]> { return (await post('acomodos', { accion: 'guardar', clave, nombre, datos })).acomodos as Acomodo[] }
+export async function borrarAcomodo(clave: string, id: string): Promise<Acomodo[]> { return (await post('acomodos', { accion: 'borrar', clave, id })).acomodos as Acomodo[] }
 /** Copiarle a otras cuentas las mismas claves que cada quien guarda (acomodo, fechas, columnas). */
 export async function compartirTablero(destinos: string[], datos: Record<string, unknown>): Promise<void> {
   await post('tablero/compartir', { destinos, datos })

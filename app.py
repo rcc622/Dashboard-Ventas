@@ -51,6 +51,20 @@ VENTAS_CONFIG = os.path.join(DATA, "ventas_config.json")   # metas en pesos desd
 # deben mostrar lo mismo»). Antes vivía solo en el localStorage del navegador, así que el teléfono
 # empezaba de cero. {uid: {clave: layout}}; el layout es opaco para el servidor, solo se acota.
 VENTAS_TABLEROS = os.path.join(DATA, "ventas_tableros.json")
+# Acomodos GUARDADOS con nombre (Randall 18-sep: «guardar el acomodo del dashboard para que otros usuarios admin puedan
+# ver distintos acomodos… para enfocarse en un tema»): {clave: [{id, nombre, por, porNombre, ts, datos}]}. `datos` son las
+# mismas claves que copia «Aplicar a otras cuentas» (el acomodo y sus fechas por widget).
+VENTAS_ACOMODOS = os.path.join(DATA, "ventas_acomodos.json")
+ACOMODOS_MAX = 50
+
+
+def leer_acomodos():
+    try:
+        with open(VENTAS_ACOMODOS, "rb") as f:
+            d = json.loads(f.read().decode("utf-8"))
+        return d if isinstance(d, dict) else {}
+    except (OSError, ValueError):
+        return {}
 TABLERO_MAX = 200_000       # bytes por cuenta: un acomodo con gráficas propias ronda los 10 KB
 CLAVE_TABLERO = re.compile(r"^[a-z0-9][a-z0-9:_-]{0,59}$")
 _WIDGET = re.compile(r"^[a-z0-9][a-z0-9:*_.-]{0,59}$")   # id de widget («t-leads», «g:*»)
@@ -622,6 +636,8 @@ def validar_usuarios(body, actuales):
         # Permiso para acomodar el tablero (mover, estirar, quitar y agregar widgets). Alejandro 15-sep: «le puedes
         # después dar un permiso de no moverlo» al líder de ventas. Sin el permiso sigue viendo todo y eligiendo fechas.
         edita = x.get("edita") is not False
+        # Permiso para GUARDAR acomodos con nombre para los demás (Randall 18-sep); apagado por defecto. Aplicarlos puede cualquier admin.
+        acomodos = x.get("acomodos") is True
         uid = str(x.get("id") or "").strip()
         if rol == "asesor" and not _SLUG.match(uid):
             raise ValueError("la cuenta %s debe estar ligada a un vendedor: sin eso no sabemos qué tablero mostrarle" % usuario)
@@ -637,7 +653,7 @@ def validar_usuarios(body, actuales):
             salt, h = previos[usuario]["salt"], previos[usuario]["hash"]
         else:
             raise ValueError("falta la contraseña de %s" % usuario)
-        out.append({"id": uid, "usuario": usuario, "nombre": nombre, "rol": rol, "activo": activo, "edita": edita, "salt": salt, "hash": h})
+        out.append({"id": uid, "usuario": usuario, "nombre": nombre, "rol": rol, "activo": activo, "edita": edita, "acomodos": acomodos, "salt": salt, "hash": h})
     # A propósito NO se exige que quede un administrador en la lista: DASH_USER/DASH_PASS entra
     # siempre como administrador maestro, así que un tablero con puras cuentas de vendedor es
     # válido y común. La página lo avisa, pero no lo bloquea.
@@ -646,7 +662,19 @@ def validar_usuarios(body, actuales):
 
 def usuarios_publicos(lista):
     return [{"id": u.get("id"), "usuario": u.get("usuario"), "nombre": u.get("nombre"), "rol": u.get("rol"),
-             "activo": u.get("activo") is not False, "edita": u.get("edita") is not False} for u in lista]
+             "activo": u.get("activo") is not False, "edita": u.get("edita") is not False, "acomodos": u.get("acomodos") is True} for u in lista]
+
+
+def puede_guardar_acomodos(ses):
+    """Si la cuenta puede guardar acomodos con nombre para los demás. El administrador maestro siempre."""
+    if not ses:
+        return False
+    if ses.get("uid") == "admin":
+        return True
+    for u in leer_usuarios():
+        if u.get("id") == ses.get("uid"):
+            return u.get("acomodos") is True
+    return False
 
 
 def puede_editar(ses):
@@ -909,7 +937,7 @@ class H(BaseHTTPRequestHandler):
         if rel == "yo":
             ses = self._sesion()
             if ses:
-                ses = dict(ses, edita=puede_editar(ses))
+                ses = dict(ses, edita=puede_editar(ses), acomodos=puede_guardar_acomodos(ses))
             return self._send(200 if ses else 401, json.dumps(ses or {"error": "sin sesión"}, ensure_ascii=False), "application/json")
         if rel in ("data.json", "config.json", "hist.json"):
             ses = self._sesion()
@@ -950,7 +978,15 @@ class H(BaseHTTPRequestHandler):
             ses = self._sesion()
             if not ses or ses["rol"] != "admin":
                 return self._send(403 if ses else 401, json.dumps({"error": "solo administradores"}), "application/json")
-            return self._send(200, json.dumps({"usuarios": usuarios_publicos(leer_usuarios())}, ensure_ascii=False), "application/json")
+            # `maestra` = la cuenta DASH_USER: no vive en el archivo pero también guarda tableros, así que
+            # «Aplicar a otras cuentas» debe poder elegirla (Randall 18-sep: «aquí falto yo»).
+            maestra = {"id": "admin", "usuario": USER, "nombre": "Administrador (cuenta maestra)", "rol": "admin", "activo": True, "edita": True, "acomodos": True} if USER else None
+            return self._send(200, json.dumps({"usuarios": usuarios_publicos(leer_usuarios()), "maestra": maestra}, ensure_ascii=False), "application/json")
+        if rel == "acomodos.json":
+            ses = self._sesion()
+            if not ses or ses["rol"] != "admin":
+                return self._send(403 if ses else 401, json.dumps({"error": "solo administradores"}), "application/json")
+            return self._send(200, json.dumps({"acomodos": leer_acomodos()}, ensure_ascii=False), "application/json")
         if rel == "sanciones.json":
             ses = self._sesion()
             if not ses or ses["rol"] != "admin":
@@ -1061,6 +1097,50 @@ class H(BaseHTTPRequestHandler):
             todos[ses["uid"]] = mios
             self._escribir(VENTAS_TABLEROS, todos)
             return self._send(200, json.dumps({"ok": True}), "application/json")
+        if ruta == "/ventas/acomodos":
+            # Guardar o borrar un acomodo con nombre. Guardar pide el permiso «acomodos» (o ser el maestro); borrar, ser
+            # quien lo guardó o el maestro. Aplicarlo no pasa por aquí: el cliente se lo aplica a sí mismo con «compartir».
+            if ses["rol"] != "admin":
+                return err(403, "solo administradores")
+            try:
+                cuerpo = self._json_body(TABLERO_MAX * 4)
+                accion = cuerpo.get("accion")
+                clave = str(cuerpo.get("clave") or "")
+                if not CLAVE_TABLERO.match(clave):
+                    raise ValueError("clave inválida")
+                todos = leer_acomodos()
+                lista = [a for a in (todos.get(clave) or []) if isinstance(a, dict)]
+                if accion == "guardar":
+                    if not puede_guardar_acomodos(ses):
+                        return err(403, "tu cuenta no tiene permiso para guardar acomodos")
+                    nombre = str(cuerpo.get("nombre") or "").strip()[:60]
+                    datos = cuerpo.get("datos") or {}
+                    if not nombre:
+                        raise ValueError("ponle un nombre al acomodo")
+                    if not isinstance(datos, dict) or not datos or not all(CLAVE_TABLERO.match(str(k)) for k in datos):
+                        raise ValueError("no hay nada que guardar")
+                    if len(json.dumps(datos)) > TABLERO_MAX * 3:
+                        raise ValueError("el acomodo es demasiado grande")
+                    lista = [a for a in lista if a.get("nombre", "").lower() != nombre.lower()]   # mismo nombre = se reemplaza
+                    if len(lista) >= ACOMODOS_MAX:
+                        raise ValueError("ya hay %d acomodos guardados: borra alguno" % ACOMODOS_MAX)
+                    lista.append({"id": "a%x" % int(time.time() * 1000), "nombre": nombre, "por": ses["uid"], "porNombre": ses.get("nombre") or ses["uid"],
+                                  "ts": int(time.time() * 1000), "datos": datos})
+                elif accion == "borrar":
+                    aid = str(cuerpo.get("id") or "")
+                    mio = [a for a in lista if a.get("id") == aid]
+                    if not mio:
+                        raise ValueError("ese acomodo ya no existe")
+                    if mio[0].get("por") != ses["uid"] and ses["uid"] != "admin":
+                        return err(403, "solo quien lo guardó (o el administrador maestro) puede borrarlo")
+                    lista = [a for a in lista if a.get("id") != aid]
+                else:
+                    raise ValueError("acción inválida")
+            except (ValueError, TypeError, AttributeError) as e:
+                return err(400, str(e))
+            todos[clave] = lista
+            self._escribir(VENTAS_ACOMODOS, todos)
+            return self._send(200, json.dumps({"ok": True, "acomodos": lista}, ensure_ascii=False), "application/json")
         if ruta == "/ventas/tablero/compartir":
             # Aplicarle MI acomodo a otras cuentas (Randall 10-sep: «el orden y acomodo que haga lo
             # pueda aplicar para ciertos usuarios o roles… para acomodarle la vista a los demás»).

@@ -120,8 +120,8 @@ export function Configuracion({ corte, onSaved }: { corte: Corte; onSaved: (cfg:
       let msg = 'Guardado. Metas, equipos y vendedores activos ya aplican.'
       if (accesosDirty && accesos) {
         const nuevas = accesos.filter((a) => a.nuevo).length
-        const guardadas = await guardarAccesos(accesos.map((a) => ({ id: a.id, usuario: a.usuario, rol: a.rol, activo: a.activo !== false, edita: a.edita !== false, nombre: a.nombre || corte.usuarios.find((u) => u.id === a.id)?.nombre || a.usuario, password: a.password || undefined })))
-        setAccesos(guardadas.map((a) => ({ ...a, activo: a.activo !== false, edita: a.edita !== false, password: '' }))); setAccesosDirty(false)
+        const guardadas = await guardarAccesos(accesos.map((a) => ({ id: a.id, usuario: a.usuario, rol: a.rol, activo: a.activo !== false, edita: a.edita !== false, acomodos: a.acomodos === true, nombre: a.nombre || corte.usuarios.find((u) => u.id === a.id)?.nombre || a.usuario, password: a.password || undefined })))
+        setAccesos(guardadas.map((a) => ({ ...a, activo: a.activo !== false, edita: a.edita !== false, acomodos: a.acomodos === true, password: '' }))); setAccesosDirty(false)
         msg = nuevas > 0
           ? `Guardado. ${nuevas === 1 ? 'La cuenta nueva ya puede entrar' : `Las ${nuevas} cuentas nuevas ya pueden entrar`} con su correo y su contraseña.`
           : 'Guardado. Metas, equipos, vendedores activos y cuentas ya aplican.'
@@ -316,7 +316,7 @@ export function Configuracion({ corte, onSaved }: { corte: Corte; onSaved: (cfg:
               )}
               <div className="tblwrap" style={{ boxShadow: 'none' }}>
                 <table className="ftable" aria-label="Cuentas de la plataforma">
-                  <thead><tr><th scope="col">Activa</th><th scope="col">Correo (para entrar)</th><th scope="col">Nombre</th><th scope="col">Rol</th><th scope="col">Vendedor ligado</th><th scope="col">Acomoda el tablero<Info termino="Acomodar el tablero" /></th><th scope="col">Contraseña</th><th scope="col"><span className="sr-solo">Acciones</span></th></tr></thead>
+                  <thead><tr><th scope="col">Activa</th><th scope="col">Correo (para entrar)</th><th scope="col">Nombre</th><th scope="col">Rol</th><th scope="col">Vendedor ligado</th><th scope="col">Acomoda el tablero<Info termino="Acomodar el tablero" /></th><th scope="col">Guarda acomodos<Info termino="Guardar acomodos" /></th><th scope="col">Contraseña</th><th scope="col"><span className="sr-solo">Acciones</span></th></tr></thead>
                   <tbody>
                     {accesos.map((a, i) => {
                       const activa = a.activo !== false
@@ -331,12 +331,15 @@ export function Configuracion({ corte, onSaved }: { corte: Corte; onSaved: (cfg:
                             : <span className="muted small">ve todo el tablero</span>}</td>
                           {/* Permiso de acomodar (Alejandro 15-sep: que el líder de ventas no lo mueva al principio). */}
                           <td><Interruptor on={a.edita !== false} label={'La cuenta ' + (a.usuario || i + 1) + ' puede acomodar el tablero'} texto={a.edita !== false ? 'Acomoda' : 'Solo mira'} onChange={(v) => setAcceso(i, { edita: v })} /></td>
+                          <td>{a.rol === 'admin'
+                            ? <Interruptor on={a.acomodos === true} label={'La cuenta ' + (a.usuario || i + 1) + ' puede guardar acomodos para los demás'} texto={a.acomodos === true ? 'Guarda' : 'Solo aplica'} onChange={(v) => setAcceso(i, { acomodos: v })} />
+                            : <span className="muted small">—</span>}</td>
                           <td><input className="inp" type="password" autoComplete="new-password" placeholder={a.nuevo ? 'mínimo 6 caracteres' : 'sin cambio'} aria-label={'Contraseña de la cuenta ' + (i + 1)} value={a.password || ''} onChange={(e) => setAcceso(i, { password: e.target.value })} /></td>
                           <td><button type="button" className="ib" aria-label={'Borrar la cuenta ' + (a.usuario || i + 1)} title="Borrar la cuenta" onClick={() => quitarAcceso(i)}>×</button></td>
                         </tr>
                       )
                     })}
-                    {!accesos.length && <tr><td colSpan={8} className="muted">Todavía no hay ninguna cuenta. Crea la primera aquí abajo.</td></tr>}
+                    {!accesos.length && <tr><td colSpan={9} className="muted">Todavía no hay ninguna cuenta. Crea la primera aquí abajo.</td></tr>}
                   </tbody>
                 </table>
               </div>

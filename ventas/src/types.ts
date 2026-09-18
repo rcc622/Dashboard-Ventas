@@ -101,11 +101,14 @@ export interface Config { meta_mxn: number; cotizado_x: number; cotizado_dias: n
 
 /** Sesión de /ventas (cookie firmada por app.py). uid de un asesor = su slug en el corte. */
 /** `edita`: puede acomodar tableros (mover, estirar, quitar, agregar). Se lee vivo del servidor; false = solo mira. */
-export interface Yo { uid: string; rol: 'admin' | 'asesor'; nombre: string; edita?: boolean }
+export interface Yo { uid: string; rol: 'admin' | 'asesor'; nombre: string; edita?: boolean; acomodos?: boolean }
+/** Un acomodo guardado con nombre para que otros administradores lo apliquen (Randall 18-sep). `datos` = las mismas
+ *  claves que copia «Aplicar a otras cuentas»: el acomodo de la vista y sus fechas por widget. */
+export interface Acomodo { id: string; nombre: string; por: string; porNombre: string; ts: number; datos: Record<string, unknown> }
 /** Un acceso por usuario/contraseña (data/ventas_usuarios.json). password solo viaja al guardar. */
 /** Cuenta de la plataforma. `usuario` es el correo (o el identificador corto de las cuentas viejas).
  *  `password` solo viaja al crearla o al cambiarla; el servidor nunca la devuelve. */
-export interface Acceso { id: string; usuario: string; nombre: string; rol: 'admin' | 'asesor'; activo?: boolean; edita?: boolean; password?: string; nuevo?: boolean }
+export interface Acceso { id: string; usuario: string; nombre: string; rol: 'admin' | 'asesor'; activo?: boolean; edita?: boolean; acomodos?: boolean; password?: string; nuevo?: boolean }
 
 /** Rango [ini, fin) en epoch segundos. */
 export interface Rango { ini: number; fin: number; label: string }

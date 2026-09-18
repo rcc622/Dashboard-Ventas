@@ -176,6 +176,16 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   servidor sella `fechas_default_ts` al cambiar `fechas_default` y `useRangos` (`efectivo(r, defaults, desde)`)
   ignora las elecciones de la cuenta anteriores a ese sello (`Rangos.cuando[id]`, o el `ts` del mapa para las
   viejas); una elección posterior sí manda. Lo de fábrica nunca pisa a la cuenta.
+  (g) **Acomodos guardados con nombre** (Randall 18-sep: «guardar el acomodo del dashboard para que otros usuarios admin
+  puedan ver distintos acomodos… para enfocarse en un tema»): botón «Acomodos» en la barra (vistas de administrador) →
+  modal `Acomodos` (widgets.tsx): lista por vista (`data/ventas_acomodos.json` = `{clave: [{id, nombre, por, porNombre,
+  ts, datos}]}`, `GET /ventas/acomodos.json`, `POST /ventas/acomodos {accion: guardar|borrar}`), «Aplicar» se lo copia
+  a la propia cuenta con el endpoint de compartir y recarga; «Guardar mi acomodo actual como…» pide el permiso
+  `Acceso.acomodos` (Configuración › Usuarios › «Guarda acomodos», solo cuentas admin; el maestro siempre; `/ventas/yo`
+  lo dice vivo); borrar = quien lo guardó o el maestro; mismo nombre = se reemplaza; tope 50 por vista. `datos` son
+  las mismas claves que copia «Aplicar a otras cuentas». **«Restablecer tablero» ahora confirma** (`window.confirm`)
+  porque borra el acomodo en todos los dispositivos. El modal de «Aplicar a otras cuentas» incluye la **cuenta maestra**
+  (`maestra` en `usuarios.json`, id `admin`): antes Randall no podía aplicarse nada a sí mismo.
   (e) **Permiso «Acomoda el tablero» por cuenta** (Alejandro 15-sep: «le puedes después dar un permiso de no
   moverlo» al líder de ventas): `Acceso.edita` en `ventas_usuarios.json` (Configuración › Usuarios, columna con
   casilla; default true), `GET /ventas/yo` lo devuelve VIVO (`puede_editar` lee el archivo, no la cookie, así quitar
