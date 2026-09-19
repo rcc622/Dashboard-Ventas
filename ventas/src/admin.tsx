@@ -1,7 +1,7 @@
 import { Fragment, useLayoutEffect, useMemo, useRef, useState, type SyntheticEvent, useEffect } from 'react'
-import type { Corte, Evento, Lead, LevFila, Sanciones, Usuario } from './types'
+import type { Corte, Crm, Embudo, Evento, Lead, LevFila, Sanciones, Usuario } from './types'
 import { CRM_LABEL } from './types'
-import { BUCKETS, PERFIL_LABEL, actividad, actividadDe, cotizado, dias, embudo, entrada, ep, eventosFiltrados, fechaCotizado, diasSinActividad, estancado, estadoActivo, ESTADO_ACTIVO, ESTANCADO_DIAS, type EstadoActivo, leadsActivosHoy, rangoVentas, metaYRitmo, metaDe, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, pasaCrm, etiquetaRango, periodoTexto, preset, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, type Fila, type FilaAsesor, type Filtros, type Perfil , type PuntoPerfil, ventasReales, ventasCrm, tipoDe, crmTexto, activo, VENDEDOR_LABEL, filasDeVentasReales, comparativaVentas, rolDestacado, rolNombre, cotizacionesGeneradas, filasDeCotizaciones, visitas, levantados, filasDeLevantamientos, fmtEstrellas, llamadasFiltradas, resumenLlamadas } from './metrics'
+import { BUCKETS, PERFIL_LABEL, actividad, actividadDe, cotizado, dias, embudo, entrada, ep, eventosFiltrados, fechaCotizado, diasSinActividad, estancado, estadoActivo, ESTADO_ACTIVO, ESTANCADO_DIAS, type EstadoActivo, leadsActivosHoy, rangoVentas, metaYRitmo, metaDe, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, pasaCrm, etiquetaRango, periodoTexto, preset, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, embudoPipeline, type Fila, type FilaAsesor, type Filtros, type Perfil , type PuntoPerfil, ventasReales, ventasCrm, tipoDe, crmTexto, activo, VENDEDOR_LABEL, filasDeVentasReales, comparativaVentas, rolDestacado, rolNombre, cotizacionesGeneradas, filasDeCotizaciones, visitas, levantados, filasDeLevantamientos, fmtEstrellas, llamadasFiltradas, resumenLlamadas } from './metrics'
 import { LlamadaModal, drillLlamadas } from './llamadas'
 import type { Llamada } from './types'
 import { BarDetailPopup, BubbleChart, Bullet, DonutChart, FunnelChart, Gauge, Info, LlamadasBar, MiniAreaChart, Scatter, SortTh, StackedBar, activar, useEscape, useOutside, type DetRow, type Sort, type BubbleCol, useFocoDialogo } from './components'
@@ -183,6 +183,35 @@ function LeadsTabla({ corte, leads, max = 40 }: { corte: Corte; leads: Lead[]; m
       </table>
       {leads.length > max && <div className="small muted" style={{ padding: '8px 10px' }}>Se muestran {max} de {fmtN(leads.length)}, los más estancados primero.</div>}
     </div>
+  )
+}
+
+// ---------------------------------------------------------------- Embudo por CRM
+interface OpcionEmbudo { key: string; crm: Crm; tipo: Embudo; pipe: string; label: string }
+/** Embudo con las etapas REALES de un CRM y un pipeline (Randall 19-sep): HubSpot → Ventas (naranja);
+ *  Kommo → Ventas | Hunting (azul). Con un asesor elegido, solo los CRM donde trabaja; sin asesor, los
+ *  CRM encendidos arriba. Los chips viven dentro del widget; es un componente porque el pipeline
+ *  elegido es estado y `widgetsTablero` no es un componente. */
+function EmbudoCrm({ corte, filtros, leads, rango, ver }: { corte: Corte; filtros: Filtros; leads: Lead[]; rango: string; ver: Acciones['ver'] }) {
+  const u = filtros.asesor ? corte.usuarios.find((x) => x.id === filtros.asesor) : null
+  const fuentes = (corte.fuentes || []).map((f) => f.crm)
+  const crms = (u?.crm.length ? u.crm : fuentes).filter((c) => fuentes.includes(c) && (u ? true : pasaCrm(c, filtros)))
+  const opciones: OpcionEmbudo[] = []
+  if (crms.includes('hubspot')) opciones.push({ key: 'hubspot:ventas', crm: 'hubspot', tipo: 'ventas', pipe: 'Ventas', label: 'HubSpot · Ventas' })
+  if (crms.includes('kommo')) opciones.push({ key: 'kommo:ventas', crm: 'kommo', tipo: 'ventas', pipe: 'Ventas', label: 'Kommo · Ventas' }, { key: 'kommo:hunting', crm: 'kommo', tipo: 'hunting', pipe: 'Hunting', label: 'Kommo · Hunting' })
+  const [key, setKey] = useState(opciones[0]?.key || '')
+  const sel = opciones.find((o) => o.key === key) || opciones[0]
+  if (!sel) return <div className="vacio"><b>Sin CRM</b><span>Enciende Kommo o HubSpot arriba para ver el embudo.</span></div>
+  const et = embudoPipeline(leads, sel.crm, sel.tipo, corte.embudos?.[sel.crm]?.[sel.pipe])
+  return (
+    <>
+      {opciones.length > 1 && <div className="emb-chips" role="group" aria-label="CRM y pipeline del embudo">
+        {opciones.map((o) => <button type="button" key={o.key} className={'chip' + (o.key === sel.key ? ' on' + (o.crm === 'hubspot' ? ' hs' : '') : '')} aria-pressed={o.key === sel.key} onClick={() => setKey(o.key)}>{o.label}</button>)}
+      </div>}
+      {opciones.length === 1 && <div className="small muted" style={{ marginBottom: 6 }}>{sel.label}</div>}
+      <FunnelChart tono={sel.crm} stages={et.map((e) => ({ nombre: e.nombre, n: e.n, sub: `${fmtMoney(e.monto)} · ${e.n ? e.dias.toFixed(1) + ' días en etapa' : 'sin leads'}` }))}
+        onStage={(i) => ver(`${et[i].nombre} · ${sel.label}`, et[i].id === -2 ? fVentas(et[i].leads) : fLeads(et[i].leads), rango)} />
+    </>
   )
 }
 
@@ -486,8 +515,7 @@ function widgetsTablero(corte: Corte, filtros: Filtros, d: Datos, ax: Acciones):
       </div>
     ), { span: 6, alto: 7 })] : []),
     W('embudo', 'Embudo de ventas por etapa', (
-      <FunnelChart stages={et.map((e) => ({ nombre: e.nombre, n: e.n, sub: `${fmtMoney(e.monto)} · ${e.n ? e.dias.toFixed(1) + ' días en etapa' : 'sin leads'}` }))}
-        onStage={(i) => ver(`${et[i].nombre} · embudo Ventas`, et[i].id === -2 ? fVentas(et[i].leads) : fLeads(et[i].leads), rango)} />
+      <EmbudoCrm corte={corte} filtros={filtros} leads={leadsEmbudo} rango={rango} ver={ver} />
     ), { alto: 9, info: ['Embudo'] , base: 'asignacion' }),
     W('etapas', 'Monto cotizado y tiempo por etapa', (
       <>

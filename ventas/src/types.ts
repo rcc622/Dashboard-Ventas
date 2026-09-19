@@ -86,6 +86,8 @@ export interface Corte {
   /** Cuándo cambió `fechas_default` por última vez (ms): lo elegido por una cuenta antes de eso ya no cuenta. Lo pone app.py. */
   fechas_default_ts?: number
   usuarios: Usuario[]; equipos: Equipo[]; etapas: Etapa[]
+  /** Etapas reales (abiertas, en orden) por CRM y pipeline: kommo → Ventas, Hunting; hubspot → Ventas. Un corte viejo no las trae. */
+  embudos?: Partial<Record<Crm, Record<string, string[]>>>
   /** Meta mensual de venta en MXN: por asesor (slug), por zona y la general. Prioridad asesor → zona → general. */
   metas: Record<string, number>; metas_zona: Record<string, number>; meta_mxn: number
   /** Pipeline sano = cotizado vigente ≥ cotizado_x × meta mensual; vigente = cotizado hace ≤ cotizado_dias. */

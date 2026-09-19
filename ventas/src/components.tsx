@@ -189,11 +189,14 @@ export function BubbleChart({ cols, onCol }: { cols: BubbleCol[]; onCol?: (i: nu
 
 export interface FunnelStage { nombre: string; n: number; sub?: string }
 const RAMPA = ['var(--f1)', 'var(--f2)', 'var(--f3)', 'var(--f4)', 'var(--f5)', 'var(--f6)', 'var(--f6)']
+/* HubSpot se dibuja en su naranja (Randall 19-sep); Kommo en el azul de siempre. */
+const RAMPA_HS = ['var(--h1)', 'var(--h2)', 'var(--h3)', 'var(--h4)', 'var(--h5)', 'var(--h6)', 'var(--h6)']
 /** Embudo real: bandas trapezoidales con aire entre ellas, ancho proporcional a los leads
  *  de cada etapa (piso 18 % para que el número quepa), rampa de un solo tono (claro → oscuro)
  *  y etiqueta a la derecha. La forma vive en una columna acotada: a pantalla completa un
  *  trapecio de 700 px de ancho y 38 de alto se leía como una lámina aplastada. */
-export function FunnelChart({ stages, onStage }: { stages: FunnelStage[]; onStage?: (i: number) => void }) {
+export function FunnelChart({ stages, onStage, tono = 'kommo' }: { stages: FunnelStage[]; onStage?: (i: number) => void; tono?: 'kommo' | 'hubspot' }) {
+  const rampa = tono === 'hubspot' ? RAMPA_HS : RAMPA
   const max = Math.max(1, ...stages.map((s) => s.n))
   const H = 46
   const w = (n: number) => Math.max(18, (n / max) * 100)
@@ -203,7 +206,7 @@ export function FunnelChart({ stages, onStage }: { stages: FunnelStage[]; onStag
         // Barra centrada con el ancho de SU etapa. Son fotos de hoy por etapa, no un flujo que solo baja:
         // con trapecios, una etapa con más leads que la anterior se dibujaba como embudo invertido.
         const a = w(s.n)
-        const color = RAMPA[Math.min(i, RAMPA.length - 1)]
+        const color = rampa[Math.min(i, rampa.length - 1)]
         const ctrl = onStage ? { role: 'button', tabIndex: 0, onClick: () => onStage(i), onKeyDown: activar(() => onStage(i)), 'aria-label': `${s.nombre}: ${fmtN(s.n)}. Ver leads` } : {}
         return (
           <div className={'frow' + (onStage ? ' drill' : '')} key={s.nombre} {...ctrl}>

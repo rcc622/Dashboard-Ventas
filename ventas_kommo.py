@@ -464,6 +464,9 @@ def build():
           % (len(filas), len(eventos), len(abiertas), time.time() - t0))
     return {"crm": "kommo", "generado": datetime.now(TZ).isoformat(timespec="seconds"),
             "usuarios": usuarios, "etapas": [{"id": i, "nombre": s["nombre"]} for i, s in enumerate(orden.get(PIPE_VENTAS, []))],
+            # Etapas reales (abiertas, en orden) de cada pipeline que se dibuja como embudo por CRM (Randall 19-sep).
+            "embudos": {"Ventas": [s["nombre"] for s in orden.get(PIPE_VENTAS, [])],
+                        "Hunting": [s["nombre"] for s in orden.get(PIPE_HUNTING, [])]},
             "leads": filas, "eventos": eventos, "tareas_abiertas": abiertas}
 
 

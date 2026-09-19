@@ -186,6 +186,8 @@ def mezclar(partes):
         "usuarios": lista,
         "equipos": [{"id": a, "nombre": b} for a, b in ZONAS] + [{"id": z, "nombre": z.capitalize()} for z in extras],
         "etapas": etapas, "metas": metas, "meta_mxn": META_MXN,
+        # Etapas reales por CRM y pipeline, para el embudo con nombres y color propios de cada CRM.
+        "embudos": {crm: p["embudos"] for crm, p in partes if p.get("embudos")},
         "cotizado_x": COTIZADO_X, "cotizado_dias": COTIZADO_DIAS,
         "leads": leads, "eventos": eventos, "tareas_abiertas": tareas,
     }

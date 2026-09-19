@@ -16,7 +16,7 @@ export const GLOSARIO = {
   'Ventas reales': 'Ventas que sí se cobraron según la app de comisiones (sin canceladas), por el mes en que se vendieron y unidas al asesor por su nombre. El CRM a veces marca la venta antes o después, y con otro monto.',
   'Tasa de pérdida': 'De cada 100 leads asignados en las fechas elegidas, cuántos se descartaron. Un lead ganado o descartado deja de ser activo: ya no se le revisa actividad ni tareas.',
   'Salud operativa': 'Leads asignados en las fechas elegidas dentro de los embudos Ventas y Hunting, separados entre los que ya tienen precio cotizado y los que todavía no.',
-  'Embudo': 'Cuántos leads activos hay hoy en cada etapa del proceso de venta, de la primera a la última. Los ya ganados o descartados no aparecen.',
+  'Embudo': 'Cuántos leads activos hay hoy en cada etapa de un pipeline, con los nombres reales de ese CRM: HubSpot (naranja) muestra Ventas; Kommo (azul) muestra Ventas o Hunting. Los ya ganados o descartados no aparecen; Cierre = ganados del periodo.',
   'Monto cotizado': 'Suma del precio cotizado de los leads que hoy están en cada etapa del embudo Ventas.',
   'Tiempo promedio': 'Cuántos días llevan, en promedio, los leads en la etapa donde están hoy sin que nadie los mueva.',
   'Tareas hoy': 'Tareas que vencen hoy (más las que el asesor se puso aquí) contra las que ya terminó hoy. Las vencidas de días anteriores se cuentan aparte.',

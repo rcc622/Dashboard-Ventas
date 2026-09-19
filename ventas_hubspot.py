@@ -50,6 +50,8 @@ TZ = timezone(timedelta(hours=-6))
 #   (ya hubo contacto) · Cierre Cercano=Levantamiento hecho · Pdte Papeleria / Detalle para cierre=Contrato.
 #   ⚠ Toda etapa nueva de «Ventas» va AQUÍ por id: sin entrada, `canon()` adivina por palabra y
 #   «Levantamiento agendado» caería en 4 (hecho) y contaría como levantamiento realizado.
+PIPE_VENTAS_HS = "922784339"     # pipeline «Ventas»: el ÚNICO que entra al corte (Randall 19-sep). Los «No usar - …»
+                                 # tenían 117 deals abiertos de Carolina y el embudo marcaba 924 donde HubSpot dice 809.
 ET_PROPUESTA_HS = "1409289353"   # «Propuesta entregada» del pipeline Ventas
 ET_LEV_AGENDADO_HS = "1432144491"  # «Levantamiento agendado»
 ET_LEV_HECHO_HS = "1409289354"     # «Levantamiento hecho»
@@ -118,13 +120,15 @@ def owners_():
 
 
 def etapas_():
-    """{stage_id: (label, orden, cerrada, pipeline_label)}"""
-    out = {}
+    """({stage_id: (label, orden, cerrada, pipeline_label)}, [etapas abiertas de Ventas en orden])"""
+    out, ventas = {}, []
     for p in h._req("GET", "/crm/v3/pipelines/deals").get("results", []):
         for s in p.get("stages", []):
-            out[s["id"]] = (s.get("label") or s["id"], s.get("displayOrder", 0),
-                            str((s.get("metadata") or {}).get("isClosed")).lower() == "true", p.get("label") or p["id"])
-    return out
+            cerrada = str((s.get("metadata") or {}).get("isClosed")).lower() == "true"
+            out[s["id"]] = (s.get("label") or s["id"], s.get("displayOrder", 0), cerrada, p.get("label") or p["id"])
+            if p["id"] == PIPE_VENTAS_HS and not cerrada:
+                ventas.append((s.get("displayOrder", 0), s.get("label") or s["id"]))
+    return out, [n for _, n in sorted(ventas)]
 
 
 def build():
@@ -132,7 +136,7 @@ def build():
     hoy = int(time.time())
     desde = hoy - DIAS_HISTORIA * 86400
     own = owners_()
-    etapas = etapas_()
+    etapas, etapas_ventas = etapas_()
     print("hubspot: %d owners · %d etapas" % (len(own), len(etapas)))
 
     props_d = ["dealname", "dealstage", "pipeline", "amount", "closedate", "createdate", "hubspot_owner_id",
@@ -156,8 +160,11 @@ def build():
     print("hubspot: deals %d creados + %d cerrados viejos + %d abiertos viejos" % (n_creados, n_cerr - n_creados, len(deals) - n_cerr))
 
     leads, eventos, usados = [], [], set()
-    sin_dueno = 0
+    sin_dueno = otros_pipes = 0
     for did, p in deals.items():
+        if p.get("pipeline") != PIPE_VENTAS_HS:
+            otros_pipes += 1
+            continue
         # Sin dueño no hay a quién medírselo: el tablero es por asesor. Se cuentan
         # y se avisa, pero no entran (eran ~2,000 de 11,000 en el corte del 3-sep).
         if not p.get("hubspot_owner_id"):
@@ -207,7 +214,7 @@ def build():
         if lev:
             eventos.append({"ts": lev, "tipo": "levantamiento", "asesor_id": uid, "lead": lid, "asignacion": asig, "embudo": "ventas", "crm": "hubspot"})
 
-    print("hubspot: deals sin dueño fuera del corte: %d" % sin_dueno)
+    print("hubspot: fuera del corte: %d deals sin dueño · %d de otros pipelines (solo entra Ventas)" % (sin_dueno, otros_pipes))
 
     n_ll = 0
     for c in buscar("calls", "hs_timestamp", desde, hoy + 86400, ["hs_timestamp", "hs_call_status", "hs_call_duration", "hubspot_owner_id"]):
@@ -251,7 +258,8 @@ def build():
     print("hubspot: resumen %d leads · %d actividades · %d asesores con actividad · %.0f s"
           % (len(leads), len(eventos), len(usuarios), time.time() - t0))
     return {"crm": "hubspot", "generado": datetime.now(TZ).isoformat(timespec="seconds"),
-            "usuarios": usuarios, "etapas": None, "leads": leads, "eventos": eventos, "tareas_abiertas": abiertas}
+            "usuarios": usuarios, "etapas": None, "embudos": {"Ventas": etapas_ventas},
+            "leads": leads, "eventos": eventos, "tareas_abiertas": abiertas}
 
 
 def selftest():

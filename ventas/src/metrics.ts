@@ -5,7 +5,7 @@
 // Reglas de Alejandro (consultor, juntas jul-ago 2026) que viven aquí: meta en pesos
 // prorrateada al rango, cotizado vigente (≤ 90 d) contra 10× la meta mensual, tasa de
 // asignación como KPI de entrada, primer contacto en horas y perfiles actividad × venta.
-import type { CotFila, Corte, Crm, Etapa, Evento, Lead, LevFila, Llamada, NotaClave, Rango, Tarea, Usuario, VentaReal, Origen, TipoVendedor, CrmDeclarado } from './types'
+import type { CotFila, Corte, Crm, Etapa, Evento, Lead, LevFila, Llamada, NotaClave, Rango, Tarea, Usuario, VentaReal, Origen, TipoVendedor, CrmDeclarado, Embudo } from './types'
 
 /** crm = qué CRM entran (botones Kommo · HubSpot de la barra del Admin); al menos uno encendido. */
 /** `foto` = «Foto de hoy» elegida en un widget: el rango es Máximo (todo) y lo que se mira son los leads activos hoy. */
@@ -572,6 +572,31 @@ export function embudo(leads: Lead[], etapas: Etapa[]): EtapaEmbudo[] {
     if (l.funnel === 5) { cierre.n++; cierre.monto += l.presupuesto; cierre.dias += Math.max(0, (l.cerrado - l.asignacion) / DIA); cierre.leads.push(l); continue }
     if (l.embudo !== 'ventas' || l.funnel !== 4) continue
     const i = idx.get(l.etapa_id)
+    if (i == null) continue
+    out[i].n++; out[i].monto += l.presupuesto; out[i].leads.push(l); suma.set(i, (suma.get(i) || 0) + l.dias_sin_cambio)
+  }
+  out.forEach((e, i) => { e.dias = e.n ? (suma.get(i) || 0) / e.n : 0 })
+  cierre.dias = cierre.n ? cierre.dias / cierre.n : 0
+  out.push(cierre)
+  let acc = 0
+  for (const e of out) { acc += e.dias; e.acumulado = acc }
+  return out
+}
+
+/** Embudo de UN CRM y UN pipeline con sus etapas reales (Randall 19-sep: HubSpot naranja con «Lead entrante»,
+ *  Kommo azul con Ventas o Hunting). `nombres` = etapas abiertas en orden (corte.embudos); si el corte no
+ *  las trae, el orden en que aparecen en los leads. Cierre = ganados de ese CRM y pipeline. */
+export function embudoPipeline(leads: Lead[], crm: Crm, tipo: Embudo, nombres?: string[]): EtapaEmbudo[] {
+  const mios = leads.filter((l) => l.crm === crm && l.embudo === tipo)
+  const orden = nombres?.length ? nombres : [...new Set(mios.filter((l) => l.funnel === 4).map((l) => l.etapa))]
+  const out: EtapaEmbudo[] = orden.map((n, i) => ({ id: i, nombre: n, n: 0, monto: 0, dias: 0, acumulado: 0, leads: [] }))
+  const cierre: EtapaEmbudo = { id: -2, nombre: 'Cierre', n: 0, monto: 0, dias: 0, acumulado: 0, leads: [] }
+  const idx = new Map(out.map((e, i) => [e.nombre, i]))
+  const suma = new Map<number, number>()
+  for (const l of mios) {
+    if (l.funnel === 5) { cierre.n++; cierre.monto += l.presupuesto; cierre.dias += Math.max(0, (l.cerrado - l.asignacion) / DIA); cierre.leads.push(l); continue }
+    if (l.funnel !== 4) continue
+    const i = idx.get(l.etapa)
     if (i == null) continue
     out[i].n++; out[i].monto += l.presupuesto; out[i].leads.push(l); suma.set(i, (suma.get(i) || 0) + l.dias_sin_cambio)
   }
