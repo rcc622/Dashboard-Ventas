@@ -1,7 +1,7 @@
 import { Fragment, useLayoutEffect, useMemo, useRef, useState, type SyntheticEvent, useEffect } from 'react'
 import type { Corte, Crm, Embudo, Evento, Lead, LevFila, Sanciones, Usuario } from './types'
 import { CRM_LABEL } from './types'
-import { BUCKETS, PERFIL_LABEL, actividad, actividadDe, cotizado, dias, embudo, entrada, ep, eventosFiltrados, fechaCotizado, diasSinActividad, estancado, estadoActivo, ESTADO_ACTIVO, ESTANCADO_DIAS, type EstadoActivo, leadsActivosHoy, rangoVentas, metaYRitmo, metaDe, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, pasaCrm, etiquetaRango, periodoTexto, preset, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, embudoPipeline, type Fila, type FilaAsesor, type Filtros, type Perfil , type PuntoPerfil, ventasReales, ventasCrm, tipoDe, crmTexto, activo, VENDEDOR_LABEL, filasDeVentasReales, comparativaVentas, rolDestacado, rolNombre, cotizacionesGeneradas, filasDeCotizaciones, visitas, levantados, filasDeLevantamientos, fmtEstrellas, llamadasFiltradas, resumenLlamadas } from './metrics'
+import { BUCKETS, PERFIL_LABEL, actividad, actividadDe, cotizado, dias, entrada, ep, eventosFiltrados, fechaCotizado, diasSinActividad, estancado, estadoActivo, ESTADO_ACTIVO, ESTANCADO_DIAS, type EstadoActivo, leadsActivosHoy, rangoVentas, metaYRitmo, metaDe, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, pasaCrm, etiquetaRango, periodoTexto, preset, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, embudoPipeline, type Fila, type FilaAsesor, type Filtros, type Perfil , type PuntoPerfil, ventasReales, ventasCrm, tipoDe, crmTexto, activo, VENDEDOR_LABEL, filasDeVentasReales, comparativaVentas, rolDestacado, rolNombre, cotizacionesGeneradas, filasDeCotizaciones, visitas, levantados, filasDeLevantamientos, fmtEstrellas, llamadasFiltradas, resumenLlamadas } from './metrics'
 import { LlamadaModal, drillLlamadas } from './llamadas'
 import type { Llamada } from './types'
 import { BarDetailPopup, BubbleChart, Bullet, DonutChart, FunnelChart, Gauge, Info, LlamadasBar, MiniAreaChart, Scatter, SortTh, StackedBar, activar, useEscape, useOutside, type DetRow, type Sort, type BubbleCol, useFocoDialogo } from './components'
@@ -21,6 +21,7 @@ const subAsesor = (c: Corte, u: Usuario) => zonaNombre(c, u.zona) + ' · ' + crm
 const TagTipo = ({ c, u }: { c: Corte; u: Usuario }) => { const t = tipoDe(c, u); return t === 'leads' ? null : <span className={'tag tipo ' + t} title={t === 'cambaceo' ? 'Vendedor de cambaceo: vende sin CRM, sus ventas vienen de la app de comisiones' : t === 'mixto' ? 'Vende con leads del CRM y también por cambaceo' : 'Otro tipo de vendedor (fijado en Configuración)'}>{VENDEDOR_LABEL[t]}</span> }
 const avatarCls = (u: Usuario) => 'avatar' + (u.zona ? ' z-' + u.zona : '')
 const RAMPA = ['var(--f1)', 'var(--f2)', 'var(--f3)', 'var(--f4)', 'var(--f5)', 'var(--f6)', 'var(--f6)']
+const RAMPA_HS = ['var(--h1)', 'var(--h2)', 'var(--h3)', 'var(--h4)', 'var(--h5)', 'var(--h6)', 'var(--h6)']
 // HubSpot no trae llamadas ni mensajes por deal: mejor decirlo que pintar «0 llam».
 const intentos = (l: Lead) => (l.crm === 'hubspot' ? 'sin dato en HubSpot' : `${fmtN(l.llamadas_cf)} llamadas · ${fmtN(l.msjs)} mensajes`)
 const hace = (ts: number, hoy: number) => { if (!ts) return '—'; const d = Math.floor((hoy - ts) / 86400); return d <= 0 ? 'hoy' : `hace ${dias(d)}` }
@@ -192,7 +193,7 @@ interface OpcionEmbudo { key: string; crm: Crm; tipo: Embudo; pipe: string; labe
  *  Kommo → Ventas | Hunting (azul). Con un asesor elegido, solo los CRM donde trabaja; sin asesor, los
  *  CRM encendidos arriba. Los chips viven dentro del widget; es un componente porque el pipeline
  *  elegido es estado y `widgetsTablero` no es un componente. */
-function EmbudoCrm({ corte, filtros, leads, rango, ver }: { corte: Corte; filtros: Filtros; leads: Lead[]; rango: string; ver: Acciones['ver'] }) {
+function EmbudoCrm({ corte, filtros, leads, rango, ver, vista = 'embudo' }: { corte: Corte; filtros: Filtros; leads: Lead[]; rango: string; ver: Acciones['ver']; vista?: 'embudo' | 'tabla' }) {
   const u = filtros.asesor ? corte.usuarios.find((x) => x.id === filtros.asesor) : null
   const fuentes = (corte.fuentes || []).map((f) => f.crm)
   const crms = (u?.crm.length ? u.crm : fuentes).filter((c) => fuentes.includes(c) && (u ? true : pasaCrm(c, filtros)))
@@ -203,14 +204,32 @@ function EmbudoCrm({ corte, filtros, leads, rango, ver }: { corte: Corte; filtro
   const sel = opciones.find((o) => o.key === key) || opciones[0]
   if (!sel) return <div className="vacio"><b>Sin CRM</b><span>Enciende Kommo o HubSpot arriba para ver el embudo.</span></div>
   const et = embudoPipeline(leads, sel.crm, sel.tipo, corte.embudos?.[sel.crm]?.[sel.pipe])
+  const abrir = (e: (typeof et)[number]) => ver(`${e.nombre} · ${sel.label}`, e.id === -2 ? fVentas(e.leads) : fLeads(e.leads), rango)
+  const rampa = sel.crm === 'hubspot' ? RAMPA_HS : RAMPA
   return (
     <>
       {opciones.length > 1 && <div className="emb-chips" role="group" aria-label="CRM y pipeline del embudo">
         {opciones.map((o) => <button type="button" key={o.key} className={'chip' + (o.key === sel.key ? ' on' + (o.crm === 'hubspot' ? ' hs' : '') : '')} aria-pressed={o.key === sel.key} onClick={() => setKey(o.key)}>{o.label}</button>)}
       </div>}
       {opciones.length === 1 && <div className="small muted" style={{ marginBottom: 6 }}>{sel.label}</div>}
-      <FunnelChart tono={sel.crm} stages={et.map((e) => ({ nombre: e.nombre, n: e.n, sub: `${fmtMoney(e.monto)} · ${e.n ? e.dias.toFixed(1) + ' días en etapa' : 'sin leads'}` }))}
-        onStage={(i) => ver(`${et[i].nombre} · ${sel.label}`, et[i].id === -2 ? fVentas(et[i].leads) : fLeads(et[i].leads), rango)} />
+      {vista === 'embudo' ? (
+        <FunnelChart tono={sel.crm} stages={et.map((e) => ({ nombre: e.nombre, n: e.n, sub: `${fmtMoney(e.monto)} · ${e.n ? e.dias.toFixed(1) + ' días en etapa' : 'sin leads'}` }))} onStage={(i) => abrir(et[i])} />
+      ) : (
+        <>
+          <div className="scrollx"><table className="ftable" aria-label={`Monto cotizado y tiempo por etapa · ${sel.label}`}>
+            <thead><tr><th scope="col">Etapa</th><th scope="col" className="num">Leads</th><th scope="col" className="num">Monto</th><th scope="col" className="num">Días promedio</th><th scope="col" className="num">Acumulado</th></tr></thead>
+            <tbody>
+              {et.map((e, i) => (
+                <tr key={e.id}>
+                  <td><span className="sw" style={{ background: rampa[Math.min(i, rampa.length - 1)] }} aria-hidden="true" /><button type="button" className="nbtn" aria-label={`${e.nombre}: ${fmtN(e.n)} leads, ${fmtMoney(e.monto)}. Ver leads`} onClick={() => abrir(e)}>{e.nombre}</button></td>
+                  <td className="num">{fmtN(e.n)}</td><td className="num">{fmtMoney(e.monto)}</td><td className="num">{e.n ? e.dias.toFixed(1) : '—'}</td><td className="num muted">{e.acumulado.toFixed(1)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table></div>
+          <div className="muted small" style={{ marginTop: 10 }}>Foto de hoy del pipeline {sel.pipe} de {sel.crm === 'hubspot' ? 'HubSpot' : 'Kommo'}, con sus etapas reales: leads en cada etapa, suma de sus presupuestos y días promedio que llevan ahí. Cierre = ganados del rango, días desde su asignación.</div>
+        </>
+      )}
     </>
   )
 }
@@ -260,7 +279,6 @@ function widgetsTablero(corte: Corte, filtros: Filtros, d: Datos, ax: Acciones):
   const asignados = leads.filter((l) => l.funnel === 4)
   // Tasa de pérdida: de los leads asignados en el rango (activos + ganados + perdidos), cuántos ya se perdieron.
   const perdidos = leads.filter((l) => l.funnel === 0), baseAsignados = leads.filter((l) => l.funnel === 4 || l.funnel === 5 || l.funnel === 0).length
-  const et = embudo(leadsEmbudo, corte.etapas || [])
   const a = actividad(ev)
   // `ventas` = app de comisiones cuando el corte la trae (Randall 11-sep); el CRM solo de respaldo. Ver ventasFiltradas.
   const monto = ventas.reduce((x, l) => x + l.presupuesto, 0)
@@ -518,23 +536,7 @@ function widgetsTablero(corte: Corte, filtros: Filtros, d: Datos, ax: Acciones):
       <EmbudoCrm corte={corte} filtros={filtros} leads={leadsEmbudo} rango={rango} ver={ver} />
     ), { alto: 9, info: ['Embudo'] , base: 'asignacion' }),
     W('etapas', 'Monto cotizado y tiempo por etapa', (
-      <>
-        <div className="scrollx"><table className="ftable" aria-label="Monto cotizado y tiempo por etapa">
-          <thead><tr><th scope="col">Etapa</th><th scope="col" className="num">Leads</th><th scope="col" className="num">Monto</th><th scope="col" className="num">Días promedio</th><th scope="col" className="num">Acumulado</th></tr></thead>
-          <tbody>
-            {et.map((e, i) => (
-              <tr key={e.id}>
-                <td><span className="sw" style={{ background: RAMPA[Math.min(i, RAMPA.length - 1)] }} aria-hidden="true" /><button type="button" className="nbtn" aria-label={`${e.nombre}: ${fmtN(e.n)} leads, ${fmtMoney(e.monto)}. Ver leads`}
-                  onClick={() => ver(`${e.nombre} · embudo Ventas`, e.id === -2 ? fVentas(e.leads) : fLeads(e.leads), rango)}>{e.nombre}</button></td><td className="num">{fmtN(e.n)}</td><td className="num">{fmtMoney(e.monto)}</td><td className="num">{e.n ? e.dias.toFixed(1) : '—'}</td><td className="num muted">{e.acumulado.toFixed(1)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table></div>
-        <div className="muted small" style={{ marginTop: 10 }}>
-          Foto de hoy del embudo Ventas: leads en cada etapa, suma de sus presupuestos y días promedio que llevan ahí. Cierre = ganados del rango, días desde su asignación.
-          {mixto(corte) ? ' El embudo Ventas de HubSpot ya es espejo del de Kommo (mismas etapas desde el 5 de septiembre); la única traducción: Lead entrante = Por contactar y Precalificación hecha = Conversación iniciada. HubSpot no tiene Hunting.' : ''}
-        </div>
-      </>
+      <EmbudoCrm corte={corte} filtros={filtros} leads={leadsEmbudo} rango={rango} ver={ver} vista="tabla" />
     ), { info: ['Monto cotizado', 'Tiempo promedio'], alto: 9 }),
     W('llamadas', 'Llamadas', (
       <div className="llam-grid">
