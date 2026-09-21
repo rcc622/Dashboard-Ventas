@@ -1179,6 +1179,9 @@ h3 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: 0; t
 .vered li.ok::before { content: '✓'; color: var(--c4-ink); }
 .vered li.ok span { font-weight: 600; }
 .vered li.mejorar::before { content: '→'; color: var(--c2-ink); }
+.vered-res { margin: 4px 0 0; white-space: pre-wrap; color: var(--muted, #555); }
+.vered-mas { display: inline-block; margin-top: 3px; padding: 0; border: 0; background: none; font: inherit; font-weight: 600; color: var(--c2-ink); cursor: pointer; text-decoration: underline; }
+.dtable.alto td.det .cc:has(.vered.abierto) { max-height: none; overflow: visible; }
 
 /* La vista «tipo Excel» del detalle (Randall 13-sep): pantalla completa, asas de ancho de columna y
    alto de fila, mover columnas arrastrando el título. Las asas son separadores enfocables (← → ↑ ↓). */

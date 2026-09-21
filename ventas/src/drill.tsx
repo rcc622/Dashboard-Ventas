@@ -116,15 +116,21 @@ function IconoExpandir({ on }: { on: boolean }) {
   </svg>
 }
 const aTabla = (c: ColDef): ColTabla<Fila> => ({ id: c.id, label: c.label, ancho: 0, fija: c.id === 'nombre', celda: () => null })
-/** Detalle de una llamada como veredicto (Randall 13-sep): titular con color y puntos; el resumen largo queda en el tooltip y en «Notas». */
+/** Detalle de una llamada como veredicto (Randall 13-sep): titular con color y puntos; «Ver más» (21-sep) abre todos los puntos
+ *  completos y el resumen en la misma celda (antes solo estaban en el tooltip y en «Notas»). */
 function Veredicto({ v }: { v: NonNullable<Fila['veredicto']> }) {
+  const [abierto, setAbierto] = useState(false)
+  const hayMas = v.resumen.length > 0 || v.mejorarTodo.length > v.mejorar.length || v.mejorarTodo.some((m, i) => m !== v.mejorar[i])
+  const puntos = abierto ? v.mejorarTodo : v.mejorar
   return (
-    <div className="vered">
+    <div className={'vered' + (abierto ? ' abierto' : '')}>
       <b className={'vered-t ' + v.nivel}>{v.titulo}</b>
       <ul>
         {v.bien.length > 0 && <li className="ok"><span>Bien:</span> {v.bien.join(', ')}</li>}
-        {v.mejorar.map((m, i) => <li key={i} className="mejorar">{m}</li>)}
+        {puntos.map((m, i) => <li key={i} className="mejorar">{m}</li>)}
       </ul>
+      {abierto && v.resumen && <p className="vered-res">{v.resumen}</p>}
+      {hayMas && <button type="button" className="vered-mas" onClick={(e) => { e.stopPropagation(); setAbierto((a) => !a) }}>{abierto ? 'Ver menos' : 'Ver más…'}</button>}
     </div>
   )
 }

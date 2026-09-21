@@ -463,7 +463,7 @@ export interface Fila { id: string; nombre: string; link?: string; crm: Origen; 
   /** Columnas de texto propias de la ventana (mismas etiquetas y orden en todas las filas); van después de Etapa. */
   extras?: { label: string; valor: string; estrellas?: number | null }[]
   /** Detalle en veredicto (Randall 13-sep, llamadas): titular con color + lo bueno + qué mejorar; `resumen` largo va al tooltip. */
-  veredicto?: { nivel: 'ok' | 'mid' | 'bad'; titulo: string; bien: string[]; mejorar: string[]; resumen: string } }
+  veredicto?: { nivel: 'ok' | 'mid' | 'bad'; titulo: string; bien: string[]; mejorar: string[]; mejorarTodo: string[]; resumen: string } }
 export function mapaLeads(c: Corte): Map<string, Lead> { return new Map(c.leads.map((l) => [l.id, l])) }
 /** «KS-TRAINING» → «Training». Ventas es el rol normal y no se etiqueta; Training y Seguimiento sí (Randall 6-sep). */
 export const rolNombre = (r?: string) => (!r ? '' : /^admin/i.test(r) ? 'Administrador' : r.replace(/^KS-/i, '').toLowerCase().replace(/^\w/, (c) => c.toUpperCase()))
@@ -539,8 +539,11 @@ export function veredictoLlamada(x: Llamada): Fila['veredicto'] | undefined {
   const mejorar = x.sig_paso ? [] : ['Sin siguiente paso: no fijó fecha ni acción']
   // Al grano: dos puntos como mucho y cortos; lo demás sigue en el tooltip (resumen) y en «Notas».
   const corto = (t: string) => (t.length <= 110 ? t : t.slice(0, 110).replace(/\s+\S*$/, '') + '…')
-  for (const m of (x.mejora || '').split('|').map((t) => t.trim()).filter(Boolean)) { if (mejorar.length < 2) mejorar.push(corto(m)) }
-  return { nivel, titulo, bien, mejorar, resumen: x.resumen || '' }
+  const puntos = (x.mejora || '').split('|').map((t) => t.trim()).filter(Boolean)
+  for (const m of puntos) { if (mejorar.length < 2) mejorar.push(corto(m)) }
+  // «Ver más» (Randall 21-sep): todos los puntos sin recortar + el resumen, sin depender del tooltip.
+  const mejorarTodo = [...(x.sig_paso ? [] : mejorar.slice(0, 1)), ...puntos]
+  return { nivel, titulo, bien, mejorar, mejorarTodo, resumen: x.resumen || '' }
 }
 export const etapaDe = (l: Lead) => `${tipoLead(l)} · ${l.etapa}`
 /** «1 día», «2 días»: sin abreviar (Randall) y sin plural falso. */
