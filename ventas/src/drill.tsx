@@ -127,6 +127,7 @@ function Veredicto({ v }: { v: NonNullable<Fila['veredicto']> }) {
       <b className={'vered-t ' + v.nivel}>{v.titulo}</b>
       <ul>
         {v.bien.length > 0 && <li className="ok"><span>Bien:</span> {v.bien.join(', ')}</li>}
+        {puntos.length > 0 && <li className="rev"><span>A revisar:</span></li>}
         {puntos.map((m, i) => <li key={i} className="mejorar">{m}</li>)}
       </ul>
       {abierto && v.resumen && <p className="vered-res">{v.resumen}</p>}
