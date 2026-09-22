@@ -81,6 +81,7 @@ li{margin:4px 0}
 </style>
 </head>
 <body>
+
 <div class="wrap">
 <nav class="toc" aria-label="Índice">
   <p class="k">Índice</p>
@@ -312,6 +313,29 @@ li{margin:4px 0}
 
 <h2 id="checklist">Checklist para auditar una llamada a mano</h2>
 <p>Para revisar una llamada con la misma vara que la IA, sin conocer la herramienta. Abre la llamada en la lista, pulsa «Notas», ten el audio a la mano y contesta en orden. Cada pregunta se responde «sí», «a medias», «no» o «no tocaba». Al final se convierte en estrellas con la tabla de abajo.</p>
+
+<div class="rule"><b>Solo se contestan las etapas que aplican.</b> El tipo de llamada decide cuáles (tabla de arriba). Las demás quedan en N/A y no cuentan. Dentro de una etapa que sí aplica, las preguntas son señales, no requisitos: todas «sí» = 5, un «no» menor = 4, a medias = 3, intento simbólico = 2, nada = 1. Los topes solo existen donde la rúbrica los marca.</div>
+
+<h3>Rúbrica rápida: las 14 preguntas en una tabla</h3>
+<div class="tw"><table>
+<thead><tr><th>#</th><th>Pregunta</th><th>Se evalúa cuando</th><th>Tope o regla dura</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>Apertura: ¿dijo su nombre y «Kenet Solar»? ¿confirmó con quién habla? ¿pidió tiempo?</td><td>Siempre, salvo No contacto. En Seguimiento va «ligera»: identificarse y recordar el caso = 4</td><td>Presentarse de cero en un seguimiento = 2</td></tr>
+<tr><td>2</td><td>Confianza: ¿mostró que conoce el caso? ¿el prospecto se abrió?</td><td>Primer contacto, Seguimiento (ligera) y Entrante. N/A en Cierre · agenda y Postventa</td><td>«Un asesor te contacta» siendo él el asesor = máximo 2</td></tr>
+<tr><td>3</td><td>Recibo CFE: ¿citó monto o kWh? ¿validó que siga vigente?</td><td>Primer contacto. En Seguimiento y Entrante solo si se habló del recibo</td><td>Volver a pedir el recibo que el bot ya tenía = 1</td></tr>
+<tr><td>4</td><td>Necesidades: ¿pregunta abierta? ¿preguntó por otra cotización? ¿escuchó?</td><td>Primer contacto, Seguimiento A, Entrante si diagnosticó</td><td>Si el prospecto lo abrió y el asesor lo ignoró, se califica 1 o 2, nunca N/A</td></tr>
+<tr><td>5</td><td>Motivaciones: ¿por qué lo quiere? ¿lo repitió con sus palabras? ¿desde cuándo? ¿quién decide?</td><td>Igual que la 4</td><td>Igual que la 4</td></tr>
+<tr><td>6</td><td>Objeciones: ¿preguntó qué le preocupa antes de que la objeción saliera sola?</td><td>Primer contacto, Seguimiento A y B, Entrante</td><td>Sin tope. Peso ×2</td></tr>
+<tr><td>7</td><td>Calificación: ¿cómo paga? ¿cuándo? ¿esperaba gratis? ¿lo supo antes de proponer?</td><td>Primer contacto, Seguimiento A y B, Entrante si diagnosticó</td><td>Si el prospecto habló de dinero y el asesor lo ignoró, 1 o 2. Peso ×2</td></tr>
+<tr><td>8</td><td>Propuesta: ¿la mandó o la agendó con qué y cuándo? ¿la explicó? ¿incluyó a quien más decide?</td><td>Primer contacto, Seguimiento A y B. N/A en descarte legítimo</td><td>«Te mando algo» sin qué ni cuándo = 1 o 2</td></tr>
+<tr><td>9</td><td>Cierre: ¿resumió lo acordado? ¿ofreció dos opciones concretas?</td><td>Siempre, salvo No contacto. También en descarte</td><td>Frase prohibida («cualquier cosa me avisas», «quedamos pendientes», «revísalo y me dices», «estamos en contacto») = máximo 2. Peso ×2</td></tr>
+<tr><td>10</td><td>Siguiente paso: ¿acción específica? ¿fecha y hora? ¿la confirmó el prospecto? ¿la registra?</td><td>Siempre, salvo No contacto</td><td>Sin fecha, o fecha que puso el asesor sin confirmar = 1 o 2. «Te marco la próxima semana» no es fecha. Peso ×3</td></tr>
+<tr><td>O1</td><td>Validar: ¿reconoció la objeción antes de argumentar?</td><td>Solo si hubo objeción</td><td>Pelear (contraatacar, hablar mal del competidor) = 1. Peso ×1.5</td></tr>
+<tr><td>O2</td><td>Aclarar: ¿hizo una pregunta para saber qué lo frena de verdad?</td><td>Solo si hubo objeción</td><td>Suponer y responder a la objeción equivocada = 1 o 2. Peso ×1.5</td></tr>
+<tr><td>O3</td><td>Resolver: ¿respondió solo a eso, corto, con un dato, y se detuvo?</td><td>Solo si hubo objeción</td><td>Rogar = 1. Repetir toda la presentación = 1 o 2. Peso ×1.5</td></tr>
+<tr><td>O4</td><td>Retomar: ¿pidió algo pequeño una sola vez?</td><td>Solo si hubo objeción</td><td>Insistir tras una segunda negativa = 1. No pedir nada = 1 o 2. Peso ×1.5</td></tr>
+</tbody></table></div>
+<p>Qué aplica por tipo: Primer contacto, las 14. Seguimiento A (prospecto indefinido): 1, 2, 4 a 10 y O1 a O4. Seguimiento B (ya hay cotización): 1, 2, 6 a 10 y O1 a O4. Cierre · agenda y Postventa: 1, 9 y 10. Entrante: 1, 2, 6, 9 y 10, más 3, 4, 5 y 7 si el asesor diagnosticó. No contacto: nada.</p>
 
 <h3>Antes de calificar: ¿qué tipo de llamada es?</h3>
 <ul class="check">
