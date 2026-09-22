@@ -461,7 +461,9 @@ export function razones(c: Corte, ev: Evento[]): { razon: string; n: number; lea
  *  encabezado de la columna numérica (días sin cambio, horas al primer contacto…). */
 export interface Fila { id: string; nombre: string; link?: string; crm: Origen; asesor: string; detalle: string; ciudad?: string; embudo?: string; etapa?: string; num?: number; numLabel?: string; monto?: number; cuando?: number; estado?: string; alerta?: boolean
   /** Columnas de texto propias de la ventana (mismas etiquetas y orden en todas las filas); van después de Etapa. */
-  extras?: { label: string; valor: string; estrellas?: number | null }[]
+  extras?: { label: string; valor: string; estrellas?: number | null
+    /** Columna numérica (se ordena de mayor a menor y va a la derecha); con `fecha`, `n` es epoch y se filtra por rango. null = sin dato. */
+    n?: number | null; fecha?: boolean }[]
   /** Detalle en veredicto (Randall 13-sep, llamadas): titular con color + lo bueno + qué mejorar; `resumen` largo va al tooltip. */
   veredicto?: { nivel: 'ok' | 'mid' | 'bad'; titulo: string; bien: string[]; mejorar: string[]; mejorarTodo: string[]; resumen: string } }
 export function mapaLeads(c: Corte): Map<string, Lead> { return new Map(c.leads.map((l) => [l.id, l])) }
@@ -808,8 +810,9 @@ export const filasDeVentasReales = (vs: VentaReal[]): Fila[] => vs.map((v) => ({
 
 // ---------------------------------------------------------------- comparativa: app de comisiones contra el CRM
 // Palabras que no identifican al cliente: artículos, títulos y los sufijos de origen que HubSpot pega al nombre del deal («Hugo Vega - Referido»).
-const STOP = new Set(['de', 'del', 'la', 'las', 'los', 'el', 'y', 'e', 'sr', 'sra', 'srta', 'ing', 'lic', 'dr', 'dra', 'don', 'dona', 'san', 'sta', 'arq', 'referido', 'directo', 'form', 'lead', 'fb', 'mejoravit', 'wapp', 'whatsapp', 'web', 'google', 'meta', 'facebook', 'ctwa'])
-const palabras = (s: string) => new Set(s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9ñ ]+/g, ' ').split(/\s+/).filter((t) => t.length >= 3 && !STOP.has(t)))
+const STOP = new Set(['de', 'del', 'la', 'las', 'los', 'el', 'y', 'e', 'sr', 'sra', 'srta', 'ing', 'lic', 'dr', 'dra', 'don', 'dona', 'san', 'sta', 'arq', 'referido', 'directo', 'form', 'lead', 'fb', 'mejoravit', 'wapp', 'whatsapp', 'web', 'google', 'meta', 'facebook', 'ctwa',
+  'cambaceo', 'cita', 'expo', 'tiktok', 'instagram', 'correo', 'kommo', 'mirlo', 'organico', 'redes', 'sociales', 'cierre', 'cercano'])
+const palabras = (s: string) => new Set(s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9ñ ]+/g, ' ').split(/\s+/).filter((t) => t.length >= 3 && !STOP.has(t) && !/^\d+$/.test(t)))
 /** Venta por venta: lo que registró la app de comisiones contra los ganados del CRM del mismo asesor
  *  (pedido de Randall 5-sep: «ver cuáles faltan»). Pareja = mismo cliente (dos palabras del nombre en
  *  común, o una si el nombre es de una sola) con cierre a menos de 62 días del mes de la venta; cada
@@ -842,6 +845,164 @@ export function comparativaVentas(crm: Lead[], app: VentaReal[]): Fila[] {
     out.push({ id: l.id, nombre: l.nombre || l.id, link: l.link || undefined, crm: l.crm, asesor: l.asesor || 'Sin asesor', detalle: `Ganado en el CRM el ${fmtCorta(fechaDe(l.cerrado))} · sin venta que coincida en la app`, monto: l.presupuesto || undefined, cuando: l.cerrado || undefined, estado: 'Falta en la app', alerta: true })
   }
   return out.sort((a, b) => Number(!!b.alerta) - Number(!!a.alerta) || (a.estado || '').localeCompare(b.estado || '') || a.nombre.localeCompare(b.nombre))
+}
+
+// ---------------------------------------------------------------- Conversión por asesor y por origen (Randall 22-sep)
+/** Una venta de la app de comisiones casada con el lead del CRM de donde salió. La app solo guarda el MES de la
+ *  venta y casi nunca la liga al CRM, así que se casa en este orden:
+ *   1. la liga de la venta (deal de HubSpot o lead de Kommo), si ese registro está en el corte;
+ *   2. el nombre del cliente contra el nombre del lead y el de su contacto, SOLO entre los leads del mismo asesor
+ *      asignados antes de que acabara el mes de la venta. El primer nombre del cliente tiene que aparecer y deben
+ *      coincidir al menos dos palabras; con una sola, solo si el lead está ganado en el CRM cerca de ese mes.
+ *  Cada lead se casa una sola vez. `cierre` es el día en que el CRM marcó el lead como ganado (si cae a menos de dos
+ *  meses del mes de la venta); sin él solo se sabe el mes y no hay días de cierre que medir. */
+export interface VentaCasada { v: VentaReal | null; lead: Lead | null; como: 'liga' | 'nombre' | 'crm' | null; cierre: number | null; dias: number | null }
+const idDeLiga = (s: string): string | null => {
+  const h = /0-3\/(\d+)/.exec(s || ''); if (h) return 'h:' + h[1]
+  const k = /leads\/detail\/(\d+)/.exec(s || ''); return k ? 'k:' + k[1] : null
+}
+const cercaDelMes = (l: Lead, v: VentaReal) => l.funnel === 5 && !!l.cerrado && l.cerrado >= (v.fecha as number) - 62 * DIA && l.cerrado < finMes(v.fecha as number) + 62 * DIA
+const diasEntre = (desde: number, hasta: number) => Math.max(0, Math.round((hasta - desde) / DIA))
+function casada(v: VentaReal, l: Lead | null, como: VentaCasada['como']): VentaCasada {
+  if (!l) return { v, lead: null, como: null, cierre: null, dias: null }
+  const cierre = cercaDelMes(l, v) ? l.cerrado : null
+  return { v, lead: l, como, cierre, dias: cierre && l.asignacion ? diasEntre(l.asignacion, cierre) : null }
+}
+const _casadas = new WeakMap<Corte, Map<string, VentaCasada>>()
+export function ventasCasadas(c: Corte): Map<string, VentaCasada> {
+  const hecho = _casadas.get(c)
+  if (hecho) return hecho
+  const out = new Map<string, VentaCasada>()
+  _casadas.set(c, out)
+  if (!c.comisiones) return out
+  const porId = mapaLeads(c), usados = new Set<string>()
+  const porAsesor = new Map<string, { l: Lead; Bs: Set<string>[] }[]>()
+  for (const l of c.leads) {
+    if (!l.asesor_id) continue
+    const xs = porAsesor.get(l.asesor_id) || []
+    xs.push({ l, Bs: [palabras(l.nombre || ''), palabras(l.contacto || '')].filter((B) => B.size > 0) })
+    porAsesor.set(l.asesor_id, xs)
+  }
+  const vs = c.comisiones.ventas.filter((v) => !v.cancelada && v.fecha != null).sort((a, b) => (a.fecha as number) - (b.fecha as number) || a.id.localeCompare(b.id))
+  // Primero las que dicen cuál es su lead: así un nombre parecido no le gana el lead a la venta que sí lo trae ligado.
+  for (const v of vs) {
+    const id = idDeLiga(v.liga), l = id ? porId.get(id) : undefined
+    if (l && !usados.has(l.id)) { usados.add(l.id); out.set(v.id, casada(v, l, 'liga')) }
+  }
+  // Nombre contra nombre. Las palabras del nombre del lead también tienen que estar en el del cliente (tres de cada
+  // cuatro): «Miguel Angel Santos» no es «Miguel Angel Ruiz Cantú» aunque compartan dos palabras.
+  const puntaje = (A: Set<string>, primero: string, B: Set<string>, cerca: boolean): number => {
+    const tiene = (t: string, X: Set<string>) => X.has(t) || [...X].some((b) => b.length >= 4 && t.length >= 4 && (t.startsWith(b) || b.startsWith(t)))
+    if (!primero || !tiene(primero, B)) return 0
+    const enB = [...A].filter((t) => tiene(t, B)).length, enA = [...B].filter((t) => tiene(t, A)).length
+    if (enB >= 2 && enA / B.size >= 0.75) return 10 + enB + (cerca ? 3 : 0)
+    return cerca && B.size === 1 ? 5 : 0
+  }
+  const buscar = (v: VentaReal, pool: { l: Lead; Bs: Set<string>[] }[], minimo: number): Lead | null => {
+    const A = palabras(v.cliente || ''), primero = [...A][0], fin = finMes(v.fecha as number)
+    let mejor: Lead | null = null, puntos = 0
+    for (const { l, Bs } of pool) {
+      if (usados.has(l.id) || (l.asignacion && l.asignacion >= fin)) continue
+      const cerca = cercaDelMes(l, v), p = Math.max(0, ...Bs.map((B) => puntaje(A, primero, B, cerca)))
+      if (p >= minimo && (p > puntos || (p === puntos && mejor && l.asignacion > mejor.asignacion))) { mejor = l; puntos = p }
+    }
+    return mejor
+  }
+  // Primero entre los leads de SU asesor; si no, entre todos, pero solo con tres palabras o más en común, o dos si el
+  // CRM lo ganó cerca de ese mes (el lead pudo cambiar de dueño o venderlo otro compañero).
+  const todos = [...porAsesor.values()].flat()
+  for (const v of vs) {
+    if (out.has(v.id)) continue
+    const mio = v.asesor_id ? buscar(v, porAsesor.get(v.asesor_id) || [], 1) : null
+    const l = mio || buscar(v, todos, 13)
+    if (l) usados.add(l.id)
+    out.set(v.id, casada(v, l, l ? 'nombre' : null))
+  }
+  return out
+}
+/** El origen del lead: el del corte o, en un corte viejo de HubSpot, la etiqueta que lo guardaba. */
+export const origenDe = (l: Lead) => l.origen || (l.crm === 'hubspot' && l.tags[0]) || 'Sin origen'
+export const SIN_LEAD = 'Venta sin lead en el CRM'
+export type PorConversion = 'asesor' | 'origen'
+/** Un renglón de la conversión: sus leads asignados del periodo, sus ventas y la tasa. `dias` = promedio de días de la
+ *  asignación al cierre entre las `nDias` ventas que tienen fecha de cierre exacta. */
+export interface FilaConv { clave: string; label: string; leads: Lead[]; cierres: VentaCasada[]; tasa: number | null; dias: number | null; nDias: number; nota?: string }
+export interface Conversion { filas: FilaConv[]; leads: Lead[]; cierres: VentaCasada[]; casadas: number; conDias: number; rango: Rango }
+/** Las ventas del periodo casadas con su lead. Sin app de comisiones, los ganados del CRM (ya son su propio lead). */
+export function cierresDe(c: Corte, f: Filtros): VentaCasada[] {
+  if (!c.comisiones) return ventasCrm(c, f).map((l) => ({ v: null, lead: l, como: 'crm', cierre: l.cerrado || null, dias: l.cerrado && l.asignacion ? diasEntre(l.asignacion, l.cerrado) : null }))
+  const cas = ventasCasadas(c)
+  return realesDe(c, f).map((v) => cas.get(v.id) || casada(v, null, null))
+}
+/** Ventas del periodo entre leads asignados del periodo, partido por asesor o por origen del lead. Misma regla que la
+ *  tarjeta «Conversión»: los MESES que toca el rango, porque la app de comisiones guarda el mes de la venta, no el día. */
+export function conversion(c: Corte, f: Filtros, por: PorConversion): Conversion {
+  const rango = rangoVentas(c, f.rango), ff = { ...f, rango }, users = mapaUsuarios(c)
+  const leads = leadsFiltrados(c, ff), cierres = cierresDe(c, ff)
+  const m = new Map<string, FilaConv>()
+  const fila = (clave: string, label: string) => { let x = m.get(clave); if (!x) { x = { clave, label, leads: [], cierres: [], tasa: null, dias: null, nDias: 0 }; m.set(clave, x) } return x }
+  for (const l of leads) {
+    if (por === 'asesor') fila(l.asesor_id || '', nombreAsesor(c, l.asesor_id)).leads.push(l)
+    else { const o = origenDe(l); fila(o, o).leads.push(l) }
+  }
+  for (const x of cierres) {
+    const aid = x.v ? x.v.asesor_id : x.lead?.asesor_id ?? null
+    if (por === 'asesor') fila(aid ?? 'app:' + (x.v?.vendedor || ''), aid ? nombreAsesor(c, aid) : (x.v?.vendedor || 'Sin asesor')).cierres.push(x)
+    else { const o = x.lead ? origenDe(x.lead) : SIN_LEAD; fila(o, o).cierres.push(x) }
+  }
+  const filas = [...m.values()].map((x) => {
+    const ds = x.cierres.map((y) => y.dias).filter((d): d is number => d != null)
+    const tasa = x.leads.length ? x.cierres.length / x.leads.length : null
+    // Por qué una tasa se sale de lo normal: quien vende de cambaceo o de leads viejos cierra más de lo que se le asigna.
+    const u = por === 'asesor' ? users.get(x.clave) : undefined, t = u ? tipoDe(c, u) : null
+    const nota = por !== 'asesor' ? '' : x.clave.startsWith('app:') ? 'Vendedor de la app sin asesor del CRM' : t && t !== 'leads' ? VENDEDOR_LABEL[t]
+      : (tasa ?? 0) > 1 ? 'Más ventas que leads: vende de leads viejos o de cambaceo' : ''
+    return { ...x, tasa, dias: ds.length ? ds.reduce((a, b) => a + b, 0) / ds.length : null, nDias: ds.length, nota }
+  }).sort((a, b) => (b.tasa ?? -1) - (a.tasa ?? -1) || b.leads.length - a.leads.length)
+  return { filas, leads, cierres, casadas: cierres.filter((x) => x.lead).length, conDias: cierres.filter((x) => x.dias != null).length, rango }
+}
+export const fmtTasa = (t: number | null) => (t == null ? '—' : (t * 100).toLocaleString('es-MX', { maximumFractionDigits: 1 }) + '%')
+const fmtDias = (d: number | null) => (d == null ? '—' : fmtN(Math.round(d)))
+/** Un renglón por asesor u origen, con sus cuatro cifras como columnas que se ordenan de mayor a menor. */
+export function filasConversion(cv: Conversion): Fila[] {
+  const conNota = cv.filas.some((x) => x.nota)
+  return cv.filas.map((x) => ({ id: 'conv:' + x.clave, nombre: x.label, crm: 'comisiones' as Origen, asesor: '', detalle: '',
+    monto: x.cierres.reduce((a, y) => a + (y.v?.monto ?? y.lead?.presupuesto ?? 0), 0) || undefined,
+    extras: [
+      { label: 'Leads asignados', valor: fmtN(x.leads.length), n: x.leads.length },
+      { label: 'Cierres', valor: fmtN(x.cierres.length), n: x.cierres.length },
+      { label: 'Días promedio de cierre', valor: fmtDias(x.dias), n: x.dias == null ? null : Math.round(x.dias) },
+      { label: 'Tasa de conversión', valor: fmtTasa(x.tasa), n: x.tasa == null ? null : Math.round(x.tasa * 1000) / 10 },
+      ...(conNota ? [{ label: 'Nota', valor: x.nota || '' }] : []),
+    ] }))
+}
+/** El nombre que se enseña de un lead: en Kommo el del lead suele ser «Lead #123», entonces va el del contacto. */
+export const nombreLead = (l: Lead) => (/^lead #\d+$/i.test((l.nombre || '').trim()) && l.contacto ? l.contacto : l.nombre || l.id)
+/** Los leads de un renglón, uno por fila: primero los que cerraron (con su fecha y sus días de cierre), luego los
+ *  asignados que no han cerrado. Una venta sin lead casado aparece con el nombre del cliente de la app. */
+export function filasConversionLeads(x: FilaConv): Fila[] {
+  const cerrados = new Set<string>()
+  const ext = (asig: number | undefined, origen: string, cierre: string, n: number | null, dias: number | null) => [
+    { label: 'Fecha de asignación', valor: asig ? fmtCorta(fechaDe(asig)) : '—', n: asig || null, fecha: true },
+    { label: 'Origen', valor: origen },
+    { label: 'Fecha de cierre', valor: cierre, n, fecha: true },
+    { label: 'Días de cierre', valor: fmtDias(dias), n: dias },
+  ]
+  const out: Fila[] = x.cierres.map((y, i) => {
+    const l = y.lead, mes = y.v?.mes_texto || ''
+    if (l) cerrados.add(l.id)
+    const cierre = y.cierre ? fmtCorta(fechaDe(y.cierre)) : mes ? `${mes} (solo el mes)` : '—'
+    return { id: 'cc:' + (y.v?.id ?? l?.id ?? i), nombre: y.v?.cliente || (l ? nombreLead(l) : 'Sin nombre'), link: l?.link || y.v?.liga || undefined,
+      crm: l?.crm ?? 'comisiones', asesor: y.v?.vendedor || l?.asesor || 'Sin asesor', detalle: '', estado: 'Cerrada',
+      monto: y.v?.monto ?? l?.presupuesto ?? undefined,
+      extras: ext(l?.asignacion, l ? origenDe(l) : SIN_LEAD, cierre, y.cierre ?? y.v?.fecha ?? null, y.dias) }
+  })
+  for (const l of x.leads) {
+    if (cerrados.has(l.id)) continue
+    out.push({ id: l.id, nombre: nombreLead(l), link: l.link || undefined, crm: l.crm, asesor: l.asesor || 'Sin asesor', detalle: '', estado: 'Sin cierre',
+      extras: ext(l.asignacion, origenDe(l), '—', null, null) })
+  }
+  return out
 }
 
 // ---------------------------------------------------------------- Analítica de ventas reales (app de comisiones)

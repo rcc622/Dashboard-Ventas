@@ -824,6 +824,15 @@ h3 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: 0; t
 .tbl.asesores .mc .v.nbtn { font: inherit; text-align: left; padding: 0 2px; margin-left: -2px; border-radius: 4px; }
 
 /* Filtros del detalle (Randall 6-sep, «como HubSpot y Sheets»): menú por columna, chips, grupos y páginas. */
+/* Conversión como tabla (22-sep): vistas arriba, «volver» al título y el nombre que abre el detalle del renglón. */
+.modal .dvistas { flex: none; padding: 8px 18px; border-bottom: 1px solid var(--line); overflow-x: auto; }
+.modal .dvistas .pill { flex-wrap: nowrap; }
+.modal .dvistas .pill button { white-space: nowrap; min-height: 32px; }
+.modal .dvolver { display: inline-flex; align-items: center; min-height: 24px; margin: 0 0 2px; color: var(--c1-ink); font-weight: 600; font-size: 12.5px; }
+.modal .dvolver:hover { background: var(--hover); }
+.dtable .nbtn.dnombre { font-weight: 600; color: var(--c1-ink); text-decoration: underline; text-decoration-color: var(--g3); text-underline-offset: 2px; padding: 2px 0; }
+.dtable .nbtn.dnombre:hover { background: var(--hover); text-decoration-color: currentColor; }
+@media (pointer: coarse) { .modal .dvistas .pill button { min-height: 40px; } .modal .dvolver { min-height: 36px; } }
 .modal .mtools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 18px; border-bottom: 1px solid var(--line); background: var(--hover); }
 .modal .mtools label { display: inline-flex; align-items: center; gap: 6px; }
 .sel.sm { padding: 4px 8px; font-size: 12px; font-weight: 600; }

@@ -494,6 +494,38 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   copiado o restaurado tiene otra fecha y eso recargaba en bucle); al cambiar, `onRetry` vuelve a bajar
   `data.json` y el hash conserva página y filtros. Tarda unos 4 minutos en producción. Si termina sin
   cambiar el archivo, avisa «Terminó sin cambios» o «No se pudo actualizar; se muestra el corte anterior».
+- **Tasa de conversión por asesor y por origen** (Randall 22-sep, `/goal`). La tarjeta «Conversión» abre ahora
+  una TABLA (`drillConversion` en admin.tsx) con tres vistas arriba (`Drill.vistas`, control `.pill`): **Por asesor**
+  (Asesor · Leads asignados · Cierres · Días promedio de cierre · Tasa de conversión, más «Nota» cuando la tasa se sale:
+  cambaceo, mixto o más ventas que leads), **Por origen del lead** y **Lista de ventas** (la lista de antes). Clic en el
+  nombre (`verFila`, el nombre ES el botón) abre sus leads uno por uno: Estado (Cerrada / Sin cierre) · CRM · Monto ·
+  Fecha de asignación · Origen · Fecha de cierre · Días de cierre, con «‹ volver» (`Drill.volver`). Misma regla que la
+  tarjeta: cierres de la app entre leads asignados en los MESES que toca el rango (`conversion()` en metrics.ts).
+  - **La app de comisiones solo guarda el MES** (`sale_month`; su `created_at` son cargas en lote: 1,150 de 1,206 filas
+    comparten segundo). Por eso cada venta se **casa con su lead** (`ventasCasadas`): 1) su liga (deal 0-3 de HubSpot o
+    lead de Kommo); 2) el nombre del cliente contra el nombre del lead y, aparte, el del contacto de Kommo (el lead suele
+    llamarse «Lead #123»), entre los leads del MISMO asesor asignados antes de que acabe el mes: el primer nombre debe
+    aparecer, ≥ 2 palabras en común y ≥ 75 % de las palabras del lead en el cliente («Miguel Angel Santos» ≠ «Miguel
+    Angel Ruiz Cantú»); 3) si no, entre todos con ≥ 3 palabras (o 2 si el CRM lo ganó cerca del mes). Cada lead se usa
+    una vez. **Fecha de cierre = el día en que el CRM marcó el lead ganado** (a ≤ 62 días del mes); sin eso la columna
+    dice «Septiembre 2026 (solo el mes)» y no hay días de cierre. Cobertura con el corte del 22-sep: septiembre 49 de
+    124 ventas casadas, 31 con día exacto. El pie de la ventana lo dice.
+  - **Origen del lead** (`Lead.origen`, `origenDe`): Kommo = `crm_kommo.canal_del_lead` (Meta Ads, Google Ads, Web
+    orgánico, Redes orgánico, Directo, Sin origen; `ventas_kommo` pide `with=contacts,source_id`); HubSpot = su
+    propiedad `origen` tal cual (Wapp-FB, Referido, Web Form…). Son DOS vocabularios y no se mezclan a mano. En un
+    corte viejo de HubSpot sale de `tags[0]`. Kommo también trae `contacto` (nombre del contacto) para el casado.
+  - Prueba: `node ventas/check_conversion.mjs` (esbuild empaqueta metrics y constructor con un corte de juguete).
+- **«Resultado» en el constructor** (Randall 22-sep: «el resultado que espero obtener con el cruce de datos… como tablas
+  dinámicas»). `Grafica.resultado`: Suma (Total en medidas de conteo) · Conteo de registros · Promedio · Mediana ·
+  Mínimo · Máximo · % del total · Acumulado. `resultadosDe(ids, dim, tipo)` decide qué se ofrece: promedio, mediana,
+  mínimo y máximo solo con medidas que traen un valor (`Medida.valor`: contrato, precio, paneles); % del total no en
+  cifra ni sin partir; acumulado solo en tiempo y con medidas que suman; una razón (tasa, cumplimiento, precio por
+  panel) no ofrece nada. Sin elegir, cada medida usa lo suyo (gráficas viejas no cambian). El formato, el nombre de
+  la serie («Promedio de monto vendido») y el título automático siguen al resultado; en una mixta con promedios o
+  máximos «Apiladas» se apaga. Medida nueva **Tasa de conversión** (razón, dims sin semana ni día, `sinBaseFuera`:
+  la venta sin lead casado cuenta en el total pero no tiene barra; su detalle son los leads y cierres de la barra) y
+  dimensión **Origen del lead** en todas las medidas del CRM. Plantillas: «Tasa de cierre por origen», «Tasa de
+  conversión por asesor», «… por mes», «Leads asignados por origen».
 - **Constructor de gráficas** (Randall 7-sep: «un graph modifier/builder para que ya no dependamos tanto
   de ti», `constructor.tsx`). Una gráfica = **medida × dimensión × tipo**. Medidas (23): actividad
   (llamadas realizadas/contestadas/sin contestar, tareas completadas, cotizaciones, levantamientos,

@@ -30,6 +30,10 @@ export interface Lead {
   cotizacion: number; recotizaciones?: number; levantamiento: number; ult_actividad: number; cerrado: number
   /** Visitas: cuándo se agendó y cuándo se hizo (primera entrada a cada etapa). Opcionales: un corte viejo no las trae. */
   lev_agendado?: number; lev_hecho?: number
+  /** De dónde vino el lead (Randall 22-sep, tasa de cierre por origen): Kommo = el canal que decide crm_kommo
+   *  (Meta Ads, Google Ads, Web orgánico, Redes orgánico, Directo, Sin origen); HubSpot = su propiedad «origen» tal cual.
+   *  `contacto` = nombre del contacto en Kommo (el del lead suele ser «Lead #123»), para casar la venta de la app. */
+  origen?: string; contacto?: string
 }
 
 export type TipoEvento = 'tarea' | 'llamada_ok' | 'llamada_no' | 'cotizacion' | 'recotizacion' | 'levantamiento' | 'descarte'

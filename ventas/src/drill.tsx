@@ -17,7 +17,11 @@ import { VACIA, useVistaGuardada, type Vista } from './vista'
 // «Guardar vista» la deja en la cuenta; el administrador se la aplica a otras cuentas.
 /** `verFila`: botón «Notas» por renglón que abre un detalle propio (las 14 notas de una llamada); `verLabel` es su texto.
  *  `clave`: nombre de la vista guardada (anchos, alto, orden); sin él la vista se llama por la forma de sus columnas. */
-export interface Drill { titulo: string; sub?: string; filas: Fila[]; verFila?: (f: Fila) => void; verLabel?: string; pie?: string; alertaLabel?: string; clave?: string }
+/** `sin`: columnas fijas que esta ventana no enseña (una tabla por asesor no tiene CRM ni fecha). `nombreLabel`: el título
+ *  de la primera columna si no es «Registro». `vistas`: botones arriba para cambiar de corte (Por asesor · Por origen ·
+ *  Ventas) y `volver` regresa a la ventana de la que se vino. `alertaLabel: ''` no cuenta alertas en el encabezado. */
+export interface Drill { titulo: string; sub?: string; filas: Fila[]; verFila?: (f: Fila) => void; verLabel?: string; pie?: string; alertaLabel?: string; clave?: string
+  sin?: string[]; nombreLabel?: string; unidad?: [string, string]; vistas?: { label: string; on: boolean; onClick: () => void }[]; volver?: { label: string; onClick: () => void } }
 const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 /** La columna numérica: días y horas son enteros; la nota de una llamada (2,57 ⭐) no, y redondearla a 3 la miente. */
 const fmtNum = (n: number) => (Number.isInteger(n) ? fmtN(n) : n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))
@@ -26,6 +30,8 @@ type Col = 'estado' | 'nombre' | 'crm' | 'asesor' | 'ciudad' | 'embudo' | 'etapa
 /** 'x3' → 3: índice dentro de `Fila.extras`. */
 const ix = (c: Col) => (c.startsWith('x') ? Number(c.slice(1)) : -1)
 type Tipo = 'texto' | 'monto' | 'fecha' | 'numero'
+type Extra = NonNullable<Fila['extras']>[number]
+const tipoExtra = (e?: Extra): Tipo => (!e ? 'texto' : e.estrellas !== undefined ? 'numero' : e.fecha ? 'fecha' : e.n !== undefined ? 'numero' : 'texto')
 interface ColDef { id: Col; label: string; tipo: Tipo }
 const COLS: ColDef[] = [
   { id: 'estado', label: 'Estado', tipo: 'texto' }, { id: 'nombre', label: 'Registro', tipo: 'texto' }, { id: 'crm', label: 'CRM', tipo: 'texto' },
@@ -40,7 +46,7 @@ const texto = (f: Fila, c: Col): string =>
     : c === 'ciudad' ? (f.ciudad || 'Sin ciudad') : c === 'embudo' ? (f.embudo || '—') : c === 'etapa' ? (f.etapa || '—') : c === 'detalle' ? (f.detalle || '—')
       : ix(c) >= 0 ? (f.extras?.[ix(c)]?.valor || '—')
       : c === 'num' ? (f.num == null ? '—' : fmtNum(f.num)) : c === 'monto' ? (f.monto ? fmtMoney(f.monto) : '—') : (f.cuando ? fmtCorta(fechaDe(f.cuando)) : '—')
-const numero = (f: Fila, c: Col): number | undefined => (c === 'monto' ? f.monto : c === 'cuando' ? f.cuando : c === 'num' ? f.num : ix(c) >= 0 ? (f.extras?.[ix(c)]?.estrellas ?? undefined) : undefined)
+const numero = (f: Fila, c: Col): number | undefined => (c === 'monto' ? f.monto : c === 'cuando' ? f.cuando : c === 'num' ? f.num : ix(c) >= 0 ? (f.extras?.[ix(c)]?.estrellas ?? f.extras?.[ix(c)]?.n ?? undefined) : undefined)
 
 /** Filtro de una columna: valores marcados (null = todos), rango para monto y fecha, «contiene» para texto. */
 interface FiltroCol { valores: Set<string> | null; sin?: string[]; min?: number; max?: number; contiene?: string }   // `sin`: los pocos valores desmarcados, para que el chip diga «sin X» en vez de «21 valores»
@@ -62,7 +68,7 @@ function pasa(f: Fila, c: Col, x: FiltroCol): boolean {
 }
 function ordenar(filas: Fila[], o: Orden | null): Fila[] {
   if (!o) return filas
-  const tipo = ix(o.col) >= 0 ? (filas.find((f) => f.extras)?.extras?.[ix(o.col)]?.estrellas !== undefined ? 'numero' : 'texto') : COLS.find((c) => c.id === o.col)!.tipo, s = o.dir === 'asc' ? 1 : -1
+  const tipo = ix(o.col) >= 0 ? tipoExtra(filas.find((f) => f.extras)?.extras?.[ix(o.col)]) : COLS.find((c) => c.id === o.col)!.tipo, s = o.dir === 'asc' ? 1 : -1
   return [...filas].sort((a, b) => {
     if (tipo === 'texto') return texto(a, o.col).localeCompare(texto(b, o.col), 'es') * s
     const x = numero(a, o.col), y = numero(b, o.col)
@@ -159,10 +165,10 @@ export function DrillModal({ d, onClose }: { d: Drill; onClose: () => void }) {
   // («Días sin cambio», «Horas al primer contacto»…) para poder ordenarla de mayor a menor de verdad.
   const cols = useMemo(() => {
     const etiqueta = d.filas.find((f) => f.numLabel)?.numLabel
-    const base = COLS.filter((c) => { const p = OPCIONALES[c.id]; return !p || d.filas.some((f) => { const v = p(f); return v != null && v !== '' }) })
-      .map((c) => (c.id === 'num' && etiqueta ? { ...c, label: etiqueta } : c))
+    const base = COLS.filter((c) => { if (d.sin?.includes(c.id)) return false; const p = OPCIONALES[c.id]; return !p || d.filas.some((f) => { const v = p(f); return v != null && v !== '' }) })
+      .map((c) => (c.id === 'num' && etiqueta ? { ...c, label: etiqueta } : c.id === 'nombre' && d.nombreLabel ? { ...c, label: d.nombreLabel } : c))
     // Columnas propias de la ventana (Fila.extras), después de Etapa.
-    const extras: ColDef[] = (d.filas.find((f) => f.extras)?.extras || []).map((e, i) => ({ id: `x${i}` as Col, label: e.label, tipo: (e.estrellas !== undefined ? 'numero' : 'texto') as Tipo }))
+    const extras: ColDef[] = (d.filas.find((f) => f.extras)?.extras || []).map((e, i) => ({ id: `x${i}` as Col, label: e.label, tipo: tipoExtra(e) }))
     const k = base.findIndex((c) => c.id === 'detalle')
     return k < 0 ? [...base, ...extras] : [...base.slice(0, k), ...extras, ...base.slice(k)]
   }, [d])
@@ -300,8 +306,10 @@ export function DrillModal({ d, onClose }: { d: Drill; onClose: () => void }) {
   const celda = (f: Fila, c: ColDef, primera: boolean, foco: boolean) => {
     const id = c.id, e = ix(id) >= 0 ? f.extras?.[ix(id)] : undefined
     const cont = id === 'estado' ? <span className={'tag' + (f.alerta ? ' alerta' : '')}>{f.estado || '—'}</span>
-      : id === 'nombre' ? <>{f.link ? <a href={f.link} target="_blank" rel="noreferrer" title={d.verFila ? 'Abrir el audio' : 'Abrir en ' + CRM_LABEL[f.crm]}>{f.nombre}</a> : <span className="muted">{f.nombre}</span>}
-        {d.verFila && <> <button type="button" className="nbtn small" aria-haspopup="dialog" aria-label={`${d.verLabel || 'Ver detalle'}: ${f.nombre}`} onClick={() => d.verFila!(f)}>{d.verLabel || 'Ver detalle'}</button></>}</>
+      : id === 'nombre' ? (!f.link && d.verFila
+        ? <button type="button" className="nbtn dnombre" aria-haspopup="dialog" aria-label={`${d.verLabel || 'Ver detalle'}: ${f.nombre}`} title={d.verLabel || 'Ver detalle'} onClick={() => d.verFila!(f)}>{f.nombre}</button>
+        : <>{f.link ? <a href={f.link} target="_blank" rel="noreferrer" title={d.verFila ? 'Abrir el audio' : 'Abrir en ' + CRM_LABEL[f.crm]}>{f.nombre}</a> : <span className="muted">{f.nombre}</span>}
+          {d.verFila && <> <button type="button" className="nbtn small" aria-haspopup="dialog" aria-label={`${d.verLabel || 'Ver detalle'}: ${f.nombre}`} onClick={() => d.verFila!(f)}>{d.verLabel || 'Ver detalle'}</button></>}</>)
       : id === 'crm' ? <span className="tag">{CRM_LABEL[f.crm]}</span>
       : id === 'asesor' ? f.asesor
       : id === 'ciudad' ? (f.ciudad || <span className="muted">Sin ciudad</span>)
@@ -311,7 +319,8 @@ export function DrillModal({ d, onClose }: { d: Drill; onClose: () => void }) {
       : id === 'monto' ? (f.monto ? fmtMoney(f.monto) : '—')
       : id === 'cuando' ? cuando(f.cuando)
       : e?.estrellas !== undefined ? <Estrellas n={e.estrellas} /> : (e?.valor || '—')
-    const cls = [id === 'detalle' ? 'det' : id === 'num' || id === 'monto' ? 'num' : id === 'cuando' ? 'muted' : e?.estrellas !== undefined ? 'cstars' : '', primera ? 'c0' : ''].filter(Boolean).join(' ') || undefined
+    const te = e ? tipoExtra(e) : null
+    const cls = [id === 'detalle' ? 'det' : id === 'num' || id === 'monto' ? 'num' : id === 'cuando' ? 'muted' : e?.estrellas !== undefined ? 'cstars' : te === 'numero' ? 'num' : '', primera ? 'c0' : ''].filter(Boolean).join(' ') || undefined
     return (
       <td key={id} className={cls} title={id === 'detalle' ? (f.veredicto?.resumen || f.detalle || undefined) : undefined}>
         <div className="cc">{cont}</div>
@@ -330,9 +339,10 @@ export function DrillModal({ d, onClose }: { d: Drill; onClose: () => void }) {
       <div className="modal" role="dialog" aria-modal="true" aria-label={d.titulo}>
         <div className="mh">
           <div className="mt">
+            {d.volver && <button type="button" className="nbtn small dvolver" onClick={d.volver.onClick}><span aria-hidden="true">‹ </span>{d.volver.label}</button>}
             <h2>{d.titulo}</h2>
             <div className="small muted" aria-live="polite">
-              {fmtN(filtradas.length)}{filtradas.length !== d.filas.length ? ` de ${fmtN(d.filas.length)}` : ''} registro{filtradas.length === 1 ? '' : 's'}{total ? ` · ${fmtMoney(total)}` : ''}{conEstado ? ` · ${fmtN(alertas)} ${d.alertaLabel || 'sin pareja'}` : ''}{crms.length ? ' · ' + crms.map((c) => CRM_LABEL[c]).join(' + ') : ''}{d.sub ? ' · ' + d.sub : ''}
+              {fmtN(filtradas.length)}{filtradas.length !== d.filas.length ? ` de ${fmtN(d.filas.length)}` : ''} {(d.unidad || ['registro', 'registros'])[filtradas.length === 1 ? 0 : 1]}{total && !d.sin?.includes('monto') ? ` · ${fmtMoney(total)}` : ''}{conEstado && d.alertaLabel !== '' ? ` · ${fmtN(alertas)} ${d.alertaLabel || 'sin pareja'}` : ''}{crms.length && !d.sin?.includes('crm') ? ' · ' + crms.map((c) => CRM_LABEL[c]).join(' + ') : ''}{d.sub ? ' · ' + d.sub : ''}
             </div>
           </div>
           <input ref={inp} className="sel" type="search" placeholder="Buscar nombre, asesor, ciudad o etapa…" aria-label="Buscar en el detalle" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -340,6 +350,13 @@ export function DrillModal({ d, onClose }: { d: Drill; onClose: () => void }) {
             onClick={() => tocar((v) => ({ ...v, expandido: !v.expandido }))}><IconoExpandir on={!!vista.expandido} /></button>
           <button type="button" className="ib" aria-label="Cerrar" onClick={onClose}>×</button>
         </div>
+        {d.vistas && d.vistas.length > 0 && (
+          <div className="dvistas">
+            <span className="pill sm" role="group" aria-label="Cómo verlo">
+              {d.vistas.map((x) => <button type="button" key={x.label} className={x.on ? 'on' : ''} aria-pressed={x.on} onClick={x.onClick}>{x.label}</button>)}
+            </span>
+          </div>
+        )}
         {/* Herramientas como en HubSpot: agrupar, chips de filtros activos, borrar todo; a la derecha, la vista. */}
         <div className="mtools">
           <label className="small muted">Agrupar por <select className="sel sm" aria-label="Agrupar por" value={grupo ?? ''} onChange={(e) => { setGrupo((e.target.value || null) as Col | null); setCerrados(new Set()) }}>

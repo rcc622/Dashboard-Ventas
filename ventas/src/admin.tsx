@@ -1,7 +1,7 @@
 import { Fragment, useLayoutEffect, useMemo, useRef, useState, type SyntheticEvent, useEffect } from 'react'
 import type { Corte, Crm, Embudo, Evento, Lead, LevFila, Sanciones, Usuario } from './types'
 import { CRM_LABEL } from './types'
-import { BUCKETS, PERFIL_LABEL, actividad, actividadDe, cotizado, dias, entrada, ep, eventosFiltrados, fechaCotizado, diasSinActividad, estancado, estadoActivo, ESTADO_ACTIVO, ESTANCADO_DIAS, type EstadoActivo, leadsActivosHoy, rangoVentas, metaYRitmo, metaDe, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, pasaCrm, etiquetaRango, periodoTexto, preset, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, embudoPipeline, type Fila, type FilaAsesor, type Filtros, type Perfil , type PuntoPerfil, ventasReales, ventasCrm, tipoDe, crmTexto, activo, VENDEDOR_LABEL, filasDeVentasReales, comparativaVentas, rolDestacado, rolNombre, cotizacionesGeneradas, filasDeCotizaciones, visitas, levantados, filasDeLevantamientos, fmtEstrellas, llamadasFiltradas, resumenLlamadas } from './metrics'
+import { BUCKETS, PERFIL_LABEL, actividad, actividadDe, cotizado, dias, entrada, ep, eventosFiltrados, fechaCotizado, diasSinActividad, estancado, estadoActivo, ESTADO_ACTIVO, ESTANCADO_DIAS, type EstadoActivo, leadsActivosHoy, rangoVentas, metaYRitmo, metaDe, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, pasaCrm, etiquetaRango, periodoTexto, preset, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, embudoPipeline, type Fila, type FilaAsesor, type Filtros, type Perfil , type PuntoPerfil, ventasReales, ventasCrm, tipoDe, crmTexto, activo, VENDEDOR_LABEL, filasDeVentasReales, comparativaVentas, rolDestacado, rolNombre, cotizacionesGeneradas, filasDeCotizaciones, visitas, levantados, filasDeLevantamientos, fmtEstrellas, llamadasFiltradas, resumenLlamadas, conversion, filasConversion, filasConversionLeads, fmtTasa, type PorConversion } from './metrics'
 import { LlamadaModal, drillLlamadas } from './llamadas'
 import type { Llamada } from './types'
 import { BarDetailPopup, BubbleChart, Bullet, DonutChart, FunnelChart, Gauge, Info, LlamadasBar, MiniAreaChart, Scatter, SortTh, StackedBar, activar, useEscape, useOutside, type DetRow, type Sort, type BubbleCol, useFocoDialogo } from './components'
@@ -234,6 +234,40 @@ function EmbudoCrm({ corte, filtros, leads, rango, ver, vista = 'embudo' }: { co
   )
 }
 
+// ---------------------------------------------------------------- Conversión como tabla (Randall 22-sep)
+const VISTAS_CONV: { id: PorConversion | 'ventas'; label: string }[] = [
+  { id: 'asesor', label: 'Por asesor' }, { id: 'origen', label: 'Por origen del lead' }, { id: 'ventas', label: 'Lista de ventas' },
+]
+/** La tarjeta «Conversión» abre esto: la tasa por asesor (o por origen del lead) con leads asignados, cierres, días
+ *  promedio de cierre y tasa; el nombre de cada renglón abre sus leads uno por uno. «Lista de ventas» es la lista de
+ *  antes. Las tres vistas se cambian arriba sin cerrar la ventana. */
+function drillConversion(corte: Corte, f: Filtros, por: PorConversion | 'ventas', abrir: (d: Drill) => void): Drill {
+  const cv = conversion(corte, f, por === 'ventas' ? 'asesor' : por)
+  const periodo = periodoTexto(cv.rango)
+  const vistas = VISTAS_CONV.map((x) => ({ label: x.label, on: x.id === por, onClick: () => abrir(drillConversion(corte, f, x.id, abrir)) }))
+  const sub = `${fmtN(cv.cierres.length)} cierres / ${fmtN(cv.leads.length)} leads asignados ${periodo} = ${fmtTasa(cv.leads.length ? cv.cierres.length / cv.leads.length : null)}`
+  if (por === 'ventas') return { titulo: 'Ventas que cuentan en la conversión', filas: fVentas(ventasFiltradas(corte, f)), sub, vistas }
+  const pie = `Tasa = cierres entre leads asignados en los meses que toca el rango (la app de comisiones guarda el mes de la venta, no el día). `
+    + `Días de cierre = de la asignación del lead al día en que el CRM lo marcó ganado: ${fmtN(cv.casadas)} de ${fmtN(cv.cierres.length)} ventas se casaron con su lead `
+    + `y ${fmtN(cv.conDias)} tienen ese día. ${por === 'origen' ? 'Una venta sin lead casado no tiene origen y va en su propio renglón, sin tasa. ' : ''}Clic en el nombre abre sus leads.`
+  const self: Drill = {
+    titulo: por === 'asesor' ? 'Tasa de conversión por asesor' : 'Tasa de conversión por origen del lead', sub, pie, vistas,
+    clave: 'conv-' + por, nombreLabel: por === 'asesor' ? 'Asesor' : 'Origen del lead', unidad: por === 'asesor' ? ['asesor', 'asesores'] : ['origen', 'orígenes'], sin: ['crm', 'asesor', 'cuando', 'monto'], verLabel: 'Ver sus leads',
+    filas: filasConversion(cv),
+    verFila: (fila) => {
+      const x = cv.filas.find((y) => 'conv:' + y.clave === fila.id)
+      if (!x) return
+      abrir({
+        titulo: `${x.label} · leads y cierres ${periodo}`, clave: 'conv-leads', unidad: ['lead o venta', 'leads y ventas'], alertaLabel: '', sin: por === 'asesor' ? ['asesor', 'cuando'] : ['cuando'],
+        sub: `${fmtN(x.cierres.length)} cierres / ${fmtN(x.leads.length)} leads = ${fmtTasa(x.tasa)}${x.dias != null ? ` · ${fmtN(Math.round(x.dias))} días promedio de cierre (${fmtN(x.nDias)} con día de cierre)` : ''}`,
+        pie: 'Primero las ventas cerradas, luego los leads asignados que no han cerrado. La fecha de cierre es el día en que el CRM marcó el lead como ganado; si la venta no se casó con su lead o el CRM no lo marcó, solo se sabe el mes de la app. Clic en el nombre abre el registro en su CRM.',
+        filas: filasConversionLeads(x), volver: { label: self.titulo, onClick: () => abrir(self) },
+      })
+    },
+  }
+  return self
+}
+
 // ---------------------------------------------------------------- Dashboard
 /** Todo lo que el tablero deriva de un corte y unas fechas. Está aparte porque el tablero se arma
  *  DOS veces cuando algún widget tiene fechas propias: una con las del tablero y otra con las suyas. */
@@ -261,6 +295,8 @@ type Datos = ReturnType<typeof datosDe>
 /** Quién responde a los clics de los widgets: la página que los dibuja. */
 interface Acciones {
   ver: (titulo: string, filas: Fila[], sub?: string) => void
+  /** Abre una ventana armada a mano (con vistas, volver o detalle por renglón). */
+  abrir: (d: Drill) => void
   /** Drill de llamadas calificadas con «Notas» (14 preguntas) — el mismo que usa la tabla de Asesores. */
   verLlamadas: (titulo: string, ls: Llamada[]) => void
   onFicha: (uid: string) => void
@@ -271,7 +307,7 @@ interface Acciones {
  *  con las fechas de arriba, con las fechas propias de un widget, y —desde la ficha— fijado a UNA
  *  persona (Randall 10-sep: «que la vista por defecto del asesor sea como el diseño del PDF»). */
 function widgetsTablero(corte: Corte, filtros: Filtros, d: Datos, ax: Acciones): Widget[] {
-  const { ver, verLlamadas, onFicha, grupo, setGrupo } = ax
+  const { ver, abrir, verLlamadas, onFicha, grupo, setGrupo } = ax
   const { leads, ev, ventas, filas, rv, leadsVentas, activosHoy, leadsEmbudo, ent, pc, rz, perf, vr, cg, vis, lev } = d
   const s = salud(leads)
   const con = s.ventasCon + s.huntCon, sin = s.ventasSin + s.huntSin, tot = con + sin
@@ -325,7 +361,7 @@ function widgetsTablero(corte: Corte, filtros: Filtros, d: Datos, ax: Acciones):
     W('t-vendido', 'Avance contra la meta', <TileAvance monto={monto} metaRango={metaRango} rit={rit} periodo={periodoV} onClick={verVendido} />,
       { plain: true, span: 1, alto: 4, cls: 'wtile', info: ['Ritmo'], desde: 'cifras', base: 'cierre' }),   // 4 filas: trae medidor y frase del ritmo
     W('t-conversion', 'Conversión ventas / asignados', (
-        <button type="button" className="tile tbtn t4" onClick={() => ver('Ventas que cuentan en la conversión', fVentas(ventas), `${fmtN(ventas.length)} ventas / ${fmtN(leadsVentas.length)} leads asignados ${periodoV}`)} aria-label={`Conversión ${leadsVentas.length ? pct(ventas.length, leadsVentas.length) + '%' : 'sin dato'}. Ver detalle`}><div className="n">{leadsVentas.length ? pct(ventas.length, leadsVentas.length) + '%' : '—'}</div><div className="l">Ventas cerradas entre leads asignados {periodoV}</div></button>
+        <button type="button" className="tile tbtn t4" onClick={() => abrir(drillConversion(corte, filtros, 'asesor', abrir))} aria-label={`Conversión ${leadsVentas.length ? pct(ventas.length, leadsVentas.length) + '%' : 'sin dato'}. Ver detalle`}><div className="n">{leadsVentas.length ? pct(ventas.length, leadsVentas.length) + '%' : '—'}</div><div className="l">Ventas cerradas entre leads asignados {periodoV}</div></button>
     ), { plain: true, span: 1, alto: 4, cls: 'wtile', info: ['Conversión'], desde: 'cifras' }),
     W('t-perdida', 'Tasa de pérdida', (
         <button type="button" className="tile tbtn t5" onClick={() => ver('Leads perdidos · asignados en el rango', filasDeLeads(perdidos, (l) => `Perdido · ${l.razon || 'sin razón'}`, (l) => l.cerrado), rango + ' · fecha = descarte')} aria-label={`Tasa de pérdida ${pct(perdidos.length, baseAsignados)}%: ${fmtN(perdidos.length)} perdidos de ${fmtN(baseAsignados)} asignados. Ver detalle`}><div className="n">{pct(perdidos.length, baseAsignados)}%</div><div className="l">{fmtN(perdidos.length)} perdidos de {fmtN(baseAsignados)} asignados</div></button>
@@ -687,7 +723,7 @@ export function AdminDashboard({ corte, filtros, onFicha, puedeEditar = true }: 
   // Lo que el constructor necesita para dejar elegir las fechas de la gráfica que se está creando.
   const fechasCtor = conFechas ? { de: (id: string) => rangos['g:' + id], filtros: (id: string) => filtrosDe('g:' + id), fijar: (id: string, p: RangoWidget | null) => fijarRango('g:' + id, p) } : undefined
 
-  const construir = (f: Filtros, dd: Datos): Widget[] => widgetsTablero(corte, f, dd, { ver, verLlamadas, onFicha, grupo, setGrupo })
+  const construir = (f: Filtros, dd: Datos): Widget[] => widgetsTablero(corte, f, dd, { ver, abrir: setDrill, verLlamadas, onFicha, grupo, setGrupo })
 
   // El tablero, con las fechas de arriba. Los widgets que tienen fechas propias se sacan de un
   // segundo armado con SUS fechas: uno por periodo distinto, no uno por widget.
@@ -1135,7 +1171,7 @@ export function Ficha({ corte, filtros, uid, onBack, puedeEditar = true }: { cor
   // Los mismos widgets del tablero, pero de esta persona. Se arman una vez con las fechas de arriba
   // y una por cada periodo que alguien haya fijado, como en el tablero general.
   const [llamada, setLlamada] = useState<Llamada | null>(null)
-  const acciones = useMemo(() => ({ ver: (titulo: string, filas: Fila[], sub?: string) => setDrill({ titulo, filas, sub }),
+  const acciones = useMemo(() => ({ ver: (titulo: string, filas: Fila[], sub?: string) => setDrill({ titulo, filas, sub }), abrir: (d: Drill) => setDrill(d),
     verLlamadas: (titulo: string, ls: Llamada[]) => setDrill(drillLlamadas(titulo, ls, corte, filtros.rango.label, setLlamada)),
     onFicha: () => {}, grupo: null, setGrupo: () => {} }), [corte, filtros.rango.label])
   const compartidos = (ff: Filtros) => widgetsTablero(corte, ff, datosDe(corte, ff), acciones).filter((w) => FICHA_COMPARTIDOS.includes(w.id))

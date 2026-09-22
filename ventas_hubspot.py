@@ -200,7 +200,7 @@ def build():
             "presupuesto": num(p.get("amount")), "recibo": False, "respondio": funnel != 0 and (orden >= 1 or funnel == 5),
             "funnel": funnel, "funnel_label": {5: "5·Ganado", 0: "0·Perdido"}.get(funnel, "4·Asignado (en Ventas/Hunting)"),
             "tareas_abiertas": 1 if nad else 0, "tareas_vencidas": 1 if nad and nad < hoy else 0, "pc_vencida": False,
-            "tags": [x for x in [p.get("origen")] if x], "ciudad": (p.get("ciudad") or "").strip(),
+            "tags": [x for x in [p.get("origen")] if x], "ciudad": (p.get("ciudad") or "").strip(), "origen": (p.get("origen") or "").strip() or "Sin origen",
             "dias_sin_cambio": max(0, (hoy - (seg(p.get("hs_lastmodifieddate")) or hoy)) // 86400),
             "link": "https://app.hubspot.com/contacts/%s/record/0-3/%s" % (PORTAL, did),
             "msjs": 0, "llamadas_cf": 0, "tel": "", "sin_tarea": funnel == 4 and not nad, "razon": razon,

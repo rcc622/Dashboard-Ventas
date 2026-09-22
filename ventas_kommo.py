@@ -234,7 +234,7 @@ def leads_(desde):
     viejos (una venta de hoy suele ser un lead de hace meses) + los ABIERTOS más viejos
     que la ventana (Randall 11-sep: leads activos, tareas vencidas y sin tarea son foto de
     hoy, sin importar las fechas del tablero). Sin duplicar."""
-    filtro = {"with": "contacts", "filter[pipeline_id][0]": PIPE_CADENCIA, "filter[pipeline_id][1]": PIPE_VENTAS,
+    filtro = {"with": "contacts,source_id", "filter[pipeline_id][0]": PIPE_CADENCIA, "filter[pipeline_id][1]": PIPE_VENTAS,
               "filter[pipeline_id][2]": PIPE_HUNTING, "filter[pipeline_id][3]": PIPE_LEADSNUEVOS}
     out = {}
     for l in k.paged("leads", "leads", **dict(filtro, **{"filter[created_at][from]": desde})):
@@ -319,7 +319,7 @@ def build():
     leads = leads_(desde)
 
     # Contacto → lead (llamadas registradas en el contacto) y CF 1833389 y 1823968 del contacto.
-    C2L, L2C, ASIG, CIUDAD = {}, {}, {}, {}
+    C2L, L2C, ASIG, CIUDAD, CONTACTO = {}, {}, {}, {}, {}
     for l in leads:
         cs = (l.get("_embedded") or {}).get("contacts") or []
         if cs:
@@ -331,6 +331,7 @@ def build():
             for c in k.paged("contacts", "contacts", **{"filter[id][]": ids[i:i + 100]}):
                 ASIG[c["id"]] = fecha_cf(k.cf(c, FIELD_ASIGNADO))
                 CIUDAD[c["id"]] = (k.cf(c, FIELD_CIUDAD) or "").strip()
+                CONTACTO[c["id"]] = (c.get("name") or "").strip()
         except SystemExit as e:
             aviso("lote de contactos: %s" % str(e)[:120])
     ASIG_EV = asignaciones_por_evento(desde)
@@ -399,6 +400,10 @@ def build():
             # La ciudad vive en el CONTACTO (la deja el bot al precalificar); el «Municipio» del
             # formulario de levantamiento es el respaldo cuando el contacto no la trae (Randall 8-sep).
             "ciudad": CIUDAD.get(L2C.get(l["id"]), "") or str(cfv.get(FIELD_MUNICIPIO) or "").strip(),
+            # De dónde vino el lead: la misma regla que el tablero de marketing (crm_kommo.canal_del_lead).
+            # El nombre del contacto sirve para casar la venta de la app de comisiones con su lead: el
+            # nombre del lead en Kommo casi siempre es «Lead #123».
+            "origen": k.canal_del_lead(l), "contacto": CONTACTO.get(L2C.get(l["id"]), ""),
             "link": "https://%s.kommo.com/leads/detail/%d" % (k.SUB, l["id"]),
             "msjs": nmsg, "llamadas_cf": int(num(cfv.get(FIELD_LLAMADAS))),
             # Los tags se renombraron el 12-ago (Contactado → Respondió): se aceptan ambos.
