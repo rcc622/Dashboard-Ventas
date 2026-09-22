@@ -97,7 +97,7 @@ li{margin:4px 0}
     <li><a href="#cierran">Qué hacen los que cierran</a></li>
     <li><a href="#rutina">Rutina de revisión</a></li>
     <li><a href="#limites">Confiabilidad y límites</a></li>
-    <li><a href="#checklist">Checklist para auditar a mano</a></li>
+    <li><a href="#auditar">Auditar a mano</a></li>
   </ol>
 </nav>
 <main>
@@ -139,17 +139,7 @@ li{margin:4px 0}
 
 <h2 id="tipo">Tipo de llamada: qué etapas aplican</h2>
 <p>Las 10 etapas describen la llamada de primer contacto. Así se llama la hoja 1 del guion: «Gestión general del script de primer contacto». Si calificáramos un seguimiento de 70 segundos contra las 10 etapas, castigaríamos al asesor por no repetir un diagnóstico que ya hizo la vez anterior. Por eso lo primero que se decide en cada llamada es el tipo, y el tipo dice qué etapas se califican y cuáles quedan en N/A.</p>
-<p>Es normal ver una llamada con cinco o seis etapas en N/A. No es un hueco de la IA ni una llamada mal calificada. Es la regla.</p>
-<div class="tw"><table>
-<thead><tr><th>Tipo</th><th>Qué es</th><th>Etapas que se califican</th></tr></thead>
-<tbody>
-<tr><td>Primer contacto</td><td>Primera conversación real con el prospecto después del bot</td><td>Las 10, más los 4 pasos si hubo objeción</td></tr>
-<tr><td>Seguimiento</td><td>Ya hubo una llamada antes. Se retoma una cotización, una duda o una decisión</td><td>Arranca en la 4 o en la 6, según el caso (ver abajo). La 1 y la 2 se piden «ligeras». Los 4 pasos de objeción casi siempre aplican</td></tr>
-<tr><td>Cierre · agenda</td><td>Llamada corta para confirmar cita, levantamiento u hora</td><td>1, 9 y 10. El resto N/A</td></tr>
-<tr><td>Entrante · consulta</td><td>El prospecto llama con una duda puntual</td><td>1, 2, 6, 9 y 10. La 3, 4, 5 y 7 solo si el asesor aprovecha para diagnosticar</td></tr>
-<tr><td>Postventa · operativo</td><td>Instalación, CFE, garantía, gestoría. No es venta</td><td>1, 9 y 10. El resto N/A</td></tr>
-<tr><td>No contacto</td><td>Buzón, colgó, número equivocado, no era la persona</td><td>Ninguna. Todo N/A y sin nota</td></tr>
-</tbody></table></div>
+<div class="rule"><b>Solo se contestan las etapas que aplican.</b> Es normal ver una llamada con cinco o seis etapas en N/A. No es un hueco de la IA ni una llamada mal calificada, es la regla. Dentro de una etapa que sí aplica, las preguntas de la tabla son señales, no requisitos: todas «sí» son 5 ★, un «no» menor es 4, a medias es 3, un intento simbólico es 2 y no haber hecho nada es 1.</div>
 
 <h3>El seguimiento no empieza en la etapa 1</h3>
 <p>Regla de Randall, 10 de septiembre. En un seguimiento el diagnóstico ya se hizo. La llamada arranca en la etapa 4 o en la 6, y su columna vertebral son los 4 pasos de objeción, no las etapas de descubrimiento.</p>
@@ -179,20 +169,20 @@ li{margin:4px 0}
 <p>Dicho corto: en un seguimiento, no preguntar por el recibo no es un error. Ignorar que el prospecto acaba de hablar de su recibo, sí.</p>
 
 <h2 id="etapas">Las 10 etapas</h2>
-<p>La columna «resultado» es lo que se califica. Las señales son ejemplos para reconocerlo, no un guion que haya que recitar.</p>
+<p>La columna «preguntas» es lo que se contesta al calificar, una por una, mientras se oye la llamada. La columna «resultado» es lo que en realidad se califica: si el asesor lo consiguió, aunque no haya dicho la frase del guion.</p>
 <div class="tw"><table>
-<thead><tr><th>#</th><th>Etapa</th><th>Resultado que se busca</th><th>Señales de 5 ★</th><th>Señales de 1 o 2 ★</th></tr></thead>
+<thead><tr><th>#</th><th>Etapa</th><th>Preguntas que hay que responder</th><th>Aplica en</th><th>Qué cuenta como resultado</th><th>Señales de 1 o 2 ★ y topes</th></tr></thead>
 <tbody>
-<tr><td>1</td><td>Apertura</td><td>Permiso explícito para conversar</td><td>Dice su nombre y «Kenet Solar», confirma que habla con la persona correcta y pide el tiempo: «¿te agarro con un par de minutos?»</td><td>Entra al pitch sin identificarse ni pedir permiso</td></tr>
-<tr><td>2</td><td>Confianza</td><td>El prospecto se abre</td><td>Muestra que conoce el caso: «ya tengo aquí tu recibo», nombra el canal por el que llegó</td><td>Arranca de cero. Decir «un asesor te contacta» cuando quien habla es el asesor topa en 2 ★</td></tr>
-<tr><td>3</td><td>Recibo CFE</td><td>Base para dimensionar</td><td>Cita el monto o los kWh del recibo y valida si sigue siendo representativo</td><td>Vuelve a pedir el recibo que el bot ya consiguió (1 ★) o nunca menciona el consumo</td></tr>
-<tr><td>4</td><td>Necesidades</td><td>Necesidad principal identificada</td><td>Pregunta abierta («¿qué te gustaría lograr?»), pregunta si ya tiene otra cotización y escucha sin interrumpir</td><td>Da por hecha la necesidad («todos quieren ahorrar») sin preguntar</td></tr>
-<tr><td>5</td><td>Motivaciones</td><td>Motivo real de compra y urgencia</td><td>Repite el motivo con las palabras del prospecto para confirmarlo. Pregunta desde cuándo trae la idea y quién más decide</td><td>Nunca confirma el motivo. Lo da por hecho</td></tr>
-<tr><td>6</td><td>Objeciones</td><td>Barreras identificadas antes de que estallen</td><td>Provoca la objeción: «¿qué es lo que más te preocupa?»</td><td>No pregunta por dudas y la objeción aparece sola al final</td></tr>
-<tr><td>7</td><td>Calificación</td><td>Viable o descarte, con criterio</td><td>Confirma cómo paga (contado o mensualidades) y cuándo (este mes o en unos 3 meses). Detecta si esperaba algo gratis</td><td>Prepara propuesta sin saber si el prospecto puede pagarla</td></tr>
-<tr><td>8</td><td>Propuesta</td><td>Propuesta enviada o agendada</td><td>La manda en el momento y la explica. Si hay otra persona que decide, ofrece una llamada con los dos</td><td>Manda información genérica sin haber calificado, o dice «te mando algo» sin decir qué ni cuándo</td></tr>
-<tr><td>9</td><td>Cierre</td><td>Acuerdo sin ambigüedad</td><td>Resume lo acordado y ofrece dos opciones concretas: «¿te funciona mejor el jueves a las 4 o el viernes a las 5?»</td><td>«Cualquier cosa me avisas», «quedamos pendientes», «revísalo y me dices». Tope 2 ★</td></tr>
-<tr><td>10</td><td>Siguiente paso</td><td>Seguimiento que se puede rastrear</td><td>Acción específica con fecha y hora, confirmada por el prospecto, y el asesor dice que la registra</td><td>Sin fecha, o fecha que puso el asesor sin que el prospecto la confirmara</td></tr>
+<tr><td>1</td><td>Apertura</td><td>¿Dijo su nombre y «Kenet Solar»? ¿Confirmó que habla con la persona correcta? ¿Pidió tiempo o permiso («¿te agarro con un par de minutos?»)? En seguimiento: ¿se identificó y mostró que recuerda el caso?</td><td>Todos los tipos, salvo No contacto. En Seguimiento va «ligera»</td><td>Permiso explícito para conversar</td><td>Entra al pitch sin identificarse ni pedir permiso. Presentarse de cero en un seguimiento = 2</td></tr>
+<tr><td>2</td><td>Confianza</td><td>¿Mostró que ya conocía el caso («ya tengo aquí tu recibo», «llegaste por el anuncio de…»)? ¿El prospecto se abrió y contó su situación? ¿Evitó decir «un asesor te contacta» siendo él el asesor?</td><td>Primer contacto, Seguimiento y Entrante. N/A en Cierre · agenda y Postventa</td><td>El prospecto se abre</td><td>Arranca de cero. «Un asesor te contacta» siendo él el asesor = máximo 2</td></tr>
+<tr><td>3</td><td>Recibo CFE</td><td>¿Citó el monto o los kWh del recibo? ¿Preguntó si ese consumo sigue siendo representativo? ¿Evitó volver a pedir el recibo que el bot ya tenía? En entrante sin recibo: ¿levantó el consumo de alguna forma?</td><td>Primer contacto. En los demás, solo si se habló del recibo</td><td>Base para dimensionar</td><td>Nunca menciona el consumo. Volver a pedir el recibo que el bot ya consiguió = 1</td></tr>
+<tr><td>4</td><td>Necesidades</td><td>¿Hizo una pregunta abierta sobre qué quiere lograr? ¿Preguntó si ya tiene otra cotización? ¿Escuchó la respuesta sin interrumpir ni dar por hecha la necesidad?</td><td>Primer contacto y Seguimiento A. Entrante si el asesor diagnosticó</td><td>Necesidad principal identificada</td><td>Da por hecha la necesidad («todos quieren ahorrar»). Si el prospecto la abrió y el asesor la ignoró, se califica 1 o 2, nunca N/A</td></tr>
+<tr><td>5</td><td>Motivaciones</td><td>¿Preguntó por qué quiere paneles? ¿Repitió el motivo con las palabras del prospecto? ¿Preguntó desde cuándo trae la idea o para cuándo lo necesita? ¿Preguntó quién más decide?</td><td>Primer contacto y Seguimiento A. Entrante si el asesor diagnosticó</td><td>Motivo real de compra y urgencia</td><td>Nunca confirma el motivo, lo da por hecho. Si el prospecto lo abrió y el asesor lo ignoró, 1 o 2</td></tr>
+<tr><td>6</td><td>Objeciones</td><td>¿Preguntó qué le preocupa o qué lo frena antes de que la objeción saliera sola?</td><td>Primer contacto, Seguimiento A y B, Entrante</td><td>Barreras identificadas antes de que estallen</td><td>No pregunta por dudas y la objeción aparece sola al final. Peso ×2</td></tr>
+<tr><td>7</td><td>Calificación</td><td>¿Confirmó cómo va a pagar (contado o mensualidades)? ¿Y cuándo (este mes o en unos 3 meses)? ¿Detectó si esperaba algo gratis? ¿Supo todo esto antes de proponer?</td><td>Primer contacto, Seguimiento A y B. Entrante si el asesor diagnosticó</td><td>Viable o descarte, con criterio</td><td>Prepara propuesta sin saber si el prospecto puede pagarla. Si el prospecto habló de dinero y lo ignoró, 1 o 2. Peso ×2</td></tr>
+<tr><td>8</td><td>Propuesta</td><td>¿Mandó la propuesta o la dejó agendada diciendo qué y cuándo? ¿La explicó en vez de solo enviarla? Si hay otra persona que decide, ¿ofreció una llamada con los dos?</td><td>Primer contacto, Seguimiento A y B. N/A en descarte legítimo</td><td>Propuesta enviada o agendada</td><td>Información genérica sin haber calificado. «Te mando algo» sin decir qué ni cuándo = 1 o 2</td></tr>
+<tr><td>9</td><td>Cierre</td><td>¿Resumió lo acordado? ¿Ofreció dos opciones concretas de día y hora? ¿Cerró sin frase prohibida?</td><td>Todos los tipos, salvo No contacto. También en descarte</td><td>Acuerdo sin ambigüedad</td><td>«Cualquier cosa me avisas», «quedamos pendientes», «revísalo y me dices», «estamos en contacto» = máximo 2. Peso ×2</td></tr>
+<tr><td>10</td><td>Siguiente paso</td><td>¿Quedó una acción específica? ¿Tiene fecha y hora? ¿La confirmó el prospecto o la puso el asesor solo? ¿Dijo que la registra?</td><td>Todos los tipos, salvo No contacto</td><td>Seguimiento que se puede rastrear</td><td>Sin fecha, o fecha sin confirmar por el prospecto = 1 o 2. «Te marco la próxima semana» no es fecha. Peso ×3</td></tr>
 </tbody></table></div>
 
 <h3>Precisiones para no discutir al auditar</h3>
@@ -204,14 +194,15 @@ li{margin:4px 0}
 </ul>
 
 <h2 id="objecion">Los 4 pasos de objeción</h2>
-<p>Se califican solo si hubo objeción. El 74% de las llamadas la tiene. Son la columna vertebral del seguimiento.</p>
+<p>Se califican solo si hubo objeción. El 74% de las llamadas la tiene. Son la columna vertebral del seguimiento y aplican en cualquier tipo de llamada donde el prospecto haya puesto una barrera.</p>
 <div class="tw"><table>
-<thead><tr><th>Paso</th><th>Qué se califica</th><th>5 ★</th><th>1 o 2 ★</th></tr></thead>
+<thead><tr><th>Paso</th><th>Preguntas que hay que responder</th><th>Qué cuenta como resultado</th><th>Señales de 1 o 2 ★ y topes</th></tr></thead>
 <tbody>
-<tr><td>1 · Validar</td><td>Reconocer la objeción, no combatirla</td><td>«Claro, te entiendo», «totalmente válido», antes de cualquier argumento</td><td>Contraataca de inmediato, se pone a la defensiva o habla mal del competidor</td></tr>
-<tr><td>2 · Aclarar</td><td>Una pregunta que descubre la preocupación real</td><td>«¿Lo que te frena es el precio, el ahorro o el momento?»</td><td>Supone qué le preocupa y responde a la objeción equivocada</td></tr>
-<tr><td>3 · Resolver</td><td>Responder solo eso, corto y concreto</td><td>Da el dato específico (financiamiento de 3 a 24 meses, comparar contra el recibo actual) y se detiene</td><td>Repite toda la presentación, o ruega</td></tr>
-<tr><td>4 · Retomar</td><td>Volver al objetivo una vez, con un paso pequeño</td><td>Pide el recibo, la cotización o la cita después de resolver</td><td>No pide nada, o insiste después de una segunda negativa (eso es rogar: 1 ★)</td></tr>
+<tr><td>¿Hubo objeción?</td><td>¿El prospecto puso alguna barrera? Si no puso ninguna, los cuatro pasos quedan en N/A y no cuentan</td><td>Decide si los 4 pasos se califican</td><td>—</td></tr>
+<tr><td>1 · Validar</td><td>¿Reconoció la objeción («claro, te entiendo», «totalmente válido») antes de argumentar? ¿Evitó contraatacar o hablar mal del competidor?</td><td>Reconocer la objeción, no combatirla</td><td>Se pone a la defensiva. Pelear (discutir, hablar mal del competidor) = 1. Peso ×1.5</td></tr>
+<tr><td>2 · Aclarar</td><td>¿Hizo una pregunta para saber qué le preocupa de verdad (precio, ahorro, momento) antes de responder?</td><td>Una pregunta que descubre la preocupación real</td><td>Supone qué le preocupa y responde a la objeción equivocada. Peso ×1.5</td></tr>
+<tr><td>3 · Resolver</td><td>¿Respondió solo a eso, corto y con un dato concreto? ¿Se detuvo ahí?</td><td>Responder solo eso, corto y concreto</td><td>Repite toda la presentación. Rogar = 1. Peso ×1.5</td></tr>
+<tr><td>4 · Retomar</td><td>¿Pidió algo pequeño (recibo, cotización, cita) una sola vez después de resolver? ¿Evitó insistir tras una segunda negativa?</td><td>Volver al objetivo una vez, con un paso pequeño</td><td>No pide nada. Insistir después de una segunda negativa = 1. Peso ×1.5</td></tr>
 </tbody></table></div>
 <div class="rule"><b>Tope duro: «nunca pelea, nunca ruega».</b> Discutir con el prospecto o hablar mal del competidor es pelear. Insistir después de una segunda negativa clara es rogar. Cualquiera de los dos deja el paso correspondiente en 1 ★.</div>
 <p>Objeciones tipificadas y qué tan seguido aparecen hoy: otra u operativa 25%, «lo tengo que pensar» 18%, «no tengo dinero ahorita» 15%, «lo platico con mi pareja» 13%, «ya tengo otra cotización» 13%, «mándame la info por WhatsApp» 9%, «está caro» 4%.</p>
@@ -311,152 +302,15 @@ li{margin:4px 0}
 <li>Una sola vara: todas las llamadas, Kommo y HubSpot, se califican con el mismo modelo, el mismo prompt y esta misma rúbrica. Cambiar cualquiera de los tres obliga a recalibrar.</li>
 </ul>
 
-<h2 id="checklist">Checklist para auditar una llamada a mano</h2>
-<p>Para revisar una llamada con la misma vara que la IA, sin conocer la herramienta. Abre la llamada en la lista, pulsa «Notas», ten el audio a la mano y contesta en orden. Cada pregunta se responde «sí», «a medias», «no» o «no tocaba». Al final se convierte en estrellas con la tabla de abajo.</p>
-
-<div class="rule"><b>Solo se contestan las etapas que aplican.</b> El tipo de llamada decide cuáles (tabla de arriba). Las demás quedan en N/A y no cuentan. Dentro de una etapa que sí aplica, las preguntas son señales, no requisitos: todas «sí» = 5, un «no» menor = 4, a medias = 3, intento simbólico = 2, nada = 1. Los topes solo existen donde la rúbrica los marca.</div>
-
-<h3>Rúbrica rápida: las 14 preguntas en una tabla</h3>
-<div class="tw"><table>
-<thead><tr><th>#</th><th>Pregunta</th><th>Se evalúa cuando</th><th>Tope o regla dura</th></tr></thead>
-<tbody>
-<tr><td>1</td><td>Apertura: ¿dijo su nombre y «Kenet Solar»? ¿confirmó con quién habla? ¿pidió tiempo?</td><td>Siempre, salvo No contacto. En Seguimiento va «ligera»: identificarse y recordar el caso = 4</td><td>Presentarse de cero en un seguimiento = 2</td></tr>
-<tr><td>2</td><td>Confianza: ¿mostró que conoce el caso? ¿el prospecto se abrió?</td><td>Primer contacto, Seguimiento (ligera) y Entrante. N/A en Cierre · agenda y Postventa</td><td>«Un asesor te contacta» siendo él el asesor = máximo 2</td></tr>
-<tr><td>3</td><td>Recibo CFE: ¿citó monto o kWh? ¿validó que siga vigente?</td><td>Primer contacto. En Seguimiento y Entrante solo si se habló del recibo</td><td>Volver a pedir el recibo que el bot ya tenía = 1</td></tr>
-<tr><td>4</td><td>Necesidades: ¿pregunta abierta? ¿preguntó por otra cotización? ¿escuchó?</td><td>Primer contacto, Seguimiento A, Entrante si diagnosticó</td><td>Si el prospecto lo abrió y el asesor lo ignoró, se califica 1 o 2, nunca N/A</td></tr>
-<tr><td>5</td><td>Motivaciones: ¿por qué lo quiere? ¿lo repitió con sus palabras? ¿desde cuándo? ¿quién decide?</td><td>Igual que la 4</td><td>Igual que la 4</td></tr>
-<tr><td>6</td><td>Objeciones: ¿preguntó qué le preocupa antes de que la objeción saliera sola?</td><td>Primer contacto, Seguimiento A y B, Entrante</td><td>Sin tope. Peso ×2</td></tr>
-<tr><td>7</td><td>Calificación: ¿cómo paga? ¿cuándo? ¿esperaba gratis? ¿lo supo antes de proponer?</td><td>Primer contacto, Seguimiento A y B, Entrante si diagnosticó</td><td>Si el prospecto habló de dinero y el asesor lo ignoró, 1 o 2. Peso ×2</td></tr>
-<tr><td>8</td><td>Propuesta: ¿la mandó o la agendó con qué y cuándo? ¿la explicó? ¿incluyó a quien más decide?</td><td>Primer contacto, Seguimiento A y B. N/A en descarte legítimo</td><td>«Te mando algo» sin qué ni cuándo = 1 o 2</td></tr>
-<tr><td>9</td><td>Cierre: ¿resumió lo acordado? ¿ofreció dos opciones concretas?</td><td>Siempre, salvo No contacto. También en descarte</td><td>Frase prohibida («cualquier cosa me avisas», «quedamos pendientes», «revísalo y me dices», «estamos en contacto») = máximo 2. Peso ×2</td></tr>
-<tr><td>10</td><td>Siguiente paso: ¿acción específica? ¿fecha y hora? ¿la confirmó el prospecto? ¿la registra?</td><td>Siempre, salvo No contacto</td><td>Sin fecha, o fecha que puso el asesor sin confirmar = 1 o 2. «Te marco la próxima semana» no es fecha. Peso ×3</td></tr>
-<tr><td>O1</td><td>Validar: ¿reconoció la objeción antes de argumentar?</td><td>Solo si hubo objeción</td><td>Pelear (contraatacar, hablar mal del competidor) = 1. Peso ×1.5</td></tr>
-<tr><td>O2</td><td>Aclarar: ¿hizo una pregunta para saber qué lo frena de verdad?</td><td>Solo si hubo objeción</td><td>Suponer y responder a la objeción equivocada = 1 o 2. Peso ×1.5</td></tr>
-<tr><td>O3</td><td>Resolver: ¿respondió solo a eso, corto, con un dato, y se detuvo?</td><td>Solo si hubo objeción</td><td>Rogar = 1. Repetir toda la presentación = 1 o 2. Peso ×1.5</td></tr>
-<tr><td>O4</td><td>Retomar: ¿pidió algo pequeño una sola vez?</td><td>Solo si hubo objeción</td><td>Insistir tras una segunda negativa = 1. No pedir nada = 1 o 2. Peso ×1.5</td></tr>
-</tbody></table></div>
-<p>Qué aplica por tipo: Primer contacto, las 14. Seguimiento A (prospecto indefinido): 1, 2, 4 a 10 y O1 a O4. Seguimiento B (ya hay cotización): 1, 2, 6 a 10 y O1 a O4. Cierre · agenda y Postventa: 1, 9 y 10. Entrante: 1, 2, 6, 9 y 10, más 3, 4, 5 y 7 si el asesor diagnosticó. No contacto: nada.</p>
-
-<h3>Antes de calificar: ¿qué tipo de llamada es?</h3>
-<ul class="check">
-<li>¿Es la primera conversación real con el prospecto? Entonces es primer contacto y se califican las 10 etapas.</li>
-<li>¿Ya hubo una llamada antes y se retoma cotización, duda o decisión? Es seguimiento. ¿El prospecto sigue indefinido (caso A, arranca en la 4) o ya hay propuesta y solo queda la barrera (caso B, arranca en la 6)?</li>
-<li>¿Es solo para confirmar cita u hora? Cierre · agenda: se califican 1, 9 y 10.</li>
-<li>¿El prospecto llamó con una duda puntual? Entrante · consulta: 1, 2, 6, 9 y 10, y las demás solo si el asesor aprovechó para diagnosticar.</li>
-<li>¿Es instalación, CFE, garantía o gestoría? Postventa: 1, 9 y 10.</li>
-<li>¿Buzón, colgó o no era la persona? No contacto: nada se califica.</li>
-<li>¿La IA puso el mismo tipo que tú? Si el tipo está mal, todo lo demás se lee mal. Anótalo antes de seguir.</li>
-</ul>
-
-<h3>Etapa 1 · Apertura</h3>
-<ul class="check">
-<li>¿Se presentó con su nombre y dijo «Kenet Solar»?</li>
-<li>¿Confirmó que hablaba con la persona correcta?</li>
-<li>¿Pidió permiso o tiempo para conversar («¿te agarro con un par de minutos?»)?</li>
-<li>En seguimiento: ¿se identificó y mostró que recuerda el caso, sin volver a presentarse de cero?</li>
-</ul>
-
-<h3>Etapa 2 · Confianza</h3>
-<ul class="check">
-<li>¿Mostró que ya conocía el caso («ya tengo aquí tu recibo», «llegaste por el anuncio de...»)?</li>
-<li>¿El prospecto se abrió y empezó a contar su situación?</li>
-<li>¿Evitó decir «un asesor te contacta» siendo él el asesor? Si lo dijo, tope 2 ★.</li>
-</ul>
-
-<h3>Etapa 3 · Recibo CFE</h3>
-<ul class="check">
-<li>¿Citó el monto o los kWh del recibo?</li>
-<li>¿Preguntó si ese recibo sigue siendo representativo (cambió el consumo, se agregó algo)?</li>
-<li>¿Evitó volver a pedir el recibo que el bot ya había conseguido? Si lo volvió a pedir, 1 ★.</li>
-<li>En llamada entrante sin recibo: ¿levantó el consumo de alguna forma?</li>
-<li>Si nadie habló del recibo y el tipo no lo exigía: no tocaba.</li>
-</ul>
-
-<h3>Etapa 4 · Necesidades</h3>
-<ul class="check">
-<li>¿Hizo una pregunta abierta sobre qué quiere lograr el prospecto?</li>
-<li>¿Preguntó si ya tiene otra cotización?</li>
-<li>¿Escuchó la respuesta sin interrumpir ni dar por hecha la necesidad?</li>
-<li>Si el prospecto soltó lo que busca y el asesor lo ignoró: se califica, y bajo.</li>
-</ul>
-
-<h3>Etapa 5 · Motivaciones</h3>
-<ul class="check">
-<li>¿Preguntó por qué quiere paneles?</li>
-<li>¿Repitió el motivo con las palabras del prospecto para confirmarlo?</li>
-<li>¿Preguntó desde cuándo trae la idea o para cuándo lo necesita?</li>
-<li>¿Preguntó quién más decide?</li>
-</ul>
-
-<h3>Etapa 6 · Objeciones (provocarlas)</h3>
-<ul class="check">
-<li>¿Preguntó qué le preocupa o qué lo frena antes de que la objeción saliera sola?</li>
-<li>¿La objeción salió porque el asesor la buscó, o apareció al final sin que nadie la pidiera?</li>
-</ul>
-
-<h3>Etapa 7 · Calificación</h3>
-<ul class="check">
-<li>¿Confirmó cómo va a pagar (contado o mensualidades)?</li>
-<li>¿Confirmó cuándo (este mes o en unos 3 meses)?</li>
-<li>¿Detectó si el prospecto esperaba algo gratis o un programa social?</li>
-<li>¿Supo todo esto antes de preparar o mandar la propuesta?</li>
-</ul>
-
-<h3>Etapa 8 · Propuesta</h3>
-<ul class="check">
-<li>¿Mandó la propuesta en la llamada o la dejó agendada con qué y cuándo?</li>
-<li>¿La explicó, en vez de solo enviarla?</li>
-<li>Si hay otra persona que decide: ¿ofreció una llamada con los dos?</li>
-<li>¿Evitó el «te mando algo» sin decir qué ni cuándo?</li>
-<li>En descarte legítimo (fuera de zona, ya compró): no tocaba.</li>
-</ul>
-
-<h3>Etapa 9 · Cierre</h3>
-<ul class="check">
-<li>¿Resumió lo acordado?</li>
-<li>¿Ofreció dos opciones concretas de día y hora?</li>
-<li>¿Cerró sin frase prohibida («cualquier cosa me avisas», «quedamos pendientes», «revísalo y me dices», «estamos en contacto»)? Si la dijo, tope 2 ★.</li>
-</ul>
-
-<h3>Etapa 10 · Siguiente paso</h3>
-<ul class="check">
-<li>¿Quedó una acción específica?</li>
-<li>¿Tiene fecha y hora?</li>
-<li>¿El prospecto la confirmó, o la puso el asesor solo?</li>
-<li>¿El asesor dijo que la registra o la agenda?</li>
-<li>«Te marco la próxima semana» no cuenta como fecha.</li>
-</ul>
-
-<h3>Objeción · los 4 pasos (solo si hubo objeción)</h3>
-<ul class="check">
-<li>¿Hubo objeción? Si el prospecto no puso ninguna barrera, los 4 pasos no tocaban.</li>
-<li>Validar: ¿reconoció la objeción («claro, te entiendo») antes de argumentar?</li>
-<li>Aclarar: ¿hizo una pregunta para saber qué le preocupa de verdad (precio, ahorro, momento) antes de responder?</li>
-<li>Resolver: ¿respondió solo a eso, corto y con un dato concreto, y se detuvo?</li>
-<li>Retomar: ¿volvió a pedir algo pequeño (recibo, cotización, cita) una sola vez?</li>
-<li>¿Peleó (discutió, habló mal del competidor)? ¿Rogó (insistió tras una segunda negativa)? Cualquiera de los dos: 1 ★ en ese paso.</li>
-</ul>
-
-<h3>De respuestas a estrellas</h3>
-<div class="tw"><table>
-<thead><tr><th>Lo que viste</th><th>Estrellas</th></tr></thead>
-<tbody>
-<tr><td>Consiguió el resultado de la etapa y contestó «sí» a todo lo que la etapa pide detectar</td><td>5</td></tr>
-<tr><td>Consiguió el resultado, con un «no» menor (no confirmó un dato, se le pasó una repregunta)</td><td>4</td></tr>
-<tr><td>Lo intentó y quedó a medias: preguntó pero no escuchó, o sonó a cuestionario</td><td>3</td></tr>
-<tr><td>Intento simbólico. El resultado no se consiguió</td><td>2</td></tr>
-<tr><td>Había oportunidad clara y no hizo nada</td><td>1</td></tr>
-<tr><td>Nadie tocó el tema y el tipo de llamada no lo exigía</td><td>N/A</td></tr>
-</tbody></table></div>
-
-<h3>Para cerrar la auditoría</h3>
-<ul class="check">
-<li>¿Cada estrella de la IA trae una cita que sí está en el audio y sí justifica la nota? Si una cita no está o no justifica, esa llamada se reporta (rec_sid, estrella y por qué).</li>
-<li>¿Tu nota por etapa queda a 1 ★ de la de la IA en la mayoría de las preguntas?</li>
-<li>¿Tu veredicto global (Excelente, Reforzar, Requiere atención) coincide con el de la IA?</li>
-<li>¿Coincides en si dejó siguiente paso con fecha? Es la pregunta que más pesa.</li>
-<li>Si el tipo de llamada era distinto al de la IA, anótalo aparte: es el error que más desalinea todo lo demás.</li>
-</ul>
+<h2 id="auditar">Auditar a mano</h2>
+<p>Para comprobar una nota sin conocer la herramienta. Abre la llamada en la lista, pulsa «Notas» y ten el audio a la mano.</p>
+<ol>
+<li>Fija primero el tipo de llamada y compáralo con el que puso la IA. Si el tipo está mal, todo lo demás se lee mal.</li>
+<li>Recorre las preguntas de cada etapa que aplique, en la tabla de las 10 etapas, y las de los 4 pasos si hubo objeción. Lo que no aplica se queda en N/A y no cuenta.</li>
+<li>Convierte tus respuestas a estrellas con la escala: todas «sí» son 5, un «no» menor es 4, a medias 3, un intento simbólico 2 y nada 1.</li>
+<li>Revisa la evidencia. Cada estrella de la IA trae una cita. Si la cita no está en el audio o no justifica la nota, reporta esa llamada con su identificador, qué estrella y por qué.</li>
+<li>Compara. ¿Tu nota queda a 1 ★ de la de la IA en la mayoría de las preguntas? ¿Coinciden el veredicto y el «con siguiente paso»?</li>
+</ol>
 
 <p class="foot">Rúbrica v3 · Fuentes: «Llamada Comercial Kenet Solar.xlsx», diapositivas «Toda llamada tiene estructura» y «Objeción · fórmula de 4 pasos», scorecards de Gong · Datos: censo de 1,612 llamadas (11 sep 2026), FASE1_patron_ganador.md · Cualquier cambio a la rúbrica se hace en RUBRICA.md y se documenta aquí con fecha.</p>
 </main>
