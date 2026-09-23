@@ -444,7 +444,9 @@ function GraficaUna({ corte, filtros, g, onDrill, mini = false }: { corte: Corte
     : g.tipo === 'linea' || g.tipo === 'vbar' ? grupos : grupos.slice(0, tope)
   const res = resultadoDe(g)
   const sub = (x: Grupo) => (m.sub ? m.sub(x.items) : m.agg || (res && res !== 'suma' && res !== 'pct' && res !== 'acumulado') ? `${fmtN(x.n)} registro${x.n === 1 ? '' : 's'}` : undefined)
-  const ver = (x: Grupo) => onDrill?.({ titulo: `${m.label} \u00b7 ${x.label}`, filas: filasDe(corte, x.items, m), sub: filtros.rango.label })
+  // Una medida con detalle propio (la tasa) ya trae sus fechas como columnas y no cuenta alertas.
+  const propio = m.filas ? { sin: ['cuando'], alertaLabel: '', unidad: ['lead o venta', 'leads y ventas'] as [string, string] } : {}
+  const ver = (x: Grupo) => onDrill?.({ titulo: `${m.label} \u00b7 ${x.label}`, filas: filasDe(corte, x.items, m), sub: filtros.rango.label, ...propio })
   const items = vistos.map((x) => ({ label: x.label, value: x.valor, sub: sub(x) }))
   const clic = onDrill && !mini ? (i: number) => ver(vistos[i]) : undefined
   // Una cifra propia usa la misma tarjeta `.tile` que las cifras de fabrica: crece con el widget y, como
@@ -466,7 +468,7 @@ function GraficaUna({ corte, filtros, g, onDrill, mini = false }: { corte: Corte
     ) : <><div className="n">{cifra}</div><div className="l">{m.label}{g.meta ? ' · sin meta configurada' : ''}</div></>
     const clases = 'gcifra tile' + (rit ? ' t3 ritmo-' + rit.estado : '')
     return onDrill && !mini
-      ? <button type="button" className={clases + ' tbtn'} aria-label={`${m.label}: ${cifra}${rit ? `. ${pct(total, meta)}% de la meta de ${fmtMoney0(meta)}. ${rit.texto}` : ''}. Ver detalle`} onClick={() => onDrill({ titulo: m.label, filas: filasDe(corte, grupos.flatMap((x) => x.items), m), sub: filtros.rango.label })}>{dentro}</button>
+      ? <button type="button" className={clases + ' tbtn'} aria-label={`${m.label}: ${cifra}${rit ? `. ${pct(total, meta)}% de la meta de ${fmtMoney0(meta)}. ${rit.texto}` : ''}. Ver detalle`} onClick={() => onDrill({ titulo: m.label, filas: filasDe(corte, grupos.flatMap((x) => x.items), m), sub: filtros.rango.label, ...propio })}>{dentro}</button>
       : <div className={mini ? 'gcifra' : clases}>{dentro}</div>
   }
   if (g.tipo === 'dona') return (
