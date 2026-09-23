@@ -1,7 +1,7 @@
 import { Fragment, useLayoutEffect, useMemo, useRef, useState, type SyntheticEvent, useEffect } from 'react'
 import type { Corte, Crm, Embudo, Evento, Lead, LevFila, Sanciones, Usuario } from './types'
 import { CRM_LABEL } from './types'
-import { BUCKETS, PERFIL_LABEL, actividad, actividadDe, cotizado, dias, entrada, ep, eventosFiltrados, fechaCotizado, diasSinActividad, estancado, estadoActivo, ESTADO_ACTIVO, ESTANCADO_DIAS, type EstadoActivo, leadsActivosHoy, rangoVentas, metaYRitmo, metaDe, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, pasaCrm, etiquetaRango, periodoTexto, preset, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, embudoPipeline, type Fila, type FilaAsesor, type Filtros, type Perfil , type PuntoPerfil, ventasReales, ventasCrm, tipoDe, crmTexto, activo, VENDEDOR_LABEL, filasDeVentasReales, comparativaVentas, rolDestacado, rolNombre, cotizacionesGeneradas, filasDeCotizaciones, visitas, levantados, filasDeLevantamientos, fmtEstrellas, llamadasFiltradas, resumenLlamadas, conversion, filasConversion, filasConversionLeads, fmtTasa, type PorConversion } from './metrics'
+import { BUCKETS, PERFIL_LABEL, actividad, actividadDe, cotizado, dias, entrada, ep, eventosFiltrados, fechaCotizado, diasSinActividad, estancado, estadoActivo, ESTADO_ACTIVO, ESTANCADO_DIAS, type EstadoActivo, leadsActivosHoy, rangoVentas, metaYRitmo, metaDe, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, pasaCrm, etiquetaRango, periodoTexto, preset, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, embudoPipeline, type Fila, type FilaAsesor, type Filtros, type Perfil , type PuntoPerfil, ventasReales, ventasCrm, tipoDe, crmTexto, activo, VENDEDOR_LABEL, filasDeVentasReales, comparativaVentas, rolDestacado, rolNombre, cotizacionesGeneradas, filasDeCotizaciones, visitas, levantados, filasDeLevantamientos, fmtEstrellas, llamadasFiltradas, resumenLlamadas, conversion, filasConversion, filasConversionLeads, fmtTasa, fechaDe, type PorConversion } from './metrics'
 import { LlamadaModal, drillLlamadas } from './llamadas'
 import type { Llamada } from './types'
 import { BarDetailPopup, BubbleChart, Bullet, DonutChart, FunnelChart, Gauge, Info, LlamadasBar, MiniAreaChart, Scatter, SortTh, StackedBar, activar, useEscape, useOutside, type DetRow, type Sort, type BubbleCol, useFocoDialogo } from './components'
@@ -54,6 +54,13 @@ const defaultsDe = (c: Corte, fabrica: Record<string, RangoWidget>): { por: Reco
 const ORDEN_ADMIN = ['t-leads', 't-ventas', 't-vendido', 't-conversion', 't-perdida', 't-tareas', 't-cotizaciones', 't-descartes', 't-levantamientos', 'llamadas', 'calidad-llamadas', 'salud', 'pipeline', 'ranking', 'reales', 'cotiz-metodos', 'lev-operaciones', 'visitas', 'entrada', 'embudo', 'etapas', 'contacto', 'razones', 'perfiles', 'perfiles-tabla']
 const fLeads = (ls: Lead[]) => filasDeLeads(ls, () => '', undefined, { label: 'Días sin actividad', de: (l) => diasSinActividad(l) })
 const HOY = 'foto de hoy, sin importar las fechas del tablero'
+/** La tarea de seguimiento del lead (Randall 23-sep, detalle de cada etapa del embudo): sin tarea, vigente o vencida, y
+ *  cuándo vence la más próxima. En HubSpot la «tarea» es la próxima actividad del deal: no liga tareas sueltas. */
+const tareaDe = (l: Lead) => (l.tareas_abiertas === 0 ? 'Sin tarea' : l.tareas_vencidas > 0 ? 'Vencida' : 'Vigente')
+const fLeadsTarea = (ls: Lead[]) => fLeads(ls).map((f, i) => ({ ...f, extras: [
+  { label: 'Tarea de seguimiento', valor: tareaDe(ls[i]) + (ls[i].tareas_vencidas > 1 ? ` (${ls[i].tareas_vencidas} de ${ls[i].tareas_abiertas})` : '') },
+  { label: 'Vence', valor: ls[i].prox_tarea ? fmtCorta(fechaDe(ls[i].prox_tarea as number)) : '—', n: ls[i].prox_tarea || null, fecha: true },
+] }))
 const fVentas = (ls: Lead[]) => filasDeLeads(ls, (l) => (l.crm === 'comisiones' ? 'Venta registrada en la app' : 'Ganado'), (l) => l.cerrado)
 /** De dónde salen las ventas, para el pie de cada lista: la app guarda solo el mes de venta. */
 const FUENTE_VENTAS = (c: Corte) => (c.comisiones ? ' · app de comisiones, por mes de venta (día 1 = mes)' : ' · fecha = cierre')
@@ -204,7 +211,7 @@ function EmbudoCrm({ corte, filtros, leads, rango, ver, vista = 'embudo' }: { co
   const sel = opciones.find((o) => o.key === key) || opciones[0]
   if (!sel) return <div className="vacio"><b>Sin CRM</b><span>Enciende Kommo o HubSpot arriba para ver el embudo.</span></div>
   const et = embudoPipeline(leads, sel.crm, sel.tipo, corte.embudos?.[sel.crm]?.[sel.pipe])
-  const abrir = (e: (typeof et)[number]) => ver(`${e.nombre} · ${sel.label}`, e.id === -2 ? fVentas(e.leads) : fLeads(e.leads), rango)
+  const abrir = (e: (typeof et)[number]) => ver(`${e.nombre} · ${sel.label}`, e.id === -2 ? fVentas(e.leads) : fLeadsTarea(e.leads), rango)
   const rampa = sel.crm === 'hubspot' ? RAMPA_HS : RAMPA
   return (
     <>

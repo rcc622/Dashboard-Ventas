@@ -34,6 +34,8 @@ export interface Lead {
    *  (Meta Ads, Google Ads, Web orgánico, Redes orgánico, Directo, Sin origen); HubSpot = su propiedad «origen» tal cual.
    *  `contacto` = nombre del contacto en Kommo (el del lead suele ser «Lead #123»), para casar la venta de la app. */
   origen?: string; contacto?: string
+  /** Vencimiento de la tarea abierta más próxima (Kommo) o la próxima actividad del deal (HubSpot); 0 = sin tarea. */
+  prox_tarea?: number
 }
 
 export type TipoEvento = 'tarea' | 'llamada_ok' | 'llamada_no' | 'cotizacion' | 'recotizacion' | 'levantamiento' | 'descarte'

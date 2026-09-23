@@ -288,6 +288,8 @@ def build():
             L = tareas.setdefault(t["entity_id"], {"abiertas": 0, "vencidas": 0, "pc": False})
             L["abiertas"] += 1
             vence = t.get("complete_till") or 0
+            if vence and (not L.get("prox") or vence < L["prox"]):
+                L["prox"] = vence     # la más próxima (o la más vencida): la que el asesor tiene que atender primero
             vencida = bool(vence and vence < hoy)
             if vencida:
                 L["vencidas"] += 1
@@ -395,7 +397,7 @@ def build():
             "asesor_id": uid, "asesor": asesor,
             "presupuesto": num(l.get("price")), "recibo": con_recibo, "respondio": respondio,
             "funnel": funnel, "funnel_label": FUNNEL[funnel],
-            "tareas_abiertas": T["abiertas"], "tareas_vencidas": T["vencidas"], "pc_vencida": T["pc"],
+            "tareas_abiertas": T["abiertas"], "tareas_vencidas": T["vencidas"], "pc_vencida": T["pc"], "prox_tarea": T.get("prox", 0),
             "tags": tags, "dias_sin_cambio": max(0, (hoy - (l.get("updated_at") or hoy)) // 86400),
             # La ciudad vive en el CONTACTO (la deja el bot al precalificar); el «Municipio» del
             # formulario de levantamiento es el respaldo cuando el contacto no la trae (Randall 8-sep).
