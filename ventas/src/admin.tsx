@@ -257,12 +257,17 @@ function drillConversion(corte: Corte, f: Filtros, por: PorConversion | 'ventas'
     verFila: (fila) => {
       const x = cv.filas.find((y) => 'conv:' + y.clave === fila.id)
       if (!x) return
-      abrir({
+      // Switch Todos · Cerradas · Sin cierre arriba del detalle (Randall 23-sep), con el conteo de cada uno.
+      const todas = filasConversionLeads(x)
+      const ESTADOS = [{ id: '', label: 'Todos' }, { id: 'Cerrada', label: 'Cerradas' }, { id: 'Sin cierre', label: 'Sin cierre' }]
+      const detalle = (estado: string): Drill => ({
         titulo: `${x.label} · leads y cierres ${periodo}`, clave: 'conv-leads', unidad: ['lead o venta', 'leads y ventas'], alertaLabel: '', sin: por === 'asesor' ? ['asesor', 'cuando'] : ['cuando'],
         sub: `${fmtN(x.cierres.length)} cierres / ${fmtN(x.leads.length)} leads = ${fmtTasa(x.tasa)}${x.dias != null ? ` · ${fmtN(Math.round(x.dias))} días promedio de cierre (${fmtN(x.nDias)} con día de cierre)` : ''}`,
         pie: 'Primero las ventas cerradas, luego los leads asignados que no han cerrado. La fecha de cierre es el día en que el CRM marcó el lead como ganado; si la venta no se casó con su lead o el CRM no lo marcó, solo se sabe el mes de la app. Clic en el nombre abre el registro en su CRM.',
-        filas: filasConversionLeads(x), volver: { label: self.titulo, onClick: () => abrir(self) },
+        filas: estado ? todas.filter((f) => f.estado === estado) : todas, volver: { label: self.titulo, onClick: () => abrir(self) },
+        vistas: ESTADOS.map((e) => ({ label: `${e.label} (${fmtN(e.id ? todas.filter((f) => f.estado === e.id).length : todas.length)})`, on: e.id === estado, onClick: () => abrir(detalle(e.id)) })),
       })
+      abrir(detalle(''))
     },
   }
   return self
