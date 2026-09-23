@@ -75,8 +75,9 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   `CANON_HS` por id**: sin entrada, `canon()` adivina por palabra y «agendado» caería en
   «hecho».
 - **Lo que HubSpot NO sabe igual que Kommo** (aproximaciones, documentadas en
-  el docstring de `ventas_hubspot.py`): tareas por lead solo como «hay próxima
-  actividad» (`notes_next_activity_date`: 1 abierta, vencida si ya pasó);
+  el docstring de `ventas_hubspot.py`): tareas por lead = las tareas abiertas ligadas por asociaciones
+  (tarea → deal o tarea → contacto → deal, `ligar_tareas`, 23-sep; ~68 % se liga) y, sin ninguna ligada, la próxima
+  actividad (`notes_next_activity_date`, que NO guarda las atrasadas: por eso antes nunca salía «vencida»);
   cotización/levantamiento solo del deal que HOY está en esa etapa (el portal
   no tiene `hs_date_entered_*`); recibo/mensajes no existen. Llamada contestada
   = `COMPLETED` o duración > 0. La búsqueda de HubSpot se corta en 10,000
@@ -515,6 +516,9 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
     propiedad `origen` tal cual (Wapp-FB, Referido, Web Form…). Son DOS vocabularios y no se mezclan a mano. En un
     corte viejo de HubSpot sale de `tags[0]`. Kommo también trae `contacto` (nombre del contacto) para el casado.
   - Prueba: `node ventas/check_conversion.mjs` (esbuild empaqueta metrics y constructor con un corte de juguete).
+- **Tarea de seguimiento en el detalle de cada etapa del embudo** (Randall 23-sep): columnas «Tarea de seguimiento»
+  (Sin tarea / Vigente / Vencida, con «(2 de 3)» si hay varias vencidas) y «Vence» (`Lead.prox_tarea`: la tarea abierta
+  más próxima en Kommo; en HubSpot la de las tareas ligadas o la próxima actividad). Solo en `fLeadsTarea` del embudo.
 - **«Resultado» en el constructor** (Randall 22-sep: «el resultado que espero obtener con el cruce de datos… como tablas
   dinámicas»). `Grafica.resultado`: Suma (Total en medidas de conteo) · Conteo de registros · Promedio · Mediana ·
   Mínimo · Máximo · % del total · Acumulado. `resultadosDe(ids, dim, tipo)` decide qué se ofrece: promedio, mediana,

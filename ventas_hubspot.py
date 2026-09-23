@@ -94,6 +94,51 @@ def num(v):
         return 0.0
 
 
+def asociaciones(de, a, ids):
+    """{id de `de`: [ids de `a`]} por la API de asociaciones v4, de a 1000. Si un lote falla se avisa y se sigue."""
+    out = {}
+    for i in range(0, len(ids), 1000):
+        try:
+            d = h._req("POST", "/crm/v4/associations/%s/%s/batch/read" % (de, a), {"inputs": [{"id": x} for x in ids[i:i + 1000]]})
+        except SystemExit as e:
+            print("aviso: asociaciones %s → %s: %s" % (de, a, str(e)[:120]))
+            continue
+        for r in d.get("results", []):
+            out[str(r["from"]["id"])] = [str(x["toObjectId"]) for x in r.get("to", [])]
+    return out
+
+
+def ligar_tareas(abiertas, leads):
+    """Tarea de seguimiento por deal (Randall 23-sep, detalle de las etapas del embudo). Una tarea de HubSpot cuelga del
+    deal (~35 %) o solo del contacto: se liga tarea → deal y, si no, tarea → contacto → deal, y se cuenta en los deals del
+    corte. Así «vencida» es verdad: la próxima actividad del deal (`notes_next_activity_date`) solo guarda lo que viene, y
+    un deal con la tarea atrasada salía «sin tarea». Sin tareas ligadas se queda la próxima actividad como estaba."""
+    por_id = {l["id"]: l for l in leads}
+    tids = [t["id"][2:] for t in abiertas]
+    t2d = asociaciones("tasks", "deals", tids)
+    t2c = asociaciones("tasks", "contacts", [x for x in tids if not any(("h:" + d) in por_id for d in t2d.get(x, []))])
+    c2d = asociaciones("contacts", "deals", sorted({c for cs in t2c.values() for c in cs}))
+    por_deal, ligadas = {}, 0
+    for t in abiertas:
+        tid = t["id"][2:]
+        deals = [d for d in t2d.get(tid, []) if ("h:" + d) in por_id] \
+            or [d for c in t2c.get(tid, []) for d in c2d.get(c, []) if ("h:" + d) in por_id]
+        if not deals:
+            continue
+        ligadas += 1
+        l0 = por_id["h:" + deals[0]]
+        t.update(lead=l0["id"], lead_nombre=l0["nombre"], link=l0["link"])
+        for d in set(deals):
+            por_deal.setdefault("h:" + d, []).append(t)
+    for lid, ts in por_deal.items():
+        l = por_id[lid]
+        l["tareas_abiertas"] = len(ts)
+        l["tareas_vencidas"] = sum(1 for t in ts if t["vencida"])
+        l["prox_tarea"] = min(t["vence"] for t in ts if t["vence"]) if any(t["vence"] for t in ts) else l.get("prox_tarea", 0)
+        l["sin_tarea"] = False
+    print("hubspot: tareas abiertas ligadas a un deal del corte %d de %d · %d deals con tarea" % (ligadas, len(abiertas), len(por_deal)))
+
+
 def buscar(obj, prop, ini, fin, props, extra=None, paso=30):
     """search paginado por ventanas de `paso` días: la búsqueda de HubSpot se corta
     en 10,000 resultados por consulta y las tareas pasan de ahí a 90 días."""
@@ -252,6 +297,7 @@ def build():
                          "texto": (p.get("hs_task_subject") or "").strip(), "tipo": TIPO_TAREA.get(p.get("hs_task_type"), "Tarea"),
                          "vence": vence, "vencida": bool(vence and vence < hoy), "link": ""})
     print("hubspot: tareas abiertas %d" % len(abiertas))
+    ligar_tareas(abiertas, leads)
 
     eventos = [e for e in eventos if e["ts"]]
     usuarios = {oid: {"nombre": o["nombre"], "zona": o.get("zona", "")} for oid, o in own.items() if oid in usados}
