@@ -123,12 +123,12 @@ def deals_de(objeto, ids, por_id):
     return out
 
 
-def ligar_llamadas(llamadas, leads):
+def ligar_llamadas(llamadas, leads, objeto="calls"):
     """Cada llamada de HubSpot a su deal (Randall 24-sep: llamadas de «Conversación iniciada» y de cada etapa). Sin esto
     el evento traía `lead: ""` y nadie sabía a qué lead se le llamó. Si cuelga de varios deals del contacto, va al más
     reciente (el que se está trabajando)."""
     por_id = {l["id"]: l for l in leads}
-    a_deal = deals_de("calls", [c for c, _ in llamadas], por_id)
+    a_deal = deals_de(objeto, [c for c, _ in llamadas], por_id)
     n = 0
     for cid, ev in llamadas:
         deals = a_deal.get(cid)
@@ -137,7 +137,7 @@ def ligar_llamadas(llamadas, leads):
         l = max((por_id["h:" + d] for d in deals), key=lambda x: x.get("asignacion") or 0)
         ev.update(lead=l["id"], asignacion=l.get("asignacion") or 0)
         n += 1
-    print("hubspot: llamadas ligadas a un deal del corte %d de %d" % (n, len(llamadas)))
+    print("hubspot: %s ligadas a un deal del corte %d de %d" % ("llamadas" if objeto == "calls" else "tareas completadas", n, len(llamadas)))
 
 
 def ligar_tareas(abiertas, leads):
@@ -303,17 +303,21 @@ def build():
     print("hubspot: llamadas %d" % n_ll)
     ligar_llamadas(llamadas, leads)
 
-    n_t = 0
+    # Tareas completadas también al deal (Randall 24-sep: tareas por lead en el detalle de la conversión).
+    n_t, hechas = 0, []
     for t in buscar("tasks", "hs_task_completion_date", desde, hoy + 86400, ["hs_task_completion_date", "hubspot_owner_id"],
                     extra=[{"propertyName": "hs_task_status", "operator": "EQ", "value": "COMPLETED"}], paso=10):
         p = t["properties"]
         uid = p.get("hubspot_owner_id") or None
-        eventos.append({"ts": seg(p.get("hs_task_completion_date")), "tipo": "tarea", "asesor_id": uid,
-                        "lead": "", "asignacion": 0, "embudo": "ventas", "crm": "hubspot"})
+        ev = {"ts": seg(p.get("hs_task_completion_date")), "tipo": "tarea", "asesor_id": uid,
+              "lead": "", "asignacion": 0, "embudo": "ventas", "crm": "hubspot"}
+        eventos.append(ev)
+        hechas.append((t["id"], ev))
         if uid:
             usados.add(str(uid))
         n_t += 1
     print("hubspot: tareas completadas %d" % n_t)
+    ligar_llamadas(hechas, leads, "tasks")
 
     abiertas = []
     for t in buscar("tasks", "hs_timestamp", desde, hoy + 14 * 86400, ["hs_timestamp", "hs_task_subject", "hs_task_type", "hubspot_owner_id"],

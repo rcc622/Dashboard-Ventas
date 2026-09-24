@@ -578,6 +578,22 @@ export function salud(leads: Lead[]): Salud {
 export interface EtapaEmbudo { id: number; nombre: string; n: number; monto: number; dias: number; acumulado: number; leads: Lead[]
   /** Llamadas del CRM a los leads de la etapa (junta 23-sep) y cuántos de esos leads tienen al menos una. */
   llamadas?: number; conLlamada?: number }
+/** Actividad del CRM por lead en la ventana del corte (90 días): tareas completadas y llamadas contestadas / no
+ *  contestadas (Randall 24-sep, detalle de la conversión). HubSpot las liga al deal por asociaciones. */
+export interface ActLead { tareas: number; ok: number; no: number }
+const _act = new WeakMap<Corte, Map<string, ActLead>>()
+export function actividadPorLead(c: Corte): Map<string, ActLead> {
+  let m = _act.get(c)
+  if (m) return m
+  m = new Map()
+  for (const e of c.eventos) {
+    if (!e.lead || (e.tipo !== 'tarea' && e.tipo !== 'llamada_ok' && e.tipo !== 'llamada_no')) continue
+    let a = m.get(e.lead); if (!a) { a = { tareas: 0, ok: 0, no: 0 }; m.set(e.lead, a) }
+    if (e.tipo === 'tarea') a.tareas++; else if (e.tipo === 'llamada_ok') a.ok++; else a.no++
+  }
+  _act.set(c, m)
+  return m
+}
 const _llamadas = new WeakMap<Corte, Map<string, number>>()
 /** Llamadas registradas en el CRM por lead, en toda la ventana del corte (90 días), contestadas o no. HubSpot las liga
  *  al deal por asociaciones desde el 24-sep; una llamada sin lead no cuenta para nadie. */
@@ -698,7 +714,7 @@ export function porAsesor(c: Corte, f: Filtros): FilaAsesor[] {
     filas.push({
       u, tipo: tipoDe(c, u), ventas: vt.length, montoVentas,
       asignados: mios, ganados: mios.filter((l) => l.funnel === 5).length, perdidos: mios.filter((l) => l.funnel === 0).length,
-      asignadosVentas: leadsV === leads ? mios.length : leadsV.filter((l) => l.asesor_id === u.id).length,
+      asignadosVentas: (leadsV === leads ? mios : leadsV.filter((l) => l.asesor_id === u.id)).filter(baseCierre).length,
       metaMes, metaRango, rangoMeta: rm, esperado, ritmo: rit,
       leadsActivos: activos, presupuesto: activos.reduce((s, l) => s + l.presupuesto, 0),
       cotizado: cotizado(activos, c.cotizado_dias), estancados: activos.filter((l) => estancado(l)).length,
@@ -948,6 +964,9 @@ export function ventasCasadas(c: Corte): Map<string, VentaCasada> {
 /** El origen del lead: el del corte o, en un corte viejo de HubSpot, la etiqueta que lo guardaba. */
 export const origenDe = (l: Lead) => l.origen || (l.crm === 'hubspot' && l.tags[0]) || 'Sin origen'
 export const SIN_LEAD = 'Venta sin lead en el CRM'
+/** Base del % de cierre / conversión (Randall 24-sep: «no cuentes los closed lost o perdidos, esos son descartados»):
+ *  leads asignados menos los perdidos. Toda tasa de conversión del tablero usa esta base. */
+export const baseCierre = (l: Lead) => l.funnel !== 0
 export type PorConversion = 'asesor' | 'origen'
 /** Canal del origen (junta 23-sep): no digital = referidos, cambaceo, expo, directo, expansión y también lo que no
  *  dice origen (Randall 24-sep: «sin origen que se vaya a no digital, que no se pierda»); digital = lo que entra por
@@ -983,7 +1002,7 @@ export function cierresDe(c: Corte, f: Filtros): VentaCasada[] {
  *  tarjeta «Conversión»: los MESES que toca el rango, porque la app de comisiones guarda el mes de la venta, no el día. */
 export function conversion(c: Corte, f: Filtros, por: PorConversion, clase?: ClaseOrigen): Conversion {
   const rango = rangoVentas(c, f.rango), ff = { ...f, rango }, users = mapaUsuarios(c)
-  let leads = leadsFiltrados(c, ff), cierres = cierresDe(c, ff)
+  let leads = leadsFiltrados(c, ff).filter(baseCierre), cierres = cierresDe(c, ff)
   // Por canal: el lead por su origen; una venta sin lead casado, por el origen que capturó la app.
   if (clase) {
     leads = leads.filter((l) => claseOrigen(origenDe(l)) === clase)
@@ -1031,12 +1050,17 @@ export function filasConversion(cv: Conversion): Fila[] {
 export const nombreLead = (l: Lead) => (/^lead #\d+$/i.test((l.nombre || '').trim()) && l.contacto ? l.contacto : l.nombre || l.id)
 /** Los leads de un renglón, uno por fila: primero los que cerraron (con su fecha y sus días de cierre), luego los
  *  asignados que no han cerrado. Una venta sin lead casado aparece con el nombre del cliente de la app. */
-export function filasConversionLeads(x: FilaConv): Fila[] {
+export function filasConversionLeads(x: FilaConv, act?: Map<string, ActLead>): Fila[] {
   const cerrados = new Set<string>()
+  // Tareas y llamadas del lead (Randall 24-sep); una venta sin lead en el CRM no tiene de dónde sacarlas.
+  const cuenta = (label: string, n: number | null) => ({ label, valor: n == null ? '—' : fmtN(n), n })
+  const actDe = (l: Lead | null) => { const a = l ? act?.get(l.id) ?? { tareas: 0, ok: 0, no: 0 } : null
+    return act ? [cuenta('Tareas completadas', a && a.tareas), cuenta('Llamadas realizadas', a && a.ok + a.no), cuenta('Contestadas', a && a.ok), cuenta('No contestadas', a && a.no)] : [] }
   const ext = (asig: number | undefined, origen: string, cierre: string, n: number | null, dias: number | null, l: Lead | null) => [
     { label: 'Fecha de asignación', valor: asig ? fmtCorta(fechaDe(asig)) : '—', n: asig || null, fecha: true },
     { label: 'Origen', valor: origen },
     { label: 'Levantamiento', valor: levDe(l).txt, tono: conLev(l) ? undefined : 'nada' as const },
+    ...actDe(l),
     { label: 'Fecha de cierre', valor: cierre, n, fecha: true },
     { label: 'Días de cierre', valor: fmtDias(dias), n: dias },
   ]

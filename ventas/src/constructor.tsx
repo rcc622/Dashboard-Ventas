@@ -5,8 +5,7 @@ import { CRM_LABEL } from './types'
 import {
   cotizadoVigenteDe, enRango, etapaDe, fechaDe, filasDeEventos, filasDeLeads, filasDeVentasReales, fmtCorta, fmtMoney0, fmtN,
   PRESETS, ep, inicioDia, mapaUsuarios, metaEnRango, metaTotal, estancado, ESTANCADO_DIAS, primeraAparicion, ocultosDe, pasaCrm, pct, periodoTexto, porAsesor, primerContacto, ritmo, visitas, vivo, zonaNombre, type Filtros,
-  realesDe, ventasFiltradas, leadsActivosHoy, cierresDe, origenDe, SIN_LEAD, filasConversionLeads, fmtTasa, leadsFiltrados, rangoVentas, type Fila, type VentaCasada,
-} from './metrics'
+  realesDe, ventasFiltradas, leadsActivosHoy, cierresDe, origenDe, SIN_LEAD, filasConversionLeads, fmtTasa, leadsFiltrados, rangoVentas, type Fila, type VentaCasada, baseCierre } from './metrics'
 import { BarChart, BarDetailPopup, Bullet, DonutChart, HBarList, LineChart, useEscape, useFocoDialogo, type BarItem, type DetRow, type Modo } from './components'
 import type { Drill } from './drill'
 import { BASE_FECHA, type BaseFecha } from './columnas'
@@ -80,7 +79,7 @@ const DIMS_CONV = ['asesor', 'equipo', 'origen_lead', 'crm', 'ciudad', 'mes', 'b
 function itemsConversion(c: Corte, f: Filtros): Item[] {
   const ff = { ...f, rango: rangoVentas(c, f.rango) }
   return [
-    ...leadsFiltrados(c, ff).map((l) => ({ v: 0, v2: 1, lead: l })),
+    ...leadsFiltrados(c, ff).filter(baseCierre).map((l) => ({ v: 0, v2: 1, lead: l })),
     ...cierresDe(c, ff).map((x) => ({ v: 1, v2: 0, vc: x, lead: x.lead ?? undefined, vr: x.v ?? undefined })),
   ]
 }

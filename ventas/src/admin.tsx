@@ -1,7 +1,7 @@
 import { Fragment, useLayoutEffect, useMemo, useRef, useState, type SyntheticEvent, useEffect } from 'react'
 import type { Corte, Crm, Embudo, Evento, Lead, LevFila, Sanciones, Usuario } from './types'
 import { CRM_LABEL } from './types'
-import { BUCKETS, PERFIL_LABEL, actividad, actividadDe, cotizado, dias, entrada, ep, eventosFiltrados, fechaCotizado, diasSinActividad, estancado, estadoActivo, ESTADO_ACTIVO, ESTANCADO_DIAS, type EstadoActivo, leadsActivosHoy, rangoVentas, metaYRitmo, metaDe, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, pasaCrm, etiquetaRango, periodoTexto, preset, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, embudoPipeline, type Fila, type FilaAsesor, type Filtros, type Perfil , type PuntoPerfil, ventasReales, ventasCrm, tipoDe, crmTexto, activo, VENDEDOR_LABEL, filasDeVentasReales, comparativaVentas, rolDestacado, rolNombre, cotizacionesGeneradas, filasDeCotizaciones, visitas, levantados, filasDeLevantamientos, fmtEstrellas, llamadasFiltradas, resumenLlamadas, conversion, filasConversion, filasConversionLeads, fmtTasa, fechaDe, llamadasPorLead, type PorConversion, type FilaConv, type ClaseOrigen, CLASE_LABEL } from './metrics'
+import { BUCKETS, PERFIL_LABEL, actividad, actividadDe, cotizado, dias, entrada, ep, eventosFiltrados, fechaCotizado, diasSinActividad, estancado, estadoActivo, ESTADO_ACTIVO, ESTANCADO_DIAS, type EstadoActivo, leadsActivosHoy, rangoVentas, metaYRitmo, metaDe, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, pasaCrm, etiquetaRango, periodoTexto, preset, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, embudoPipeline, type Fila, type FilaAsesor, type Filtros, type Perfil , type PuntoPerfil, ventasReales, ventasCrm, tipoDe, crmTexto, activo, VENDEDOR_LABEL, filasDeVentasReales, comparativaVentas, rolDestacado, rolNombre, cotizacionesGeneradas, filasDeCotizaciones, visitas, levantados, filasDeLevantamientos, fmtEstrellas, llamadasFiltradas, resumenLlamadas, conversion, filasConversion, filasConversionLeads, fmtTasa, fechaDe, llamadasPorLead, actividadPorLead, baseCierre, type PorConversion, type FilaConv, type ClaseOrigen, CLASE_LABEL } from './metrics'
 import { LlamadaModal, drillLlamadas } from './llamadas'
 import type { Llamada } from './types'
 import { BarDetailPopup, BubbleChart, Bullet, DonutChart, FunnelChart, Gauge, Info, LlamadasBar, MiniAreaChart, Scatter, SortTh, StackedBar, activar, useEscape, useOutside, type DetRow, type Sort, type BubbleCol, useFocoDialogo } from './components'
@@ -260,9 +260,9 @@ function drillConversion(corte: Corte, f: Filtros, por: PorConversion | 'ventas'
   const periodo = periodoTexto(cv.rango)
   // Con canal (digital / no digital) no hay «Lista de ventas»: una venta de la app sin lead no siempre dice su origen.
   const vistas = VISTAS_CONV.filter((x) => !clase || x.id !== 'ventas').map((x) => ({ label: x.label, on: x.id === por, onClick: () => abrir(drillConversion(corte, f, x.id, abrir, clase)) }))
-  const sub = `${fmtN(cv.cierres.length)} cierres / ${fmtN(cv.leads.length)} leads asignados ${periodo} = ${fmtTasa(cv.leads.length ? cv.cierres.length / cv.leads.length : null)}`
+  const sub = `${fmtN(cv.cierres.length)} cierres / ${fmtN(cv.leads.length)} leads asignados sin perdidos ${periodo} = ${fmtTasa(cv.leads.length ? cv.cierres.length / cv.leads.length : null)}`
   if (por === 'ventas') return { titulo: 'Ventas que cuentan en la conversión', filas: fVentas(ventasFiltradas(corte, f)), sub, vistas }
-  const pie = `Tasa = cierres entre leads asignados en los meses que toca el rango (la app de comisiones guarda el mes de la venta, no el día). `
+  const pie = `Tasa = cierres entre leads asignados en los meses que toca el rango, SIN los perdidos: un lead descartado no cuenta (la app de comisiones guarda el mes de la venta, no el día). `
     + `Días de cierre = de la asignación del lead al día en que el CRM lo marcó ganado: ${fmtN(cv.casadas)} de ${fmtN(cv.cierres.length)} ventas se casaron con su lead `
     + `y ${fmtN(cv.conDias)} tienen ese día. ${por === 'origen' && !clase ? 'Una venta sin lead casado no tiene origen y va en su propio renglón, sin tasa. ' : ''}`
     + (clase ? `Solo ${CLASE_LABEL[clase]}: ${clase === 'digital' ? 'Meta Ads, Google Ads, TikTok, Wapp-FB, Web Form, web y redes orgánicas, WhatsApp' : 'referidos, cambaceo, expo, directo, expansión y sin origen'}; los leads sin origen también cuentan aquí para no perderse. Una venta sin lead casado cuenta por el origen que capturó la app. Digital + no digital = la conversión total. ` : '')
@@ -273,22 +273,22 @@ function drillConversion(corte: Corte, f: Filtros, por: PorConversion | 'ventas'
     filas: filasConversion(cv),
     verFila: (fila) => {
       const x = cv.filas.find((y) => 'conv:' + y.clave === fila.id)
-      if (x) abrir(drillLeadsConv(x, periodo, por, abrir, { label: self.titulo, onClick: () => abrir(self) }))
+      if (x) abrir(drillLeadsConv(corte, x, periodo, por, abrir, { label: self.titulo, onClick: () => abrir(self) }))
     },
   }
   return self
 }
 /** Los leads y cierres de UN renglón de la conversión (un asesor o un origen), con el switch Todos · Cerradas · Sin
  *  cierre (Randall 23-sep). Lo abren la tabla de conversión y el «Porcentaje de cierre» de la ficha: mismo detalle. */
-function drillLeadsConv(x: FilaConv, periodo: string, por: PorConversion, abrir: (d: Drill) => void, volver?: Drill['volver'], estado = ''): Drill {
-  const todas = filasConversionLeads(x)
+function drillLeadsConv(corte: Corte, x: FilaConv, periodo: string, por: PorConversion, abrir: (d: Drill) => void, volver?: Drill['volver'], estado = ''): Drill {
+  const todas = filasConversionLeads(x, actividadPorLead(corte))
   const ESTADOS = [{ id: '', label: 'Todos' }, { id: 'Cerrada', label: 'Cerradas' }, { id: 'Sin cierre', label: 'Sin cierre' }]
   return {
     titulo: `${x.label} · leads y cierres ${periodo}`, clave: 'conv-leads', unidad: ['lead o venta', 'leads y ventas'], alertaLabel: '', sin: por === 'asesor' ? ['asesor', 'cuando'] : ['cuando'],
     sub: `${fmtN(x.cierres.length)} cierres / ${fmtN(x.leads.length)} leads = ${fmtTasa(x.tasa)}${x.dias != null ? ` · ${fmtN(Math.round(x.dias))} días promedio de cierre (${fmtN(x.nDias)} con día de cierre)` : ''}`,
-    pie: 'Primero las ventas cerradas, luego los leads asignados que no han cerrado. La fecha de cierre es el día en que el CRM marcó el lead como ganado; si la venta no se casó con su lead o el CRM no lo marcó, solo se sabe el mes de la app. Clic en el nombre abre el registro en su CRM.',
+    pie: 'Primero las ventas cerradas, luego los leads asignados que no han cerrado. Tareas y llamadas = las que el CRM registró en ese lead en los últimos 90 días. La fecha de cierre es el día en que el CRM marcó el lead como ganado; si la venta no se casó con su lead o el CRM no lo marcó, solo se sabe el mes de la app. Clic en el nombre abre el registro en su CRM.',
     filas: estado ? todas.filter((f) => f.estado === estado) : todas, volver,
-    vistas: ESTADOS.map((e) => ({ label: `${e.label} (${fmtN(e.id ? todas.filter((f) => f.estado === e.id).length : todas.length)})`, on: e.id === estado, onClick: () => abrir(drillLeadsConv(x, periodo, por, abrir, volver, e.id)) })),
+    vistas: ESTADOS.map((e) => ({ label: `${e.label} (${fmtN(e.id ? todas.filter((f) => f.estado === e.id).length : todas.length)})`, on: e.id === estado, onClick: () => abrir(drillLeadsConv(corte, x, periodo, por, abrir, volver, e.id)) })),
   }
 }
 
@@ -305,7 +305,8 @@ function datosDe(corte: Corte, f: Filtros) {
   // Las ventas de la app van por MES: el periodo que de verdad cubren (y la base de la conversión) son los meses
   // que toca el rango (`rangoVentas`), no sus días. Sin app es el rango tal cual.
   const rv = rangoVentas(corte, f.rango)
-  const leadsVentas = rv.ini === f.rango.ini && rv.fin === f.rango.fin ? leads : leadsFiltrados(corte, { ...f, rango: rv })
+  // Base de la conversión = asignados SIN los perdidos (Randall 24-sep), igual que `conversion()`.
+  const leadsVentas = (rv.ini === f.rango.ini && rv.fin === f.rango.fin ? leads : leadsFiltrados(corte, { ...f, rango: rv })).filter(baseCierre)
   // Cotizado vigente y activos son foto de HOY (Randall 11-sep), igual que en la tabla de Asesores.
   const activosHoy = leadsActivosHoy(corte, f)
   return {
@@ -385,7 +386,7 @@ function widgetsTablero(corte: Corte, filtros: Filtros, d: Datos, ax: Acciones):
     W('t-vendido', 'Avance contra la meta', <TileAvance monto={monto} metaRango={metaRango} rit={rit} periodo={periodoV} onClick={verVendido} />,
       { plain: true, span: 1, alto: 6, minAlto: 6, cls: 'wtile', info: ['Ritmo'], desde: 'cifras', base: 'cierre' }),   // 6 filas: medidor, frase del ritmo y avance contra el día
     W('t-conversion', 'Conversión ventas / asignados', (
-        <button type="button" className="tile tbtn t4" onClick={() => abrir(drillConversion(corte, filtros, 'asesor', abrir))} aria-label={`Conversión ${leadsVentas.length ? pct(ventas.length, leadsVentas.length) + '%' : 'sin dato'}. Ver detalle`}><div className="n">{leadsVentas.length ? pct(ventas.length, leadsVentas.length) + '%' : '—'}</div><div className="l">Ventas cerradas entre leads asignados {periodoV}</div></button>
+        <button type="button" className="tile tbtn t4" onClick={() => abrir(drillConversion(corte, filtros, 'asesor', abrir))} aria-label={`Conversión ${leadsVentas.length ? pct(ventas.length, leadsVentas.length) + '%' : 'sin dato'}. Ver detalle`}><div className="n">{leadsVentas.length ? pct(ventas.length, leadsVentas.length) + '%' : '—'}</div><div className="l">Ventas cerradas entre leads asignados sin perdidos {periodoV}</div></button>
     ), { plain: true, span: 1, alto: 4, cls: 'wtile', info: ['Conversión'], desde: 'cifras' }),
     // La misma conversión partida por canal del origen (junta 23-sep); la de arriba sigue juntando los dos.
     ...(['digital', 'nodigital'] as const).map((k) => {
@@ -395,7 +396,7 @@ function widgetsTablero(corte: Corte, filtros: Filtros, d: Datos, ax: Acciones):
       // encontraba (Randall 24-sep); con id nuevo entran de nuevo, ahora pegadas a «Conversión» (`junto`).
       return W(k === 'digital' ? 't-conv-dig' : 't-conv-nodig', titulo, (
         <button type="button" className="tile tbtn t4" onClick={() => abrir(drillConversion(corte, filtros, 'asesor', abrir, k))} aria-label={`${titulo}: ${t}, ${fmtN(cv.cierres.length)} cierres de ${fmtN(n)} leads. Ver detalle`}>
-          <div className="n">{t}</div><div className="l">{k === 'digital' ? 'Origen digital' : 'Origen no digital'}: {fmtN(cv.cierres.length)} cierres de {fmtN(n)} leads asignados {periodoTexto(cv.rango)}</div></button>
+          <div className="n">{t}</div><div className="l">{k === 'digital' ? 'Origen digital' : 'Origen no digital'}: {fmtN(cv.cierres.length)} cierres de {fmtN(n)} leads asignados sin perdidos {periodoTexto(cv.rango)}</div></button>
       ), { plain: true, span: 1, alto: 4, cls: 'wtile', info: [k === 'digital' ? 'Conversión digital' : 'Conversión no digital'], junto: k === 'digital' ? 't-conversion' : 't-conv-dig' })
     }),
     W('t-perdida', 'Tasa de pérdida', (
@@ -1367,9 +1368,9 @@ export function Ficha({ corte, filtros, uid, onBack, puedeEditar = true }: { cor
     wg('cierre', 'Porcentaje de cierre', (
       <button type="button" className={'tile tbtn t4 ritmo-' + (ZT >= META_CIERRE ? 'cumplida' : 'atras')}
         aria-label={`Porcentaje de cierre ${Math.round(ZT * 100)}%, meta ${Math.round(META_CIERRE * 100)}%. Ver sus leads y cierres`}
-        onClick={() => ZC && setDrill(drillLeadsConv(ZC, periodoTexto(ZCV.rango), 'asesor', setDrill))}>
+        onClick={() => ZC && setDrill(drillLeadsConv(corte, ZC, periodoTexto(ZCV.rango), 'asesor', setDrill))}>
         <div className="n">{Math.round(ZT * 100)}%</div>
-        <div className="l">{fmtN(ZC?.cierres.length ?? 0)} cerrados de {fmtN(ZC?.leads.length ?? 0)} leads asignados {Z.periodoV}</div>
+        <div className="l">{fmtN(ZC?.cierres.length ?? 0)} cerrados de {fmtN(ZC?.leads.length ?? 0)} leads asignados sin perdidos {Z.periodoV}</div>
         <Bullet value={ZT} target={META_CIERRE} label="Porcentaje de cierre" fmt={(n) => Math.round(n * 100) + '%'} />
         <div className="rt">Meta: {Math.round(META_CIERRE * 100)}%</div>
       </button>

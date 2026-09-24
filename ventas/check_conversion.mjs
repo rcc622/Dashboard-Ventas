@@ -85,4 +85,8 @@ for (const o of ['Sin origen', '', null, 'OTRO']) assert.equal(M.claseOrigen(o),
 const rr = { ini: Date.UTC(2026, 8, 1) / 1000 + 6 * 3600, fin: Date.UTC(2026, 9, 1) / 1000 + 6 * 3600, label: 'sep' }
 const rt = M.ritmo(300000, 1000000, rr, rr.ini + 14.5 * 86400)
 assert.equal(rt.pctPeriodo, 50); assert.equal(rt.pctMeta, 30); assert.equal(Math.round(rt.proyeccion), 600000)
+// Perdidos fuera de la base (Randall 24-sep)
+const perdido = { ...corte.leads.find((l) => l.asesor_id === 'marco-perez'), id: 'k:999', funnel: 0 }
+const pp = M.conversion({ ...corte, leads: [...corte.leads, perdido] }, f, 'asesor')
+assert.equal(pp.leads.length, pa.leads.length); assert.ok(!pp.leads.some((l) => l.id === 'k:999'))
 console.log('check_conversion: ok')
