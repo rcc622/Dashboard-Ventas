@@ -30,7 +30,7 @@ export interface Widget { id: string; titulo: string; nodo: ReactNode; span?: nu
 /** Lo que la página presta para las gráficas propias (constructor.tsx): dibujarlas, la galería y el editor. */
 export interface Constructor {
   render: (g: Grafica) => ReactNode
-  galeria: (p: { quitados: Widget[]; onAgregar: (id: string) => void; onCrear: (g: Grafica) => void; onClose: () => void }) => ReactNode
+  galeria: (p: { quitados: Widget[]; enTablero: { id: string; titulo: string }[]; onIr: (id: string) => void; onAgregar: (id: string) => void; onCrear: (g: Grafica) => void; onClose: () => void }) => ReactNode
   editor: (p: { g: Grafica; onGuardar: (g: Grafica) => void; onClose: () => void }) => ReactNode
 }
 export interface Pos { x: number; y: number; w: number; h: number }
@@ -426,6 +426,12 @@ export function WidgetGrid({ clave, widgets, taller: ctor, fechas, compartible, 
     try { localStorage.removeItem(KEY(clave)) } catch { /* nada */ } guardarEnLaCuenta(clave, null); setLayout(inicial(clave, widgets)); setTocado(false); setMsg('Tablero restablecido en todos tus dispositivos')
   }
   const quitados = layout.ocultos.filter((id) => por.has(id))
+  // «Ya en este tablero» de la galería (Randall 24-sep: no encontraba las tarjetas nuevas): cierra la galería, lleva
+  // al widget y lo resalta un momento.
+  const irA = (id: string) => {
+    setGaleria(false)
+    requestAnimationFrame(() => { const el = refs.current[id]; if (!el) return; el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 2400) })
+  }
   const visibles = Object.keys(layout.pos).filter((id) => (esSep(id) ? id in layout.seps : por.has(id))).sort((a, b) => layout.pos[a].y - layout.pos[b].y || layout.pos[a].x - layout.pos[b].x)
 
   /** Arrastrar el asa ⋮⋮: el widget sigue al puntero y un fantasma marca la celda donde caerá. */
@@ -621,7 +627,8 @@ export function WidgetGrid({ clave, widgets, taller: ctor, fechas, compartible, 
         </div>
       )}
       {galeria && (ctor
-        ? ctor.galeria({ quitados: quitados.map((id) => por.get(id)!), onAgregar: poner, onCrear: crearGrafica, onClose: () => setGaleria(false) })
+        ? ctor.galeria({ quitados: quitados.map((id) => por.get(id)!), enTablero: Object.keys(layout.pos).filter((id) => por.has(id)).map((id) => ({ id, titulo: por.get(id)!.titulo })),
+            onIr: irA, onAgregar: poner, onCrear: crearGrafica, onClose: () => setGaleria(false) })
         : <GaleriaSimple quitados={quitados.map((id) => por.get(id)!)} onAgregar={poner} onClose={() => setGaleria(false)} />)}
       {ajustando && ctor && ctor.editor({ g: ajustando, onGuardar: (g) => { crearGrafica(g); setAjustando(null) }, onClose: () => setAjustando(null) })}
     </>

@@ -652,8 +652,9 @@ export const PLANTILLAS: Grafica[] = [
  *  dibujarla y cómo cambiarlas. La página es la que sabe traducir un periodo a fechas. */
 export interface FechasCtor { de: (id: string) => RangoWidget | undefined; filtros: (id: string) => Filtros; fijar: (id: string, p: RangoWidget | null) => void }
 
-export function Galeria({ corte, filtros, quitados, onAgregar, onCrear, onClose, fechas }: {
+export function Galeria({ corte, filtros, quitados, enTablero = [], onIr, onAgregar, onCrear, onClose, fechas }: {
   corte: Corte; filtros: Filtros; quitados: { id: string; titulo: string; nodo: React.ReactNode }[]
+  enTablero?: { id: string; titulo: string }[]; onIr?: (id: string) => void
   onAgregar: (id: string) => void; onCrear: (g: Grafica) => void; onClose: () => void; fechas?: FechasCtor
 }) {
   const ref = useRef<HTMLDivElement>(null)
@@ -686,6 +687,7 @@ export function Galeria({ corte, filtros, quitados, onAgregar, onCrear, onClose,
     </span>
   )
   const dev = quitados.filter((w) => !nq || w.titulo.toLowerCase().includes(nq))
+  const ya = enTablero.filter((w) => !nq || w.titulo.toLowerCase().includes(nq)).sort((a, b) => a.titulo.localeCompare(b.titulo, 'es'))
   if (editar) return <Editor corte={corte} filtros={fechas ? fechas.filtros(editar.id) : filtros} g={editar}
     rango={fechas?.de(editar.id)} onRango={fechas ? (p) => fechas.fijar(editar.id, p) : undefined}
     onMia={mias.guardar} onGuardar={(x) => { onCrear(x); onClose() }} onClose={() => setEditar(null)} />
@@ -710,6 +712,10 @@ export function Galeria({ corte, filtros, quitados, onAgregar, onCrear, onClose,
               </button>
             ))}
           </div>
+          {onIr && ya.length > 0 && <>
+            <h3 className="gsec">Ya en este tablero · toca una para ir a ella</h3>
+            <div className="gya">{ya.map((w) => <button type="button" key={w.id} className="chip" onClick={() => onIr(w.id)} title={`Ir a «${w.titulo}»`}>{w.titulo}</button>)}</div>
+          </>}
           {guardadas.length > 0 && <>
             <h3 className="gsec">Mis gráficas · las que tú guardaste</h3>
             <div className="ggrid">{guardadas.map((p) => (

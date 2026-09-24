@@ -541,6 +541,9 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   «Marcados sin interés» (eventos `descarte` cuyo lead tiene razón /sin interés/) y la semana dice sus días
   («1 sep – 6 sep», recortada al periodo). (e) `Widget.minAlto`: `sanear` sube el alto de un acomodo guardado si el
   contenido creció (Avance contra la meta 6, su versión de la ficha 5, Actividad 9).
+  (f) **La galería lista lo que YA está en el tablero** (sección «Ya en este tablero · toca una para ir a ella», chips
+  `.gya`): antes solo mostraba lo quitado y Randall buscaba ahí las tarjetas nuevas. El chip cierra la galería, hace
+  scroll al widget y lo resalta 2.4 s (`irA` en widgets.tsx, `.widget.flash`). El buscador también las filtra.
 - **Tarea de seguimiento en el detalle de cada etapa del embudo** (Randall 23-sep): columnas «Tarea de seguimiento»
   (Sin tarea / Vigente / Vencida, con «(2 de 3)» si hay varias vencidas) y «Vence» (`Lead.prox_tarea`: la tarea abierta
   más próxima en Kommo; en HubSpot la de las tareas ligadas o la próxima actividad). Solo en `fLeadsTarea` del embudo.

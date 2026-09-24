@@ -781,7 +781,7 @@ export function AdminDashboard({ corte, filtros, onFicha, puedeEditar = true }: 
         fechas={{ clave: 'admin', por: rangos, fijar: fijarRango, tablero: nombreTablero, fechas: fechasDe, permitido }}
         taller={{
           render: (g: Grafica) => <GraficaLibre corte={corte} filtros={filtrosDe('g:' + g.id)} g={g} onDrill={setDrill} />,
-          galeria: (p) => <Galeria corte={corte} filtros={filtros} quitados={p.quitados} onAgregar={p.onAgregar} onCrear={p.onCrear} onClose={p.onClose} fechas={fechasCtor} />,
+          galeria: (p) => <Galeria corte={corte} filtros={filtros} quitados={p.quitados} enTablero={p.enTablero} onIr={p.onIr} onAgregar={p.onAgregar} onCrear={p.onCrear} onClose={p.onClose} fechas={fechasCtor} />,
           editor: (p) => <Editor corte={corte} filtros={filtrosDe('g:' + p.g.id)} g={p.g} rango={rangos['g:' + p.g.id]} onRango={conFechas ? (x) => fijarRango('g:' + p.g.id, x) : undefined} onGuardar={p.onGuardar} onClose={p.onClose} />,
         }} />
       {drill && <DrillModal d={drill} onClose={() => setDrill(null)} />}
@@ -1389,7 +1389,7 @@ export function Ficha({ corte, filtros, uid, onBack, puedeEditar = true }: { cor
         fechas={{ clave: 'ficha', por: rangos, fijar: fijarRango, tablero: nombreTablero, fechas: fechasDe, permitido }}
         taller={{
         render: (g: Grafica) => <GraficaLibre corte={corte} filtros={filtrosDe('g:' + g.id)} g={g} onDrill={setDrill} />,
-        galeria: (p) => <Galeria corte={corte} filtros={f} quitados={p.quitados} onAgregar={p.onAgregar} onCrear={p.onCrear} onClose={p.onClose} fechas={fechasCtor} />,
+        galeria: (p) => <Galeria corte={corte} filtros={f} quitados={p.quitados} enTablero={p.enTablero} onIr={p.onIr} onAgregar={p.onAgregar} onCrear={p.onCrear} onClose={p.onClose} fechas={fechasCtor} />,
         editor: (p) => <Editor corte={corte} filtros={filtrosDe('g:' + p.g.id)} g={p.g} rango={rangos['g:' + p.g.id]} onRango={conFechas ? (x) => fijarRango('g:' + p.g.id, x) : undefined} onGuardar={p.onGuardar} onClose={p.onClose} />,
       }} />
       {drill && <DrillModal d={drill} onClose={() => setDrill(null)} />}
