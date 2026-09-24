@@ -10,7 +10,7 @@ export const CATALOGO_FECHAS: { vista: string; widgets: { id: string; titulo: st
     { id: 't-conversion', titulo: 'Conversión ventas / asignados' }, { id: 't-conv-dig', titulo: 'Tasa de conversión origen digital' }, { id: 't-conv-nodig', titulo: 'Tasa de conversión origen no digital' }, { id: 't-perdida', titulo: 'Tasa de pérdida' }, { id: 't-tareas', titulo: 'Tareas completadas' },
     { id: 't-cotizaciones', titulo: 'Cotizaciones entregadas' }, { id: 't-descartes', titulo: 'Descartados con razón registrada' }, { id: 't-levantamientos', titulo: 'Levantamientos solicitados' },
     { id: 'salud', titulo: 'Salud operativa' }, { id: 'ranking', titulo: 'Ranking de ventas' }, { id: 'reales', titulo: 'Ventas reales · Comisiones' },
-    { id: 'cotiz-metodos', titulo: 'Cotizaciones generadas · métodos de pago' }, { id: 'lev-operaciones', titulo: 'Levantamientos de ayuda a cierre' }, { id: 'visitas', titulo: 'Levantamientos según el embudo del CRM' },
+    { id: 'cotiz-metodos', titulo: 'Cotizaciones generadas por asesor' }, { id: 'lev-operaciones', titulo: 'Levantamientos de ayuda a cierre' }, { id: 'visitas', titulo: 'Levantamientos según el embudo del CRM' },
     { id: 'pipeline', titulo: 'Cotizado vs vendido vs meta' }, { id: 'entrada', titulo: 'Entrada de leads · Kommo' }, { id: 'embudo', titulo: 'Embudo de ventas por etapa', fabrica: 'maximo' },
     { id: 'etapas', titulo: 'Monto cotizado y tiempo por etapa', fabrica: 'maximo' }, { id: 'llamadas', titulo: 'Llamadas' }, { id: 'calidad-llamadas', titulo: 'Calidad de llamadas' },
     { id: 'contacto', titulo: 'Primer contacto' }, { id: 'razones', titulo: 'Razones de descarte' }, { id: 'perfiles', titulo: 'Perfiles de vendedores' }, { id: 'perfiles-tabla', titulo: 'Tabla de perfiles' },

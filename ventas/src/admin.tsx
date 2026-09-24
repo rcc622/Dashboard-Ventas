@@ -472,7 +472,7 @@ function widgetsTablero(corte: Corte, filtros: Filtros, d: Datos, ax: Acciones):
         <div className="small muted" style={{ marginTop: 8 }}>Clic en el asesor abre la comparativa venta por venta: cuáles faltan en el CRM y cuáles en la app. Fuente: app de comisiones, por mes de venta y sin canceladas · corte {(corte.comisiones.generado || '').slice(0, 16).replace('T', ' ')}.{vr.sinAsesor.length ? ` Vendedores sin asesor en el CRM: ${vr.sinAsesor.join(', ')}.` : ''}{corte.comisiones.error ? ` Error al leer la app: ${corte.comisiones.error}` : ''}</div>
       </>
     ), { info: ['Ventas reales'], alto: 10 })] : []),
-    ...(corte.cotizaciones ? [W('cotiz-metodos', 'Cotizaciones generadas · métodos de pago', (
+    ...(corte.cotizaciones ? [W('cotiz-metodos', 'Cotizaciones generadas por asesor', (
       <>
         <div className="brow" style={{ marginBottom: 8 }}>
           <Cifra label={`${fmtN(cg.cots.length)} cotizaciones generadas`} onClick={() => ver('Cotizaciones generadas', filasDeCotizaciones(cg.cots), rango)}><span className="v">{fmtN(cg.cots.length)}</span></Cifra>
@@ -480,22 +480,8 @@ function widgetsTablero(corte: Corte, filtros: Filtros, d: Datos, ax: Acciones):
         </div>
         {cg.cots.length > 0 && (
           <div className="scrollx crece"><table className="ftable">
-            <thead><tr><th scope="col">Método de pago</th><th scope="col" className="num">Cotizaciones</th><th scope="col" className="num">%</th></tr></thead>
-            <tbody>
-              {cg.porPlan.map((r) => (
-                <tr key={'p' + r.label}>
-                  <td><button type="button" className="nbtn" aria-label={`${r.label}: ${fmtN(r.n)} cotizaciones. Ver la lista`} onClick={() => ver(`Cotizaciones con ${r.label}`, filasDeCotizaciones(r.cots), rango)}>{r.label}</button></td>
-                  <td className="num">{fmtN(r.n)}</td><td className="num">{pct(r.n, cg.cots.length)}%</td>
-                </tr>))}
-            </tbody>
-            <thead><tr><th scope="col">Combinación exacta</th><th scope="col" className="num">Cotizaciones</th><th scope="col" className="num">%</th></tr></thead>
-            <tbody>
-              {cg.porCombo.map((r) => (
-                <tr key={'c' + r.label}>
-                  <td><button type="button" className="nbtn" aria-label={`${r.label}: ${fmtN(r.n)} cotizaciones. Ver la lista`} onClick={() => ver(`Cotizaciones · ${r.label}`, filasDeCotizaciones(r.cots), rango)}>{r.label}</button></td>
-                  <td className="num">{fmtN(r.n)}</td><td className="num">{pct(r.n, cg.cots.length)}%</td>
-                </tr>))}
-            </tbody>
+            {/* Solo por asesor (Randall 24-sep): las tablas de método y combinación se quitaron; el detalle de cada
+                asesor sigue trayendo sus cotizaciones con método y combinación. */}
             {/* Quién manda qué (Randall 9-sep): la pregunta es qué combinación usa cada asesor, no solo el total. */}
             <thead><tr><th scope="col">Asesor</th><th scope="col" className="num">Cotizaciones</th><th scope="col">La que más usa</th><th scope="col" className="num">Paneles típicos</th></tr></thead>
             <tbody>

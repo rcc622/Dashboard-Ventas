@@ -349,9 +349,19 @@ def canal_del_lead(lead):
         return "Google Ads"
     o = (cf(lead, MAP["campo_origen"]) or "").strip().lower()
     if o:
+        # Canales sin anuncio que el asesor marca a mano (Randall 24-sep). Van ANTES de buscar «ad»: con la
+        # prueba vieja `"ad" in o`, «Llamada entrante» (ll-AD-ama) caía en Meta Ads.
+        if o.startswith("referid"):
+            return "Referido"
+        if o.startswith("cambaceo"):
+            return "Cambaceo"
+        if o.startswith("llamada entrante"):
+            return "Llamada entrante"
         if "organic" in o:
             return "Web orgánico" if "web" in o else "Redes orgánico"
-        if "ad" in o:
+        if o.endswith(" ad") or " ad " in o:   # «Web Form - Ad», «Facebook - Ad», «Tiktok - Ad»: la palabra, no las letras
+            if "tiktok" in o:
+                return "TikTok Ads"
             # "Web Form - Ad" = form llenado tras click pagado; la fuente dice
             # de quién fue el ad (gclid -> utm_source=google en el salesbot).
             if "web" in o and "google" in (cf(lead, MAP["campo_utm_source"]) or "").strip().lower():

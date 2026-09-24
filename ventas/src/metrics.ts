@@ -1184,6 +1184,11 @@ export function cotizacionesGeneradas(c: Corte, f: Filtros): CotResumen {
   const users = mapaUsuarios(c), oc = ocultosDe(c)
   const porNombre = new Map<string, string>()
   for (const u of c.usuarios) porNombre.set(sinAcentos(u.nombre), u.id)
+  // Un asesor = un renglón aunque el cotizador lo escriba distinto («JUAN MARTINEZ» / «Juan martinez», Randall 24-sep):
+  // el nombre del CRM si se casa con uno; si no, la grafía que más repite.
+  const grafias = new Map<string, Map<string, number>>()
+  for (const r of filas) { const k = sinAcentos(r.asesor); if (!k) continue; const m = grafias.get(k) || new Map(); m.set(r.asesor, (m.get(r.asesor) || 0) + 1); grafias.set(k, m) }
+  const nombreAsesor = (raw: string, id: string | null) => (id && users.get(id)?.nombre) || [...(grafias.get(sinAcentos(raw))?.entries() || [])].sort((a, b) => b[1] - a[1])[0]?.[0] || raw
   const grupos = new Map<string, CotGrupo>()
   for (const r of filas) {
     if (!enRango(r.ts, f.rango)) continue
@@ -1191,7 +1196,7 @@ export function cotizacionesGeneradas(c: Corte, f: Filtros): CotResumen {
     if (f.equipo && r.suc !== f.equipo && !(asesorId && users.get(asesorId)?.zona === f.equipo)) continue
     if (f.asesor && asesorId !== f.asesor) continue
     if (asesorId && !pasaPersona(asesorId, f, users, oc)) continue
-    const g: CotGrupo = grupos.get(r.cot) || { cot: r.cot, ts: r.ts, asesor: r.asesor || '(sin nombre)', asesorId, suc: r.suc, lead: r.lead, paneles: r.paneles, planes: [], combo: '', total: 0 }
+    const g: CotGrupo = grupos.get(r.cot) || { cot: r.cot, ts: r.ts, asesor: nombreAsesor(r.asesor, asesorId) || '(sin nombre)', asesorId, suc: r.suc, lead: r.lead, paneles: r.paneles, planes: [], combo: '', total: 0 }
     g.planes.push(planLabel(r.plan, r.plazo)); g.total = g.total ? Math.min(g.total, r.total) : r.total
     grupos.set(r.cot, g)
   }
