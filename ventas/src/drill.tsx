@@ -168,9 +168,13 @@ export function DrillModal({ d, onClose }: { d: Drill; onClose: () => void }) {
     const base = COLS.filter((c) => { if (d.sin?.includes(c.id)) return false; const p = OPCIONALES[c.id]; return !p || d.filas.some((f) => { const v = p(f); return v != null && v !== '' }) })
       .map((c) => (c.id === 'num' && etiqueta ? { ...c, label: etiqueta } : c.id === 'nombre' && d.nombreLabel ? { ...c, label: d.nombreLabel } : c))
     // Columnas propias de la ventana (Fila.extras), después de Etapa.
-    const extras: ColDef[] = (d.filas.find((f) => f.extras)?.extras || []).map((e, i) => ({ id: `x${i}` as Col, label: e.label, tipo: tipoExtra(e) }))
+    // Las que traen `tras: 'etapa'` van pegadas a Etapa (Llamadas del embudo, junta 23-sep).
+    const ex = (d.filas.find((f) => f.extras)?.extras || []).map((e, i) => ({ def: { id: `x${i}` as Col, label: e.label, tipo: tipoExtra(e) } as ColDef, tras: e.tras }))
+    const extras = ex.filter((x) => !x.tras).map((x) => x.def), pegadas = ex.filter((x) => x.tras).map((x) => x.def)
     const k = base.findIndex((c) => c.id === 'detalle')
-    return k < 0 ? [...base, ...extras] : [...base.slice(0, k), ...extras, ...base.slice(k)]
+    const out = k < 0 ? [...base, ...extras] : [...base.slice(0, k), ...extras, ...base.slice(k)]
+    const j = out.findIndex((c) => c.id === 'etapa')
+    return j < 0 ? [...out, ...pegadas] : [...out.slice(0, j + 1), ...pegadas, ...out.slice(j + 1)]
   }, [d])
 
   // ---- la vista: anchos, alto de fila, orden de columnas y pantalla completa. Se cambia en memoria y
@@ -320,7 +324,7 @@ export function DrillModal({ d, onClose }: { d: Drill; onClose: () => void }) {
       : id === 'cuando' ? cuando(f.cuando)
       : e?.estrellas !== undefined ? <Estrellas n={e.estrellas} /> : (e?.valor || '—')
     const te = e ? tipoExtra(e) : null
-    const cls = [id === 'detalle' ? 'det' : id === 'num' || id === 'monto' ? 'num' : id === 'cuando' ? 'muted' : e?.estrellas !== undefined ? 'cstars' : te === 'numero' ? 'num' : '', primera ? 'c0' : ''].filter(Boolean).join(' ') || undefined
+    const cls = [id === 'detalle' ? 'det' : id === 'num' || id === 'monto' ? 'num' : id === 'cuando' ? 'muted' : e?.estrellas !== undefined ? 'cstars' : te === 'numero' ? 'num' : '', e?.tono ? 'tono-' + e.tono : '', primera ? 'c0' : ''].filter(Boolean).join(' ') || undefined
     return (
       <td key={id} className={cls} title={id === 'detalle' ? (f.veredicto?.resumen || f.detalle || undefined) : undefined}>
         <div className="cc">{cont}</div>

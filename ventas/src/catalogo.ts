@@ -7,7 +7,7 @@ import type { Corte } from './types'
 export const CATALOGO_FECHAS: { vista: string; widgets: { id: string; titulo: string; fabrica?: string }[] }[] = [
   { vista: 'Dashboard (y los mismos widgets en la ficha del asesor)', widgets: [
     { id: 't-leads', titulo: 'Leads asignados' }, { id: 't-ventas', titulo: 'Clientes cerrados' }, { id: 't-vendido', titulo: 'Avance contra la meta' },
-    { id: 't-conversion', titulo: 'Conversión ventas / asignados' }, { id: 't-perdida', titulo: 'Tasa de pérdida' }, { id: 't-tareas', titulo: 'Tareas completadas' },
+    { id: 't-conversion', titulo: 'Conversión ventas / asignados' }, { id: 't-conv-digital', titulo: 'Tasa de conversión origen digital' }, { id: 't-conv-nodigital', titulo: 'Tasa de conversión origen no digital' }, { id: 't-perdida', titulo: 'Tasa de pérdida' }, { id: 't-tareas', titulo: 'Tareas completadas' },
     { id: 't-cotizaciones', titulo: 'Cotizaciones entregadas' }, { id: 't-descartes', titulo: 'Descartados con razón registrada' }, { id: 't-levantamientos', titulo: 'Levantamientos solicitados' },
     { id: 'salud', titulo: 'Salud operativa' }, { id: 'ranking', titulo: 'Ranking de ventas' }, { id: 'reales', titulo: 'Ventas reales · Comisiones' },
     { id: 'cotiz-metodos', titulo: 'Cotizaciones generadas · métodos de pago' }, { id: 'lev-operaciones', titulo: 'Levantamientos de ayuda a cierre' }, { id: 'visitas', titulo: 'Levantamientos según el embudo del CRM' },

@@ -71,4 +71,12 @@ assert.equal(M.autoTitulo({ ...gv, resultado: 'promedio' }), 'Promedio de contra
 // Una medida de conteo no ofrece promedio; el acumulado solo con tiempo
 assert.deepEqual(M.resultadosDe(['leads'], 'asesor', 'hbar'), ['suma', 'pct'])
 assert.deepEqual(M.resultadosDe(['leads'], 'mes', 'vbar'), ['suma', 'pct', 'acumulado'])
+// Canal del origen (junta 23-sep)
+for (const o of ['Meta Ads', 'Wapp-FB', 'Web Form', 'TikTok', 'Google Ads', 'Web orgánico', 'REDES SOCIALES', 'WA-FB Directo']) assert.equal(M.claseOrigen(o), 'digital', o)
+for (const o of ['Referido', 'REFERIDO', 'Cambaceo', 'Expo', 'Directo', 'EXPANSIÓN']) assert.equal(M.claseOrigen(o), 'nodigital', o)
+for (const o of ['Sin origen', '', null, 'OTRO']) assert.equal(M.claseOrigen(o), null, String(o))
+// Ritmo: avance porcentual contra el día del periodo y proyección
+const rr = { ini: Date.UTC(2026, 8, 1) / 1000 + 6 * 3600, fin: Date.UTC(2026, 9, 1) / 1000 + 6 * 3600, label: 'sep' }
+const rt = M.ritmo(300000, 1000000, rr, rr.ini + 14.5 * 86400)
+assert.equal(rt.pctPeriodo, 50); assert.equal(rt.pctMeta, 30); assert.equal(Math.round(rt.proyeccion), 600000)
 console.log('check_conversion: ok')

@@ -516,6 +516,20 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
     propiedad `origen` tal cual (Wapp-FB, Referido, Web Form…). Son DOS vocabularios y no se mezclan a mano. En un
     corte viejo de HubSpot sale de `tags[0]`. Kommo también trae `contacto` (nombre del contacto) para el casado.
   - Prueba: `node ventas/check_conversion.mjs` (esbuild empaqueta metrics y constructor con un corte de juguete).
+- **Junta 23-sep con Alejandro y Samuel** (`/goal`, 24-sep): (1) «Avance contra la meta» y Cumplimiento dicen además
+  el avance contra el DÍA del periodo y la proyección (`Ritmo.avance`: «52% de la meta con 80% del periodo (día 24 de
+  30) · a este ritmo cierra en $19M (64%)»; proyección = vendido ÷ días que van × días del periodo, la fórmula de
+  Samuel), en gris `.rt-av` bajo la frase del ritmo. (2) «Porcentaje de cierre» de la ficha = el renglón de esa
+  persona en `conversion()` y abre el MISMO detalle (`drillLeadsConv`, con Todos · Cerradas · Sin cierre); antes
+  contaba otra cosa y abría «Ventas de X». (3) Tarjetas **«Tasa de conversión origen digital»** y **«… origen no
+  digital»** (`t-conv-digital` / `t-conv-nodigital`, `conversion(c, f, por, clase)`, `claseOrigen`): no digital =
+  referido, cambaceo, expo, directo, expansión; digital = lo demás; «Sin origen» y «OTRO» en ninguna. Una venta sin
+  lead casado cuenta por el origen de la app (912 de 1,206 ventas de la app lo traen vacío: por eso las dos juntas
+  suman bastante menos que la combinada, que se queda). (4) **Llamadas por etapa** (`llamadasPorLead`,
+  `EtapaEmbudo.llamadas/conLlamada`): banda «Conversación iniciada» del embudo, línea de resumen del detalle de cada
+  etapa, columna «Llamadas» pegada a Etapa en el detalle (`extras[].tras: 'etapa'`) y columna en «Monto cotizado y
+  tiempo por etapa» entre Leads y Monto. Son las llamadas de los 90 días del corte, contestadas o no.
+  (0) Colores de «Tarea de seguimiento» (opción A que eligió Randall): `extras[].tono` → `td.tono-mal/bien/nada`.
 - **Tarea de seguimiento en el detalle de cada etapa del embudo** (Randall 23-sep): columnas «Tarea de seguimiento»
   (Sin tarea / Vigente / Vencida, con «(2 de 3)» si hay varias vencidas) y «Vence» (`Lead.prox_tarea`: la tarea abierta
   más próxima en Kommo; en HubSpot la de las tareas ligadas o la próxima actividad). Solo en `fLeadsTarea` del embudo.
@@ -930,10 +944,11 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   asignar cuelgan de la cuenta admin) y **`equipos`** (zona por asesor que manda
   sobre la del CRM; `'-'` = sin equipo; `zona_crm` conserva la original para
   poder volver). El botón Guardar va en una barra sticky arriba (`.cfg-top`).
-- **HubSpot no liga tareas ni llamadas al deal** (validado 4-sep: 0 de 3,866 deals
-  abiertos con evento; los eventos traen otro id). Por eso «primer contacto» e
-  «intentos» son solo Kommo y lo dicen; en HubSpot se muestra «sin dato (HS)».
-  La actividad por ASESOR sí cuenta HubSpot (los eventos traen owner).
+- **HubSpot liga llamadas y tareas al deal por asociaciones** (antes, 4-sep: 0 de 3,866 deals con evento). Desde el
+  24-sep `ligar_llamadas` / `ligar_tareas` (ventas_hubspot.py, `deals_de`: objeto → deal o objeto → contacto → deal,
+  `/crm/v4/associations/.../batch/read`) le ponen `lead` y `asignacion` al evento; si cuelga de varios deals del
+  contacto va al asignado más reciente. Corte del 24-sep: 7,943 de 9,831 llamadas ligadas. Eso también alimenta
+  «primer contacto» en HubSpot, que antes decía «sin dato (HS)»; lo que no se liga sigue contando solo por asesor.
 - **Histórico del pipeline**: `ventas_corte.py` guarda una foto diaria
   (`foto_pipeline`: leads y monto por etapa, total y por asesor) en
   `data/ventas_hist.jsonl` y app.py la sirve en `GET /ventas/hist.json`. Es la

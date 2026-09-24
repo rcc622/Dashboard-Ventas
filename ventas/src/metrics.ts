@@ -337,7 +337,10 @@ export function metaEsperada(metaRango: number, r: Rango, ahora = Date.now() / 1
   return (metaRango * dia) / dias
 }
 /** Vendido contra el ritmo del rango: arriba o abajo de lo esperado a día N de M, en palabras y con estado para el color. */
-export interface Ritmo { esperado: number; dif: number; estado: 'cumplida' | 'adelante' | 'atras' | 'sin_meta'; dia: number; dias: number; corto: string; texto: string }
+export interface Ritmo { esperado: number; dif: number; estado: 'cumplida' | 'adelante' | 'atras' | 'sin_meta'; dia: number; dias: number; corto: string; texto: string
+  /** Avance porcentual contra el día del periodo (junta 23-sep): % de la meta, % del periodo que ya pasó y, si falta
+   *  periodo, en cuánto cerraría al ritmo que lleva (la fórmula de Samuel: vendido ÷ días que van × días del periodo). */
+  pctMeta: number; pctPeriodo: number; proyeccion: number; avance: string }
 export function ritmo(monto: number, metaRango: number, r: Rango, ahora = Date.now() / 1000): Ritmo {
   const { dia, dias } = diasRango(r, ahora)
   const esperado = metaEsperada(metaRango, r, ahora), dif = monto - esperado
@@ -347,7 +350,10 @@ export function ritmo(monto: number, metaRango: number, r: Rango, ahora = Date.n
     : estado === 'adelante' ? `▲ ${fmtMoney0(dif)} arriba del ritmo` : `▼ ${fmtMoney0(-dif)} abajo del ritmo`
   const texto = estado === 'sin_meta' ? 'Sin meta configurada' : estado === 'cumplida' ? `Meta cumplida ${cuando}`
     : `${corto} · ${cuando} el ritmo pide ${fmtMoney0(esperado)}`
-  return { esperado, dif, estado, dia, dias, corto, texto }
+  const pctMeta = pct(monto, metaRango), pctPeriodo = pct(dia, dias), proyeccion = dia > 0 ? (monto * dias) / dia : 0
+  const avance = metaRango <= 0 ? '' : `${pctMeta}% de la meta con ${pctPeriodo}% del periodo (día ${dia} de ${dias})`
+    + (dia < dias ? ` · a este ritmo cierra en ${fmtMoney0(proyeccion)} (${pct(proyeccion, metaRango)}%)` : '')
+  return { esperado, dif, estado, dia, dias, corto, texto, pctMeta, pctPeriodo, proyeccion, avance }
 }
 /** El rango en palabras para las etiquetas grandes (Alejandro no entendió «en el rango»):
  *  «del 1 al 5 de septiembre», «del 28 de agosto al 5 de septiembre», «el 5 de septiembre». Año solo si no es el actual. */
@@ -463,7 +469,12 @@ export interface Fila { id: string; nombre: string; link?: string; crm: Origen; 
   /** Columnas de texto propias de la ventana (mismas etiquetas y orden en todas las filas); van después de Etapa. */
   extras?: { label: string; valor: string; estrellas?: number | null
     /** Columna numérica (se ordena de mayor a menor y va a la derecha); con `fecha`, `n` es epoch y se filtra por rango. null = sin dato. */
-    n?: number | null; fecha?: boolean }[]
+    n?: number | null; fecha?: boolean
+    /** Color del texto de la celda (Randall 23-sep, opción A): 'mal' rojo, 'bien' verde, 'nada' gris en itálica. El texto
+     *  ya dice el estado; el color solo ayuda a leerlo de un vistazo. */
+    tono?: 'mal' | 'bien' | 'nada'
+    /** 'etapa' = la columna va justo después de Etapa en vez de al final. */
+    tras?: 'etapa' }[]
   /** Detalle en veredicto (Randall 13-sep, llamadas): titular con color + lo bueno + qué mejorar; `resumen` largo va al tooltip. */
   veredicto?: { nivel: 'ok' | 'mid' | 'bad'; titulo: string; bien: string[]; mejorar: string[]; mejorarTodo: string[]; resumen: string } }
 export function mapaLeads(c: Corte): Map<string, Lead> { return new Map(c.leads.map((l) => [l.id, l])) }
@@ -564,7 +575,20 @@ export function salud(leads: Lead[]): Salud {
 }
 
 // ---------------------------------------------------------------- Embudo
-export interface EtapaEmbudo { id: number; nombre: string; n: number; monto: number; dias: number; acumulado: number; leads: Lead[] }
+export interface EtapaEmbudo { id: number; nombre: string; n: number; monto: number; dias: number; acumulado: number; leads: Lead[]
+  /** Llamadas del CRM a los leads de la etapa (junta 23-sep) y cuántos de esos leads tienen al menos una. */
+  llamadas?: number; conLlamada?: number }
+const _llamadas = new WeakMap<Corte, Map<string, number>>()
+/** Llamadas registradas en el CRM por lead, en toda la ventana del corte (90 días), contestadas o no. HubSpot las liga
+ *  al deal por asociaciones desde el 24-sep; una llamada sin lead no cuenta para nadie. */
+export function llamadasPorLead(c: Corte): Map<string, number> {
+  let m = _llamadas.get(c)
+  if (m) return m
+  m = new Map()
+  for (const e of c.eventos) if ((e.tipo === 'llamada_ok' || e.tipo === 'llamada_no') && e.lead) m.set(e.lead, (m.get(e.lead) || 0) + 1)
+  _llamadas.set(c, m)
+  return m
+}
 /** Foto por etapa del embudo Ventas: cuántos están HOY en cada etapa, cuánto
  *  suman sus presupuestos y cuántos días llevan ahí en promedio (días sin cambio). */
 export function embudo(leads: Lead[], etapas: Etapa[]): EtapaEmbudo[] {
@@ -590,7 +614,7 @@ export function embudo(leads: Lead[], etapas: Etapa[]): EtapaEmbudo[] {
 /** Embudo de UN CRM y UN pipeline con sus etapas reales (Randall 19-sep: HubSpot naranja con «Lead entrante»,
  *  Kommo azul con Ventas o Hunting). `nombres` = etapas abiertas en orden (corte.embudos); si el corte no
  *  las trae, el orden en que aparecen en los leads. Cierre = ganados de ese CRM y pipeline. */
-export function embudoPipeline(leads: Lead[], crm: Crm, tipo: Embudo, nombres?: string[]): EtapaEmbudo[] {
+export function embudoPipeline(leads: Lead[], crm: Crm, tipo: Embudo, nombres?: string[], llam?: Map<string, number>): EtapaEmbudo[] {
   const mios = leads.filter((l) => l.crm === crm && l.embudo === tipo)
   const orden = nombres?.length ? nombres : [...new Set(mios.filter((l) => l.funnel === 4).map((l) => l.etapa))]
   const out: EtapaEmbudo[] = orden.map((n, i) => ({ id: i, nombre: n, n: 0, monto: 0, dias: 0, acumulado: 0, leads: [] }))
@@ -607,6 +631,7 @@ export function embudoPipeline(leads: Lead[], crm: Crm, tipo: Embudo, nombres?: 
   out.forEach((e, i) => { e.dias = e.n ? (suma.get(i) || 0) / e.n : 0 })
   cierre.dias = cierre.n ? cierre.dias / cierre.n : 0
   out.push(cierre)
+  if (llam) for (const e of out) { e.llamadas = 0; e.conLlamada = 0; for (const l of e.leads) { const k = llam.get(l.id) || 0; e.llamadas += k; if (k) e.conLlamada++ } }
   let acc = 0
   for (const e of out) { acc += e.dias; e.acumulado = acc }
   return out
@@ -924,6 +949,15 @@ export function ventasCasadas(c: Corte): Map<string, VentaCasada> {
 export const origenDe = (l: Lead) => l.origen || (l.crm === 'hubspot' && l.tags[0]) || 'Sin origen'
 export const SIN_LEAD = 'Venta sin lead en el CRM'
 export type PorConversion = 'asesor' | 'origen'
+/** Canal del origen (junta 23-sep): no digital = referidos, cambaceo, expo, directo y expansión; digital = todo lo que
+ *  entra por anuncio, red, web o WhatsApp (Meta Ads, Google Ads, TikTok, Wapp-FB, Web Form…). «Sin origen» no es ninguno. */
+export type ClaseOrigen = 'digital' | 'nodigital'
+export function claseOrigen(o: string | null | undefined): ClaseOrigen | null {
+  const s = (o || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
+  if (!s || s === 'sin origen' || s === 'otro' || s === SIN_LEAD.toLowerCase()) return null
+  return /^(referid|cambaceo|expo|directo$|expansi)/.test(s) ? 'nodigital' : 'digital'
+}
+export const CLASE_LABEL: Record<ClaseOrigen, string> = { digital: 'origen digital', nodigital: 'origen no digital' }
 /** Un renglón de la conversión: sus leads asignados del periodo, sus ventas y la tasa. `dias` = promedio de días de la
  *  asignación al cierre entre las `nDias` ventas que tienen fecha de cierre exacta. */
 export interface FilaConv { clave: string; label: string; leads: Lead[]; cierres: VentaCasada[]; tasa: number | null; dias: number | null; nDias: number; nota?: string }
@@ -936,9 +970,14 @@ export function cierresDe(c: Corte, f: Filtros): VentaCasada[] {
 }
 /** Ventas del periodo entre leads asignados del periodo, partido por asesor o por origen del lead. Misma regla que la
  *  tarjeta «Conversión»: los MESES que toca el rango, porque la app de comisiones guarda el mes de la venta, no el día. */
-export function conversion(c: Corte, f: Filtros, por: PorConversion): Conversion {
+export function conversion(c: Corte, f: Filtros, por: PorConversion, clase?: ClaseOrigen): Conversion {
   const rango = rangoVentas(c, f.rango), ff = { ...f, rango }, users = mapaUsuarios(c)
-  const leads = leadsFiltrados(c, ff), cierres = cierresDe(c, ff)
+  let leads = leadsFiltrados(c, ff), cierres = cierresDe(c, ff)
+  // Por canal: el lead por su origen; una venta sin lead casado, por el origen que capturó la app.
+  if (clase) {
+    leads = leads.filter((l) => claseOrigen(origenDe(l)) === clase)
+    cierres = cierres.filter((x) => claseOrigen(x.lead ? origenDe(x.lead) : x.v?.origen) === clase)
+  }
   const m = new Map<string, FilaConv>()
   const fila = (clave: string, label: string) => { let x = m.get(clave); if (!x) { x = { clave, label, leads: [], cierres: [], tasa: null, dias: null, nDias: 0 }; m.set(clave, x) } return x }
   for (const l of leads) {

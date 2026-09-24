@@ -108,21 +108,48 @@ def asociaciones(de, a, ids):
     return out
 
 
+def deals_de(objeto, ids, por_id):
+    """{id del objeto: [ids de deal del corte]}: primero lo que cuelga del deal y, si no, del contacto (objeto → contacto
+    → deal). En HubSpot las tareas y llamadas casi siempre cuelgan del contacto, no del deal."""
+    o2d = asociaciones(objeto, "deals", ids)
+    o2c = asociaciones(objeto, "contacts", [x for x in ids if not any(("h:" + d) in por_id for d in o2d.get(x, []))])
+    c2d = asociaciones("contacts", "deals", sorted({c for cs in o2c.values() for c in cs}))
+    out = {}
+    for x in ids:
+        deals = [d for d in o2d.get(x, []) if ("h:" + d) in por_id] \
+            or [d for c in o2c.get(x, []) for d in c2d.get(c, []) if ("h:" + d) in por_id]
+        if deals:
+            out[x] = list(dict.fromkeys(deals))
+    return out
+
+
+def ligar_llamadas(llamadas, leads):
+    """Cada llamada de HubSpot a su deal (Randall 24-sep: llamadas de «Conversación iniciada» y de cada etapa). Sin esto
+    el evento traía `lead: ""` y nadie sabía a qué lead se le llamó. Si cuelga de varios deals del contacto, va al más
+    reciente (el que se está trabajando)."""
+    por_id = {l["id"]: l for l in leads}
+    a_deal = deals_de("calls", [c for c, _ in llamadas], por_id)
+    n = 0
+    for cid, ev in llamadas:
+        deals = a_deal.get(cid)
+        if not deals:
+            continue
+        l = max((por_id["h:" + d] for d in deals), key=lambda x: x.get("asignacion") or 0)
+        ev.update(lead=l["id"], asignacion=l.get("asignacion") or 0)
+        n += 1
+    print("hubspot: llamadas ligadas a un deal del corte %d de %d" % (n, len(llamadas)))
+
+
 def ligar_tareas(abiertas, leads):
     """Tarea de seguimiento por deal (Randall 23-sep, detalle de las etapas del embudo). Una tarea de HubSpot cuelga del
     deal (~35 %) o solo del contacto: se liga tarea → deal y, si no, tarea → contacto → deal, y se cuenta en los deals del
     corte. Así «vencida» es verdad: la próxima actividad del deal (`notes_next_activity_date`) solo guarda lo que viene, y
     un deal con la tarea atrasada salía «sin tarea». Sin tareas ligadas se queda la próxima actividad como estaba."""
     por_id = {l["id"]: l for l in leads}
-    tids = [t["id"][2:] for t in abiertas]
-    t2d = asociaciones("tasks", "deals", tids)
-    t2c = asociaciones("tasks", "contacts", [x for x in tids if not any(("h:" + d) in por_id for d in t2d.get(x, []))])
-    c2d = asociaciones("contacts", "deals", sorted({c for cs in t2c.values() for c in cs}))
+    a_deal = deals_de("tasks", [t["id"][2:] for t in abiertas], por_id)
     por_deal, ligadas = {}, 0
     for t in abiertas:
-        tid = t["id"][2:]
-        deals = [d for d in t2d.get(tid, []) if ("h:" + d) in por_id] \
-            or [d for c in t2c.get(tid, []) for d in c2d.get(c, []) if ("h:" + d) in por_id]
+        deals = a_deal.get(t["id"][2:])
         if not deals:
             continue
         ligadas += 1
@@ -261,17 +288,20 @@ def build():
 
     print("hubspot: fuera del corte: %d deals sin dueño · %d de otros pipelines (solo entra Ventas)" % (sin_dueno, otros_pipes))
 
-    n_ll = 0
+    n_ll, llamadas = 0, []
     for c in buscar("calls", "hs_timestamp", desde, hoy + 86400, ["hs_timestamp", "hs_call_status", "hs_call_duration", "hubspot_owner_id"]):
         p = c["properties"]
         uid = p.get("hubspot_owner_id") or None
         ok = p.get("hs_call_status") == "COMPLETED" or num(p.get("hs_call_duration")) > 0
-        eventos.append({"ts": seg(p.get("hs_timestamp")), "tipo": "llamada_ok" if ok else "llamada_no",
-                        "asesor_id": uid, "lead": "", "asignacion": 0, "embudo": "ventas", "crm": "hubspot"})
+        ev = {"ts": seg(p.get("hs_timestamp")), "tipo": "llamada_ok" if ok else "llamada_no",
+              "asesor_id": uid, "lead": "", "asignacion": 0, "embudo": "ventas", "crm": "hubspot"}
+        eventos.append(ev)
+        llamadas.append((c["id"], ev))
         if uid:
             usados.add(str(uid))
         n_ll += 1
     print("hubspot: llamadas %d" % n_ll)
+    ligar_llamadas(llamadas, leads)
 
     n_t = 0
     for t in buscar("tasks", "hs_task_completion_date", desde, hoy + 86400, ["hs_task_completion_date", "hubspot_owner_id"],

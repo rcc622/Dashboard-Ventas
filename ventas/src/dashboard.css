@@ -161,6 +161,8 @@ h3 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: 0; t
 .rt.atras { color: var(--warn-ink); }
 .rt.adelante, .rt.cumplida { color: var(--c4-ink); }
 .tile .rt, .kcard .rt { font-size: 12.5px; margin-top: 6px; }
+/* Avance contra el día del periodo (junta 23-sep): va debajo del ritmo, en gris, sin competir con él. */
+.rt-av { font-size: 12px; color: var(--g2); margin-top: 3px; font-weight: 500; line-height: 1.35; }
 .tile .bullet { margin-top: 8px; }
 .tile.ritmo-atras { --dot: var(--warn); background: var(--warn-soft); border-color: var(--warn); }
 .tile.ritmo-adelante, .tile.ritmo-cumplida { --dot: var(--c4); background: var(--c4-soft); border-color: var(--c4); }
@@ -1225,3 +1227,8 @@ h3 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: 0; t
 .dtable th.mov-antes { box-shadow: inset 3px 0 0 var(--c1); }
 .dtable th.mov-despues { box-shadow: inset -3px 0 0 var(--c1); }
 @media (pointer: coarse) { .dtable th .crsz, .dtable td .rrsz { display: none; } }
+
+/* Celdas con estado en el detalle (Randall 23-sep, opción A): el texto dice el estado, el color ayuda a leerlo. */
+.dtable td.tono-mal { color: var(--warn-ink); font-weight: 600; }
+.dtable td.tono-bien { color: var(--c4-ink); font-weight: 600; }
+.dtable td.tono-nada { color: var(--g2); font-style: italic; font-weight: 400; }

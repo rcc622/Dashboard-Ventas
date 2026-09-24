@@ -1,7 +1,7 @@
 import { Fragment, useLayoutEffect, useMemo, useRef, useState, type SyntheticEvent, useEffect } from 'react'
 import type { Corte, Crm, Embudo, Evento, Lead, LevFila, Sanciones, Usuario } from './types'
 import { CRM_LABEL } from './types'
-import { BUCKETS, PERFIL_LABEL, actividad, actividadDe, cotizado, dias, entrada, ep, eventosFiltrados, fechaCotizado, diasSinActividad, estancado, estadoActivo, ESTADO_ACTIVO, ESTANCADO_DIAS, type EstadoActivo, leadsActivosHoy, rangoVentas, metaYRitmo, metaDe, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, pasaCrm, etiquetaRango, periodoTexto, preset, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, embudoPipeline, type Fila, type FilaAsesor, type Filtros, type Perfil , type PuntoPerfil, ventasReales, ventasCrm, tipoDe, crmTexto, activo, VENDEDOR_LABEL, filasDeVentasReales, comparativaVentas, rolDestacado, rolNombre, cotizacionesGeneradas, filasDeCotizaciones, visitas, levantados, filasDeLevantamientos, fmtEstrellas, llamadasFiltradas, resumenLlamadas, conversion, filasConversion, filasConversionLeads, fmtTasa, fechaDe, type PorConversion } from './metrics'
+import { BUCKETS, PERFIL_LABEL, actividad, actividadDe, cotizado, dias, entrada, ep, eventosFiltrados, fechaCotizado, diasSinActividad, estancado, estadoActivo, ESTADO_ACTIVO, ESTANCADO_DIAS, type EstadoActivo, leadsActivosHoy, rangoVentas, metaYRitmo, metaDe, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, pasaCrm, etiquetaRango, periodoTexto, preset, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, embudoPipeline, type Fila, type FilaAsesor, type Filtros, type Perfil , type PuntoPerfil, ventasReales, ventasCrm, tipoDe, crmTexto, activo, VENDEDOR_LABEL, filasDeVentasReales, comparativaVentas, rolDestacado, rolNombre, cotizacionesGeneradas, filasDeCotizaciones, visitas, levantados, filasDeLevantamientos, fmtEstrellas, llamadasFiltradas, resumenLlamadas, conversion, filasConversion, filasConversionLeads, fmtTasa, fechaDe, llamadasPorLead, type PorConversion, type FilaConv, type ClaseOrigen, CLASE_LABEL } from './metrics'
 import { LlamadaModal, drillLlamadas } from './llamadas'
 import type { Llamada } from './types'
 import { BarDetailPopup, BubbleChart, Bullet, DonutChart, FunnelChart, Gauge, Info, LlamadasBar, MiniAreaChart, Scatter, SortTh, StackedBar, activar, useEscape, useOutside, type DetRow, type Sort, type BubbleCol, useFocoDialogo } from './components'
@@ -51,15 +51,18 @@ const defaultsDe = (c: Corte, fabrica: Record<string, RangoWidget>): { por: Reco
   const cfg = (c.fechas_default || {}) as Record<string, RangoWidget>
   return { por: { ...fabrica, ...cfg }, desde: Object.fromEntries(Object.keys(cfg).map((id) => [id, c.fechas_default_ts || 0])) }
 }
-const ORDEN_ADMIN = ['t-leads', 't-ventas', 't-vendido', 't-conversion', 't-perdida', 't-tareas', 't-cotizaciones', 't-descartes', 't-levantamientos', 'llamadas', 'calidad-llamadas', 'salud', 'pipeline', 'ranking', 'reales', 'cotiz-metodos', 'lev-operaciones', 'visitas', 'entrada', 'embudo', 'etapas', 'contacto', 'razones', 'perfiles', 'perfiles-tabla']
+const ORDEN_ADMIN = ['t-leads', 't-ventas', 't-vendido', 't-conversion', 't-conv-digital', 't-conv-nodigital', 't-perdida', 't-tareas', 't-cotizaciones', 't-descartes', 't-levantamientos', 'llamadas', 'calidad-llamadas', 'salud', 'pipeline', 'ranking', 'reales', 'cotiz-metodos', 'lev-operaciones', 'visitas', 'entrada', 'embudo', 'etapas', 'contacto', 'razones', 'perfiles', 'perfiles-tabla']
 const fLeads = (ls: Lead[]) => filasDeLeads(ls, () => '', undefined, { label: 'Días sin actividad', de: (l) => diasSinActividad(l) })
 const HOY = 'foto de hoy, sin importar las fechas del tablero'
 /** La tarea de seguimiento del lead (Randall 23-sep, detalle de cada etapa del embudo): sin tarea, vigente o vencida, y
  *  cuándo vence la más próxima. En HubSpot la «tarea» es la próxima actividad del deal: no liga tareas sueltas. */
 const tareaDe = (l: Lead) => (l.tareas_abiertas === 0 ? 'Sin tarea' : l.tareas_vencidas > 0 ? 'Vencida' : 'Vigente')
-const fLeadsTarea = (ls: Lead[]) => fLeads(ls).map((f, i) => ({ ...f, extras: [
-  { label: 'Tarea de seguimiento', valor: tareaDe(ls[i]) + (ls[i].tareas_vencidas > 1 ? ` (${ls[i].tareas_vencidas} de ${ls[i].tareas_abiertas})` : '') },
-  { label: 'Vence', valor: ls[i].prox_tarea ? fmtCorta(fechaDe(ls[i].prox_tarea as number)) : '—', n: ls[i].prox_tarea || null, fecha: true },
+const TONO_TAREA = { 'Sin tarea': 'nada', Vencida: 'mal', Vigente: 'bien' } as const
+const fLeadsTarea = (ls: Lead[], llam?: Map<string, number>) => fLeads(ls).map((f, i) => ({ ...f, extras: [
+  // Llamadas del CRM a ese lead, pegada a Etapa (junta 23-sep).
+  ...(llam ? [{ label: 'Llamadas', valor: fmtN(llam.get(ls[i].id) || 0), n: llam.get(ls[i].id) || 0, tras: 'etapa' as const }] : []),
+  { label: 'Tarea de seguimiento', valor: tareaDe(ls[i]) + (ls[i].tareas_vencidas > 1 ? ` (${ls[i].tareas_vencidas} de ${ls[i].tareas_abiertas})` : ''), tono: TONO_TAREA[tareaDe(ls[i])] },
+  { label: 'Vence', valor: ls[i].prox_tarea ? fmtCorta(fechaDe(ls[i].prox_tarea as number)) : '—', n: ls[i].prox_tarea || null, fecha: true, tono: ls[i].tareas_vencidas > 0 ? 'mal' as const : undefined },
 ] }))
 const fVentas = (ls: Lead[]) => filasDeLeads(ls, (l) => (l.crm === 'comisiones' ? 'Venta registrada en la app' : 'Ganado'), (l) => l.cerrado)
 /** De dónde salen las ventas, para el pie de cada lista: la app guarda solo el mes de venta. */
@@ -134,11 +137,12 @@ function Cifra({ children, onClick, label }: { children: React.ReactNode; onClic
  *  pidió verla «igualito» en la ficha, «muy dramático y que se quede en rojo o cambie de color». */
 function TileAvance({ monto, metaRango, rit, periodo, onClick }: { monto: number; metaRango: number; rit: ReturnType<typeof ritmo>; periodo: string; onClick: () => void }) {
   return (
-    <button type="button" className={'tile tbtn t3 ritmo-' + rit.estado} onClick={onClick} aria-label={`Vendido ${fmtMoney0(monto)} ${periodo}: ${pct(monto, metaRango)}% de la meta de ${fmtMoney0(metaRango)}. ${rit.texto}. Ver detalle`}>
+    <button type="button" className={'tile tbtn t3 ritmo-' + rit.estado} onClick={onClick} aria-label={`Vendido ${fmtMoney0(monto)} ${periodo}: ${pct(monto, metaRango)}% de la meta de ${fmtMoney0(metaRango)}. ${rit.texto}. ${rit.avance}. Ver detalle`}>
       <div className="n">{fmtMoney0(monto)}</div>
       <div className="l">{pct(monto, metaRango)}% de la meta de {fmtMoney0(metaRango)} · vendido {periodo}</div>
       <Bullet value={monto} target={metaRango} expected={rit.esperado} label="Vendido" fmt={fmtMoney0} />
       <div className={'rt ' + rit.estado}>{rit.texto}</div>
+      {rit.avance && <div className="rt-av">{rit.avance}</div>}
     </button>
   )
 }
@@ -210,8 +214,11 @@ function EmbudoCrm({ corte, filtros, leads, rango, ver, vista = 'embudo' }: { co
   const [key, setKey] = useState(opciones[0]?.key || '')
   const sel = opciones.find((o) => o.key === key) || opciones[0]
   if (!sel) return <div className="vacio"><b>Sin CRM</b><span>Enciende Kommo o HubSpot arriba para ver el embudo.</span></div>
-  const et = embudoPipeline(leads, sel.crm, sel.tipo, corte.embudos?.[sel.crm]?.[sel.pipe])
-  const abrir = (e: (typeof et)[number]) => ver(`${e.nombre} · ${sel.label}`, e.id === -2 ? fVentas(e.leads) : fLeadsTarea(e.leads), rango)
+  const llam = llamadasPorLead(corte)
+  const et = embudoPipeline(leads, sel.crm, sel.tipo, corte.embudos?.[sel.crm]?.[sel.pipe], llam)
+  // Resumen de llamadas de la etapa (junta 23-sep): cuántas hizo el CRM a esos leads y a cuántos se les llamó.
+  const resLlam = (e: (typeof et)[number]) => `${fmtN(e.llamadas || 0)} llamada${e.llamadas === 1 ? '' : 's'} · ${fmtN(e.conLlamada || 0)} de ${fmtN(e.n)} leads con llamada`
+  const abrir = (e: (typeof et)[number]) => ver(`${e.nombre} · ${sel.label}`, e.id === -2 ? fVentas(e.leads) : fLeadsTarea(e.leads, llam), `${rango} · ${resLlam(e)} (llamadas de los últimos ${corte.dias_historia || 90} días)`)
   const rampa = sel.crm === 'hubspot' ? RAMPA_HS : RAMPA
   return (
     <>
@@ -220,21 +227,21 @@ function EmbudoCrm({ corte, filtros, leads, rango, ver, vista = 'embudo' }: { co
       </div>}
       {opciones.length === 1 && <div className="small muted" style={{ marginBottom: 6 }}>{sel.label}</div>}
       {vista === 'embudo' ? (
-        <FunnelChart tono={sel.crm} stages={et.map((e) => ({ nombre: e.nombre, n: e.n, sub: `${fmtMoney(e.monto)} · ${e.n ? e.dias.toFixed(1) + ' días en etapa' : 'sin leads'}` }))} onStage={(i) => abrir(et[i])} />
+        <FunnelChart tono={sel.crm} stages={et.map((e) => ({ nombre: e.nombre, n: e.n, sub: `${fmtMoney(e.monto)} · ${e.n ? e.dias.toFixed(1) + ' días en etapa' : 'sin leads'}${/conversaci/i.test(e.nombre) && e.n ? ' · ' + resLlam(e) : ''}` }))} onStage={(i) => abrir(et[i])} />
       ) : (
         <>
           <div className="scrollx"><table className="ftable" aria-label={`Monto cotizado y tiempo por etapa · ${sel.label}`}>
-            <thead><tr><th scope="col">Etapa</th><th scope="col" className="num">Leads</th><th scope="col" className="num">Monto</th><th scope="col" className="num">Días promedio</th><th scope="col" className="num">Acumulado</th></tr></thead>
+            <thead><tr><th scope="col">Etapa</th><th scope="col" className="num">Leads</th><th scope="col" className="num">Llamadas</th><th scope="col" className="num">Monto</th><th scope="col" className="num">Días promedio</th><th scope="col" className="num">Acumulado</th></tr></thead>
             <tbody>
               {et.map((e, i) => (
                 <tr key={e.id}>
                   <td><span className="sw" style={{ background: rampa[Math.min(i, rampa.length - 1)] }} aria-hidden="true" /><button type="button" className="nbtn" aria-label={`${e.nombre}: ${fmtN(e.n)} leads, ${fmtMoney(e.monto)}. Ver leads`} onClick={() => abrir(e)}>{e.nombre}</button></td>
-                  <td className="num">{fmtN(e.n)}</td><td className="num">{fmtMoney(e.monto)}</td><td className="num">{e.n ? e.dias.toFixed(1) : '—'}</td><td className="num muted">{e.acumulado.toFixed(1)}</td>
+                  <td className="num">{fmtN(e.n)}</td><td className="num" title={resLlam(e)}>{fmtN(e.llamadas || 0)}</td><td className="num">{fmtMoney(e.monto)}</td><td className="num">{e.n ? e.dias.toFixed(1) : '—'}</td><td className="num muted">{e.acumulado.toFixed(1)}</td>
                 </tr>
               ))}
             </tbody>
           </table></div>
-          <div className="muted small" style={{ marginTop: 10 }}>Foto de hoy del pipeline {sel.pipe} de {sel.crm === 'hubspot' ? 'HubSpot' : 'Kommo'}, con sus etapas reales: leads en cada etapa, suma de sus presupuestos y días promedio que llevan ahí. Cierre = ganados del rango, días desde su asignación.</div>
+          <div className="muted small" style={{ marginTop: 10 }}>Foto de hoy del pipeline {sel.pipe} de {sel.crm === 'hubspot' ? 'HubSpot' : 'Kommo'}, con sus etapas reales: leads en cada etapa, llamadas del CRM a esos leads en los últimos {corte.dias_historia || 90} días, suma de sus presupuestos y días promedio que llevan ahí. Cierre = ganados del rango, días desde su asignación.</div>
         </>
       )}
     </>
@@ -248,36 +255,41 @@ const VISTAS_CONV: { id: PorConversion | 'ventas'; label: string }[] = [
 /** La tarjeta «Conversión» abre esto: la tasa por asesor (o por origen del lead) con leads asignados, cierres, días
  *  promedio de cierre y tasa; el nombre de cada renglón abre sus leads uno por uno. «Lista de ventas» es la lista de
  *  antes. Las tres vistas se cambian arriba sin cerrar la ventana. */
-function drillConversion(corte: Corte, f: Filtros, por: PorConversion | 'ventas', abrir: (d: Drill) => void): Drill {
-  const cv = conversion(corte, f, por === 'ventas' ? 'asesor' : por)
+function drillConversion(corte: Corte, f: Filtros, por: PorConversion | 'ventas', abrir: (d: Drill) => void, clase?: ClaseOrigen): Drill {
+  const cv = conversion(corte, f, por === 'ventas' ? 'asesor' : por, clase)
   const periodo = periodoTexto(cv.rango)
-  const vistas = VISTAS_CONV.map((x) => ({ label: x.label, on: x.id === por, onClick: () => abrir(drillConversion(corte, f, x.id, abrir)) }))
+  // Con canal (digital / no digital) no hay «Lista de ventas»: una venta de la app sin lead no siempre dice su origen.
+  const vistas = VISTAS_CONV.filter((x) => !clase || x.id !== 'ventas').map((x) => ({ label: x.label, on: x.id === por, onClick: () => abrir(drillConversion(corte, f, x.id, abrir, clase)) }))
   const sub = `${fmtN(cv.cierres.length)} cierres / ${fmtN(cv.leads.length)} leads asignados ${periodo} = ${fmtTasa(cv.leads.length ? cv.cierres.length / cv.leads.length : null)}`
   if (por === 'ventas') return { titulo: 'Ventas que cuentan en la conversión', filas: fVentas(ventasFiltradas(corte, f)), sub, vistas }
   const pie = `Tasa = cierres entre leads asignados en los meses que toca el rango (la app de comisiones guarda el mes de la venta, no el día). `
     + `Días de cierre = de la asignación del lead al día en que el CRM lo marcó ganado: ${fmtN(cv.casadas)} de ${fmtN(cv.cierres.length)} ventas se casaron con su lead `
-    + `y ${fmtN(cv.conDias)} tienen ese día. ${por === 'origen' ? 'Una venta sin lead casado no tiene origen y va en su propio renglón, sin tasa. ' : ''}Clic en el nombre abre sus leads.`
+    + `y ${fmtN(cv.conDias)} tienen ese día. ${por === 'origen' && !clase ? 'Una venta sin lead casado no tiene origen y va en su propio renglón, sin tasa. ' : ''}`
+    + (clase ? `Solo ${CLASE_LABEL[clase]}: ${clase === 'digital' ? 'Meta Ads, Google Ads, TikTok, Wapp-FB, Web Form, web y redes orgánicas, WhatsApp' : 'referidos, cambaceo, expo, directo y expansión'}; una venta sin lead casado cuenta por el origen que capturó la app; «Sin origen» no entra en ninguna de las dos. ` : '')
+    + 'Clic en el nombre abre sus leads.'
   const self: Drill = {
-    titulo: por === 'asesor' ? 'Tasa de conversión por asesor' : 'Tasa de conversión por origen del lead', sub, pie, vistas,
+    titulo: (clase ? `Tasa de conversión ${CLASE_LABEL[clase]}` : 'Tasa de conversión') + (por === 'asesor' ? ' por asesor' : ' por origen del lead'), sub, pie, vistas,
     clave: 'conv-' + por, nombreLabel: por === 'asesor' ? 'Asesor' : 'Origen del lead', unidad: por === 'asesor' ? ['asesor', 'asesores'] : ['origen', 'orígenes'], sin: ['crm', 'asesor', 'cuando', 'monto'], verLabel: 'Ver sus leads',
     filas: filasConversion(cv),
     verFila: (fila) => {
       const x = cv.filas.find((y) => 'conv:' + y.clave === fila.id)
-      if (!x) return
-      // Switch Todos · Cerradas · Sin cierre arriba del detalle (Randall 23-sep), con el conteo de cada uno.
-      const todas = filasConversionLeads(x)
-      const ESTADOS = [{ id: '', label: 'Todos' }, { id: 'Cerrada', label: 'Cerradas' }, { id: 'Sin cierre', label: 'Sin cierre' }]
-      const detalle = (estado: string): Drill => ({
-        titulo: `${x.label} · leads y cierres ${periodo}`, clave: 'conv-leads', unidad: ['lead o venta', 'leads y ventas'], alertaLabel: '', sin: por === 'asesor' ? ['asesor', 'cuando'] : ['cuando'],
-        sub: `${fmtN(x.cierres.length)} cierres / ${fmtN(x.leads.length)} leads = ${fmtTasa(x.tasa)}${x.dias != null ? ` · ${fmtN(Math.round(x.dias))} días promedio de cierre (${fmtN(x.nDias)} con día de cierre)` : ''}`,
-        pie: 'Primero las ventas cerradas, luego los leads asignados que no han cerrado. La fecha de cierre es el día en que el CRM marcó el lead como ganado; si la venta no se casó con su lead o el CRM no lo marcó, solo se sabe el mes de la app. Clic en el nombre abre el registro en su CRM.',
-        filas: estado ? todas.filter((f) => f.estado === estado) : todas, volver: { label: self.titulo, onClick: () => abrir(self) },
-        vistas: ESTADOS.map((e) => ({ label: `${e.label} (${fmtN(e.id ? todas.filter((f) => f.estado === e.id).length : todas.length)})`, on: e.id === estado, onClick: () => abrir(detalle(e.id)) })),
-      })
-      abrir(detalle(''))
+      if (x) abrir(drillLeadsConv(x, periodo, por, abrir, { label: self.titulo, onClick: () => abrir(self) }))
     },
   }
   return self
+}
+/** Los leads y cierres de UN renglón de la conversión (un asesor o un origen), con el switch Todos · Cerradas · Sin
+ *  cierre (Randall 23-sep). Lo abren la tabla de conversión y el «Porcentaje de cierre» de la ficha: mismo detalle. */
+function drillLeadsConv(x: FilaConv, periodo: string, por: PorConversion, abrir: (d: Drill) => void, volver?: Drill['volver'], estado = ''): Drill {
+  const todas = filasConversionLeads(x)
+  const ESTADOS = [{ id: '', label: 'Todos' }, { id: 'Cerrada', label: 'Cerradas' }, { id: 'Sin cierre', label: 'Sin cierre' }]
+  return {
+    titulo: `${x.label} · leads y cierres ${periodo}`, clave: 'conv-leads', unidad: ['lead o venta', 'leads y ventas'], alertaLabel: '', sin: por === 'asesor' ? ['asesor', 'cuando'] : ['cuando'],
+    sub: `${fmtN(x.cierres.length)} cierres / ${fmtN(x.leads.length)} leads = ${fmtTasa(x.tasa)}${x.dias != null ? ` · ${fmtN(Math.round(x.dias))} días promedio de cierre (${fmtN(x.nDias)} con día de cierre)` : ''}`,
+    pie: 'Primero las ventas cerradas, luego los leads asignados que no han cerrado. La fecha de cierre es el día en que el CRM marcó el lead como ganado; si la venta no se casó con su lead o el CRM no lo marcó, solo se sabe el mes de la app. Clic en el nombre abre el registro en su CRM.',
+    filas: estado ? todas.filter((f) => f.estado === estado) : todas, volver,
+    vistas: ESTADOS.map((e) => ({ label: `${e.label} (${fmtN(e.id ? todas.filter((f) => f.estado === e.id).length : todas.length)})`, on: e.id === estado, onClick: () => abrir(drillLeadsConv(x, periodo, por, abrir, volver, e.id)) })),
+  }
 }
 
 // ---------------------------------------------------------------- Dashboard
@@ -371,10 +383,19 @@ function widgetsTablero(corte: Corte, filtros: Filtros, d: Datos, ax: Acciones):
     ), { plain: true, span: 1, alto: 4, cls: 'wtile', info: ['Clientes cerrados'], desde: 'cifras', base: 'cierre' }),
     // El número que Alejandro llamó «el más importante» (4-sep): vendido contra la meta con el ritmo del mes y color que grite.
     W('t-vendido', 'Avance contra la meta', <TileAvance monto={monto} metaRango={metaRango} rit={rit} periodo={periodoV} onClick={verVendido} />,
-      { plain: true, span: 1, alto: 4, cls: 'wtile', info: ['Ritmo'], desde: 'cifras', base: 'cierre' }),   // 4 filas: trae medidor y frase del ritmo
+      { plain: true, span: 1, alto: 6, cls: 'wtile', info: ['Ritmo'], desde: 'cifras', base: 'cierre' }),   // 6 filas: medidor, frase del ritmo y avance contra el día
     W('t-conversion', 'Conversión ventas / asignados', (
         <button type="button" className="tile tbtn t4" onClick={() => abrir(drillConversion(corte, filtros, 'asesor', abrir))} aria-label={`Conversión ${leadsVentas.length ? pct(ventas.length, leadsVentas.length) + '%' : 'sin dato'}. Ver detalle`}><div className="n">{leadsVentas.length ? pct(ventas.length, leadsVentas.length) + '%' : '—'}</div><div className="l">Ventas cerradas entre leads asignados {periodoV}</div></button>
     ), { plain: true, span: 1, alto: 4, cls: 'wtile', info: ['Conversión'], desde: 'cifras' }),
+    // La misma conversión partida por canal del origen (junta 23-sep); la de arriba sigue juntando los dos.
+    ...(['digital', 'nodigital'] as const).map((k) => {
+      const cv = conversion(corte, filtros, 'asesor', k), n = cv.leads.length, t = n ? pct(cv.cierres.length, n) + '%' : '—'
+      const titulo = 'Tasa de conversión ' + CLASE_LABEL[k]
+      return W('t-conv-' + k, titulo, (
+        <button type="button" className="tile tbtn t4" onClick={() => abrir(drillConversion(corte, filtros, 'asesor', abrir, k))} aria-label={`${titulo}: ${t}, ${fmtN(cv.cierres.length)} cierres de ${fmtN(n)} leads. Ver detalle`}>
+          <div className="n">{t}</div><div className="l">{k === 'digital' ? 'Origen digital' : 'Origen no digital'}: {fmtN(cv.cierres.length)} cierres de {fmtN(n)} leads asignados {periodoTexto(cv.rango)}</div></button>
+      ), { plain: true, span: 1, alto: 4, cls: 'wtile', info: [k === 'digital' ? 'Conversión digital' : 'Conversión no digital'], desde: 'cifras' })
+    }),
     W('t-perdida', 'Tasa de pérdida', (
         <button type="button" className="tile tbtn t5" onClick={() => ver('Leads perdidos · asignados en el rango', filasDeLeads(perdidos, (l) => `Perdido · ${l.razon || 'sin razón'}`, (l) => l.cerrado), rango + ' · fecha = descarte')} aria-label={`Tasa de pérdida ${pct(perdidos.length, baseAsignados)}%: ${fmtN(perdidos.length)} perdidos de ${fmtN(baseAsignados)} asignados. Ver detalle`}><div className="n">{pct(perdidos.length, baseAsignados)}%</div><div className="l">{fmtN(perdidos.length)} perdidos de {fmtN(baseAsignados)} asignados</div></button>
     ), { plain: true, span: 1, alto: 4, cls: 'wtile', info: ['Tasa de pérdida'], desde: 'cifras' }),
@@ -1130,14 +1151,14 @@ const wg = (id: string, titulo: string, nodo: React.ReactNode, opts: Partial<Wid
 /** Los widgets del tablero general que TAMBIÉN tienen sentido para una persona: los mismos números,
  *  fijados a ella (Randall 10-sep, diseño del PDF). Fuera quedan los de equipo (salud, ranking,
  *  perfiles) y los que la ficha ya cuenta a su manera (avance contra la meta, ventas reales). */
-const FICHA_COMPARTIDOS = ['t-cotizaciones', 't-descartes', 't-levantamientos', 't-leads', 't-ventas', 't-conversion', 't-perdida', 't-tareas', 'embudo', 'etapas', 'contacto', 'llamadas']
+const FICHA_COMPARTIDOS = ['t-cotizaciones', 't-descartes', 't-levantamientos', 't-leads', 't-ventas', 't-conversion', 't-conv-digital', 't-conv-nodigital', 't-perdida', 't-tareas', 'embudo', 'etapas', 'contacto', 'llamadas']
 /** El orden con el que abre la ficha: evolución, el resumen de la persona, sus cifras, el embudo,
  *  cómo atiende, su actividad y sus pendientes. */
 const ORDEN_FICHA = [
   'ev', 'ev-tabla',
   'ventas', 'cumplimiento', 'cierre',
   't-cotizaciones', 'cotizado', 't-descartes', 't-levantamientos',
-  't-leads', 't-ventas', 't-conversion', 't-perdida', 't-tareas',
+  't-leads', 't-ventas', 't-conversion', 't-conv-digital', 't-conv-nodigital', 't-perdida', 't-tareas',
   'reales', 'embudo', 'etapas', 'contacto', 'llamadas',
   'actividad', 'leads', 'tareas',
 ]
@@ -1210,6 +1231,9 @@ export function Ficha({ corte, filtros, uid, onBack, puedeEditar = true }: { cor
     return { ff, ventas: vs, monto, metaMes, metaRango, rit, periodoV: periodoTexto(rvw), leadsV, rango: ff.rango.label }
   }
   const V = ventasDe('ventas'), C = ventasDe('cumplimiento'), Z = ventasDe('cierre')
+  // Porcentaje de cierre = el renglón de esta persona en la tabla de conversión del tablero (junta 23-sep: la ficha
+  // daba otro número y abría otra lista). Mismo cálculo, mismo detalle.
+  const ZCV = conversion(corte, Z.ff, 'asesor'), ZC = ZCV.filas.find((x) => x.clave === u.id), ZT = ZC?.tasa ?? 0
   // Activos = foto de HOY (Randall 11-sep), no los asignados en el rango: la ficha decía «87 leads activos» y la
   // tabla de Asesores 205 para la misma persona.
   const activos = leadsActivosHoy(corte, f)
@@ -1272,6 +1296,7 @@ export function Ficha({ corte, filtros, uid, onBack, puedeEditar = true }: { cor
       <div className={'kcard k2 ritmo-' + C.rit.estado}><div className="l">Cumplimiento<Info termino={['Cumplimiento', 'Ritmo']} /></div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', gap: 8 }}><div className="n">{pct(C.monto, C.metaRango)}%</div><Gauge pct={pct(C.monto, C.metaRango)} label="meta" size={120} color={C.rit.estado === 'atras' ? 'var(--warn)' : 'var(--c4)'} /></div>
         <div className={'rt ' + C.rit.estado}>{C.rit.texto}</div>
+        {C.rit.avance && <div className="rt-av">{C.rit.avance}</div>}
         <div className="small muted">meta {C.periodoV} {fmtMoney0(C.metaRango)} ({fmtMoney0(C.metaMes)} al mes){C.monto < C.metaRango && ` · faltan ${fmtMoney0(C.metaRango - C.monto)}`}</div></div>
     ), { plain: true, span: 2, cls: 'wcard', base: 'cierre' }),
     wg('cotizado', 'Cotizado vigente y antigüedad', (
@@ -1331,12 +1356,12 @@ export function Ficha({ corte, filtros, uid, onBack, puedeEditar = true }: { cor
     ), { span: 3, alto: 9, base: 'cierre' }),
     // Porcentaje de cierre contra su meta: el número que Randall puso a mano en el PDF.
     wg('cierre', 'Porcentaje de cierre', (
-      <button type="button" className={'tile tbtn t4 ritmo-' + (Z.leadsV.length && Z.ventas.length / Z.leadsV.length >= META_CIERRE ? 'cumplida' : 'atras')}
-        aria-label={`Porcentaje de cierre ${Z.leadsV.length ? pct(Z.ventas.length, Z.leadsV.length) : 0}%, meta ${Math.round(META_CIERRE * 100)}%. Ver las ventas`}
-        onClick={() => setDrill({ titulo: `Ventas de ${u.nombre}`, filas: fVentas(Z.ventas), sub: Z.rango + FUENTE_VENTAS(corte) })}>
-        <div className="n">{Z.leadsV.length ? pct(Z.ventas.length, Z.leadsV.length) : 0}%</div>
-        <div className="l">{fmtN(Z.ventas.length)} cerrados de {fmtN(Z.leadsV.length)} leads asignados {Z.periodoV}</div>
-        <Bullet value={Z.leadsV.length ? Z.ventas.length / Z.leadsV.length : 0} target={META_CIERRE} label="Porcentaje de cierre" fmt={(n) => Math.round(n * 100) + '%'} />
+      <button type="button" className={'tile tbtn t4 ritmo-' + (ZT >= META_CIERRE ? 'cumplida' : 'atras')}
+        aria-label={`Porcentaje de cierre ${Math.round(ZT * 100)}%, meta ${Math.round(META_CIERRE * 100)}%. Ver sus leads y cierres`}
+        onClick={() => ZC && setDrill(drillLeadsConv(ZC, periodoTexto(ZCV.rango), 'asesor', setDrill))}>
+        <div className="n">{Math.round(ZT * 100)}%</div>
+        <div className="l">{fmtN(ZC?.cierres.length ?? 0)} cerrados de {fmtN(ZC?.leads.length ?? 0)} leads asignados {Z.periodoV}</div>
+        <Bullet value={ZT} target={META_CIERRE} label="Porcentaje de cierre" fmt={(n) => Math.round(n * 100) + '%'} />
         <div className="rt">Meta: {Math.round(META_CIERRE * 100)}%</div>
       </button>
     ), { plain: true, span: 2, alto: 5, cls: 'wtile', info: ['Conversión'], base: 'cierre' }),
