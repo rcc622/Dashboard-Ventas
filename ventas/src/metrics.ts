@@ -991,6 +991,7 @@ export type ClaseOrigen = 'digital' | 'nodigital'
 export function claseOrigen(o: string | null | undefined): ClaseOrigen {
   const s = (o || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
   if (!s || s === 'sin origen' || s === 'otro' || s === SIN_LEAD.toLowerCase()) return 'nodigital'
+  // «Llamada entrante» (nuevo origen de Kommo, 24-sep) cuenta como digital: marcan a los números de los anuncios y la web.
   return /^(referid|cambaceo|expo|directo$|expansi)/.test(s) ? 'nodigital' : 'digital'
 }
 /** El levantamiento del lead para las tablas de conversión (Randall 24-sep: «cuántos de esos cierres sí tuvieron

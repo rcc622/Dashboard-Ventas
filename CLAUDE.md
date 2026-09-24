@@ -550,7 +550,8 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   `baseCierre(corte)` también saca los leads **ya vendidos antes de su mes de asignación** (venta de la app en agosto,
   lead dado de alta/reasignado en septiembre: salía «Sin cierre» en septiembre; lead 24924939).
   **Origen en Kommo** (`ventas_kommo.origen_lead`): el campo «Origen» (1833317) manda cuando dice Referido, Cambaceo,
-  Expo o Expansión, y cuando el canal de marketing da «Sin origen»; lo demás sigue `crm_kommo.canal_del_lead`
+  Expo, Expansión o «Llamada entrante» (origen nuevo 24-sep: entra la llamada, contesta un asesor y se le asigna; cuenta
+  como DIGITAL en la conversión), y cuando el canal de marketing da «Sin origen»; lo demás sigue `crm_kommo.canal_del_lead`
   (compartido con marketing, NO se tocó: solo entiende orgánico/anuncio/directo y «Referido» caía a «Sin origen»).
   (h) El detalle de leads de la conversión trae «Tareas completadas · Llamadas realizadas · Contestadas · No contestadas»
   por lead (`actividadPorLead`, ventana del corte). HubSpot liga también las TAREAS COMPLETADAS al deal

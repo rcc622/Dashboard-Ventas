@@ -265,7 +265,7 @@ function drillConversion(corte: Corte, f: Filtros, por: PorConversion | 'ventas'
   const pie = `Tasa = cierres entre leads asignados en los meses que toca el rango, SIN los perdidos: un lead descartado no cuenta (la app de comisiones guarda el mes de la venta, no el día). `
     + `Días de cierre = de la asignación del lead al día en que el CRM lo marcó ganado: ${fmtN(cv.casadas)} de ${fmtN(cv.cierres.length)} ventas se casaron con su lead `
     + `y ${fmtN(cv.conDias)} tienen ese día. ${por === 'origen' && !clase ? 'Una venta sin lead casado no tiene origen y va en su propio renglón, sin tasa. ' : ''}`
-    + (clase ? `Solo ${CLASE_LABEL[clase]}: ${clase === 'digital' ? 'Meta Ads, Google Ads, TikTok, Wapp-FB, Web Form, web y redes orgánicas, WhatsApp' : 'referidos, cambaceo, expo, directo, expansión y sin origen'}; los leads sin origen también cuentan aquí para no perderse. Una venta sin lead casado cuenta por el origen que capturó la app. Digital + no digital = la conversión total. ` : '')
+    + (clase ? `Solo ${CLASE_LABEL[clase]}: ${clase === 'digital' ? 'Meta Ads, Google Ads, TikTok, Wapp-FB, Web Form, web y redes orgánicas, WhatsApp y llamadas entrantes' : 'referidos, cambaceo, expo, directo, expansión y sin origen'}; los leads sin origen también cuentan aquí para no perderse. Una venta sin lead casado cuenta por el origen que capturó la app. Digital + no digital = la conversión total. ` : '')
     + 'Clic en el nombre abre sus leads.'
   const self: Drill = {
     titulo: (clase ? `Tasa de conversión ${CLASE_LABEL[clase]}` : 'Tasa de conversión') + (por === 'asesor' ? ' por asesor' : ' por origen del lead'), sub, pie, vistas,

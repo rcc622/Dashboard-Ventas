@@ -54,14 +54,15 @@ FUNNEL = {0: "0·Perdido", 1: "1·No contestó (sin recibo)", 2: "2·Respondió 
 
 
 
-# El campo «Origen» del lead (1833317) manda cuando dice un canal sin anuncio: Referido, Cambaceo, Expo, Expansión.
+# El campo «Origen» del lead (1833317) manda cuando dice un canal sin anuncio (Referido, Cambaceo, Expo, Expansión) o
+# «Llamada entrante» (Randall 24-sep: llamada que entra, la contesta un asesor y el lead se le asigna a él).
 # `crm_kommo.canal_del_lead` (compartido con marketing) solo entiende orgánico / anuncio / directo y con «Referido»
 # caía a «Sin origen» (Randall 24-sep, lead 24924939). Para lo demás sigue la regla de marketing.
-_NO_DIGITAL = ("referid", "cambaceo", "expo", "expansi")
+_MANDA_CAMPO = ("referid", "cambaceo", "expo", "expansi", "llamada entrante")
 def origen_lead(l):
     crudo = (k.cf(l, k.MAP["campo_origen"]) or "").strip()
     base = crudo.lower().replace("ó", "o")
-    if crudo and base.startswith(_NO_DIGITAL):
+    if crudo and base.startswith(_MANDA_CAMPO):
         return crudo
     canal = k.canal_del_lead(l)
     return crudo if canal == "Sin origen" and crudo else canal
@@ -498,6 +499,7 @@ def selftest():
     assert origen_lead({"o": "Referido"}) == "Referido"
     assert origen_lead({"o": "Referido", "canal": "Meta Ads"}) == "Referido"
     assert origen_lead({"o": "Expansión"}) == "Expansión"
+    assert origen_lead({"o": "Llamada entrante", "canal": "Meta Ads"}) == "Llamada entrante"
     assert origen_lead({"o": "Web Form - Ad", "canal": "Meta Ads"}) == "Meta Ads"
     assert origen_lead({"canal": "Meta Ads"}) == "Meta Ads" and origen_lead({}) == "Sin origen"
     # dedup: dos patas de Twilio a 2 s = 1 llamada con la duración mayor; a 60 s = 2

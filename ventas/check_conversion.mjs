@@ -78,7 +78,7 @@ assert.equal(M.autoTitulo({ ...gv, resultado: 'promedio' }), 'Promedio de contra
 assert.deepEqual(M.resultadosDe(['leads'], 'asesor', 'hbar'), ['suma', 'pct'])
 assert.deepEqual(M.resultadosDe(['leads'], 'mes', 'vbar'), ['suma', 'pct', 'acumulado'])
 // Canal del origen (junta 23-sep)
-for (const o of ['Meta Ads', 'Wapp-FB', 'Web Form', 'TikTok', 'Google Ads', 'Web orgánico', 'REDES SOCIALES', 'WA-FB Directo']) assert.equal(M.claseOrigen(o), 'digital', o)
+for (const o of ['Meta Ads', 'Wapp-FB', 'Web Form', 'TikTok', 'Google Ads', 'Web orgánico', 'REDES SOCIALES', 'WA-FB Directo', 'Llamada entrante']) assert.equal(M.claseOrigen(o), 'digital', o)
 for (const o of ['Referido', 'REFERIDO', 'Cambaceo', 'Expo', 'Directo', 'EXPANSIÓN']) assert.equal(M.claseOrigen(o), 'nodigital', o)
 for (const o of ['Sin origen', '', null, 'OTRO']) assert.equal(M.claseOrigen(o), 'nodigital', String(o))
 // Ritmo: avance porcentual contra el día del periodo y proyección
