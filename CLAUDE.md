@@ -530,6 +530,17 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   etapa, columna «Llamadas» pegada a Etapa en el detalle (`extras[].tras: 'etapa'`) y columna en «Monto cotizado y
   tiempo por etapa» entre Leads y Monto. Son las llamadas de los 90 días del corte, contestadas o no.
   (0) Colores de «Tarea de seguimiento» (opción A que eligió Randall): `extras[].tono` → `td.tono-mal/bien/nada`.
+  **Ajustes 24-sep (Randall)**: (a) las dos tarjetas no se veían: cayeron en huecos sueltos de los acomodos guardados y
+  la galería solo lista lo QUITADO. Ahora son `t-conv-dig` / `t-conv-nodig` (id nuevo para que entren otra vez) con
+  `Widget.junto` (widgets.tsx `sanear`: un widget nuevo entra a la derecha de su hermano si cabe, si no debajo y
+  `acomodar` empuja). (b) **«Sin origen» y «OTRO» van a no digital** («que no se pierda»): `claseOrigen` ya no
+  devuelve null y digital + no digital = la conversión total. (c) Columnas **«Cierres con levantamiento»** (tabla por
+  asesor u origen) y **«Levantamiento»** (detalle: Hecho > Agendado > Solicitado con fecha, `levDe`). Ojo: en septiembre
+  0 de 216 ganados de HubSpot pasaron por las etapas de levantamiento (los brincan a Ganado); el dato real vive en el
+  Excel de operaciones (`levantamientos`), sin cruce por cliente todavía. (d) **Actividad de la ficha**: bolita gris
+  «Marcados sin interés» (eventos `descarte` cuyo lead tiene razón /sin interés/) y la semana dice sus días
+  («1 sep – 6 sep», recortada al periodo). (e) `Widget.minAlto`: `sanear` sube el alto de un acomodo guardado si el
+  contenido creció (Avance contra la meta 6, su versión de la ficha 5, Actividad 9).
 - **Tarea de seguimiento en el detalle de cada etapa del embudo** (Randall 23-sep): columnas «Tarea de seguimiento»
   (Sin tarea / Vigente / Vencida, con «(2 de 3)» si hay varias vencidas) y «Vence» (`Lead.prox_tarea`: la tarea abierta
   más próxima en Kommo; en HubSpot la de las tareas ligadas o la próxima actividad). Solo en `fLeadsTarea` del embudo.

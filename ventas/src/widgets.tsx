@@ -23,7 +23,10 @@ import type { Acomodo, Yo } from './types'
 // localStorage por clave (admin / midia-<uid> / ficha): son preferencia de quien mira, no dato.
 /** `span`/`alto`: tamaño por defecto en columnas y filas. `desde`: id del widget que agrupaba a este
  *  antes (p. ej. las cifras que vivían juntas en «cifras»); sirve para migrar un orden viejo. */
-export interface Widget { id: string; titulo: string; nodo: ReactNode; span?: number; alto?: number; plain?: boolean; info?: Termino[]; ayuda?: string; cls?: string; desde?: string; grafica?: Grafica; base?: BaseFecha }
+/** `junto`: un widget nuevo entra pegado a ese (a su derecha si cabe, si no debajo empujando lo demás) en vez de caer
+ *  en el primer hueco libre, donde nadie lo encuentra (tarjetas de conversión digital, 24-sep). `minAlto`: filas mínimas
+ *  aunque el acomodo guardado diga menos (el contenido creció: «Avance contra la meta» con la línea del avance, 24-sep). */
+export interface Widget { id: string; titulo: string; nodo: ReactNode; span?: number; alto?: number; plain?: boolean; info?: Termino[]; ayuda?: string; cls?: string; desde?: string; junto?: string; minAlto?: number; grafica?: Grafica; base?: BaseFecha }
 /** Lo que la página presta para las gráficas propias (constructor.tsx): dibujarlas, la galería y el editor. */
 export interface Constructor {
   render: (g: Grafica) => ReactNode
@@ -136,6 +139,15 @@ function sanear(l: Layout, widgets: Widget[]): Layout {
   // Un widget nuevo que nace de otro (`desde`) y cabe a su derecha parte al viejo en dos en vez de caer
   // al primer hueco (Perfiles → matriz + tabla, 6-sep); si no cabe, va al primer hueco como los demás.
   for (const w of widgets) { const o = w.desde ? pos[w.desde] : undefined; if (o && !(w.id in pos) && !ocultos.includes(w.id) && o.w >= 2 * anchoDe(w)) { o.w -= anchoDe(w); pos[w.id] = { x: o.x + o.w, y: o.y, w: anchoDe(w), h: o.h } } }
+  for (const w of widgets) if (w.minAlto && pos[w.id] && pos[w.id].h < w.minAlto) { pos[w.id] = { ...pos[w.id], h: w.minAlto }; Object.assign(pos, acomodar(pos, w.id)) }
+  for (const w of widgets) {
+    const o = w.junto ? pos[w.junto] : undefined
+    if (!o || w.id in pos || ocultos.includes(w.id)) continue
+    const der = { x: o.x + o.w, y: o.y, w: anchoDe(w), h: altoDe(w) }
+    if (der.x + der.w - 1 <= COLS && !Object.values(pos).some((p) => choca(der, p))) { pos[w.id] = der; continue }
+    pos[w.id] = { x: Math.min(o.x, COLS - anchoDe(w) + 1), y: o.y + o.h, w: anchoDe(w), h: altoDe(w) }
+    Object.assign(pos, acomodar(pos, w.id))
+  }
   for (const w of widgets) if (!(w.id in pos) && !ocultos.includes(w.id)) pos[w.id] = colocar(pos, anchoDe(w), altoDe(w))
   return { v: 2, pos, ocultos, seps: l.seps, graficas: l.graficas || [] }
 }

@@ -51,7 +51,7 @@ const defaultsDe = (c: Corte, fabrica: Record<string, RangoWidget>): { por: Reco
   const cfg = (c.fechas_default || {}) as Record<string, RangoWidget>
   return { por: { ...fabrica, ...cfg }, desde: Object.fromEntries(Object.keys(cfg).map((id) => [id, c.fechas_default_ts || 0])) }
 }
-const ORDEN_ADMIN = ['t-leads', 't-ventas', 't-vendido', 't-conversion', 't-conv-digital', 't-conv-nodigital', 't-perdida', 't-tareas', 't-cotizaciones', 't-descartes', 't-levantamientos', 'llamadas', 'calidad-llamadas', 'salud', 'pipeline', 'ranking', 'reales', 'cotiz-metodos', 'lev-operaciones', 'visitas', 'entrada', 'embudo', 'etapas', 'contacto', 'razones', 'perfiles', 'perfiles-tabla']
+const ORDEN_ADMIN = ['t-leads', 't-ventas', 't-vendido', 't-conversion', 't-conv-dig', 't-conv-nodig', 't-perdida', 't-tareas', 't-cotizaciones', 't-descartes', 't-levantamientos', 'llamadas', 'calidad-llamadas', 'salud', 'pipeline', 'ranking', 'reales', 'cotiz-metodos', 'lev-operaciones', 'visitas', 'entrada', 'embudo', 'etapas', 'contacto', 'razones', 'perfiles', 'perfiles-tabla']
 const fLeads = (ls: Lead[]) => filasDeLeads(ls, () => '', undefined, { label: 'Días sin actividad', de: (l) => diasSinActividad(l) })
 const HOY = 'foto de hoy, sin importar las fechas del tablero'
 /** La tarea de seguimiento del lead (Randall 23-sep, detalle de cada etapa del embudo): sin tarea, vigente o vencida, y
@@ -265,7 +265,7 @@ function drillConversion(corte: Corte, f: Filtros, por: PorConversion | 'ventas'
   const pie = `Tasa = cierres entre leads asignados en los meses que toca el rango (la app de comisiones guarda el mes de la venta, no el día). `
     + `Días de cierre = de la asignación del lead al día en que el CRM lo marcó ganado: ${fmtN(cv.casadas)} de ${fmtN(cv.cierres.length)} ventas se casaron con su lead `
     + `y ${fmtN(cv.conDias)} tienen ese día. ${por === 'origen' && !clase ? 'Una venta sin lead casado no tiene origen y va en su propio renglón, sin tasa. ' : ''}`
-    + (clase ? `Solo ${CLASE_LABEL[clase]}: ${clase === 'digital' ? 'Meta Ads, Google Ads, TikTok, Wapp-FB, Web Form, web y redes orgánicas, WhatsApp' : 'referidos, cambaceo, expo, directo y expansión'}; una venta sin lead casado cuenta por el origen que capturó la app; «Sin origen» no entra en ninguna de las dos. ` : '')
+    + (clase ? `Solo ${CLASE_LABEL[clase]}: ${clase === 'digital' ? 'Meta Ads, Google Ads, TikTok, Wapp-FB, Web Form, web y redes orgánicas, WhatsApp' : 'referidos, cambaceo, expo, directo, expansión y sin origen'}; los leads sin origen también cuentan aquí para no perderse. Una venta sin lead casado cuenta por el origen que capturó la app. Digital + no digital = la conversión total. ` : '')
     + 'Clic en el nombre abre sus leads.'
   const self: Drill = {
     titulo: (clase ? `Tasa de conversión ${CLASE_LABEL[clase]}` : 'Tasa de conversión') + (por === 'asesor' ? ' por asesor' : ' por origen del lead'), sub, pie, vistas,
@@ -383,7 +383,7 @@ function widgetsTablero(corte: Corte, filtros: Filtros, d: Datos, ax: Acciones):
     ), { plain: true, span: 1, alto: 4, cls: 'wtile', info: ['Clientes cerrados'], desde: 'cifras', base: 'cierre' }),
     // El número que Alejandro llamó «el más importante» (4-sep): vendido contra la meta con el ritmo del mes y color que grite.
     W('t-vendido', 'Avance contra la meta', <TileAvance monto={monto} metaRango={metaRango} rit={rit} periodo={periodoV} onClick={verVendido} />,
-      { plain: true, span: 1, alto: 6, cls: 'wtile', info: ['Ritmo'], desde: 'cifras', base: 'cierre' }),   // 6 filas: medidor, frase del ritmo y avance contra el día
+      { plain: true, span: 1, alto: 6, minAlto: 6, cls: 'wtile', info: ['Ritmo'], desde: 'cifras', base: 'cierre' }),   // 6 filas: medidor, frase del ritmo y avance contra el día
     W('t-conversion', 'Conversión ventas / asignados', (
         <button type="button" className="tile tbtn t4" onClick={() => abrir(drillConversion(corte, filtros, 'asesor', abrir))} aria-label={`Conversión ${leadsVentas.length ? pct(ventas.length, leadsVentas.length) + '%' : 'sin dato'}. Ver detalle`}><div className="n">{leadsVentas.length ? pct(ventas.length, leadsVentas.length) + '%' : '—'}</div><div className="l">Ventas cerradas entre leads asignados {periodoV}</div></button>
     ), { plain: true, span: 1, alto: 4, cls: 'wtile', info: ['Conversión'], desde: 'cifras' }),
@@ -391,10 +391,12 @@ function widgetsTablero(corte: Corte, filtros: Filtros, d: Datos, ax: Acciones):
     ...(['digital', 'nodigital'] as const).map((k) => {
       const cv = conversion(corte, filtros, 'asesor', k), n = cv.leads.length, t = n ? pct(cv.cierres.length, n) + '%' : '—'
       const titulo = 'Tasa de conversión ' + CLASE_LABEL[k]
-      return W('t-conv-' + k, titulo, (
+      // ids «-dig»: las primeras («-digital») cayeron en huecos sueltos de los acomodos guardados y nadie las
+      // encontraba (Randall 24-sep); con id nuevo entran de nuevo, ahora pegadas a «Conversión» (`junto`).
+      return W(k === 'digital' ? 't-conv-dig' : 't-conv-nodig', titulo, (
         <button type="button" className="tile tbtn t4" onClick={() => abrir(drillConversion(corte, filtros, 'asesor', abrir, k))} aria-label={`${titulo}: ${t}, ${fmtN(cv.cierres.length)} cierres de ${fmtN(n)} leads. Ver detalle`}>
           <div className="n">{t}</div><div className="l">{k === 'digital' ? 'Origen digital' : 'Origen no digital'}: {fmtN(cv.cierres.length)} cierres de {fmtN(n)} leads asignados {periodoTexto(cv.rango)}</div></button>
-      ), { plain: true, span: 1, alto: 4, cls: 'wtile', info: [k === 'digital' ? 'Conversión digital' : 'Conversión no digital'], desde: 'cifras' })
+      ), { plain: true, span: 1, alto: 4, cls: 'wtile', info: [k === 'digital' ? 'Conversión digital' : 'Conversión no digital'], junto: k === 'digital' ? 't-conversion' : 't-conv-dig' })
     }),
     W('t-perdida', 'Tasa de pérdida', (
         <button type="button" className="tile tbtn t5" onClick={() => ver('Leads perdidos · asignados en el rango', filasDeLeads(perdidos, (l) => `Perdido · ${l.razon || 'sin razón'}`, (l) => l.cerrado), rango + ' · fecha = descarte')} aria-label={`Tasa de pérdida ${pct(perdidos.length, baseAsignados)}%: ${fmtN(perdidos.length)} perdidos de ${fmtN(baseAsignados)} asignados. Ver detalle`}><div className="n">{pct(perdidos.length, baseAsignados)}%</div><div className="l">{fmtN(perdidos.length)} perdidos de {fmtN(baseAsignados)} asignados</div></button>
@@ -1151,14 +1153,14 @@ const wg = (id: string, titulo: string, nodo: React.ReactNode, opts: Partial<Wid
 /** Los widgets del tablero general que TAMBIÉN tienen sentido para una persona: los mismos números,
  *  fijados a ella (Randall 10-sep, diseño del PDF). Fuera quedan los de equipo (salud, ranking,
  *  perfiles) y los que la ficha ya cuenta a su manera (avance contra la meta, ventas reales). */
-const FICHA_COMPARTIDOS = ['t-cotizaciones', 't-descartes', 't-levantamientos', 't-leads', 't-ventas', 't-conversion', 't-conv-digital', 't-conv-nodigital', 't-perdida', 't-tareas', 'embudo', 'etapas', 'contacto', 'llamadas']
+const FICHA_COMPARTIDOS = ['t-cotizaciones', 't-descartes', 't-levantamientos', 't-leads', 't-ventas', 't-conversion', 't-conv-dig', 't-conv-nodig', 't-perdida', 't-tareas', 'embudo', 'etapas', 'contacto', 'llamadas']
 /** El orden con el que abre la ficha: evolución, el resumen de la persona, sus cifras, el embudo,
  *  cómo atiende, su actividad y sus pendientes. */
 const ORDEN_FICHA = [
   'ev', 'ev-tabla',
   'ventas', 'cumplimiento', 'cierre',
   't-cotizaciones', 'cotizado', 't-descartes', 't-levantamientos',
-  't-leads', 't-ventas', 't-conversion', 't-conv-digital', 't-conv-nodigital', 't-perdida', 't-tareas',
+  't-leads', 't-ventas', 't-conversion', 't-conv-dig', 't-conv-nodig', 't-perdida', 't-tareas',
   'reales', 'embudo', 'etapas', 'contacto', 'llamadas',
   'actividad', 'leads', 'tareas',
 ]
@@ -1247,11 +1249,15 @@ export function Ficha({ corte, filtros, uid, onBack, puedeEditar = true }: { cor
   // por mes, siempre en una sola fila. Una semana o un mes se abren por día con un clic.
   const ini = rangoAct.ini, fin = rangoAct.fin, rangoActTxt = rangoAct.label
   const evRango = corte.eventos.filter((e) => pasaCrm(e.crm, filtros) && e.asesor_id === uid && e.ts >= ini && e.ts < fin)
+  // «Sin interés» (junta 23-sep, Samuel: «sí estaría bueno»): leads que el asesor descartó con esa razón.
+  const razonDe = new Map(corte.leads.map((l) => [l.id, l.razon || '']))
+  const sinInteres = (e: Evento) => e.tipo === 'descarte' && /sin inter[eé]s/i.test(razonDe.get(e.lead) || '')
   const burbujas = (ev: Evento[]) => [
     { n: ev.filter((e) => e.tipo === 'llamada_ok' || e.tipo === 'llamada_no').length, title: 'Llamadas' },
     { n: ev.filter((e) => e.tipo === 'tarea').length, cls: 'w', title: 'Tareas completadas' },
     { n: ev.filter((e) => e.tipo === 'cotizacion').length, cls: 'e', title: 'Cotizaciones entregadas' },
     { n: ev.filter((e) => e.tipo === 'levantamiento').length, cls: 'l', title: 'Levantamientos solicitados' },
+    { n: ev.filter(sinInteres).length, cls: 's', title: 'Marcados sin interés' },
   ].filter((b) => b.n > 0)
   const entre = (a: number, b: number) => evRango.filter((e) => e.ts >= a && e.ts < b)
   const diasRango = Math.round((fin - ini) / 86400)
@@ -1271,7 +1277,10 @@ export function Ficha({ corte, filtros, uid, onBack, puedeEditar = true }: { cor
     const semanas: Date[] = []
     for (let d = lunes(new Date(ini * 1000)); ep(d) < fin; d = sumar(d, 7)) semanas.push(d)
     evVista = evRango
-    cols = semanas.map((d) => ({ label: fmtCorta(d), title: `Semana del ${fmtCorta(d)}. Clic para ver por día`, bubbles: burbujas(entre(Math.max(ini, ep(d)), Math.min(fin, ep(sumar(d, 7))))) }))
+    // La etiqueta dice qué días abarca la semana (Randall 24-sep: «me confundo entre la vista diaria y la semanal»),
+    // recortada al periodo: la primera semana de septiembre empieza el 1, no el lunes 31 de agosto.
+    const tramo = (d: Date) => { const a = new Date(Math.max(ini * 1000, d.getTime())), b = new Date(Math.min(fin * 1000 - 1, sumar(d, 6).getTime())); return `${fmtCorta(a)} – ${fmtCorta(b)}` }
+    cols = semanas.map((d) => ({ label: tramo(d), title: `Semana del ${tramo(d)}. Clic para ver por día`, bubbles: burbujas(entre(Math.max(ini, ep(d)), Math.min(fin, ep(sumar(d, 7))))) }))
     onCol = (i) => setZoom({ ini: semanas[i], dias: 7, texto: `Semana del ${fmtCorta(semanas[i])} al ${fmtCorta(sumar(semanas[i], 6))}` })
     vista = `Por semana · ${rangoActTxt} · clic en una semana para verla por día`
   } else {
@@ -1291,7 +1300,7 @@ export function Ficha({ corte, filtros, uid, onBack, puedeEditar = true }: { cor
     // «Ventas · este mes» se cambió por la barrita del tablero (Alejandro 15-sep: «el widget de ventas este mes por
     // el de la barrita»); conserva el id para quedarse en el lugar que ya tiene en los acomodos guardados.
     wg('ventas', 'Avance contra la meta', <TileAvance monto={V.monto} metaRango={V.metaRango} rit={V.rit} periodo={V.periodoV} onClick={() => setDrill({ titulo: `Ventas de ${u.nombre}`, filas: fVentas(V.ventas), sub: V.rango + FUENTE_VENTAS(corte) })} />,
-      { plain: true, span: 2, alto: 5, cls: 'wtile', info: ['Ritmo'], base: 'cierre' }),
+      { plain: true, span: 2, alto: 5, minAlto: 5, cls: 'wtile', info: ['Ritmo'], base: 'cierre' }),
     wg('cumplimiento', 'Cumplimiento', (
       <div className={'kcard k2 ritmo-' + C.rit.estado}><div className="l">Cumplimiento<Info termino={['Cumplimiento', 'Ritmo']} /></div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', gap: 8 }}><div className="n">{pct(C.monto, C.metaRango)}%</div><Gauge pct={pct(C.monto, C.metaRango)} label="meta" size={120} color={C.rit.estado === 'atras' ? 'var(--warn)' : 'var(--c4)'} /></div>
@@ -1326,10 +1335,10 @@ export function Ficha({ corte, filtros, uid, onBack, puedeEditar = true }: { cor
         </div>
         <BubbleChart cols={cols} onCol={onCol} />
         <div className="small muted" style={{ marginTop: 8 }}>Cada columna es {zoom || diasRango <= 21 ? 'un día' : diasRango <= 26 * 7 ? 'una semana' : 'un mes'} y cada bolita cuenta lo que el asesor registró de cada tipo: entre más grande, más actividad.</div>
-        <div className="legend"><span><i className="lg-comp" aria-hidden="true" />Llamadas</span><span><i className="lg-warn" aria-hidden="true" />Tareas completadas</span><span><i className="lg-e" aria-hidden="true" />Cotizaciones entregadas</span><span><i className="lg-l" aria-hidden="true" />Levantamientos solicitados</span>
+        <div className="legend"><span><i className="lg-comp" aria-hidden="true" />Llamadas</span><span><i className="lg-warn" aria-hidden="true" />Tareas completadas</span><span><i className="lg-e" aria-hidden="true" />Cotizaciones entregadas</span><span><i className="lg-l" aria-hidden="true" />Levantamientos solicitados</span><span><i className="lg-s" aria-hidden="true" />Marcados sin interés</span>
           <button type="button" onClick={() => setDrill({ titulo: `Actividad de ${u.nombre} · ${zoom ? zoom.texto : rangoActTxt}`, filas: filasDeEventos(corte, evVista) })}>Ver las {fmtN(evVista.length)} actividades ›</button></div>
       </>
-    ), { span: 6, alto: 7, info: ['Actividad'], base: 'actividad' }),
+    ), { span: 6, alto: 9, minAlto: 9, info: ['Actividad'], base: 'actividad' }),   // 9 filas: cinco bolitas (sin interés, 24-sep) + leyenda
     wg('leads', `Leads activos · ${fmtN(activosLeads.length)}`, <LeadsTabla corte={corte} leads={activosLeads} />, { span: 6, info: ['Leads activos', 'Estancados'], base: 'asignacion' }),
     wg('tareas', 'Tareas abiertas', (
       <>

@@ -949,14 +949,25 @@ export function ventasCasadas(c: Corte): Map<string, VentaCasada> {
 export const origenDe = (l: Lead) => l.origen || (l.crm === 'hubspot' && l.tags[0]) || 'Sin origen'
 export const SIN_LEAD = 'Venta sin lead en el CRM'
 export type PorConversion = 'asesor' | 'origen'
-/** Canal del origen (junta 23-sep): no digital = referidos, cambaceo, expo, directo y expansión; digital = todo lo que
- *  entra por anuncio, red, web o WhatsApp (Meta Ads, Google Ads, TikTok, Wapp-FB, Web Form…). «Sin origen» no es ninguno. */
+/** Canal del origen (junta 23-sep): no digital = referidos, cambaceo, expo, directo, expansión y también lo que no
+ *  dice origen (Randall 24-sep: «sin origen que se vaya a no digital, que no se pierda»); digital = lo que entra por
+ *  anuncio, red, web o WhatsApp (Meta Ads, Google Ads, TikTok, Wapp-FB, Web Form…). Las dos suman la conversión total. */
 export type ClaseOrigen = 'digital' | 'nodigital'
-export function claseOrigen(o: string | null | undefined): ClaseOrigen | null {
+export function claseOrigen(o: string | null | undefined): ClaseOrigen {
   const s = (o || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
-  if (!s || s === 'sin origen' || s === 'otro' || s === SIN_LEAD.toLowerCase()) return null
+  if (!s || s === 'sin origen' || s === 'otro' || s === SIN_LEAD.toLowerCase()) return 'nodigital'
   return /^(referid|cambaceo|expo|directo$|expansi)/.test(s) ? 'nodigital' : 'digital'
 }
+/** El levantamiento del lead para las tablas de conversión (Randall 24-sep: «cuántos de esos cierres sí tuvieron
+ *  levantamiento agendado»): hecho > agendado > solicitado, con su fecha. */
+export function levDe(l: Lead | null | undefined): { txt: string; ts: number | null } {
+  if (!l) return { txt: 'Sin lead en el CRM', ts: null }
+  if (l.lev_hecho) return { txt: 'Hecho ' + fmtCorta(fechaDe(l.lev_hecho)), ts: l.lev_hecho }
+  if (l.lev_agendado) return { txt: 'Agendado ' + fmtCorta(fechaDe(l.lev_agendado)), ts: l.lev_agendado }
+  if (l.levantamiento) return { txt: 'Solicitado ' + fmtCorta(fechaDe(l.levantamiento)), ts: l.levantamiento }
+  return { txt: 'Sin levantamiento', ts: null }
+}
+const conLev = (l: Lead | null | undefined) => !!l && !!(l.lev_hecho || l.lev_agendado || l.levantamiento)
 export const CLASE_LABEL: Record<ClaseOrigen, string> = { digital: 'origen digital', nodigital: 'origen no digital' }
 /** Un renglón de la conversión: sus leads asignados del periodo, sus ventas y la tasa. `dias` = promedio de días de la
  *  asignación al cierre entre las `nDias` ventas que tienen fecha de cierre exacta. */
@@ -1010,6 +1021,7 @@ export function filasConversion(cv: Conversion): Fila[] {
     extras: [
       { label: 'Leads asignados', valor: fmtN(x.leads.length), n: x.leads.length },
       { label: 'Cierres', valor: fmtN(x.cierres.length), n: x.cierres.length },
+      { label: 'Cierres con levantamiento', valor: (() => { const k = x.cierres.filter((y) => conLev(y.lead)).length; return x.cierres.length ? `${fmtN(k)} de ${fmtN(x.cierres.length)}` : '—' })(), n: x.cierres.filter((y) => conLev(y.lead)).length },
       { label: 'Días promedio de cierre', valor: fmtDias(x.dias), n: x.dias == null ? null : Math.round(x.dias) },
       { label: 'Tasa de conversión', valor: fmtTasa(x.tasa), n: x.tasa == null ? null : Math.round(x.tasa * 1000) / 10 },
       ...(conNota ? [{ label: 'Nota', valor: x.nota || '' }] : []),
@@ -1021,9 +1033,10 @@ export const nombreLead = (l: Lead) => (/^lead #\d+$/i.test((l.nombre || '').tri
  *  asignados que no han cerrado. Una venta sin lead casado aparece con el nombre del cliente de la app. */
 export function filasConversionLeads(x: FilaConv): Fila[] {
   const cerrados = new Set<string>()
-  const ext = (asig: number | undefined, origen: string, cierre: string, n: number | null, dias: number | null) => [
+  const ext = (asig: number | undefined, origen: string, cierre: string, n: number | null, dias: number | null, l: Lead | null) => [
     { label: 'Fecha de asignación', valor: asig ? fmtCorta(fechaDe(asig)) : '—', n: asig || null, fecha: true },
     { label: 'Origen', valor: origen },
+    { label: 'Levantamiento', valor: levDe(l).txt, tono: conLev(l) ? undefined : 'nada' as const },
     { label: 'Fecha de cierre', valor: cierre, n, fecha: true },
     { label: 'Días de cierre', valor: fmtDias(dias), n: dias },
   ]
@@ -1034,12 +1047,12 @@ export function filasConversionLeads(x: FilaConv): Fila[] {
     return { id: 'cc:' + (y.v?.id ?? l?.id ?? i), nombre: y.v?.cliente || (l ? nombreLead(l) : 'Sin nombre'), link: l?.link || y.v?.liga || undefined,
       crm: l?.crm ?? 'comisiones', asesor: y.v?.vendedor || l?.asesor || 'Sin asesor', detalle: '', estado: 'Cerrada',
       monto: y.v?.monto ?? l?.presupuesto ?? undefined,
-      extras: ext(l?.asignacion, l ? origenDe(l) : SIN_LEAD, cierre, y.cierre ?? y.v?.fecha ?? null, y.dias) }
+      extras: ext(l?.asignacion, l ? origenDe(l) : SIN_LEAD, cierre, y.cierre ?? y.v?.fecha ?? null, y.dias, l) }
   })
   for (const l of x.leads) {
     if (cerrados.has(l.id)) continue
     out.push({ id: l.id, nombre: nombreLead(l), link: l.link || undefined, crm: l.crm, asesor: l.asesor || 'Sin asesor', detalle: '', estado: 'Sin cierre',
-      extras: ext(l.asignacion, origenDe(l), '—', null, null) })
+      extras: ext(l.asignacion, origenDe(l), '—', null, null, l) })
   }
   return out
 }

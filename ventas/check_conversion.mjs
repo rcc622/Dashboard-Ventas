@@ -52,7 +52,13 @@ assert.equal(fb.leads.length, 3); assert.equal(fb.cierres.length, 1); assert.equ
 const det = M.filasConversionLeads(marco)
 assert.equal(det.length, 6, '4 cerradas (una sin lead) + h:2 y h:5, que no cerraron')
 assert.equal(det.filter((x) => x.estado === 'Cerrada').length, 4)
-assert.equal(det.find((x) => x.nombre === 'ANA RUIZ SOTO').extras[2].valor.includes('(solo el mes)'), true)
+const ana = det.find((x) => x.nombre === 'ANA RUIZ SOTO').extras
+assert.equal(ana.find((e) => e.label === 'Fecha de cierre').valor.includes('(solo el mes)'), true)
+assert.equal(ana.find((e) => e.label === 'Levantamiento').valor, 'Sin levantamiento')
+assert.ok(M.filasConversion(pa)[0].extras.some((e) => e.label === 'Cierres con levantamiento'))
+// Sin origen va a no digital: las dos juntas suman la total
+const dg = M.conversion(corte, f, 'asesor', 'digital'), nd = M.conversion(corte, f, 'asesor', 'nodigital')
+assert.equal(dg.leads.length + nd.leads.length, pa.leads.length); assert.equal(dg.cierres.length + nd.cierres.length, pa.cierres.length)
 
 // Constructor: la tasa por origen deja fuera la venta sin lead y el total cuadra con la tarjeta
 const g = { id: 't', titulo: '', medida: 'conversion', dim: 'origen_lead', tipo: 'hbar' }
@@ -74,7 +80,7 @@ assert.deepEqual(M.resultadosDe(['leads'], 'mes', 'vbar'), ['suma', 'pct', 'acum
 // Canal del origen (junta 23-sep)
 for (const o of ['Meta Ads', 'Wapp-FB', 'Web Form', 'TikTok', 'Google Ads', 'Web orgánico', 'REDES SOCIALES', 'WA-FB Directo']) assert.equal(M.claseOrigen(o), 'digital', o)
 for (const o of ['Referido', 'REFERIDO', 'Cambaceo', 'Expo', 'Directo', 'EXPANSIÓN']) assert.equal(M.claseOrigen(o), 'nodigital', o)
-for (const o of ['Sin origen', '', null, 'OTRO']) assert.equal(M.claseOrigen(o), null, String(o))
+for (const o of ['Sin origen', '', null, 'OTRO']) assert.equal(M.claseOrigen(o), 'nodigital', String(o))
 // Ritmo: avance porcentual contra el día del periodo y proyección
 const rr = { ini: Date.UTC(2026, 8, 1) / 1000 + 6 * 3600, fin: Date.UTC(2026, 9, 1) / 1000 + 6 * 3600, label: 'sep' }
 const rt = M.ritmo(300000, 1000000, rr, rr.ini + 14.5 * 86400)
