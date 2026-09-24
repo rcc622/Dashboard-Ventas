@@ -79,7 +79,7 @@ const DIMS_CONV = ['asesor', 'equipo', 'origen_lead', 'crm', 'ciudad', 'mes', 'b
 function itemsConversion(c: Corte, f: Filtros): Item[] {
   const ff = { ...f, rango: rangoVentas(c, f.rango) }
   return [
-    ...leadsFiltrados(c, ff).filter(baseCierre).map((l) => ({ v: 0, v2: 1, lead: l })),
+    ...leadsFiltrados(c, ff).filter(baseCierre(c)).map((l) => ({ v: 0, v2: 1, lead: l })),
     ...cierresDe(c, ff).map((x) => ({ v: 1, v2: 0, vc: x, lead: x.lead ?? undefined, vr: x.v ?? undefined })),
   ]
 }

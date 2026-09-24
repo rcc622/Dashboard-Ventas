@@ -714,7 +714,7 @@ export function porAsesor(c: Corte, f: Filtros): FilaAsesor[] {
     filas.push({
       u, tipo: tipoDe(c, u), ventas: vt.length, montoVentas,
       asignados: mios, ganados: mios.filter((l) => l.funnel === 5).length, perdidos: mios.filter((l) => l.funnel === 0).length,
-      asignadosVentas: (leadsV === leads ? mios : leadsV.filter((l) => l.asesor_id === u.id)).filter(baseCierre).length,
+      asignadosVentas: (leadsV === leads ? mios : leadsV.filter((l) => l.asesor_id === u.id)).filter(baseCierre(c)).length,
       metaMes, metaRango, rangoMeta: rm, esperado, ritmo: rit,
       leadsActivos: activos, presupuesto: activos.reduce((s, l) => s + l.presupuesto, 0),
       cotizado: cotizado(activos, c.cotizado_dias), estancados: activos.filter((l) => estancado(l)).length,
@@ -964,9 +964,25 @@ export function ventasCasadas(c: Corte): Map<string, VentaCasada> {
 /** El origen del lead: el del corte o, en un corte viejo de HubSpot, la etiqueta que lo guardaba. */
 export const origenDe = (l: Lead) => l.origen || (l.crm === 'hubspot' && l.tags[0]) || 'Sin origen'
 export const SIN_LEAD = 'Venta sin lead en el CRM'
-/** Base del % de cierre / conversión (Randall 24-sep: «no cuentes los closed lost o perdidos, esos son descartados»):
- *  leads asignados menos los perdidos. Toda tasa de conversión del tablero usa esta base. */
-export const baseCierre = (l: Lead) => l.funnel !== 0
+/** Base del % de cierre / conversión (Randall 24-sep): leads asignados menos (a) los perdidos («no cuentes los closed
+ *  lost… esos son descartados») y (b) los que ya estaban vendidos antes del mes en que se asignaron (la venta de la app
+ *  es de agosto y el lead se dio de alta o se reasignó en septiembre: lead 24924939). Toda tasa de conversión del
+ *  tablero usa esta base: `baseCierre(corte)` devuelve el filtro. */
+const _vendidos = new WeakMap<Corte, Set<string>>()
+export function baseCierre(c: Corte): (l: Lead) => boolean {
+  let antes = _vendidos.get(c)
+  if (!antes) {
+    antes = new Set()
+    for (const x of ventasCasadas(c).values()) {
+      if (!x.lead || x.v?.fecha == null || !x.lead.asignacion) continue
+      const a = new Date(x.lead.asignacion * 1000), ini = new Date(a.getFullYear(), a.getMonth(), 1).getTime() / 1000
+      if (x.v.fecha < ini) antes.add(x.lead.id)
+    }
+    _vendidos.set(c, antes)
+  }
+  const ya = antes
+  return (l) => l.funnel !== 0 && !ya.has(l.id)
+}
 export type PorConversion = 'asesor' | 'origen'
 /** Canal del origen (junta 23-sep): no digital = referidos, cambaceo, expo, directo, expansión y también lo que no
  *  dice origen (Randall 24-sep: «sin origen que se vaya a no digital, que no se pierda»); digital = lo que entra por
@@ -1002,7 +1018,7 @@ export function cierresDe(c: Corte, f: Filtros): VentaCasada[] {
  *  tarjeta «Conversión»: los MESES que toca el rango, porque la app de comisiones guarda el mes de la venta, no el día. */
 export function conversion(c: Corte, f: Filtros, por: PorConversion, clase?: ClaseOrigen): Conversion {
   const rango = rangoVentas(c, f.rango), ff = { ...f, rango }, users = mapaUsuarios(c)
-  let leads = leadsFiltrados(c, ff).filter(baseCierre), cierres = cierresDe(c, ff)
+  let leads = leadsFiltrados(c, ff).filter(baseCierre(c)), cierres = cierresDe(c, ff)
   // Por canal: el lead por su origen; una venta sin lead casado, por el origen que capturó la app.
   if (clase) {
     leads = leads.filter((l) => claseOrigen(origenDe(l)) === clase)

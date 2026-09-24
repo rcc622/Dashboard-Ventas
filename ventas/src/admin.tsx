@@ -306,7 +306,7 @@ function datosDe(corte: Corte, f: Filtros) {
   // que toca el rango (`rangoVentas`), no sus días. Sin app es el rango tal cual.
   const rv = rangoVentas(corte, f.rango)
   // Base de la conversión = asignados SIN los perdidos (Randall 24-sep), igual que `conversion()`.
-  const leadsVentas = (rv.ini === f.rango.ini && rv.fin === f.rango.fin ? leads : leadsFiltrados(corte, { ...f, rango: rv })).filter(baseCierre)
+  const leadsVentas = (rv.ini === f.rango.ini && rv.fin === f.rango.fin ? leads : leadsFiltrados(corte, { ...f, rango: rv })).filter(baseCierre(corte))
   // Cotizado vigente y activos son foto de HOY (Randall 11-sep), igual que en la tabla de Asesores.
   const activosHoy = leadsActivosHoy(corte, f)
   return {

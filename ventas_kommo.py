@@ -53,6 +53,19 @@ FUNNEL = {0: "0·Perdido", 1: "1·No contestó (sin recibo)", 2: "2·Respondió 
           3: "3·Con recibo (pre-Ventas)", 4: "4·Asignado (en Ventas/Hunting)", 5: "5·Ganado"}
 
 
+
+# El campo «Origen» del lead (1833317) manda cuando dice un canal sin anuncio: Referido, Cambaceo, Expo, Expansión.
+# `crm_kommo.canal_del_lead` (compartido con marketing) solo entiende orgánico / anuncio / directo y con «Referido»
+# caía a «Sin origen» (Randall 24-sep, lead 24924939). Para lo demás sigue la regla de marketing.
+_NO_DIGITAL = ("referid", "cambaceo", "expo", "expansi")
+def origen_lead(l):
+    crudo = (k.cf(l, k.MAP["campo_origen"]) or "").strip()
+    base = crudo.lower().replace("ó", "o")
+    if crudo and base.startswith(_NO_DIGITAL):
+        return crudo
+    canal = k.canal_del_lead(l)
+    return crudo if canal == "Sin origen" and crudo else canal
+
 def num(v):
     try:
         return float(v or 0)
@@ -405,7 +418,7 @@ def build():
             # De dónde vino el lead: la misma regla que el tablero de marketing (crm_kommo.canal_del_lead).
             # El nombre del contacto sirve para casar la venta de la app de comisiones con su lead: el
             # nombre del lead en Kommo casi siempre es «Lead #123».
-            "origen": k.canal_del_lead(l), "contacto": CONTACTO.get(L2C.get(l["id"]), ""),
+            "origen": origen_lead(l), "contacto": CONTACTO.get(L2C.get(l["id"]), ""),
             "link": "https://%s.kommo.com/leads/detail/%d" % (k.SUB, l["id"]),
             "msjs": nmsg, "llamadas_cf": int(num(cfv.get(FIELD_LLAMADAS))),
             # Los tags se renombraron el 12-ago (Contactado → Respondió): se aceptan ambos.
@@ -478,6 +491,15 @@ def build():
 
 
 def selftest():
+    # Origen: «Referido» del campo manda; lo demás, la regla de marketing (con un crm_kommo de mentira)
+    global k
+    from types import SimpleNamespace
+    k = SimpleNamespace(MAP={"campo_origen": 1}, cf=lambda l, f: l.get("o"), canal_del_lead=lambda l: l.get("canal", "Sin origen"))
+    assert origen_lead({"o": "Referido"}) == "Referido"
+    assert origen_lead({"o": "Referido", "canal": "Meta Ads"}) == "Referido"
+    assert origen_lead({"o": "Expansión"}) == "Expansión"
+    assert origen_lead({"o": "Web Form - Ad", "canal": "Meta Ads"}) == "Meta Ads"
+    assert origen_lead({"canal": "Meta Ads"}) == "Meta Ads" and origen_lead({}) == "Sin origen"
     # dedup: dos patas de Twilio a 2 s = 1 llamada con la duración mayor; a 60 s = 2
     raw = [{"ent": "leads", "eid": 1, "ts": 100, "dur": 0, "user": 1},
            {"ent": "leads", "eid": 1, "ts": 102, "dur": 40, "user": 1},
