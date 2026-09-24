@@ -341,6 +341,9 @@ function widgetsTablero(corte: Corte, filtros: Filtros, d: Datos, ax: Acciones):
   // Tasa de pérdida: de los leads asignados en el rango (activos + ganados + perdidos), cuántos ya se perdieron.
   const perdidos = leads.filter((l) => l.funnel === 0), baseAsignados = leads.filter((l) => l.funnel === 4 || l.funnel === 5 || l.funnel === 0).length
   const a = actividad(ev)
+  // Descartes del periodo partidos por la asignación del lead (Randall 24-sep: «ambos dicen Este mes y muestran data
+  // diferente»): la tarjeta cuenta el DÍA DEL DESCARTE; «Tasa de pérdida» cuenta los leads ASIGNADOS en el periodo.
+  const descNuevos = ev.filter((e) => e.tipo === 'descarte' && e.asignacion >= filtros.rango.ini && e.asignacion < filtros.rango.fin).length
   // `ventas` = app de comisiones cuando el corte la trae (Randall 11-sep); el CRM solo de respaldo. Ver ventasFiltradas.
   const monto = ventas.reduce((x, l) => x + l.presupuesto, 0)
   // Ganados del CRM, solo para la tabla que compara la app contra el CRM.
@@ -400,7 +403,7 @@ function widgetsTablero(corte: Corte, filtros: Filtros, d: Datos, ax: Acciones):
       ), { plain: true, span: 1, alto: 4, cls: 'wtile', info: [k === 'digital' ? 'Conversión digital' : 'Conversión no digital'], junto: k === 'digital' ? 't-conversion' : 't-conv-dig' })
     }),
     W('t-perdida', 'Tasa de pérdida', (
-        <button type="button" className="tile tbtn t5" onClick={() => ver('Leads perdidos · asignados en el rango', filasDeLeads(perdidos, (l) => `Perdido · ${l.razon || 'sin razón'}`, (l) => l.cerrado), rango + ' · fecha = descarte')} aria-label={`Tasa de pérdida ${pct(perdidos.length, baseAsignados)}%: ${fmtN(perdidos.length)} perdidos de ${fmtN(baseAsignados)} asignados. Ver detalle`}><div className="n">{pct(perdidos.length, baseAsignados)}%</div><div className="l">{fmtN(perdidos.length)} perdidos de {fmtN(baseAsignados)} asignados</div></button>
+        <button type="button" className="tile tbtn t5" onClick={() => ver('Leads perdidos · asignados en el rango', filasDeLeads(perdidos, (l) => `Perdido · ${l.razon || 'sin razón'}`, (l) => l.cerrado), rango + ' · fecha = descarte')} aria-label={`Tasa de pérdida ${pct(perdidos.length, baseAsignados)}%: ${fmtN(perdidos.length)} perdidos de ${fmtN(baseAsignados)} asignados. Ver detalle`}><div className="n">{pct(perdidos.length, baseAsignados)}%</div><div className="l">{fmtN(perdidos.length)} perdidos de {fmtN(baseAsignados)} leads asignados en el periodo</div></button>
     ), { plain: true, span: 1, alto: 4, cls: 'wtile', info: ['Tasa de pérdida'], desde: 'cifras' }),
     W('t-tareas', 'Tareas completadas', (
         <button type="button" className="tile tbtn" onClick={() => verEv('Tareas completadas', 'tarea')} aria-label={`${fmtN(a.tareas)} tareas completadas. Ver detalle`}><div className="n">{fmtN(a.tareas)}</div><div className="l">Tareas completadas</div></button>
@@ -409,7 +412,7 @@ function widgetsTablero(corte: Corte, filtros: Filtros, d: Datos, ax: Acciones):
         <button type="button" className="tile tbtn" onClick={() => verEv('Cotizaciones entregadas', 'cotizacion')} aria-label={`${fmtN(a.cotizaciones)} cotizaciones entregadas${a.recotizaciones ? `, ${fmtN(a.recotizaciones)} recotizaciones aparte` : ''}. Ver detalle`}><div className="n">{fmtN(a.cotizaciones)}</div><div className="l">Cotizaciones entregadas{a.recotizaciones ? ` · ${fmtN(a.recotizaciones)} recotizaciones aparte` : ''}</div></button>
     ), { plain: true, span: 1, alto: 4, cls: 'wtile', info: ['Cotizaciones'], desde: 'actividad', base: 'actividad' }),
     W('t-descartes', 'Descartados con razón registrada', (
-        <button type="button" className="tile tbtn" onClick={() => verEv('Descartados con razón registrada', 'descarte')} aria-label={`${fmtN(a.descartes)} descartados. Ver detalle`}><div className="n">{fmtN(a.descartes)}</div><div className="l">Descartados con razón registrada</div></button>
+        <button type="button" className="tile tbtn" onClick={() => verEv('Descartados con razón registrada', 'descarte')} aria-label={`${fmtN(a.descartes)} descartados en el periodo: ${fmtN(descNuevos)} de leads asignados en el periodo y ${fmtN(a.descartes - descNuevos)} de leads anteriores. Ver detalle`}><div className="n">{fmtN(a.descartes)}</div><div className="l">Descartados en el periodo · {fmtN(descNuevos)} de leads asignados en el periodo, {fmtN(a.descartes - descNuevos)} de leads anteriores</div></button>
     ), { plain: true, span: 1, alto: 4, cls: 'wtile', info: ['Razón de descarte'], desde: 'actividad' , base: 'actividad' }),
     W('t-levantamientos', 'Levantamientos solicitados', (
         <button type="button" className="tile tbtn" onClick={() => verEv('Levantamientos solicitados', 'levantamiento')} aria-label={`${fmtN(a.levantamientos)} levantamientos. Ver detalle`}><div className="n">{fmtN(a.levantamientos)}</div><div className="l">Levantamientos solicitados</div></button>
