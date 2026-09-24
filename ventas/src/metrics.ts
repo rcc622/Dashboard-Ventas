@@ -999,11 +999,14 @@ export function claseOrigen(o: string | null | undefined): ClaseOrigen {
 export function levDe(l: Lead | null | undefined): { txt: string; ts: number | null } {
   if (!l) return { txt: 'Sin lead en el CRM', ts: null }
   if (l.lev_hecho) return { txt: 'Hecho ' + fmtCorta(fechaDe(l.lev_hecho)), ts: l.lev_hecho }
+  if (l.lev_cita) return { txt: 'Agendado · visita ' + fmtCorta(fechaDe(l.lev_cita)), ts: l.lev_cita }
   if (l.lev_agendado) return { txt: 'Agendado ' + fmtCorta(fechaDe(l.lev_agendado)), ts: l.lev_agendado }
   if (l.levantamiento) return { txt: 'Solicitado ' + fmtCorta(fechaDe(l.levantamiento)), ts: l.levantamiento }
   return { txt: 'Sin levantamiento', ts: null }
 }
-const conLev = (l: Lead | null | undefined) => !!l && !!(l.lev_hecho || l.lev_agendado || l.levantamiento)
+const conLev = (l: Lead | null | undefined) => !!l && !!(l.lev_hecho || l.lev_cita || l.lev_agendado || l.levantamiento)
+/** Agendado en /agendar (o entró a la etapa «Levantamiento agendado» / «hecho»). */
+const agendado = (l: Lead) => !!(l.lev_cita || l.lev_agendado || l.lev_hecho)
 export const CLASE_LABEL: Record<ClaseOrigen, string> = { digital: 'origen digital', nodigital: 'origen no digital' }
 /** Un renglón de la conversión: sus leads asignados del periodo, sus ventas y la tasa. `dias` = promedio de días de la
  *  asignación al cierre entre las `nDias` ventas que tienen fecha de cierre exacta. */
@@ -1056,6 +1059,7 @@ export function filasConversion(cv: Conversion): Fila[] {
     monto: x.cierres.reduce((a, y) => a + (y.v?.monto ?? y.lead?.presupuesto ?? 0), 0) || undefined,
     extras: [
       { label: 'Leads asignados', valor: fmtN(x.leads.length), n: x.leads.length },
+      { label: 'Levantamientos agendados', valor: fmtN(x.leads.filter(agendado).length), n: x.leads.filter(agendado).length },
       { label: 'Cierres', valor: fmtN(x.cierres.length), n: x.cierres.length },
       { label: 'Cierres con levantamiento', valor: (() => { const k = x.cierres.filter((y) => conLev(y.lead)).length; return x.cierres.length ? `${fmtN(k)} de ${fmtN(x.cierres.length)}` : '—' })(), n: x.cierres.filter((y) => conLev(y.lead)).length },
       { label: 'Días promedio de cierre', valor: fmtDias(x.dias), n: x.dias == null ? null : Math.round(x.dias) },

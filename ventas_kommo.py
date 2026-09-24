@@ -37,6 +37,13 @@ FIELD_LLAMADAS = 1833303     # numeric "Intentos llamada" (lo mantiene el server
 FIELD_ASIGNADO = 1833389     # date "Última asignación" — vive en el CONTACTO
 FIELD_CIUDAD = 1823968       # text "Ciudad" — vive en el CONTACTO (la llena el bot al precalificar)
 FIELD_MUNICIPIO = 1833639    # text "Municipio" del formulario de levantamiento; respaldo del anterior
+# Lo que guarda la página /agendar del servicio kommo-salesbot-ia (Railway) en el LEAD al agendar un levantamiento
+# (Randall 24-sep: «lee la data de las páginas para agendar levantamiento… que se coordine el ID»). La página no
+# tiene base propia: escribe estos campos, mueve la etapa y crea el evento del calendario.
+FIELD_CITA = 1831443         # date_time «Próxima cita» = día y hora de la visita
+FIELD_LEV_DIRECCION = 1833327  # requerido en /agendar desde el 12-ago
+FIELD_LEV_ZONA = 1833703     # «Zona del levantamiento», solo lo escribe /agendar (8-sep)
+FIELD_LEV_ASESOR = 1833893   # «Asesor del levantamiento» (23-sep)
 FIELD_COTIZACION = 1833423   # date_time "Cotización entregada" (a mano; cubre el 25 %: solo respaldo)
 ET_PROPUESTA = 109436768     # etapa «Propuesta entregada» del embudo Ventas: entrar aquí ES la cotización
 ET_LEV_AGENDADO = 110266952  # etapa «Levantamiento agendado»: entrar aquí ES agendar la visita
@@ -432,6 +439,9 @@ def build():
             "cotizacion": ts_cot, "recotizaciones": max(0, len(ents) - 1), "levantamiento": ts_lev,
             # Agendar y hacer la visita son dos cosas distintas: la primera entrada a cada etapa.
             "lev_agendado": (AGEND.get(l["id"]) or [0])[0], "lev_hecho": (HECHO.get(l["id"]) or [0])[0],
+            # Agendado por /agendar = trae dirección o zona del levantamiento; la visita es la «Próxima cita».
+            "lev_cita": int(num(cfv.get(FIELD_CITA))) if (cfv.get(FIELD_LEV_DIRECCION) or cfv.get(FIELD_LEV_ZONA)) else 0,
+            "lev_asesor": str(cfv.get(FIELD_LEV_ASESOR) or "").strip(),
             "ult_actividad": max(H2["ult"], ts_llam, ts_cot, ts_lev),
             "cerrado": l.get("closed_at") or 0,
         })

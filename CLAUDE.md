@@ -553,6 +553,12 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   Expo, Expansión o «Llamada entrante» (origen nuevo 24-sep: entra la llamada, contesta un asesor y se le asigna; cuenta
   como DIGITAL en la conversión), y cuando el canal de marketing da «Sin origen»; lo demás sigue `crm_kommo.canal_del_lead`
   (compartido con marketing, NO se tocó: solo entiende orgánico/anuncio/directo y «Referido» caía a «Sin origen»).
+  (i) **Levantamientos desde la página /agendar** (Randall 24-sep: «lee la data de las páginas para agendar
+  levantamiento… que se coordine el ID»): /agendar (kommo-salesbot-ia) NO tiene base propia; escribe en el LEAD
+  «Próxima cita» 1831443 (la visita), Dirección 1833327, Zona 1833703 y Asesor del levantamiento 1833893. El corte
+  lee `lev_cita` (la cita, si trae dirección o zona) y `lev_asesor`; `levDe` muestra «Agendado · visita 12 sep» y la
+  tabla de conversión suma la columna «Levantamientos agendados» (leads del renglón con cita o etapa). Los agendados
+  por el flujo externo (`/agendar/nuevo/{zona}`, asesores sin Kommo) no tienen lead y no se pueden casar.
   (h) El detalle de leads de la conversión trae «Tareas completadas · Llamadas realizadas · Contestadas · No contestadas»
   por lead (`actividadPorLead`, ventana del corte). HubSpot liga también las TAREAS COMPLETADAS al deal
   (`ligar_llamadas(hechas, leads, "tasks")`), así que eso también alimenta primer contacto en HubSpot.
