@@ -1,7 +1,7 @@
 import { Fragment, useLayoutEffect, useMemo, useRef, useState, type SyntheticEvent, useEffect } from 'react'
 import type { Corte, Crm, Embudo, Evento, Lead, LevFila, Sanciones, Usuario } from './types'
 import { CRM_LABEL } from './types'
-import { BUCKETS, PERFIL_LABEL, actividad, actividadDe, cotizado, dias, entrada, ep, eventosFiltrados, fechaCotizado, diasSinActividad, estancado, estadoActivo, ESTADO_ACTIVO, ESTANCADO_DIAS, type EstadoActivo, leadsActivosHoy, rangoVentas, metaYRitmo, metaDe, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, pasaCrm, etiquetaRango, periodoTexto, preset, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, embudoPipeline, type Fila, type FilaAsesor, type Filtros, type Perfil , type PuntoPerfil, ventasReales, ventasCrm, tipoDe, crmTexto, activo, VENDEDOR_LABEL, filasDeVentasReales, comparativaVentas, rolDestacado, rolNombre, cotizacionesGeneradas, filasDeCotizaciones, visitas, levantados, filasDeLevantamientos, fmtEstrellas, llamadasFiltradas, resumenLlamadas, conversion, filasConversion, filasConversionLeads, fmtTasa, fechaDe, llamadasPorLead, actividadPorLead, baseCierre, type PorConversion, type FilaConv, type ClaseOrigen, CLASE_LABEL } from './metrics'
+import { BUCKETS, PERFIL_LABEL, actividad, actividadDe, cotizado, dias, entrada, ep, eventosFiltrados, fechaCotizado, diasSinActividad, estancado, estadoActivo, ESTADO_ACTIVO, ESTANCADO_DIAS, type EstadoActivo, leadsActivosHoy, rangoVentas, metaYRitmo, metaDe, filasDeEventos, filasDeLeads, fmtCorta, fmtMoney, fmtMoney0, fmtN, iniciales, inicioDia, leadsFiltrados, mesNombre, pasaCrm, etiquetaRango, periodoTexto, preset, ritmo, pct, perfiles, porAsesor, primerContacto, razones, salud, serieDiaria, sumar, tipoLead, ventasFiltradas, vivo, zonaNombre, type CatEntrada, type Cotizado, embudoPipeline, type Fila, type FilaAsesor, type Filtros, type Perfil , type PuntoPerfil, ventasReales, ventasCrm, tipoDe, crmTexto, activo, VENDEDOR_LABEL, filasDeVentasReales, comparativaVentas, rolDestacado, rolNombre, cotizacionesGeneradas, filasDeCotizaciones, visitas, levantados, filasDeLevantamientos, fmtEstrellas, llamadasFiltradas, resumenLlamadas, conversion, filasConversion, filasConversionLeads, fmtTasa, fechaDe, llamadasPorLead, actividadPorLead, baseCierre, type PorConversion, type FilaConv, type GrupoOrigen, GRUPO_LABEL } from './metrics'
 import { LlamadaModal, drillLlamadas } from './llamadas'
 import type { Llamada } from './types'
 import { BarDetailPopup, BubbleChart, Bullet, DonutChart, FunnelChart, Gauge, Info, LlamadasBar, MiniAreaChart, Scatter, SortTh, StackedBar, activar, useEscape, useOutside, type DetRow, type Sort, type BubbleCol, useFocoDialogo } from './components'
@@ -51,7 +51,7 @@ const defaultsDe = (c: Corte, fabrica: Record<string, RangoWidget>): { por: Reco
   const cfg = (c.fechas_default || {}) as Record<string, RangoWidget>
   return { por: { ...fabrica, ...cfg }, desde: Object.fromEntries(Object.keys(cfg).map((id) => [id, c.fechas_default_ts || 0])) }
 }
-const ORDEN_ADMIN = ['t-leads', 't-ventas', 't-vendido', 't-conversion', 't-conv-dig', 't-conv-nodig', 't-perdida', 't-tareas', 't-cotizaciones', 't-descartes', 't-levantamientos', 'llamadas', 'calidad-llamadas', 'salud', 'pipeline', 'ranking', 'reales', 'cotiz-metodos', 'lev-operaciones', 'visitas', 'entrada', 'embudo', 'etapas', 'contacto', 'razones', 'perfiles', 'perfiles-tabla']
+const ORDEN_ADMIN = ['t-leads', 't-ventas', 't-vendido', 't-conversion', 't-conv-pago', 't-conv-org', 't-conv-ase', 't-perdida', 't-tareas', 't-cotizaciones', 't-descartes', 't-levantamientos', 'llamadas', 'calidad-llamadas', 'salud', 'pipeline', 'ranking', 'reales', 'cotiz-metodos', 'lev-operaciones', 'visitas', 'entrada', 'embudo', 'etapas', 'contacto', 'razones', 'perfiles', 'perfiles-tabla']
 const fLeads = (ls: Lead[]) => filasDeLeads(ls, () => '', undefined, { label: 'Días sin actividad', de: (l) => diasSinActividad(l) })
 const HOY = 'foto de hoy, sin importar las fechas del tablero'
 /** La tarea de seguimiento del lead (Randall 23-sep, detalle de cada etapa del embudo): sin tarea, vigente o vencida, y
@@ -255,20 +255,27 @@ const VISTAS_CONV: { id: PorConversion | 'ventas'; label: string }[] = [
 /** La tarjeta «Conversión» abre esto: la tasa por asesor (o por origen del lead) con leads asignados, cierres, días
  *  promedio de cierre y tasa; el nombre de cada renglón abre sus leads uno por uno. «Lista de ventas» es la lista de
  *  antes. Las tres vistas se cambian arriba sin cerrar la ventana. */
-function drillConversion(corte: Corte, f: Filtros, por: PorConversion | 'ventas', abrir: (d: Drill) => void, clase?: ClaseOrigen): Drill {
+const ID_GRUPO = { pago: 't-conv-pago', organico: 't-conv-org', asesor: 't-conv-ase' } as const
+const INFO_GRUPO = { pago: 'Conversión pago', organico: 'Conversión orgánico', asesor: 'Conversión asesor' } as const
+const QUE_ENTRA: Record<GrupoOrigen, string> = {
+  pago: 'Meta Ads, Google Ads, TikTok, Wapp-FB (WhatsApp de un anuncio) y todo lo marcado «- Ad»',
+  organico: 'web y redes orgánicas, Directo, WhatsApp, Instagram, Redes Sociales, Web Form de HubSpot, Llamada entrante y Google Maps',
+  asesor: 'referidos, cambaceo, expo, expansión y los leads sin origen',
+}
+function drillConversion(corte: Corte, f: Filtros, por: PorConversion | 'ventas', abrir: (d: Drill) => void, clase?: GrupoOrigen): Drill {
   const cv = conversion(corte, f, por === 'ventas' ? 'asesor' : por, clase)
   const periodo = periodoTexto(cv.rango)
-  // Con canal (digital / no digital) no hay «Lista de ventas»: una venta de la app sin lead no siempre dice su origen.
+  // Con grupo de origen (pago / orgánico / asesor) no hay «Lista de ventas»: una venta de la app sin lead no siempre dice su origen.
   const vistas = VISTAS_CONV.filter((x) => !clase || x.id !== 'ventas').map((x) => ({ label: x.label, on: x.id === por, onClick: () => abrir(drillConversion(corte, f, x.id, abrir, clase)) }))
   const sub = `${fmtN(cv.cierres.length)} cierres / ${fmtN(cv.leads.length)} leads asignados sin perdidos ${periodo} = ${fmtTasa(cv.leads.length ? cv.cierres.length / cv.leads.length : null)}`
   if (por === 'ventas') return { titulo: 'Ventas que cuentan en la conversión', filas: fVentas(ventasFiltradas(corte, f)), sub, vistas }
   const pie = `Tasa = cierres entre leads asignados en los meses que toca el rango, SIN los perdidos: un lead descartado no cuenta (la app de comisiones guarda el mes de la venta, no el día). `
     + `Días de cierre = de la asignación del lead al día en que el CRM lo marcó ganado: ${fmtN(cv.casadas)} de ${fmtN(cv.cierres.length)} ventas se casaron con su lead `
     + `y ${fmtN(cv.conDias)} tienen ese día. ${por === 'origen' && !clase ? 'Una venta sin lead casado no tiene origen y va en su propio renglón, sin tasa. ' : ''}`
-    + (clase ? `Solo ${CLASE_LABEL[clase]}: ${clase === 'digital' ? 'Meta Ads, Google Ads, TikTok, Wapp-FB, Web Form, web y redes orgánicas, WhatsApp y llamadas entrantes' : 'referidos, cambaceo, expo, directo, expansión y sin origen'}; los leads sin origen también cuentan aquí para no perderse. Una venta sin lead casado cuenta por el origen que capturó la app. Digital + no digital = la conversión total. ` : '')
+    + (clase ? `Solo ${GRUPO_LABEL[clase]}: ${QUE_ENTRA[clase]}. Una venta sin lead casado cuenta por el origen que capturó la app. Pago + orgánico + asesor = la conversión total. ` : '')
     + 'Clic en el nombre abre sus leads.'
   const self: Drill = {
-    titulo: (clase ? `Tasa de conversión ${CLASE_LABEL[clase]}` : 'Tasa de conversión') + (por === 'asesor' ? ' por asesor' : ' por origen del lead'), sub, pie, vistas,
+    titulo: (clase ? `Tasa de conversión ${GRUPO_LABEL[clase]}` : 'Tasa de conversión') + (por === 'asesor' ? ' por asesor' : ' por origen del lead'), sub, pie, vistas,
     clave: 'conv-' + por, nombreLabel: por === 'asesor' ? 'Asesor' : 'Origen del lead', unidad: por === 'asesor' ? ['asesor', 'asesores'] : ['origen', 'orígenes'], sin: ['crm', 'asesor', 'cuando', 'monto'], verLabel: 'Ver sus leads',
     filas: filasConversion(cv),
     verFila: (fila) => {
@@ -391,16 +398,17 @@ function widgetsTablero(corte: Corte, filtros: Filtros, d: Datos, ax: Acciones):
     W('t-conversion', 'Conversión ventas / asignados', (
         <button type="button" className="tile tbtn t4" onClick={() => abrir(drillConversion(corte, filtros, 'asesor', abrir))} aria-label={`Conversión ${leadsVentas.length ? pct(ventas.length, leadsVentas.length) + '%' : 'sin dato'}. Ver detalle`}><div className="n">{leadsVentas.length ? pct(ventas.length, leadsVentas.length) + '%' : '—'}</div><div className="l">Ventas cerradas entre leads asignados sin perdidos {periodoV}</div></button>
     ), { plain: true, span: 1, alto: 4, cls: 'wtile', info: ['Conversión'], desde: 'cifras' }),
-    // La misma conversión partida por canal del origen (junta 23-sep); la de arriba sigue juntando los dos.
-    ...(['digital', 'nodigital'] as const).map((k) => {
+    // La misma conversión partida por GRUPO del origen (Randall 24-sep: pago · orgánico · asesor; sustituye a digital /
+    // no digital). «Pago» y «Orgánico» heredan el lugar de las dos tarjetas viejas en los acomodos guardados.
+    ...(['pago', 'organico', 'asesor'] as const).map((k) => {
       const cv = conversion(corte, filtros, 'asesor', k), n = cv.leads.length, t = n ? pct(cv.cierres.length, n) + '%' : '—'
-      const titulo = 'Tasa de conversión ' + CLASE_LABEL[k]
-      // ids «-dig»: las primeras («-digital») cayeron en huecos sueltos de los acomodos guardados y nadie las
-      // encontraba (Randall 24-sep); con id nuevo entran de nuevo, ahora pegadas a «Conversión» (`junto`).
-      return W(k === 'digital' ? 't-conv-dig' : 't-conv-nodig', titulo, (
+      const titulo = 'Tasa de conversión ' + GRUPO_LABEL[k]
+      const corto = { pago: 'Origen de pago', organico: 'Origen orgánico', asesor: 'Origen asesor' }[k]
+      return W(ID_GRUPO[k], titulo, (
         <button type="button" className="tile tbtn t4" onClick={() => abrir(drillConversion(corte, filtros, 'asesor', abrir, k))} aria-label={`${titulo}: ${t}, ${fmtN(cv.cierres.length)} cierres de ${fmtN(n)} leads. Ver detalle`}>
-          <div className="n">{t}</div><div className="l">{k === 'digital' ? 'Origen digital' : 'Origen no digital'}: {fmtN(cv.cierres.length)} cierres de {fmtN(n)} leads asignados sin perdidos {periodoTexto(cv.rango)}</div></button>
-      ), { plain: true, span: 1, alto: 4, cls: 'wtile', info: [k === 'digital' ? 'Conversión digital' : 'Conversión no digital'], junto: k === 'digital' ? 't-conversion' : 't-conv-dig' })
+          <div className="n">{t}</div><div className="l">{corto}: {fmtN(cv.cierres.length)} cierres de {fmtN(n)} leads asignados sin perdidos {periodoTexto(cv.rango)}</div></button>
+      ), { plain: true, span: 1, alto: 4, cls: 'wtile', info: [INFO_GRUPO[k]],
+        ...(k === 'pago' ? { hereda: 't-conv-dig', junto: 't-conversion' } : k === 'organico' ? { hereda: 't-conv-nodig', junto: 't-conv-pago' } : { junto: 't-conv-org' }) })
     }),
     W('t-perdida', 'Tasa de pérdida', (
         <button type="button" className="tile tbtn t5" onClick={() => ver('Leads perdidos · asignados en el rango', filasDeLeads(perdidos, (l) => `Perdido · ${l.razon || 'sin razón'}`, (l) => l.cerrado), rango + ' · fecha = descarte')} aria-label={`Tasa de pérdida ${pct(perdidos.length, baseAsignados)}%: ${fmtN(perdidos.length)} perdidos de ${fmtN(baseAsignados)} asignados. Ver detalle`}><div className="n">{pct(perdidos.length, baseAsignados)}%</div><div className="l">{fmtN(perdidos.length)} perdidos de {fmtN(baseAsignados)} leads asignados en el periodo{perdidos.some((l) => !l.razon) ? ` · ${fmtN(perdidos.filter((l) => !l.razon).length)} sin razón registrada` : ''}</div></button>
@@ -1143,14 +1151,14 @@ const wg = (id: string, titulo: string, nodo: React.ReactNode, opts: Partial<Wid
 /** Los widgets del tablero general que TAMBIÉN tienen sentido para una persona: los mismos números,
  *  fijados a ella (Randall 10-sep, diseño del PDF). Fuera quedan los de equipo (salud, ranking,
  *  perfiles) y los que la ficha ya cuenta a su manera (avance contra la meta, ventas reales). */
-const FICHA_COMPARTIDOS = ['t-cotizaciones', 't-descartes', 't-levantamientos', 't-leads', 't-ventas', 't-conversion', 't-conv-dig', 't-conv-nodig', 't-perdida', 't-tareas', 'embudo', 'etapas', 'contacto', 'llamadas']
+const FICHA_COMPARTIDOS = ['t-cotizaciones', 't-descartes', 't-levantamientos', 't-leads', 't-ventas', 't-conversion', 't-conv-pago', 't-conv-org', 't-conv-ase', 't-perdida', 't-tareas', 'embudo', 'etapas', 'contacto', 'llamadas']
 /** El orden con el que abre la ficha: evolución, el resumen de la persona, sus cifras, el embudo,
  *  cómo atiende, su actividad y sus pendientes. */
 const ORDEN_FICHA = [
   'ev', 'ev-tabla',
   'ventas', 'cumplimiento', 'cierre',
   't-cotizaciones', 'cotizado', 't-descartes', 't-levantamientos',
-  't-leads', 't-ventas', 't-conversion', 't-conv-dig', 't-conv-nodig', 't-perdida', 't-tareas',
+  't-leads', 't-ventas', 't-conversion', 't-conv-pago', 't-conv-org', 't-conv-ase', 't-perdida', 't-tareas',
   'reales', 'embudo', 'etapas', 'contacto', 'llamadas',
   'actividad', 'leads', 'tareas',
 ]

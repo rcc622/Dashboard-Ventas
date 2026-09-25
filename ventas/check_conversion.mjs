@@ -56,9 +56,9 @@ const ana = det.find((x) => x.nombre === 'ANA RUIZ SOTO').extras
 assert.equal(ana.find((e) => e.label === 'Fecha de cierre').valor.includes('(solo el mes)'), true)
 assert.equal(ana.find((e) => e.label === 'Levantamiento').valor, 'Sin levantamiento')
 assert.ok(M.filasConversion(pa)[0].extras.some((e) => e.label === 'Cierres con levantamiento'))
-// Sin origen va a no digital: las dos juntas suman la total
-const dg = M.conversion(corte, f, 'asesor', 'digital'), nd = M.conversion(corte, f, 'asesor', 'nodigital')
-assert.equal(dg.leads.length + nd.leads.length, pa.leads.length); assert.equal(dg.cierres.length + nd.cierres.length, pa.cierres.length)
+// Pago + orgánico + asesor suman la total
+const gs = ['pago', 'organico', 'asesor'].map((g) => M.conversion(corte, f, 'asesor', g))
+assert.equal(gs.reduce((a, x) => a + x.leads.length, 0), pa.leads.length); assert.equal(gs.reduce((a, x) => a + x.cierres.length, 0), pa.cierres.length)
 
 // Constructor: la tasa por origen deja fuera la venta sin lead y el total cuadra con la tarjeta
 const g = { id: 't', titulo: '', medida: 'conversion', dim: 'origen_lead', tipo: 'hbar' }
@@ -77,10 +77,10 @@ assert.equal(M.autoTitulo({ ...gv, resultado: 'promedio' }), 'Promedio de contra
 // Una medida de conteo no ofrece promedio; el acumulado solo con tiempo
 assert.deepEqual(M.resultadosDe(['leads'], 'asesor', 'hbar'), ['suma', 'pct'])
 assert.deepEqual(M.resultadosDe(['leads'], 'mes', 'vbar'), ['suma', 'pct', 'acumulado'])
-// Canal del origen (junta 23-sep)
-for (const o of ['Meta Ads', 'Wapp-FB', 'Web Form', 'TikTok', 'Google Ads', 'Web orgánico', 'REDES SOCIALES', 'WA-FB Directo', 'Llamada entrante']) assert.equal(M.claseOrigen(o), 'digital', o)
-for (const o of ['Referido', 'REFERIDO', 'Cambaceo', 'Expo', 'Directo', 'EXPANSIÓN']) assert.equal(M.claseOrigen(o), 'nodigital', o)
-for (const o of ['Sin origen', '', null, 'OTRO']) assert.equal(M.claseOrigen(o), 'nodigital', String(o))
+// Grupo del origen (24-sep): pago · orgánico · asesor
+for (const o of ['Meta Ads', 'Wapp-FB', 'TikTok', 'Google Ads', 'Web Form - Ad', 'Facebook - Ad', 'Tiktok - Ad', 'REDES SOCIALES', 'WA-FB Directo']) assert.equal(M.grupoOrigen(o), 'pago', o)
+for (const o of ['Web orgánico', 'Redes orgánico', 'Tiktok - Organic', 'Web Form - Organic', 'Directo', 'WhatsApp', 'Instagram', 'Redes Sociales', 'Web Form', 'Llamada entrante', 'Google Maps']) assert.equal(M.grupoOrigen(o), 'organico', o)
+for (const o of ['Referido', 'REFERIDO', 'Cambaceo', 'Expo', 'EXPANSIÓN', 'Sin origen', '', null, 'OTRO', M.SIN_LEAD]) assert.equal(M.grupoOrigen(o), 'asesor', String(o))
 // Ritmo: avance porcentual contra el día del periodo y proyección
 const rr = { ini: Date.UTC(2026, 8, 1) / 1000 + 6 * 3600, fin: Date.UTC(2026, 9, 1) / 1000 + 6 * 3600, label: 'sep' }
 const rt = M.ritmo(300000, 1000000, rr, rr.ini + 14.5 * 86400)

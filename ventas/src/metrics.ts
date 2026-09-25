@@ -984,16 +984,23 @@ export function baseCierre(c: Corte): (l: Lead) => boolean {
   return (l) => l.funnel !== 0 && !ya.has(l.id)
 }
 export type PorConversion = 'asesor' | 'origen'
-/** Canal del origen (junta 23-sep): no digital = referidos, cambaceo, expo, directo, expansión y también lo que no
- *  dice origen (Randall 24-sep: «sin origen que se vaya a no digital, que no se pierda»); digital = lo que entra por
- *  anuncio, red, web o WhatsApp (Meta Ads, Google Ads, TikTok, Wapp-FB, Web Form…). Las dos suman la conversión total. */
-export type ClaseOrigen = 'digital' | 'nodigital'
-export function claseOrigen(o: string | null | undefined): ClaseOrigen {
+/** Grupo del origen (Randall 24-sep, sustituye a digital / no digital: «saber la tasa de cierre de lo orgánico y de lo
+ *  de pago y así tomar mejores decisiones»): **pago** = anuncios (Meta Ads, Google Ads, TikTok, Wapp-FB = WhatsApp de un
+ *  anuncio de Facebook, cualquier «- Ad»); **asesor** = lo que consigue el asesor (referido, cambaceo, expo, expansión) y
+ *  también «Sin origen» (decisión de Randall: «sin origen ponlo en asesor»); **orgánico** = todo lo demás (web y redes
+ *  orgánicas, Directo, WhatsApp, Instagram, «Redes Sociales», «Web Form» de HubSpot, Llamada entrante, Google Maps).
+ *  Los tres suman la conversión total. En la app de comisiones «REDES SOCIALES» cuenta como pago (casi todo lo que
+ *  entra por redes viene de los anuncios de WhatsApp). */
+export type GrupoOrigen = 'pago' | 'organico' | 'asesor'
+export function grupoOrigen(o: string | null | undefined): GrupoOrigen {
   const s = (o || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
-  if (!s || s === 'sin origen' || s === 'otro' || s === SIN_LEAD.toLowerCase()) return 'nodigital'
-  // «Llamada entrante» (nuevo origen de Kommo, 24-sep) cuenta como digital: marcan a los números de los anuncios y la web.
-  return /^(referid|cambaceo|expo|directo$|expansi)/.test(s) ? 'nodigital' : 'digital'
+  if (!s || s === 'sin origen' || s === 'otro' || s === SIN_LEAD.toLowerCase() || /^(referid|cambaceo|expo|expansi)/.test(s)) return 'asesor'
+  if (s.includes('organic')) return 'organico'
+  if (/^(meta ads|google ads|tiktok|wapp-fb|wa-fb|fb-form|facebook ads)/.test(s) || /(^|\s|-)ads?$/.test(s)) return 'pago'
+  if (o === 'REDES SOCIALES') return 'pago'   // así la escribe la app de comisiones; la «Redes Sociales» de HubSpot es orgánica
+  return 'organico'
 }
+export const GRUPO_LABEL: Record<GrupoOrigen, string> = { pago: 'origen de pago', organico: 'origen orgánico', asesor: 'origen asesor' }
 /** El levantamiento del lead para las tablas de conversión (Randall 24-sep: «cuántos de esos cierres sí tuvieron
  *  levantamiento agendado»): hecho > agendado > solicitado, con su fecha. */
 export function levDe(l: Lead | null | undefined): { txt: string; ts: number | null } {
@@ -1007,7 +1014,6 @@ export function levDe(l: Lead | null | undefined): { txt: string; ts: number | n
 const conLev = (l: Lead | null | undefined) => !!l && !!(l.lev_hecho || l.lev_cita || l.lev_agendado || l.levantamiento)
 /** Agendado en /agendar (o entró a la etapa «Levantamiento agendado» / «hecho»). */
 const agendado = (l: Lead) => !!(l.lev_cita || l.lev_agendado || l.lev_hecho)
-export const CLASE_LABEL: Record<ClaseOrigen, string> = { digital: 'origen digital', nodigital: 'origen no digital' }
 /** Un renglón de la conversión: sus leads asignados del periodo, sus ventas y la tasa. `dias` = promedio de días de la
  *  asignación al cierre entre las `nDias` ventas que tienen fecha de cierre exacta. */
 export interface FilaConv { clave: string; label: string; leads: Lead[]; cierres: VentaCasada[]; tasa: number | null; dias: number | null; nDias: number; nota?: string }
@@ -1020,13 +1026,13 @@ export function cierresDe(c: Corte, f: Filtros): VentaCasada[] {
 }
 /** Ventas del periodo entre leads asignados del periodo, partido por asesor o por origen del lead. Misma regla que la
  *  tarjeta «Conversión»: los MESES que toca el rango, porque la app de comisiones guarda el mes de la venta, no el día. */
-export function conversion(c: Corte, f: Filtros, por: PorConversion, clase?: ClaseOrigen): Conversion {
+export function conversion(c: Corte, f: Filtros, por: PorConversion, clase?: GrupoOrigen): Conversion {
   const rango = rangoVentas(c, f.rango), ff = { ...f, rango }, users = mapaUsuarios(c)
   let leads = leadsFiltrados(c, ff).filter(baseCierre(c)), cierres = cierresDe(c, ff)
   // Por canal: el lead por su origen; una venta sin lead casado, por el origen que capturó la app.
   if (clase) {
-    leads = leads.filter((l) => claseOrigen(origenDe(l)) === clase)
-    cierres = cierres.filter((x) => claseOrigen(x.lead ? origenDe(x.lead) : x.v?.origen) === clase)
+    leads = leads.filter((l) => grupoOrigen(origenDe(l)) === clase)
+    cierres = cierres.filter((x) => grupoOrigen(x.lead ? origenDe(x.lead) : x.v?.origen) === clase)
   }
   const m = new Map<string, FilaConv>()
   const fila = (clave: string, label: string) => { let x = m.get(clave); if (!x) { x = { clave, label, leads: [], cierres: [], tasa: null, dias: null, nDias: 0 }; m.set(clave, x) } return x }

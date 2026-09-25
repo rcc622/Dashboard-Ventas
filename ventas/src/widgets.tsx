@@ -26,7 +26,7 @@ import type { Acomodo, Yo } from './types'
 /** `junto`: un widget nuevo entra pegado a ese (a su derecha si cabe, si no debajo empujando lo demás) en vez de caer
  *  en el primer hueco libre, donde nadie lo encuentra (tarjetas de conversión digital, 24-sep). `minAlto`: filas mínimas
  *  aunque el acomodo guardado diga menos (el contenido creció: «Avance contra la meta» con la línea del avance, 24-sep). */
-export interface Widget { id: string; titulo: string; nodo: ReactNode; span?: number; alto?: number; plain?: boolean; info?: Termino[]; ayuda?: string; cls?: string; desde?: string; junto?: string; minAlto?: number; grafica?: Grafica; base?: BaseFecha }
+export interface Widget { id: string; titulo: string; nodo: ReactNode; span?: number; alto?: number; plain?: boolean; info?: Termino[]; ayuda?: string; cls?: string; desde?: string; junto?: string; hereda?: string; minAlto?: number; grafica?: Grafica; base?: BaseFecha }
 /** Lo que la página presta para las gráficas propias (constructor.tsx): dibujarlas, la galería y el editor. */
 export interface Constructor {
   render: (g: Grafica) => ReactNode
@@ -139,6 +139,9 @@ function sanear(l: Layout, widgets: Widget[]): Layout {
   // Un widget nuevo que nace de otro (`desde`) y cabe a su derecha parte al viejo en dos en vez de caer
   // al primer hueco (Perfiles → matriz + tabla, 6-sep); si no cabe, va al primer hueco como los demás.
   for (const w of widgets) { const o = w.desde ? pos[w.desde] : undefined; if (o && !(w.id in pos) && !ocultos.includes(w.id) && o.w >= 2 * anchoDe(w)) { o.w -= anchoDe(w); pos[w.id] = { x: o.x + o.w, y: o.y, w: anchoDe(w), h: o.h } } }
+  // `hereda`: un widget que sustituye a otro toma su lugar exacto en el acomodo guardado (tarjetas de conversión por
+  // grupo de origen en lugar de digital / no digital, 24-sep).
+  for (const w of widgets) { const o = w.hereda ? l.pos[w.hereda] : undefined; if (o && !(w.id in pos) && !ocultos.includes(w.id) && !Object.values(pos).some((p) => choca(o, p))) pos[w.id] = { ...o } }
   for (const w of widgets) if (w.minAlto && pos[w.id] && pos[w.id].h < w.minAlto) { pos[w.id] = { ...pos[w.id], h: w.minAlto }; Object.assign(pos, acomodar(pos, w.id)) }
   for (const w of widgets) {
     const o = w.junto ? pos[w.junto] : undefined

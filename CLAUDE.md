@@ -559,6 +559,13 @@ app.py             /ventas/ (index) · /ventas/assets/* · /ventas/data.json —
   lee `lev_cita` (la cita, si trae dirección o zona) y `lev_asesor`; `levDe` muestra «Agendado · visita 12 sep» y la
   tabla de conversión suma la columna «Levantamientos agendados» (leads del renglón con cita o etapa). Los agendados
   por el flujo externo (`/agendar/nuevo/{zona}`, asesores sin Kommo) no tienen lead y no se pueden casar.
+  (j) **Pago · orgánico · asesor sustituye a digital / no digital** (Randall 24-sep: «saber la tasa de cierre de lo
+  orgánico y de lo de pago»). `grupoOrigen()` + `GRUPO_LABEL`; tarjetas `t-conv-pago` / `t-conv-org` / `t-conv-ase`.
+  Pago = Meta/Google/TikTok Ads, Wapp-FB, «- Ad», y «REDES SOCIALES» de la app de comisiones; asesor = referido,
+  cambaceo, expo, expansión + «Sin origen» (decisión de Randall); orgánico = lo demás (Directo, WhatsApp, Web Form de
+  HubSpot, Llamada entrante, Google Maps…). Suman la total. `Widget.hereda`: pago y orgánico toman el lugar exacto de
+  las tarjetas viejas en los acomodos guardados. ⚠️ Asesor sale inflado mientras la app de comisiones deje el origen
+  vacío (915 de 1,206 ventas) y la venta no se case con su lead: esas ventas caen en «Sin origen» → asesor.
   (h) El detalle de leads de la conversión trae «Tareas completadas · Llamadas realizadas · Contestadas · No contestadas»
   por lead (`actividadPorLead`, ventana del corte). HubSpot liga también las TAREAS COMPLETADAS al deal
   (`ligar_llamadas(hechas, leads, "tasks")`), así que eso también alimenta primer contacto en HubSpot.
