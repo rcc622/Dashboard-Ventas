@@ -32,6 +32,8 @@ export interface Lead {
   lev_agendado?: number; lev_hecho?: number
   /** Kommo: visita agendada en la página /agendar (Próxima cita) y quién la atiende (24-sep). */
   lev_cita?: number; lev_asesor?: string
+  /** Kommo: «Grupo de origen» sellado por el server (Pago / Orgánico / Asesor); manda sobre el que se deduce del origen. */
+  grupo?: string
   /** De dónde vino el lead (Randall 22-sep, tasa de cierre por origen): Kommo = el canal que decide crm_kommo
    *  (Meta Ads, Google Ads, Web orgánico, Redes orgánico, Directo, Sin origen); HubSpot = su propiedad «origen» tal cual.
    *  `contacto` = nombre del contacto en Kommo (el del lead suele ser «Lead #123»), para casar la venta de la app. */

@@ -1000,6 +1000,10 @@ export function grupoOrigen(o: string | null | undefined): GrupoOrigen {
   if (o === 'REDES SOCIALES') return 'pago'   // así la escribe la app de comisiones; la «Redes Sociales» de HubSpot es orgánica
   return 'organico'
 }
+const GRUPO_CF: Record<string, GrupoOrigen> = { Pago: 'pago', 'Orgánico': 'organico', Asesor: 'asesor' }
+/** El grupo de un lead: el sello de Kommo si lo tiene (no cambia aunque una fusión deje el origen en «Directo»), si no
+ *  el que se deduce de su origen. */
+export const grupoLead = (l: Lead): GrupoOrigen => GRUPO_CF[l.grupo || ''] ?? grupoOrigen(origenDe(l))
 export const GRUPO_LABEL: Record<GrupoOrigen, string> = { pago: 'origen de pago', organico: 'origen orgánico', asesor: 'origen asesor' }
 /** El levantamiento del lead para las tablas de conversión (Randall 24-sep: «cuántos de esos cierres sí tuvieron
  *  levantamiento agendado»): hecho > agendado > solicitado, con su fecha. */
@@ -1031,8 +1035,8 @@ export function conversion(c: Corte, f: Filtros, por: PorConversion, clase?: Gru
   let leads = leadsFiltrados(c, ff).filter(baseCierre(c)), cierres = cierresDe(c, ff)
   // Por canal: el lead por su origen; una venta sin lead casado, por el origen que capturó la app.
   if (clase) {
-    leads = leads.filter((l) => grupoOrigen(origenDe(l)) === clase)
-    cierres = cierres.filter((x) => grupoOrigen(x.lead ? origenDe(x.lead) : x.v?.origen) === clase)
+    leads = leads.filter((l) => grupoLead(l) === clase)
+    cierres = cierres.filter((x) => (x.lead ? grupoLead(x.lead) : grupoOrigen(x.v?.origen)) === clase)
   }
   const m = new Map<string, FilaConv>()
   const fila = (clave: string, label: string) => { let x = m.get(clave); if (!x) { x = { clave, label, leads: [], cierres: [], tasa: null, dias: null, nDias: 0 }; m.set(clave, x) } return x }

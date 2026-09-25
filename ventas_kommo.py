@@ -44,6 +44,7 @@ FIELD_CITA = 1831443         # date_time «Próxima cita» = día y hora de la v
 FIELD_LEV_DIRECCION = 1833327  # requerido en /agendar desde el 12-ago
 FIELD_LEV_ZONA = 1833703     # «Zona del levantamiento», solo lo escribe /agendar (8-sep)
 FIELD_LEV_ASESOR = 1833893   # «Asesor del levantamiento» (23-sep)
+FIELD_GRUPO_ORIGEN = 1833905  # «Grupo de origen» Pago/Orgánico/Asesor: lo sella el server de Kommo (24-sep)
 FIELD_COTIZACION = 1833423   # date_time "Cotización entregada" (a mano; cubre el 25 %: solo respaldo)
 ET_PROPUESTA = 109436768     # etapa «Propuesta entregada» del embudo Ventas: entrar aquí ES la cotización
 ET_LEV_AGENDADO = 110266952  # etapa «Levantamiento agendado»: entrar aquí ES agendar la visita
@@ -442,6 +443,7 @@ def build():
             # Agendado por /agendar = trae dirección o zona del levantamiento; la visita es la «Próxima cita».
             "lev_cita": int(num(cfv.get(FIELD_CITA))) if (cfv.get(FIELD_LEV_DIRECCION) or cfv.get(FIELD_LEV_ZONA)) else 0,
             "lev_asesor": str(cfv.get(FIELD_LEV_ASESOR) or "").strip(),
+            "grupo": str(cfv.get(FIELD_GRUPO_ORIGEN) or "").strip(),
             "ult_actividad": max(H2["ult"], ts_llam, ts_cot, ts_lev),
             "cerrado": l.get("closed_at") or 0,
         })
